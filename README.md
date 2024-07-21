@@ -1,5 +1,5 @@
 # Power-BI
-Holding Power BI development files to benefit fantasy owners and provide them with the provide an analytical tool for team managers.
+Holding Power BI development files build to help manage league needs as well as benefit fantasy team managers such as myself (I want all rookie information as they are REALLY important assets).
 
 
 **Power BI Service, Fantasy Football Workspace** - I've stopped doing this but the work here is used to enhance a salary league as well as providing a rookie player analytical reports for dynasty leagues. Much fun.
