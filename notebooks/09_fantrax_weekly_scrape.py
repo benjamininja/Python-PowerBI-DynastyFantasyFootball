@@ -263,7 +263,31 @@ def summarize_schema(node, depth: int = 0, max_depth: int = 3):
         summarize_schema(node[0], depth + 1, max_depth)
 
 
-_IDP_POS = {"DL", "LB", "DB", "EDGE", "CB", "S", "DT", "DE", "OLB", "ILB", "SS", "FS"}
+# Fallback defensive codes if dim_position isn't seeded yet (fresh clone /
+# scheduled run before the dimension exists).
+_IDP_POS_FALLBACK = {"DL", "LB", "DB", "EDGE", "CB", "S", "DT", "DE", "OLB", "ILB", "SS", "FS"}
+
+
+def _idp_positions(cfg: LeagueConfig) -> set:
+    """
+    Defensive position codes, sourced from dim_position (single source of truth)
+    so a new defensive code added there is picked up automatically. The hardcoded
+    fallback is a strict subset, used only when dim_position.parquet is absent.
+    """
+    path = Path(cfg.data_dir) / "dim_position.parquet"
+    if path.exists():
+        try:
+            dp = pd.read_parquet(path)
+            codes = set(dp.loc[dp["side_of_ball"] == "Defense", "position_raw"].str.upper())
+            if codes:
+                return codes
+        except Exception as e:
+            print(f"[warn] could not read dim_position ({e}); using IDP fallback set")
+    return set(_IDP_POS_FALLBACK)
+
+
+# Resolved once at import; offense/IDP split in extract_ranked_board uses it.
+_IDP_POS = _idp_positions(CFG)
 
 
 def _is_idp(scorer: dict) -> bool:
