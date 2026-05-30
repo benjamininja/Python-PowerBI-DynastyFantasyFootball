@@ -1,0 +1,30 @@
+scorer_id,player_name,position_raw,nfl_team,is_rookie,gsis_id,player_key,match_method,match_score,resolved_date,action
+06s66,Cameron Skattebo,RB,NYG,False,,,review,86,2026-05-30,match
+060sy,Chigoziem Okonkwo,TE,WAS,False,,,review,83,2026-05-30,match
+06bg9,Christopher Brooks,RB,GB,False,,,review,80,2026-05-30,match
+050da,Cameron Lewis,DB,CHI,False,,,review,83,2026-05-30,match
+05yew,DeAundre Alford,DB,BUF,False,,,review,80,2026-05-30,match
+06loy,Eli Neal,LB,LAR,False,,,review,89,2026-05-30,match
+05jeg,Kamren Curl,DB,LAR,False,,,review,84,2026-05-30,match
+05jb2,Justin Madubuike,DL,BAL,False,,,review,74,2026-05-30,match
+04yqd,Chauncey Gardner-Johnson,DB,BUF,False,,,review,81,2026-05-30,match
+06b7m,Basil Chijioke Okoye,DL,BAL,False,,,review,71,2026-05-30,match
+06b7i,David Ebuka Agoha,DL,TEN,False,,,review,79,2026-05-30,match
+06ao7,Jartavius Martin,DB,WAS,False,,,review,76,2026-05-30,match
+06sv7,Quandarrius Robinson,LB,DEN,False,,,review,86,2026-05-30,match
+0617k,Nathan Landman,LB,LAR,False,,,review,85,2026-05-30,match
+0617e,Timothy Horne,DL,TEN,False,,,review,83,2026-05-30,match
+072jx,Robert Carter,DB,IND,True,,,review,88,2026-05-30,match
+0755f,Scooby Williams,LB,MIN,True,,,review,86,2026-05-30,unresolved
+060x6,Haggai Chisom Ndubuisi,DL,TB,False,,,review,81,2026-05-30,match
+060jy,Ahmad Gardner,DB,IND,False,,,review,75,2026-05-30,match
+07532,Gabriel Rubio,DL,PIT,True,,,review,87,2026-05-30,match
+075cs,Cameron Robertson,"DL,LB",ARI,True,,,review,87,2026-05-30,match
+061c3,Jake Hummel,LB,HOU,False,,,review,78,2026-05-30,match
+05rm2,Joe Tryon,"DL,LB",PHI,False,,,review,84,2026-05-30,match
+04oio,Foyesade Oluokun,LB,JAX,False,,,review,86,2026-05-30,match
+05rld,Jayson Oweh,LB,WAS,False,,,review,80,2026-05-30,match
+075hr,Christian Thomas,LB,LV,True,,,review,88,2026-05-30,match
+075rf,Tyce Westland,DL,DEN,True,,,review,73,2026-05-30,unresolved
+075oz,Jy Gilmore,DB,TB,True,,,review,86,2026-05-30,unresolved
+075p0,Riley Wilson,LB,TB,True,,,review,85,2026-05-30,match

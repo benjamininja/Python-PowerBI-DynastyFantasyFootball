@@ -1,0 +1,4 @@
+scorer_id,player_name,position_raw,nfl_team,is_rookie,gsis_id,player_key,match_method,match_score,resolved_date,action
+06s66,Cameron Skattebo,RB,NYG,FALSE,,,review,86,5/29/2026,match
+060sy,Chigoziem Okonkwo,TE,WAS,FALSE,,,review,83,5/29/2026,match
+06bg9,Christopher Brooks,RB,GB,FALSE,,,review,80,5/29/2026,match
