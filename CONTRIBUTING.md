@@ -34,7 +34,7 @@ gh pr create --base main --head dev --draft --title "..." --body "..."
 - Bullet detail on what changed and why
 - Reference any notebook numbers (08e, 09a, etc.)
 
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+Co-Authored-By: Claude Sonnet 4.6; Opus 4.8 <noreply@anthropic.com>
 ```
 
 ## What lives in git
@@ -44,8 +44,6 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 | `notebooks/*.ipynb` | `data/.pw_profile/` (Playwright session — contains tokens) |
 | `notebooks/*.py` | `.env`, `api_key.txt` (credentials) |
 | `data/*.parquet` | `.venv/` (Python environment) |
-| `data/raw/*.json` | `__pycache__/`, `.ipynb_checkpoints/` |
-| `data/review/*.csv` | |
 | `data/*.xlsx` | |
 | `pbi/*.pbix` | |
 
@@ -55,3 +53,4 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 the Fantrax headless scraper (`09_fantrax_weekly_scrape.py`) and contained a
 Mapbox token in the original commit history. That history was rewritten via
 `git filter-repo` on 2026-05-30. **Never force-add this directory.**
+`data/raw/` and `data/review/` gitignored. Not relevant for git repo.
