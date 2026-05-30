@@ -1,0 +1,29 @@
+# ── Playwright session (contains browser tokens / secrets) ───────────────────
+data/.pw_profile/
+
+# ── Credentials ───────────────────────────────────────────────────────────────
+.env
+*.env
+api_key.txt
+
+# ── Python ────────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.vscode/settings.json
