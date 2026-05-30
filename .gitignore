@@ -1,5 +1,8 @@
 # ── Playwright session (contains browser tokens / secrets) ───────────────────
 data/.pw_profile/
+# ── Unneccessary ─────────────────────────────────────────────────────────────
+data/raw/
+data/review/
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 .env
