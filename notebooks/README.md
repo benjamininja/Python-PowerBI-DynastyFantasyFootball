@@ -46,6 +46,7 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 | 03z | `03z_apply_fuzzy_review.ipynb` | Applies `data/review/review_fuzzy_matches.csv` decisions |
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
 | 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_rankings` + `fact_dynasty_ranking_metrics` + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
+| 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
@@ -61,6 +62,7 @@ is comparable across them, so `04` splits into:
 - `fact_dynasty_ranking_metrics` — **long** companion (`metric_key → metric_num/metric_text`);
   new sources/metrics add rows, never columns.
 - `dim_dynasty_crosswalk` — `(source, source_player_id) → gsis_id + player_key` (unified across sources).
+- `dim_dynasty_metric` — curated index for `metric_key` (`metric_label`/`metric_group`/`metric_order`/`direction`); use as the matrix **column axis**, sort `metric_label` by `metric_order`.
 
 Formats are a dimension (`SF`, `TEPP`, `IDP`, …). Sources: KTC = `04b` (scrape),
 DynastySharks + FantasyPros = `04x` (manual Excel). Identity is resolved by the
