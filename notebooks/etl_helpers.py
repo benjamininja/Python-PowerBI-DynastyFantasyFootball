@@ -16,7 +16,8 @@ Import pattern (notebooks run with CWD = repo root):
     import etl_helpers as etl
     from etl_helpers import CFG, DATA, REVIEW, TODAY, ALIAS, clean_player_name, ...
 
-Paths (DATA, REVIEW, ALIAS) are relative to CWD, so always run with CWD = repo root.
+Paths (DATA, REVIEW, ALIAS) are anchored to the repo root via LeagueConfig.__post_init__,
+so notebooks write to <repo>/data regardless of the CWD they run from.
 """
 import hashlib
 import json
@@ -56,6 +57,12 @@ class LeagueConfig:
     # Optional extras used by specific notebooks:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
+    # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
+    fact_name: str = "fact_fantrax_adp"
+    crosswalk_name: str = "dim_fantrax_crosswalk"
+    nfl_players_name: str = "dim_nfl_players"
+    rookie_prospect_name: str = "dim_rookie_prospect"
+    alias_name: str = "dim_player_alias"
 
     def __post_init__(self):
         # Anchor relative data paths to the repo root → CWD-independent. (Absolute
@@ -64,6 +71,18 @@ class LeagueConfig:
             self.data_dir = str(_ROOT / self.data_dir)
         if not Path(self.review_dir).is_absolute():
             self.review_dir = str(_ROOT / self.review_dir)
+
+    def path(self, name: str) -> str:
+        # Absolute parquet path for a table name (data_dir is repo-root-anchored).
+        return f"{self.data_dir}/{name}.parquet"
+
+    @property
+    def team_sheet_csv_url(self) -> str:
+        # Google Sheet team/owner registry exported as CSV (sheet must be public).
+        return (
+            f"https://docs.google.com/spreadsheets/d/{self.team_sheet_id}"
+            f"/export?format=csv&gid={self.team_sheet_gid}"
+        )
 
 
 CFG    = LeagueConfig()
