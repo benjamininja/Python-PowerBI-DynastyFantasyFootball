@@ -32,7 +32,7 @@ gh pr create --base main --head dev --draft --title "..." --body "..."
 <short imperative summary (≤72 chars)>
 
 - Bullet detail on what changed and why
-- Reference any notebook numbers (08e, 09a, etc.)
+- Reference any notebook numbers (03x, 04z, etc.)
 
 Co-Authored-By: Claude Sonnet 4.6; Opus 4.8 <noreply@anthropic.com>
 ```
@@ -50,7 +50,7 @@ Co-Authored-By: Claude Sonnet 4.6; Opus 4.8 <noreply@anthropic.com>
 ## Security rule
 
 `data/.pw_profile` is gitignored. It holds the Playwright browser session for
-the Fantrax headless scraper (`09_fantrax_weekly_scrape.py`) and contained a
+the Fantrax headless scraper (`04a_fantrax_weekly_scrape.py`) and contained a
 Mapbox token in the original commit history. That history was rewritten via
 `git filter-repo` on 2026-05-30. **Never force-add this directory.**
 `data/raw/` and `data/review/` gitignored. Not relevant for git repo.
