@@ -1,0 +1,236 @@
+/// Current draft-class prospects (pre-signing staging), keyed by player_key (MD5 of name+pos+school). Bridges to Dim_NFLPlayers via gsis_id once signed.
+table Dim_RookieProspect
+	lineageTag: 8348a419-9666-434e-8853-9b007b832d8b
+
+	/// Prospect key = MD5 of cleaned name + position + school (key).
+	column PlayerKey
+		dataType: string
+		lineageTag: a69f64a6-473c-4b99-8ce5-f2609657be09
+		summarizeBy: none
+		sourceColumn: player_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player key|prospect key|rookie key
+
+		annotation SynonymCollection = ["player key","prospect key","rookie key"]
+
+	/// Prospect display name.
+	column PlayerName
+		dataType: string
+		lineageTag: 1c8d38fc-2821-4bf1-b73d-816ec2507ec6
+		summarizeBy: none
+		sourceColumn: player_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player|name|prospect name|who
+
+		annotation SynonymCollection = ["player","name","prospect name","who"]
+
+	/// Normalized name used for cross-source matching.
+	column PlayerNameClean
+		dataType: string
+		lineageTag: 92908fb5-565b-4e64-bb39-5625eb736c33
+		summarizeBy: none
+		sourceColumn: player_name_clean
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = clean name|normalized name|match name
+
+		annotation SynonymCollection = ["clean name","normalized name","match name"]
+
+	/// Prospect position (raw); links to Dim_Position.
+	column PositionRaw
+		dataType: string
+		lineageTag: a8800231-dc12-4332-9c1d-7ad9500f7346
+		summarizeBy: none
+		sourceColumn: position_raw
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position|pos|role
+
+		annotation SynonymCollection = ["position","pos","role"]
+
+	/// Canonical detailed position.
+	column PositionDetail
+		dataType: string
+		lineageTag: 85e32990-9dbe-4d98-a138-797801f90832
+		summarizeBy: none
+		sourceColumn: position_detail
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = detailed position|position detail|pos detail
+
+		annotation SynonymCollection = ["detailed position","position detail","pos detail"]
+
+	/// Canonical position group.
+	column PositionGroup
+		dataType: string
+		lineageTag: 31c94d93-939d-4cac-9105-af78c7c6847e
+		summarizeBy: none
+		sourceColumn: position_group
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position group|group|unit
+
+		annotation SynonymCollection = ["position group","group","unit"]
+
+	/// Offense, Defense, or Special Teams.
+	column SideOfBall
+		dataType: string
+		lineageTag: 4534e484-2128-4ce2-a6a4-2deab4d189b7
+		summarizeBy: none
+		sourceColumn: side_of_ball
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = side of ball|offense or defense|side
+
+		annotation SynonymCollection = ["side of ball","offense or defense","side"]
+
+	/// Whether the prospect's position is fantasy-startable.
+	column FantasyRelevant
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: c2de1cf4-6dc4-49ac-80ff-a23026f498d1
+		summarizeBy: none
+		sourceColumn: fantasy_relevant
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = fantasy relevant|startable|relevant
+
+		annotation SynonymCollection = ["fantasy relevant","startable","relevant"]
+
+	/// Raw college name; links to Dim_School.
+	column SchoolRaw
+		dataType: string
+		lineageTag: c91f93bb-011b-4252-ab55-5a355600ff86
+		summarizeBy: none
+		sourceColumn: school_raw
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = school|college|raw school
+
+		annotation SynonymCollection = ["school","college","raw school"]
+
+	/// Canonical school name.
+	column SchoolCanonical
+		dataType: string
+		lineageTag: dc2a40a0-eabe-40cf-9f8f-86e7301de1ea
+		summarizeBy: none
+		sourceColumn: school_canonical
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = school|college|university
+
+		annotation SynonymCollection = ["school","college","university"]
+
+	/// College conference.
+	column Conference
+		dataType: string
+		lineageTag: 96e2be2d-c4fe-4722-8854-fe7c1cfa813d
+		summarizeBy: none
+		sourceColumn: conference
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = conference|college conference|conf
+
+		annotation SynonymCollection = ["conference","college conference","conf"]
+
+	/// Prospect height in inches.
+	column HeightInches
+		dataType: double
+		lineageTag: 4d7546af-3f42-4070-8f6c-d06b5569ca49
+		summarizeBy: none
+		sourceColumn: height_inches
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = height|inches tall|how tall
+
+		annotation SynonymCollection = ["height","inches tall","how tall"]
+
+	/// Prospect weight in pounds.
+	column Weight
+		dataType: double
+		lineageTag: 62a4b7f6-bdb8-498b-9673-b451f7bff1af
+		summarizeBy: none
+		sourceColumn: weight
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = weight|pounds|lbs
+
+		annotation SynonymCollection = ["weight","pounds","lbs"]
+
+	/// Draft class year.
+	column DraftYear
+		dataType: int64
+		formatString: 0
+		lineageTag: 826ca94c-5a50-4c4d-b536-0163a977844d
+		summarizeBy: none
+		sourceColumn: draft_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft year|class year|rookie year
+
+		annotation SynonymCollection = ["draft year","class year","rookie year"]
+
+	/// Source that introduced the prospect to the registry.
+	column Source
+		dataType: string
+		lineageTag: 10566581-49d8-4eb3-b415-20588bf15c4f
+		summarizeBy: none
+		sourceColumn: source
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = source|origin|added by
+
+		annotation SynonymCollection = ["source","origin","added by"]
+
+	/// Date the prospect was added to the registry.
+	column AddedDate
+		dataType: string
+		lineageTag: e455c13f-7d00-4f33-944f-738c5a0a5982
+		summarizeBy: none
+		sourceColumn: added_date
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = added date|date added|created
+
+		annotation SynonymCollection = ["added date","date added","created"]
+
+	partition Dim_RookieProspect = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_rookie_prospect.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Removed Columns" = Table.RemoveColumns(Source,{"gsis_id", "pfr_id", "cfb_id"})
+				in
+				    #"Removed Columns"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Rookie Prospects|Prospects|Draft Class|Rookies|Prospect Dimension
+
+	annotation SynonymCollection = ["Rookie Prospects","Prospects","Draft Class","Rookies","Prospect Dimension"]
+

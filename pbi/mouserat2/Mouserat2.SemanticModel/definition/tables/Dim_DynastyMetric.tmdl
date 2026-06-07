@@ -1,0 +1,107 @@
+/// Index of dynasty ranking metrics. One row per metric_key; drives the matrix column axis (label, group, order, direction) for the long metrics fact.
+table Dim_DynastyMetric
+	lineageTag: 6128caf5-04c4-4391-8f68-11b888ea6aca
+
+	/// Stable machine key for a metric (e.g. value, adp, proj_3yr). Joins to Fact_DynastyRankingMetrics; safe to relabel without breaking measures.
+	column MetricKey
+		dataType: string
+		lineageTag: af3d55b8-8dde-4309-957e-a334f7430a85
+		summarizeBy: none
+		sourceColumn: metric_key
+		sortByColumn: MetricOrder
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = metric|metric key|metric id|measure key|stat key
+
+		annotation SynonymCollection = ["metric","metric key","metric id","measure key","stat key"]
+
+	/// Human-readable metric name shown on report axes (e.g. KTC Value, FP Avg Rank, Pos. Trend).
+	column MetricLabel
+		dataType: string
+		lineageTag: 252c8564-d510-4c98-9c5a-bc6e13473369
+		summarizeBy: none
+		sourceColumn: metric_label
+		sortByColumn: MetricOrder
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = metric name|label|metric label|display name|stat name
+
+		annotation SynonymCollection = ["metric name","label","metric label","display name","stat name"]
+
+	/// Grouping bucket for related metrics (Value, Tier, Projection, Consensus, Market, Trend, Crowd, Notes). Use as an outer column group.
+	column MetricGroup
+		dataType: string
+		lineageTag: 5328099e-2180-4a76-9460-06f4d9b2ab0e
+		summarizeBy: none
+		sourceColumn: metric_group
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = group|metric group|category|metric category|bucket
+
+		annotation SynonymCollection = ["group","metric group","category","metric category","bucket"]
+
+	/// Curated sort order (10s with gaps) controlling metric flow on the matrix. Sort-by column for metric_key and metric_label.
+	column MetricOrder
+		dataType: int64
+		formatString: 0
+		lineageTag: b512caaf-9bd8-4f2e-ad3d-109b4e37e84c
+		summarizeBy: none
+		sourceColumn: metric_order
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = order|sort order|metric order|sequence|display order
+
+		annotation SynonymCollection = ["order","sort order","metric order","sequence","display order"]
+
+	/// Value kind: num (numeric metric in metric_num) or text (free text in metric_text). Drives which fact column to read.
+	column ValueType
+		dataType: string
+		lineageTag: ef2a345a-b197-4e5e-8811-1b01296bf880
+		summarizeBy: none
+		sourceColumn: value_type
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = value type|data type|num or text|metric type
+
+		annotation SynonymCollection = ["value type","data type","num or text","metric type"]
+
+	/// Goodness direction for conditional formatting: up (higher better), down (lower better), or neutral.
+	column Direction
+		dataType: string
+		lineageTag: 038aed05-d3a6-48e5-b4d4-2929f08d4cea
+		summarizeBy: none
+		sourceColumn: direction
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = direction|good direction|higher or lower|polarity|better
+
+		annotation SynonymCollection = ["direction","good direction","higher or lower","polarity","better"]
+
+	partition Dim_DynastyMetric = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_dynasty_metric.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Sorted Rows" = Table.Sort(Source,{{"metric_order", Order.Ascending}})
+				in
+				    #"Sorted Rows"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Metric Index|Dynasty Metrics|Metric Dimension|Metrics List|Stat Index
+
+	annotation SynonymCollection = ["Metric Index","Dynasty Metrics","Metric Dimension","Metrics List","Stat Index"]
+

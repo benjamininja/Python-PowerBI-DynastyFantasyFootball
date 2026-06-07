@@ -1,0 +1,529 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "93329cba442d8b8a6906",
+  "position": {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "height": 720.16846237196648,
+    "width": 1279.5551284934475
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_School"
+                    }
+                  },
+                  "Property": "SchoolCanonical"
+                }
+              },
+              "queryRef": "Dim_School.SchoolCanonical",
+              "nativeQueryRef": "SchoolCanonical"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Position"
+                    }
+                  },
+                  "Property": "SideOfBall"
+                }
+              },
+              "queryRef": "Dim_Position.SideOfBall",
+              "nativeQueryRef": "SideOfBall"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Position"
+                    }
+                  },
+                  "Property": "PositionGroup"
+                }
+              },
+              "queryRef": "Dim_Position.PositionGroup",
+              "nativeQueryRef": "PositionGroup"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_RookieProspect"
+                    }
+                  },
+                  "Property": "PlayerName"
+                }
+              },
+              "queryRef": "Dim_RookieProspect.PlayerName",
+              "nativeQueryRef": "PlayerName"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_RookieProspect"
+                    }
+                  },
+                  "Property": "HeightInches"
+                }
+              },
+              "queryRef": "Sum(Dim_RookieProspect.HeightInches)",
+              "nativeQueryRef": "HeightInches"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "Weight"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.Weight",
+              "nativeQueryRef": "Weight"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "FortyYard"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.FortyYard",
+              "nativeQueryRef": "FortyYard"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "Shuttle"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.Shuttle",
+              "nativeQueryRef": "Shuttle"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "ThreeCone"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.ThreeCone",
+              "nativeQueryRef": "ThreeCone"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "VerticalJump"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.VerticalJump",
+              "nativeQueryRef": "VerticalJump"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "HandSize"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.HandSize",
+              "nativeQueryRef": "HandSize"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "Wingspan"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.Wingspan",
+              "nativeQueryRef": "Wingspan"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "DraftOvr"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.DraftOvr",
+              "nativeQueryRef": "DraftOvr"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "DraftRound"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.DraftRound",
+              "nativeQueryRef": "DraftRound"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_NFLCombineProDay"
+                    }
+                  },
+                  "Property": "DraftTeam"
+                }
+              },
+              "queryRef": "Fact_NFLCombineProDay.DraftTeam",
+              "nativeQueryRef": "DraftTeam"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Fact_NFLCombineProDay"
+                  }
+                },
+                "Property": "DraftOvr"
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    },
+    "objects": {
+      "general": [
+        {
+          "properties": {}
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "a5fbdc8fa081e204d1a1",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_Position"
+              }
+            },
+            "Property": "SideOfBall"
+          }
+        },
+        "type": "Categorical",
+        "filter": {
+          "Version": 2,
+          "From": [
+            {
+              "Name": "d",
+              "Entity": "Dim_Position",
+              "Type": 0
+            }
+          ],
+          "Where": [
+            {
+              "Condition": {
+                "Not": {
+                  "Expression": {
+                    "In": {
+                      "Expressions": [
+                        {
+                          "Column": {
+                            "Expression": {
+                              "SourceRef": {
+                                "Source": "d"
+                              }
+                            },
+                            "Property": "SideOfBall"
+                          }
+                        }
+                      ],
+                      "Values": [
+                        [
+                          {
+                            "Literal": {
+                              "Value": "'Special Teams'"
+                            }
+                          }
+                        ]
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "objects": {
+          "general": [
+            {
+              "properties": {
+                "isInvertedSelectionMode": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "true"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "eb735d97997856a83e55",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_School"
+              }
+            },
+            "Property": "SchoolCanonical"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "7e6acd530e026526c37b",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_Position"
+              }
+            },
+            "Property": "PositionGroup"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "3e9be5dc9a37dacdab76",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_RookieProspect"
+              }
+            },
+            "Property": "PlayerName"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "fedffe28b0a35d4c0a04",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_RookieProspect"
+              }
+            },
+            "Property": "HeightInches"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "743a388171559205c0a0",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "Weight"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "01769a4035d050c044e5",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "FortyYard"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "49e1719065d006d8d20b",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "Shuttle"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "6cd98fb20587007c794e",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "ThreeCone"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "85d50a38361d883ae6b7",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "VerticalJump"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "27b30638806e04409693",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "HandSize"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "51bb045e0b80721274b0",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "Wingspan"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "c2332a5d04bcb4a7b32d",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "DraftOvr"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "fb2e6e625b7d078501c2",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "DraftRound"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "1d8809f87bb10a14725c",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Fact_NFLCombineProDay"
+              }
+            },
+            "Property": "DraftTeam"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}

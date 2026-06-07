@@ -1,0 +1,172 @@
+/// Contract rule dimension (10 rows): drives cap-hit % and dead money by contract type and year. Join on contract_id at ETL; never hardcode cap math.
+table Dim_Contract
+	lineageTag: c2dbc871-6ada-4db5-be66-173de0ff79b0
+
+	/// Contract rule key; joins to roster facts on contract_id.
+	column ContractID
+		dataType: string
+		lineageTag: 130a147e-a656-442c-abc9-ea2b0a4fd04f
+		summarizeBy: none
+		sourceColumn: contract_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract id|contract key|rule id
+
+		annotation SynonymCollection = ["contract id","contract key","rule id"]
+
+	/// Contract category (e.g. Fixed Salary, New Value, Franchise Tag, Free Agent).
+	column ContractType
+		dataType: string
+		lineageTag: dffdab2b-f636-4060-b9b0-1ef536fdaae5
+		summarizeBy: none
+		sourceColumn: contract_type
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract type|deal type|contract category
+
+		annotation SynonymCollection = ["contract type","deal type","contract category"]
+
+	/// Total length of the contract cycle in years.
+	column TotalYears
+		dataType: int64
+		formatString: 0
+		lineageTag: fb502191-0516-456d-81b0-e522c3980fb2
+		summarizeBy: none
+		sourceColumn: total_years
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = years|contract length|total years|term
+
+		annotation SynonymCollection = ["years","contract length","total years","term"]
+
+	/// Human-readable label for the contract rule.
+	column ContractLabel
+		dataType: string
+		lineageTag: 134476e0-22e8-4ccf-8ebd-9d2defbef55f
+		summarizeBy: none
+		sourceColumn: contract_label
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = label|contract label|name
+
+		annotation SynonymCollection = ["label","contract label","name"]
+
+	/// Salary basis for the year (e.g. Fixed, New Value, Minimum).
+	column SalaryType
+		dataType: string
+		lineageTag: 375c2ab1-1683-4c4c-9730-4b829618074a
+		summarizeBy: none
+		sourceColumn: salary_type
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = salary type|pay type|salary basis
+
+		annotation SynonymCollection = ["salary type","pay type","salary basis"]
+
+	/// Year within the contract cycle (1-6).
+	column ContractYear
+		dataType: int64
+		formatString: 0
+		lineageTag: 3e019dc0-f104-4c10-99f1-3d021c73a70d
+		summarizeBy: none
+		sourceColumn: contract_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract year|year number|season of deal
+
+		annotation SynonymCollection = ["contract year","year number","season of deal"]
+
+	/// Cap-hit percentage applied this contract year. Drives salary cap math.
+	column CapHitPct
+		dataType: double
+		lineageTag: 33022398-91ab-40c4-8844-5b21bba5d47c
+		summarizeBy: none
+		sourceColumn: cap_hit_pct
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = cap hit percent|cap percentage|cap hit pct
+
+		annotation SynonymCollection = ["cap hit percent","cap percentage","cap hit pct"]
+
+	/// Whether the contract is guaranteed (carries dead money if dropped).
+	column Guaranteed
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: aec8aba0-c7e9-4e0e-bb37-d083c5e74f6f
+		summarizeBy: none
+		sourceColumn: guaranteed
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = guaranteed|guarantee|is guaranteed
+
+		annotation SynonymCollection = ["guaranteed","guarantee","is guaranteed"]
+
+	/// Whether the contract is exempt from the cap.
+	column CapExempt
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 45307f58-a38a-4993-87c8-8c3e187d005d
+		summarizeBy: none
+		sourceColumn: cap_exempt
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = cap exempt|exempt|off cap
+
+		annotation SynonymCollection = ["cap exempt","exempt","off cap"]
+
+	/// Minimum salary floor for the contract ($).
+	column MinSalary
+		dataType: double
+		lineageTag: 818b3579-8a13-4185-bdb6-dcb48cd47ea3
+		summarizeBy: none
+		sourceColumn: min_salary
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = minimum salary|min salary|salary floor
+
+		annotation SynonymCollection = ["minimum salary","min salary","salary floor"]
+
+	/// Free-text notes on the contract rule.
+	column Notes
+		dataType: string
+		lineageTag: 67ec0805-af07-4067-ae6e-3d52d48831f6
+		summarizeBy: none
+		sourceColumn: notes
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = notes|comment|remarks
+
+		annotation SynonymCollection = ["notes","comment","remarks"]
+
+	partition Dim_Contract = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_contract.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Contracts|Contract Rules|Salary Rules|Contract Dimension|Cap Rules
+
+	annotation SynonymCollection = ["Contracts","Contract Rules","Salary Rules","Contract Dimension","Cap Rules"]
+

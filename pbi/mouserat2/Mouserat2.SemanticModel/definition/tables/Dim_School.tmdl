@@ -1,0 +1,60 @@
+/// School transformer: maps raw college names to a canonical school and conference. Join at ETL; add rows, never if/else.
+table Dim_School
+	lineageTag: 3afc5ee8-b36e-41fc-a25e-400f6927e67a
+
+	/// Raw college/school name as it arrives from a source (key).
+	column SchoolRaw
+		dataType: string
+		lineageTag: e8805a29-382d-4986-a074-eaf4c920df07
+		summarizeBy: none
+		sourceColumn: school_raw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = school|college|raw school|school name
+
+		annotation SynonymCollection = ["school","college","raw school","school name"]
+
+	/// Canonical, deduplicated school name.
+	column SchoolCanonical
+		dataType: string
+		lineageTag: 549a338f-7ca9-44e0-bc10-04d6589e877b
+		summarizeBy: none
+		sourceColumn: school_canonical
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = school|college|canonical school|university
+
+		annotation SynonymCollection = ["school","college","canonical school","university"]
+
+	/// College athletic conference (e.g. SEC, Big Ten).
+	column Conference
+		dataType: string
+		lineageTag: 391c01ed-05f7-4c96-ae74-bcdd0d9eb111
+		summarizeBy: none
+		sourceColumn: conference
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = conference|college conference|league|conf
+
+		annotation SynonymCollection = ["conference","college conference","league","conf"]
+
+	partition Dim_School = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_school.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Schools|Colleges|School Dimension|College Lookup|Universities
+
+	annotation SynonymCollection = ["Schools","Colleges","School Dimension","College Lookup","Universities"]
+

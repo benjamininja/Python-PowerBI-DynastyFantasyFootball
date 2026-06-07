@@ -1,0 +1,210 @@
+/// Fantasy team dimension: 28 league teams across two conferences, with managers and current/next-year cap state.
+table Dim_FantasyTeams
+	lineageTag: e0094a7f-6dc4-416f-aca3-639e6ae8cbe0
+
+	/// Fantasy team key; joins to roster facts.
+	column TeamKey
+		dataType: string
+		lineageTag: 4eb36110-1d33-4001-a151-c69f55211226
+		summarizeBy: none
+		sourceColumn: team_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|team key|team id|franchise
+
+		annotation SynonymCollection = ["team","team key","team id","franchise"]
+
+	/// Fantasy team name.
+	column TeamName
+		dataType: string
+		lineageTag: ded3a6d4-997c-4a48-8a70-2212cfc4c4a8
+		summarizeBy: none
+		sourceColumn: team_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team name|franchise name|squad name
+
+		annotation SynonymCollection = ["team name","franchise name","squad name"]
+
+	/// League conference the team plays in (A=Riddell, B=Wilson).
+	column Conference
+		dataType: string
+		lineageTag: 68337558-57e9-4c8d-a71c-6d65dd087764
+		summarizeBy: none
+		sourceColumn: conference
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = conference|division group|conf
+
+		annotation SynonymCollection = ["conference","division group","conf"]
+
+	/// Short fantasy team abbreviation.
+	column TeamAbbr
+		dataType: string
+		lineageTag: 7be15e65-4e89-4090-9fa3-547655e78eb2
+		summarizeBy: none
+		sourceColumn: team_abbr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team abbr|abbreviation|team code
+
+		annotation SynonymCollection = ["team abbr","abbreviation","team code"]
+
+	/// League division within the conference.
+	column Division
+		dataType: string
+		lineageTag: 2206c057-f99c-442c-881b-75619376cfdc
+		summarizeBy: none
+		sourceColumn: division
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = division|div|group
+
+		annotation SynonymCollection = ["division","div","group"]
+
+	/// Primary manager's email.
+	column ManagerEmail
+		dataType: string
+		lineageTag: c07d5d18-8561-4df6-905f-99ad6488e223
+		summarizeBy: none
+		sourceColumn: manager_email
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = manager|owner|manager email|email
+
+		annotation SynonymCollection = ["manager","owner","manager email","email"]
+
+	/// Co-manager's email.
+	column ManagerEmail2
+		dataType: string
+		lineageTag: f85103c6-3f0e-4598-9413-5c3f881dc684
+		summarizeBy: none
+		sourceColumn: manager_email_2
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = co-manager|second manager|manager email 2
+
+		annotation SynonymCollection = ["co-manager","second manager","manager email 2"]
+
+	/// Starting salary cap for the team ($).
+	column OriginalCap
+		dataType: int64
+		formatString: 0
+		lineageTag: c7a6e2c1-0b70-4a45-ab60-8b20f0f6ded6
+		summarizeBy: none
+		sourceColumn: original_cap
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = original cap|starting cap|cap
+
+		annotation SynonymCollection = ["original cap","starting cap","cap"]
+
+	/// Total cap hits for the current year ($).
+	column CapHitsCurrentYr
+		dataType: int64
+		formatString: 0
+		lineageTag: 50f86b80-a1c4-4634-b1e3-5d66dd821138
+		summarizeBy: none
+		sourceColumn: cap_hits_current_yr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = current cap hits|cap used|this year cap
+
+		annotation SynonymCollection = ["current cap hits","cap used","this year cap"]
+
+	/// Total cap hits for next year ($).
+	column CapHitsNextYr
+		dataType: int64
+		formatString: 0
+		lineageTag: 7566fc4f-520e-48be-9a6f-7c4dd0161f66
+		summarizeBy: none
+		sourceColumn: cap_hits_next_yr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = next year cap hits|future cap|next cap
+
+		annotation SynonymCollection = ["next year cap hits","future cap","next cap"]
+
+	/// Reinvestment cap available ($).
+	column ReinvestmentCap
+		dataType: int64
+		formatString: 0
+		lineageTag: a8d82c6d-82e7-4245-9af2-4019ada7052e
+		summarizeBy: none
+		sourceColumn: reinvestment_cap
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = reinvestment cap|reinvest cap
+
+		annotation SynonymCollection = ["reinvestment cap","reinvest cap"]
+
+	/// Total salary of the active roster ($).
+	column ActiveRosterSalary
+		dataType: int64
+		formatString: 0
+		lineageTag: 6a7dd304-2594-495b-9712-69f0fd86cb3f
+		summarizeBy: none
+		sourceColumn: active_roster_salary
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = active salary|roster salary|active roster salary
+
+		annotation SynonymCollection = ["active salary","roster salary","active roster salary"]
+
+	/// Cap space remaining this year ($).
+	column RemainingCapCurrentYr
+		dataType: int64
+		formatString: 0
+		lineageTag: 77f0e2d1-e927-4920-9867-14398d55b4a2
+		summarizeBy: none
+		sourceColumn: remaining_cap_current_yr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = remaining cap|cap space|space left
+
+		annotation SynonymCollection = ["remaining cap","cap space","space left"]
+
+	/// Cap space remaining next year ($).
+	column RemainingCapNextYr
+		dataType: int64
+		formatString: 0
+		lineageTag: ca9bead2-1773-4f32-9e46-976580f86692
+		summarizeBy: none
+		sourceColumn: remaining_cap_next_yr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = next year cap space|future cap space|remaining cap next
+
+		annotation SynonymCollection = ["next year cap space","future cap space","remaining cap next"]
+
+	partition Dim_FantasyTeams = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_fantasy_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Fantasy Teams|Teams|League Teams|Managers|Rosters
+
+	annotation SynonymCollection = ["Fantasy Teams","Teams","League Teams","Managers","Rosters"]
+

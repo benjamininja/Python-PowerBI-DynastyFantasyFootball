@@ -30,3 +30,7 @@ desktop.ini
 *.swp
 *.swo
 .vscode/settings.json
+
+# ── Power BI project (PBIP) local artifacts ───────────────────────────────────
+**/.pbi/
+*.abf

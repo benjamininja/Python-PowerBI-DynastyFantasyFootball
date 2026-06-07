@@ -1,0 +1,86 @@
+relationship 53e0ede5-c799-4f64-9cdd-c23f83ebe15f
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Dim_NFLPlayers.BirthDate
+	toColumn: LocalDateTable_04c24871-8178-4798-9972-2dfd4d174e11.Date
+
+relationship Fact_RookieRankings_to_Dim_NFLPlayers_via_PlayerGsis
+	fromColumn: Fact_RookieRankings.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship Dim_RookieProspect_to_Dim_Position_via_Position
+	fromColumn: Dim_RookieProspect.PositionRaw
+	toColumn: Dim_Position.PositionRaw
+
+relationship Fact_RookieRankings_to_Dim_RookieProspect_via_PlayerKey
+	fromColumn: Fact_RookieRankings.PlayerKey
+	toColumn: Dim_RookieProspect.PlayerKey
+
+relationship Fact_NFLCombineProDay_to_Dim_NFLPlayers_via_PlayerGsis
+	fromColumn: Fact_NFLCombineProDay.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship Fact_NFLCombineProDay_to_Dim_RookieProspect_via_PlayerKey
+	fromColumn: Fact_NFLCombineProDay.PlayerKey
+	toColumn: Dim_RookieProspect.PlayerKey
+
+relationship Dim_NFLPlayers_to_Dim_Position_via_Position
+	crossFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: Dim_NFLPlayers.Position
+	toColumn: Dim_Position.PositionRaw
+
+relationship Fact_NFLCombineProDay_to_Dim_Position_via_Position
+	toCardinality: many
+	fromColumn: Fact_NFLCombineProDay.Pos
+	toColumn: Dim_Position.PositionRaw
+
+relationship Dim_RookieProspect_to_Dim_School_via_School
+	fromColumn: Dim_RookieProspect.SchoolRaw
+	toColumn: Dim_School.SchoolRaw
+
+relationship Fact_FantraxADP_to_Dim_NFLPlayers_via_PlayerGsis
+	fromColumn: Fact_FantraxADP.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship Fact_FantraxADP_to_Dim_Position_via_Position
+	fromColumn: Fact_FantraxADP.PositionRaw
+	toColumn: Dim_Position.PositionRaw
+
+relationship Fact_FantraxADP_to_Dim_RookieProspect_via_PlayerKey
+	isActive: false
+	fromColumn: Fact_FantraxADP.PlayerKey
+	toColumn: Dim_RookieProspect.PlayerKey
+
+relationship Fact_FantraxADP_to_Dim_NFLTeams_via_Team
+	fromColumn: Fact_FantraxADP.NFLTeam
+	toColumn: Dim_NFLTeams.TeamAbbr
+
+relationship Fact_DynastyRankings_to_Dim_NFLPlayers_via_PlayerGsis
+	fromColumn: Fact_DynastyRankings.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship Fact_DynastyRankings_to_Dim_Position_via_Position
+	isActive: false
+	fromColumn: Fact_DynastyRankings.PositionRaw
+	toColumn: Dim_Position.PositionRaw
+
+relationship Fact_DynastyRankings_to_Dim_RookieProspect_via_PlayerKey
+	isActive: false
+	fromColumn: Fact_DynastyRankings.PlayerKey
+	toColumn: Dim_RookieProspect.PlayerKey
+
+relationship Fact_DynastyRankingMetrics_to_Fact_DynastyRankings_via_MetricIndex
+	crossFilteringBehavior: bothDirections
+	securityFilteringBehavior: bothDirections
+	toCardinality: many
+	fromColumn: Fact_DynastyRankingMetrics.MetricIndex
+	toColumn: Fact_DynastyRankings.MetricIndex
+
+relationship Fact_DynastyRankings_to_Dim_NFLTeams_via_Team
+	fromColumn: Fact_DynastyRankings.NFLTeam
+	toColumn: Dim_NFLTeams.TeamAbbr
+
+relationship Fact_DynastyRankingMetrics_to_Dim_DynastyMetric_via_MetricKey
+	fromColumn: Fact_DynastyRankingMetrics.MetricKey
+	toColumn: Dim_DynastyMetric.MetricKey
+
