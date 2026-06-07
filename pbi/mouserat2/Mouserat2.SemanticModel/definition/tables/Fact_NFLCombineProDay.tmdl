@@ -1,0 +1,352 @@
+/// Combine and pro-day athletic testing: one row per player and season. Heights, weights, and timed/measured drills.
+table Fact_NFLCombineProDay
+	lineageTag: a5579286-a005-42d1-80d1-4fcc975e06f0
+
+	/// Combine/pro-day season (year).
+	column Season
+		dataType: int64
+		formatString: 0
+		lineageTag: 3758340a-c47c-4b90-a16d-02df3282de74
+		summarizeBy: none
+		sourceColumn: season
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = season|year|combine year
+
+		annotation SynonymCollection = ["season","year","combine year"]
+
+	/// NFL team that drafted the player (if drafted).
+	column DraftTeam
+		dataType: string
+		lineageTag: 841fa291-9a80-4670-956d-bc3a11da08fd
+		summarizeBy: none
+		sourceColumn: draft_team
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft team|drafted by|team
+
+		annotation SynonymCollection = ["draft team","drafted by","team"]
+
+	/// Round the player was drafted.
+	column DraftRound
+		dataType: double
+		lineageTag: b585e8db-02e3-408f-bdea-3cc2b25c8b4e
+		summarizeBy: none
+		sourceColumn: draft_round
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = draft round|round|rd
+
+		annotation SynonymCollection = ["draft round","round","rd"]
+
+	/// Overall draft pick number.
+	column DraftOvr
+		dataType: double
+		lineageTag: c3a8617e-468b-4419-a266-79dbc4bf36e8
+		summarizeBy: none
+		sourceColumn: draft_ovr
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = draft pick|overall pick|draft number|ovr
+
+		annotation SynonymCollection = ["draft pick","overall pick","draft number","ovr"]
+
+	/// Player display name.
+	column PlayerName
+		dataType: string
+		lineageTag: 6a37e4bd-08f0-458a-9f99-1a10b6f004f8
+		summarizeBy: none
+		sourceColumn: player_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player|name|player name
+
+		annotation SynonymCollection = ["player","name","player name"]
+
+	/// Player position (raw); links to Dim_Position.
+	column Pos
+		dataType: string
+		lineageTag: 1e18062e-12d3-44a7-a66a-ac0b59c71816
+		summarizeBy: none
+		sourceColumn: pos
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position|pos|role
+
+		annotation SynonymCollection = ["position","pos","role"]
+
+	/// College the player attended.
+	column School
+		dataType: string
+		lineageTag: 2c0f9f70-e96a-4c6e-b8ce-b36eb11c1811
+		summarizeBy: none
+		sourceColumn: school
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = school|college|university
+
+		annotation SynonymCollection = ["school","college","university"]
+
+	/// Broad jump distance (inches). Higher is better.
+	column BroadJump
+		dataType: double
+		lineageTag: 943a74a1-a47f-45cf-a8ba-2cf4e4b74bd1
+		summarizeBy: none
+		sourceColumn: broad_jump
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = broad jump|jump|broad
+
+		annotation SynonymCollection = ["broad jump","jump","broad"]
+
+	/// 20-yard shuttle time (seconds). Lower is better.
+	column Shuttle
+		dataType: double
+		lineageTag: edcff2d3-3785-4811-a08a-154b7a59b5d8
+		summarizeBy: none
+		sourceColumn: shuttle
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = shuttle|20 yard shuttle|short shuttle
+
+		annotation SynonymCollection = ["shuttle","20 yard shuttle","short shuttle"]
+
+	/// nflverse universal player id; links to Dim_NFLPlayers.
+	column GSISID
+		dataType: string
+		lineageTag: 0c32b8a9-1d6d-49aa-9093-373337d378d7
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id"]
+
+	/// Draft-class player key; links to Dim_RookieProspect.
+	column PlayerKey
+		dataType: string
+		lineageTag: b674ab53-39a8-4bdc-87d0-85ceedaf419e
+		summarizeBy: none
+		sourceColumn: player_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player key|rookie key|prospect key
+
+		annotation SynonymCollection = ["player key","rookie key","prospect key"]
+
+	/// Whether the row is from the current draft class.
+	column IsCurrentSeason
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: d7fc7036-a802-4bf1-bf15-8c0d25bbdfde
+		summarizeBy: none
+		sourceColumn: is_current_season
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = current season|this year|is current
+
+		annotation SynonymCollection = ["current season","this year","is current"]
+
+	/// Whether the numbers came from the Combine or a Pro Day.
+	column MetricSource
+		dataType: string
+		lineageTag: e109cc5c-06ea-4a79-b3a8-b4100b849469
+		summarizeBy: none
+		sourceColumn: metric_source
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = metric source|combine or pro day|source
+
+		annotation SynonymCollection = ["metric source","combine or pro day","source"]
+
+	/// Height in inches.
+	column HeightInches
+		dataType: double
+		lineageTag: fee511b5-d30d-46d1-ac0b-7a7486909669
+		summarizeBy: none
+		sourceColumn: height_inches
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = height|inches tall|height inches
+
+		annotation SynonymCollection = ["height","inches tall","height inches"]
+
+	/// Weight in pounds.
+	column Weight
+		dataType: double
+		lineageTag: b3043ebf-a58b-4c6c-a787-cfdecf996176
+		summarizeBy: none
+		sourceColumn: weight
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = weight|pounds|lbs
+
+		annotation SynonymCollection = ["weight","pounds","lbs"]
+
+	/// 40-yard dash time (seconds). Lower is better.
+	column FortyYard
+		dataType: double
+		lineageTag: 34d49ee8-4ae7-4ee4-badf-1d3ef6b5018b
+		summarizeBy: none
+		sourceColumn: forty_yard
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = 40 time|forty|40 yard dash|speed
+
+		annotation SynonymCollection = ["40 time","forty","40 yard dash","speed"]
+
+	/// 10-yard split time (seconds). Lower is better.
+	column TenSplit
+		dataType: double
+		lineageTag: dc7e09af-5180-4c6b-9d02-19cbfc89f85f
+		summarizeBy: none
+		sourceColumn: ten_split
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = 10 split|ten split|get-off
+
+		annotation SynonymCollection = ["10 split","ten split","get-off"]
+
+	/// Bench press reps at 225 lbs. Higher is better.
+	column BenchPress
+		dataType: double
+		lineageTag: 870f968c-4d48-4f4f-a9ca-73249eafef75
+		summarizeBy: none
+		sourceColumn: bench_press
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = bench|bench press|reps|225
+
+		annotation SynonymCollection = ["bench","bench press","reps","225"]
+
+	/// Vertical jump height (inches). Higher is better.
+	column VerticalJump
+		dataType: double
+		lineageTag: 9ac48a8f-ffdd-42fb-bbbb-8354c255106c
+		summarizeBy: none
+		sourceColumn: vertical_jump
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = vertical|vert|vertical jump
+
+		annotation SynonymCollection = ["vertical","vert","vertical jump"]
+
+	/// 3-cone drill time (seconds). Lower is better.
+	column ThreeCone
+		dataType: double
+		lineageTag: 1418546d-4b62-4e02-b849-8d571e025c67
+		summarizeBy: none
+		sourceColumn: three_cone
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = 3 cone|three cone|cone drill|agility
+
+		annotation SynonymCollection = ["3 cone","three cone","cone drill","agility"]
+
+	/// Hand size (inches).
+	column HandSize
+		dataType: double
+		lineageTag: c6315887-8e8d-4cf1-a1cb-cd11ea081082
+		summarizeBy: none
+		sourceColumn: hand_size
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = hand size|hands|hand
+
+		annotation SynonymCollection = ["hand size","hands","hand"]
+
+	/// Arm length (inches).
+	column ArmLength
+		dataType: double
+		lineageTag: 8feb026e-e053-481e-a26a-8dac591292a7
+		summarizeBy: none
+		sourceColumn: arm_length
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = arm length|arms|arm
+
+		annotation SynonymCollection = ["arm length","arms","arm"]
+
+	/// Wingspan (inches).
+	column Wingspan
+		dataType: double
+		lineageTag: b08d4555-1eb0-444f-9279-98798042d3d5
+		summarizeBy: none
+		sourceColumn: wingspan
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = wingspan|wing span|reach
+
+		annotation SynonymCollection = ["wingspan","wing span","reach"]
+
+	partition Fact_NFLCombineProDay = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_nfl_combine_pro_day_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Removed Columns" = Table.RemoveColumns(Source,{"pfr_id", "cfb_id"}),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Removed Columns",{{"ten_split", type number}, {"hand_size", type number}, {"arm_length", type number}, {"wingspan", type number}})
+				in
+				    #"Changed Type"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Combine|Pro Day|Athletic Testing|Combine Metrics|Workout Numbers
+
+	annotation SynonymCollection = ["Combine","Pro Day","Athletic Testing","Combine Metrics","Workout Numbers"]
+

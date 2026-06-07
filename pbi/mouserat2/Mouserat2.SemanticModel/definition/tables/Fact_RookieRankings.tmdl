@@ -1,0 +1,169 @@
+/// Rookie-class expert rankings: one row per player, source, phase, and draft year. Includes phase-cascade composites.
+table Fact_RookieRankings
+	lineageTag: 0f573ebf-3ca1-4c3c-8c61-30c724c9cf45
+
+	/// Draft-class player key; links to Dim_RookieProspect.
+	column PlayerKey
+		dataType: string
+		lineageTag: b4470766-29de-4ce5-b1d8-9e917d255cc2
+		summarizeBy: none
+		sourceColumn: player_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player key|rookie key|prospect key
+
+		annotation SynonymCollection = ["player key","rookie key","prospect key"]
+
+	/// nflverse universal id once the rookie is in the registry.
+	column GSISID
+		dataType: string
+		lineageTag: 7bf4ed3c-09ae-44d0-91ec-fed89883b7e1
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id"]
+
+	/// Draft cycle phase (pre_combine, post_combine, post_draft).
+	column Phase
+		dataType: string
+		lineageTag: b9db0e1b-8ff8-405a-8491-9c5410dc72c5
+		summarizeBy: none
+		sourceColumn: phase
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = phase|cycle phase|stage|draft phase
+
+		annotation SynonymCollection = ["phase","cycle phase","stage","draft phase"]
+
+	/// Rookie draft class year.
+	column DraftYear
+		dataType: int64
+		formatString: 0
+		lineageTag: 4681b065-d4a5-47c5-98a1-1f5cea9c1ce6
+		summarizeBy: none
+		sourceColumn: draft_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft year|class year|rookie year
+
+		annotation SynonymCollection = ["draft year","class year","rookie year"]
+
+	/// Overall rank across the rookie class (1 = best).
+	column GlobalRank
+		dataType: int64
+		formatString: 0
+		lineageTag: 239ef580-db8b-48b3-a508-479be6ce7a2d
+		summarizeBy: none
+		sourceColumn: global_rank
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = overall rank|global rank|rank|ranking
+
+		annotation SynonymCollection = ["overall rank","global rank","rank","ranking"]
+
+	/// Rank within the player's position in the class.
+	column PositionalRank
+		dataType: int64
+		formatString: 0
+		lineageTag: 3b5310cc-6010-4718-bca6-d01b84afe9b6
+		summarizeBy: none
+		sourceColumn: positional_rank
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = positional rank|position rank|pos rank
+
+		annotation SynonymCollection = ["positional rank","position rank","pos rank"]
+
+	/// Numeric prospect grade from the source.
+	column Grade
+		dataType: double
+		lineageTag: df8b5421-befa-4fa9-8fae-8da5c24776a8
+		summarizeBy: none
+		sourceColumn: grade
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = grade|prospect grade|score
+
+		annotation SynonymCollection = ["grade","prospect grade","score"]
+
+	/// Date the ranking was captured.
+	column CaptureDate
+		dataType: string
+		lineageTag: 6e5edcf6-f7d1-408e-913c-2e50584e41ab
+		summarizeBy: none
+		sourceColumn: capture_date
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = capture date|date|as of date
+
+		annotation SynonymCollection = ["capture date","date","as of date"]
+
+	/// Expert/source that produced the ranking (incl. composite).
+	column SourceName
+		dataType: string
+		lineageTag: f19c21d4-2412-4ee7-a74a-37170e8fcb99
+		summarizeBy: none
+		sourceColumn: source_name
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = source|ranking source|expert|provider
+
+		annotation SynonymCollection = ["source","ranking source","expert","provider"]
+
+	/// Originating website for the ranking.
+	column SourceSite
+		dataType: string
+		lineageTag: 1c8e67d8-389c-4aae-a3c1-785644266ef3
+		summarizeBy: none
+		sourceColumn: source_site
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = site|website|source site
+
+		annotation SynonymCollection = ["site","website","source site"]
+
+	/// Date the source published the ranking.
+	column RankDate
+		dataType: string
+		lineageTag: fc7cf712-6459-4841-b05f-bd39416804e3
+		summarizeBy: none
+		sourceColumn: rank_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = rank date|published date|date
+
+		annotation SynonymCollection = ["rank date","published date","date"]
+
+	partition Fact_RookieRankings = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_rookie_rankings.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Rookie Rankings|Draft Rankings|Prospect Rankings|Rookie Board|Class Rankings
+
+	annotation SynonymCollection = ["Rookie Rankings","Draft Rankings","Prospect Rankings","Rookie Board","Class Rankings"]
+

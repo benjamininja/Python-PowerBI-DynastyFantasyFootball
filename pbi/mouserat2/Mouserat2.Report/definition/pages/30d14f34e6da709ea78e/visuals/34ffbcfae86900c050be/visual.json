@@ -1,0 +1,440 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "34ffbcfae86900c050be",
+  "position": {
+    "x": 0,
+    "y": 108.15819480285663,
+    "z": 1000,
+    "height": 184.36055932305106,
+    "width": 1128.2866230570726,
+    "tabOrder": 1000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Position"
+                    }
+                  },
+                  "Property": "SideOfBall"
+                }
+              },
+              "queryRef": "Dim_Position.SideOfBall",
+              "nativeQueryRef": "Off / Def",
+              "displayName": "Off / Def"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Position"
+                    }
+                  },
+                  "Property": "PositionGroup"
+                }
+              },
+              "queryRef": "Dim_Position.PositionGroup",
+              "nativeQueryRef": "Position",
+              "displayName": "Position"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "DisplayName"
+                }
+              },
+              "queryRef": "Dim_NFLPlayers.DisplayName",
+              "nativeQueryRef": "Player Name",
+              "displayName": "Player Name"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_FantraxADP"
+                    }
+                  },
+                  "Property": "Salary"
+                }
+              },
+              "queryRef": "Fact_FantraxADP.Salary",
+              "nativeQueryRef": "Salary",
+              "displayName": "Salary"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLTeams"
+                    }
+                  },
+                  "Property": "TeamAbbr"
+                }
+              },
+              "queryRef": "Dim_NFLTeams.TeamAbbr",
+              "nativeQueryRef": "Team",
+              "displayName": "Team"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "Age"
+                }
+              },
+              "queryRef": "Dim_NFLPlayers.Age",
+              "nativeQueryRef": "Age"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "EntryYear"
+                }
+              },
+              "queryRef": "Max(Dim_NFLPlayers.EntryYear)",
+              "nativeQueryRef": "EntryYear",
+              "displayName": "Draft Year"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "DraftClub"
+                }
+              },
+              "queryRef": "Max(Dim_NFLPlayers.DraftClub)",
+              "nativeQueryRef": "DraftClub",
+              "displayName": "Draft Club"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "DraftRdOvr"
+                }
+              },
+              "queryRef": "Max(Dim_NFLPlayers.DraftRdOvr)",
+              "nativeQueryRef": "Draft Rd (Ovr)1",
+              "displayName": "Draft Rd (Ovr)"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "PercentDrafted"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Max(Fact_FantraxADP.PercentDrafted)",
+              "nativeQueryRef": "% Drafted",
+              "displayName": "% Drafted",
+              "format": "0"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "ADP"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(Fact_FantraxADP.ADP)",
+              "nativeQueryRef": "Average of adp",
+              "displayName": "ADP",
+              "format": "0.0"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "OverallRank"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(Fact_FantraxADP.OverallRank)",
+              "nativeQueryRef": "Average of overall_rank1",
+              "displayName": "Overall",
+              "format": "0"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "Fpts"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(Fact_FantraxADP.Fpts)",
+              "nativeQueryRef": "Average of fpts",
+              "displayName": "FPts",
+              "format": "0.0"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "FptsPerGame"
+                    }
+                  },
+                  "Function": 1
+                }
+              },
+              "queryRef": "Avg(Fact_FantraxADP.FptsPerGame)",
+              "nativeQueryRef": "Average of fpts_per_game",
+              "displayName": "FP/G",
+              "format": "0.0"
+            },
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Fact_FantraxADP"
+                        }
+                      },
+                      "Property": "GamesPlayed"
+                    }
+                  },
+                  "Function": 4
+                }
+              },
+              "queryRef": "Max(Fact_FantraxADP.GamesPlayed)",
+              "nativeQueryRef": "Max of games_played",
+              "displayName": "GP",
+              "format": "0"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Fact_FantraxADP"
+                  }
+                },
+                "Property": "Salary"
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    },
+    "objects": {
+      "general": [
+        {
+          "properties": {}
+        }
+      ],
+      "columnWidth": [
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "47.21155770033975D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Dim_NFLPlayers.DraftClub"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "68.57256123504358D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "CountNonNull(Fact_FantraxADP.OverallRank)"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "66.31985011796526D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "CountNonNull(Fact_FantraxADP.ADP)"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "75.57256426279903D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Dim_NFLPlayers.DraftRdOvr"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "47.0967473772736D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Dim_NFLPlayers.EntryYear"
+          }
+        }
+      ],
+      "columnHeaders": [
+        {
+          "properties": {}
+        }
+      ],
+      "total": [
+        {
+          "properties": {
+            "totals": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Fantrax Fantasy Rankings'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "visualTooltip": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "section": {
+              "expr": {
+                "Literal": {
+                  "Value": "'f37f3fd750300c26715e'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

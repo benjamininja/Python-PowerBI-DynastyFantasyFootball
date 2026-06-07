@@ -1,0 +1,443 @@
+/// nflverse player registry (active + historical, ~25k rows). Universal player dimension keyed by gsis_id; rookies appear after signing (~May-June).
+table Dim_NFLPlayers
+	lineageTag: 0311adcc-3e37-4573-bf03-9fc74dbd963e
+
+	/// Canonical position group from nflverse (e.g. RB, WR, DB).
+	column PositionGroup
+		dataType: string
+		lineageTag: 9356eb7a-78f9-4be2-8f45-23e29667a759
+		summarizeBy: none
+		sourceColumn: position_group
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position group|group|unit|pos group
+
+		annotation SynonymCollection = ["position group","group","unit","pos group"]
+
+	/// Player weight in pounds.
+	column Weight
+		dataType: double
+		lineageTag: 443f216d-cd89-4530-b8e1-83242a516d92
+		summarizeBy: none
+		sourceColumn: weight
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = weight|pounds|lbs
+
+		annotation SynonymCollection = ["weight","pounds","lbs"]
+
+	/// nflverse universal player id (key). Joins all facts to the registry.
+	column GSISID
+		dataType: string
+		lineageTag: b6fc171b-b6c9-4e0f-abee-8f262b41b49f
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id|universal id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id","universal id"]
+
+	/// Player display name (primary identification field).
+	column DisplayName
+		dataType: string
+		lineageTag: 5c9a554e-5df9-4fbe-a042-16552e7d2567
+		summarizeBy: none
+		sourceColumn: display_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player|name|player name|who
+
+		annotation SynonymCollection = ["player","name","player name","who"]
+
+	/// Player first name.
+	column FirstName
+		dataType: string
+		lineageTag: 131afbe1-ff12-4c25-aa05-8a59f6cde0ca
+		summarizeBy: none
+		sourceColumn: first_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = first name|given name|forename
+
+		annotation SynonymCollection = ["first name","given name","forename"]
+
+	/// Player last name.
+	column LastName
+		dataType: string
+		lineageTag: 02aa0f35-e44a-4e92-9be6-a48ca08c404d
+		summarizeBy: none
+		sourceColumn: last_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = last name|surname|family name
+
+		annotation SynonymCollection = ["last name","surname","family name"]
+
+	/// Player date of birth; basis for the Age calculation.
+	column BirthDate
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 9b3916c1-9fda-4b11-bd1a-3c6ad3182d6b
+		summarizeBy: none
+		sourceColumn: birth_date
+
+		variation Variation
+			isDefault
+			relationship: 53e0ede5-c799-4f64-9cdd-c23f83ebe15f
+			defaultHierarchy: LocalDateTable_04c24871-8178-4798-9972-2dfd4d174e11.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+		annotation Synonyms = birth date|date of birth|dob|born
+
+		annotation SynonymCollection = ["birth date","date of birth","dob","born"]
+
+	/// Roster status (ACT active, CUT, RES, etc.).
+	column Status
+		dataType: string
+		lineageTag: 4aa819ab-cefc-4e2b-9e6a-996fae27ee04
+		summarizeBy: none
+		sourceColumn: status
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = status|roster status|active|state
+
+		annotation SynonymCollection = ["status","roster status","active","state"]
+
+	/// Current NFL team abbreviation (mapped from latest_team).
+	column TeamAbbr
+		dataType: string
+		lineageTag: cbda3152-856e-4048-aea4-60f01bae41c0
+		summarizeBy: none
+		sourceColumn: team_abbr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|nfl team|club|team abbr
+
+		annotation SynonymCollection = ["team","nfl team","club","team abbr"]
+
+	/// Player position (raw); links to Dim_Position.
+	column Position
+		dataType: string
+		lineageTag: e653d140-903f-4b7d-9f12-b28d7d6e6ae6
+		summarizeBy: none
+		sourceColumn: position
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position|pos|role
+
+		annotation SynonymCollection = ["position","pos","role"]
+
+	/// Uniform/jersey number.
+	column JerseyNumber
+		dataType: string
+		lineageTag: 633cb5e2-3222-4aba-956e-288201c50b29
+		summarizeBy: none
+		sourceColumn: jersey_number
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = jersey|number|jersey number|uniform
+
+		annotation SynonymCollection = ["jersey","number","jersey number","uniform"]
+
+	/// NFL years of experience.
+	column YearsOfExperience
+		dataType: int64
+		formatString: 0
+		lineageTag: e353dc05-e1bc-4213-b070-ec235aaabf99
+		summarizeBy: none
+		sourceColumn: years_of_experience
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = experience|years pro|tenure|years of experience
+
+		annotation SynonymCollection = ["experience","years pro","tenure","years of experience"]
+
+	/// College the player attended.
+	column CollegeName
+		dataType: string
+		lineageTag: 816267ee-2fa1-4c61-b842-e70705b5b358
+		summarizeBy: none
+		sourceColumn: college_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = college|school|university
+
+		annotation SynonymCollection = ["college","school","university"]
+
+	/// College athletic conference.
+	column CollegeConference
+		dataType: string
+		lineageTag: a9cf0e3a-1c0d-40c7-845b-933bae24d83d
+		summarizeBy: none
+		sourceColumn: college_conference
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = college conference|conference|conf
+
+		annotation SynonymCollection = ["college conference","conference","conf"]
+
+	/// Season the player entered the NFL.
+	column EntryYear
+		dataType: int64
+		formatString: 0
+		lineageTag: 0ef40cc9-464e-4da0-a98c-730f629e7154
+		summarizeBy: none
+		sourceColumn: entry_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = entry year|rookie season|first season
+
+		annotation SynonymCollection = ["entry year","rookie season","first season"]
+
+	/// NFL team that drafted the player.
+	column DraftClub
+		dataType: string
+		lineageTag: c85dadaa-d569-4966-b607-5f1694b4456a
+		summarizeBy: none
+		sourceColumn: draft_club
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft team|drafted by|draft club
+
+		annotation SynonymCollection = ["draft team","drafted by","draft club"]
+
+	/// Round the player was drafted.
+	column DraftRound
+		dataType: int64
+		lineageTag: caf07c38-705d-4978-83c3-2c3df4a88b08
+		summarizeBy: none
+		sourceColumn: draft_round
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = draft round|round|rd
+
+		annotation SynonymCollection = ["draft round","round","rd"]
+
+	/// Overall draft pick number.
+	column DraftNumber
+		dataType: int64
+		formatString: 0
+		lineageTag: bcfac47d-634f-40dd-bde4-f25cfcbdb51e
+		summarizeBy: none
+		sourceColumn: draft_number
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft pick|overall pick|draft number
+
+		annotation SynonymCollection = ["draft pick","overall pick","draft number"]
+
+	/// Player height in inches.
+	column Height
+		dataType: double
+		lineageTag: 5ec455db-14ba-403c-8a27-6fb15eb151f6
+		summarizeBy: none
+		sourceColumn: height
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = height|inches tall|how tall
+
+		annotation SynonymCollection = ["height","inches tall","how tall"]
+
+	/// Most recent NFL season played.
+	column LastSeason
+		dataType: int64
+		formatString: 0
+		lineageTag: bdb59d08-850b-4a61-976d-03026d9db224
+		summarizeBy: none
+		sourceColumn: last_season
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = last season|final season|most recent year
+
+		annotation SynonymCollection = ["last season","final season","most recent year"]
+
+	/// Year the player was drafted.
+	column DraftYear
+		dataType: int64
+		formatString: 0
+		lineageTag: 51e3ffe5-b327-4493-a0c2-525c9ec0e8dd
+		summarizeBy: none
+		sourceColumn: draft_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft year|drafted in|class year
+
+		annotation SynonymCollection = ["draft year","drafted in","class year"]
+
+	/// Pro Football Reference id.
+	column PFRID
+		dataType: string
+		lineageTag: a7fd14fc-67fc-444a-b9ce-0221ba52d361
+		summarizeBy: none
+		sourceColumn: pfr_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = pfr id|pro football reference|pfr
+
+		annotation SynonymCollection = ["pfr id","pro football reference","pfr"]
+
+	/// Pro Football Focus id.
+	column PFFID
+		dataType: string
+		lineageTag: efe888bd-3eea-4d06-b5c3-431a9f0affb4
+		summarizeBy: none
+		sourceColumn: pff_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = pff id|pro football focus|pff
+
+		annotation SynonymCollection = ["pff id","pro football focus","pff"]
+
+	/// ESPN player id.
+	column ESPNID
+		dataType: string
+		lineageTag: d89d05ec-0b52-40f8-8dfe-4519b9fbe7a9
+		summarizeBy: none
+		sourceColumn: espn_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = espn id|espn
+
+		annotation SynonymCollection = ["espn id","espn"]
+
+	/// NFL Elias (ESB) id.
+	column ESBID
+		dataType: string
+		lineageTag: 82b0756d-e33c-4763-82f3-8b1fd07612a8
+		summarizeBy: none
+		sourceColumn: esb_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = esb id|elias id|esb
+
+		annotation SynonymCollection = ["esb id","elias id","esb"]
+
+	/// NFL.com player id.
+	column NFLID
+		dataType: string
+		lineageTag: 05069612-0752-4e1e-9de2-569829e5e5a1
+		summarizeBy: none
+		sourceColumn: nfl_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = nfl id|nfl.com id
+
+		annotation SynonymCollection = ["nfl id","nfl.com id"]
+
+	/// Over The Cap player id.
+	column OTCID
+		dataType: string
+		lineageTag: 0efd5188-d7e7-4fd7-871c-6fb7cb5ed731
+		summarizeBy: none
+		sourceColumn: otc_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = otc id|over the cap|otc
+
+		annotation SynonymCollection = ["otc id","over the cap","otc"]
+
+	/// NFL GSIS Smart id.
+	column SmartID
+		dataType: string
+		lineageTag: 39e917f8-0262-4ff6-8922-aaaa174da10f
+		summarizeBy: none
+		sourceColumn: smart_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = smart id|gsis smart id|smart
+
+		annotation SynonymCollection = ["smart id","gsis smart id","smart"]
+
+	/// Draft round with overall pick in parentheses (e.g. 1 (5)); 'Undrafted' if none.
+	column DraftRdOvr
+		dataType: string
+		lineageTag: 78205948-be17-4cc5-abd8-6deef9675f74
+		summarizeBy: none
+		sourceColumn: Draft Rd (Ovr)
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = draft round overall|draft slot|round and pick|draft position
+
+		annotation SynonymCollection = ["draft round overall","draft slot","round and pick","draft position"]
+
+	/// Player age in whole years, computed from birth_date.
+	column Age
+		dataType: int64
+		formatString: 0
+		lineageTag: af0e23d3-e2b6-43ac-be15-9188c66d5a1c
+		summarizeBy: none
+		sourceColumn: Age
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = age|years old|player age|how old
+
+		annotation SynonymCollection = ["age","years old","player age","how old"]
+
+	partition Dim_NFLPlayers = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source = ```
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_players.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Inserted Merged Column" = Table.AddColumn(Source, "Draft Rd (Ovr)", each if [draft_round] = null or [draft_number] = null then "Undrafted" 
+				else Text.Combine({Text.From([draft_round], "en-US"), " (", Text.From([draft_number]), ")"})),
+				    #"Changed Type" = Table.TransformColumnTypes(#"Inserted Merged Column",{{"team_abbr", type text}, {"entry_year", Int64.Type}, {"draft_year", Int64.Type}, {"draft_club", type text}, {"draft_number", type text}, {"Draft Rd (Ovr)", type text}, {"birth_date", type date}}),
+				    #"Inserted AgeInSeconds" = Table.AddColumn(#"Changed Type", "AgeInSeconds", each Date.From(DateTime.LocalNow()) - [birth_date], type duration),
+				    #"Inserted AgeInYears" = Table.AddColumn(#"Inserted AgeInSeconds", "Age", each Duration.TotalDays([AgeInSeconds]) / 365),
+				    #"Changed Type1" = Table.TransformColumnTypes(#"Inserted AgeInYears",{{"Age", Int64.Type}}),
+				    #"Removed Columns" = Table.RemoveColumns(#"Changed Type1",{"AgeInSeconds"})
+				in
+				    #"Removed Columns"
+				```
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = NFL Players|Players|Player Registry|Player Dimension|Pros
+
+	annotation SynonymCollection = ["NFL Players","Players","Player Registry","Player Dimension","Pros"]
+

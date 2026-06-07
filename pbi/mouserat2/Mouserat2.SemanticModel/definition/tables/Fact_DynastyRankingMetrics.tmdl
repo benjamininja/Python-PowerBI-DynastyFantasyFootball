@@ -1,0 +1,141 @@
+/// Long (EAV) dynasty metrics: one row per snapshot, source, player, format, and metric_key. Source-specific stats live here so new sources add rows, not columns.
+table Fact_DynastyRankingMetrics
+	lineageTag: c9958674-0792-4495-82c2-d55231b62c0d
+
+	/// Date the rankings were captured (YYYY-MM-DD). Use the latest snapshot for current values; the table is a manual-cadence time series.
+	column SnapshotDate
+		dataType: string
+		lineageTag: d274cc23-6797-43ce-84b9-17d775cb150f
+		summarizeBy: none
+		sourceColumn: snapshot_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = snapshot|date|as of date|capture date|snapshot date
+
+		annotation SynonymCollection = ["snapshot","date","as of date","capture date","snapshot date"]
+
+	/// Ranking source that produced the metric (KTC, DynastySharks, FantasyPros).
+	column SourceName
+		dataType: string
+		lineageTag: 3b33beb3-a756-42c7-9400-24ec1df466d1
+		summarizeBy: none
+		sourceColumn: source_name
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = source|ranking source|provider|site|source name
+
+		annotation SynonymCollection = ["source","ranking source","provider","site","source name"]
+
+	/// The source's own player id/slug. Not unique across sources; combine with source_name (see source_uid) for identity.
+	column SourcePlayerID
+		dataType: string
+		lineageTag: 4158490d-246b-43e7-a4b6-3aeef7507882
+		summarizeBy: none
+		sourceColumn: source_player_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = source player id|player slug|source id|provider player id
+
+		annotation SynonymCollection = ["source player id","player slug","source id","provider player id"]
+
+	/// League format the metric applies to (SF superflex, TEPP tight-end premium, IDP). Format-agnostic metrics repeat across formats.
+	column Format
+		dataType: string
+		lineageTag: c3b3e4fe-b294-4cc7-af4d-3785fb2febf6
+		summarizeBy: none
+		sourceColumn: format
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = format|league format|scoring format|superflex|tepp
+
+		annotation SynonymCollection = ["format","league format","scoring format","superflex","tepp"]
+
+	/// Stable metric key joining to Dim_DynastyMetric (e.g. value, adp, proj_3yr, kept).
+	column MetricKey
+		dataType: string
+		lineageTag: b5fff951-dbf3-4fab-bf68-6ef09540f0bd
+		summarizeBy: none
+		sourceColumn: metric_key
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = metric|metric key|stat|measure key
+
+		annotation SynonymCollection = ["metric","metric key","stat","measure key"]
+
+	/// Numeric value of the metric (blank for text metrics). Aggregate via the dynasty measures, not raw SUM (format duplicates inflate sums).
+	column MetricNum
+		dataType: double
+		lineageTag: e1e692ac-495d-4f1a-8a81-07e6af5ab5b8
+		summarizeBy: sum
+		sourceColumn: metric_num
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = value|metric value|number|stat value|amount
+
+		annotation SynonymCollection = ["value","metric value","number","stat value","amount"]
+
+	/// Text value of the metric (e.g. the Analysis blurb); blank for numeric metrics.
+	column MetricText
+		dataType: string
+		lineageTag: d73d92c2-99a5-4d1e-8d96-681136a476fd
+		summarizeBy: none
+		sourceColumn: metric_text
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = text|metric text|note|comment|description
+
+		annotation SynonymCollection = ["text","metric text","note","comment","description"]
+
+	/// Composite key (snapshot-source-player-format) relating each metric row to its backbone row in Fact_DynastyRankings.
+	column MetricIndex
+		dataType: string
+		lineageTag: 43773bf9-e2ac-49eb-a11c-a4c563ad50fc
+		summarizeBy: none
+		sourceColumn: MetricIndex
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = metric index|row key|backbone key|join key
+
+		annotation SynonymCollection = ["metric index","row key","backbone key","join key"]
+
+	/// Player identity key = source_name|source_player_id. Single-column key linking to the crosswalk; the metrics grain's only path to player identity.
+	column SourceUID
+		dataType: string
+		lineageTag: 7b44de5e-7eca-4f88-9d00-94e5ca27a16b
+		summarizeBy: none
+		sourceColumn: source_uid
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = source uid|player uid|identity key|unique id
+
+		annotation SynonymCollection = ["source uid","player uid","identity key","unique id"]
+
+	partition Fact_DynastyRankingMetrics = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_dynasty_ranking_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Inserted Merged Column" = Table.AddColumn(Source, "MetricIndex", each Text.Combine({"20260606-", [source_name], "-", [source_player_id], "-", [format]}))
+				in
+				    #"Inserted Merged Column"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Dynasty Metrics|Ranking Metrics|Metric Facts|Dynasty Stats|Long Metrics
+
+	annotation SynonymCollection = ["Dynasty Metrics","Ranking Metrics","Metric Facts","Dynasty Stats","Long Metrics"]
+

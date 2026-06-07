@@ -1,0 +1,124 @@
+/// Position transformer: maps raw position codes to canonical detail, group, and side of ball. Join at ETL; add rows, never if/else.
+table Dim_Position
+	lineageTag: 488c3ccf-1a5e-423c-8da6-9cd63e50a9e6
+
+	/// Raw position code as it arrives from a source (key). Maps to canonical attributes.
+	column PositionRaw
+		dataType: string
+		lineageTag: 6e881fe9-6aa6-40a9-a4f5-a8817254b265
+		summarizeBy: none
+		sourceColumn: position_raw
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = position|pos|raw position|position code
+
+		annotation SynonymCollection = ["position","pos","raw position","position code"]
+
+	/// Canonical detailed position (e.g. QB, RB, WR, CB, EDGE).
+	column PositionDetail
+		dataType: string
+		lineageTag: 2c140c5a-b90b-469a-9196-6af83fc9abbf
+		summarizeBy: none
+		sourceColumn: position_detail
+		sortByColumn: PositionSortOrder
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = position|detailed position|pos detail|role
+
+		annotation SynonymCollection = ["position","detailed position","pos detail","role"]
+
+	/// Canonical position group (e.g. Offense skill, DL, LB, DB).
+	column PositionGroup
+		dataType: string
+		lineageTag: b500fd97-677b-4d59-bb42-c6c5955be6d9
+		summarizeBy: none
+		sourceColumn: position_group
+		sortByColumn: PositionSortOrder
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = position group|group|pos group|unit
+
+		annotation SynonymCollection = ["position group","group","pos group","unit"]
+
+	/// Side of the ball: Offense, Defense, or Special Teams.
+	column SideOfBall
+		dataType: string
+		lineageTag: cbeadcae-0c77-4ef8-a19c-db32f0a276fb
+		summarizeBy: none
+		sourceColumn: side_of_ball
+		sortByColumn: SideOfBallSortOrder
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = side of ball|offense or defense|unit|side
+
+		annotation SynonymCollection = ["side of ball","offense or defense","unit","side"]
+
+	/// Whether the position is started in fantasy lineups.
+	column FantasyRelevant
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 1bb48dd4-c865-4a37-b135-339f499d5b2a
+		summarizeBy: none
+		sourceColumn: fantasy_relevant
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = fantasy relevant|startable|relevant|fantasy position
+
+		annotation SynonymCollection = ["fantasy relevant","startable","relevant","fantasy position"]
+
+	/// Sort order for positions on report axes.
+	column PositionSortOrder
+		dataType: int64
+		formatString: 0
+		lineageTag: c8a409ce-54d3-4503-9d47-f37b41fc4a85
+		summarizeBy: sum
+		sourceColumn: position_sort_order
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = position sort|sort order|position order
+
+		annotation SynonymCollection = ["position sort","sort order","position order"]
+
+	/// Sort order for side-of-ball values on report axes.
+	column SideOfBallSortOrder
+		dataType: int64
+		formatString: 0
+		lineageTag: 97438a89-cafc-4476-bfe1-3af5e4dbb2e2
+		summarizeBy: sum
+		sourceColumn: side_of_ball_sort_order
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = side sort|side order|sort order
+
+		annotation SynonymCollection = ["side sort","side order","sort order"]
+
+	partition Dim_Position = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_position.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Positions|Position Dimension|Roles|Position Lookup|Position Map
+
+	annotation SynonymCollection = ["Positions","Position Dimension","Roles","Position Lookup","Position Map"]
+

@@ -1,0 +1,298 @@
+/// Fantrax snapshots: one row per scorer, season, and week. Projection board preseason and YTD actuals in-season (ADP, salary, FPts, GP).
+table Fact_FantraxADP
+	lineageTag: 05ed4866-691f-4bd5-bd35-693f2a75f004
+
+	/// Distinct rookie players (is_rookie = TRUE) on the Fantrax board.
+	measure Rookie = CALCULATE( [Fantrax Player Count], Fact_FantraxADP[IsRookie] = TRUE)
+		formatString: 0
+		lineageTag: 412b2d58-743a-439a-a37c-11eed8be7aa8
+
+		annotation Synonyms = rookies|rookie count|number of rookies|first year players
+
+		annotation SynonymCollection = ["rookies","rookie count","number of rookies","first year players"]
+
+	/// Distinct players on the Fantrax board (by gsis_id).
+	measure 'Fantrax Player Count' = DISTINCTCOUNT( Fact_FantraxADP[GSISID] )
+		formatString: 0
+		lineageTag: 79b1bd8b-bd53-410b-86b6-75349a37d05b
+
+		annotation Synonyms = player count|number of players|distinct players|players
+
+		annotation SynonymCollection = ["player count","number of players","distinct players","players"]
+
+	/// Fantrax player id (key); links to the Fantrax crosswalk.
+	column ScorerID
+		dataType: string
+		lineageTag: bd7a2542-68c9-4fc5-8baa-88f0f3f0cda5
+		summarizeBy: none
+		sourceColumn: scorer_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = scorer id|fantrax id|player id
+
+		annotation SynonymCollection = ["scorer id","fantrax id","player id"]
+
+	/// NFL season of the snapshot.
+	column Season
+		dataType: int64
+		formatString: 0
+		lineageTag: 5ef626d2-6622-45c9-9e8b-736ff701f3da
+		summarizeBy: none
+		sourceColumn: season
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = season|year|nfl season
+
+		annotation SynonymCollection = ["season","year","nfl season"]
+
+	/// Week label of the snapshot (PRE, 01-18, or YTD).
+	column Week
+		dataType: string
+		lineageTag: 82e6c8ad-d7da-49b5-b97b-c221f0e02871
+		summarizeBy: none
+		sourceColumn: week
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = week|game week|snapshot week
+
+		annotation SynonymCollection = ["week","game week","snapshot week"]
+
+	/// Date the snapshot was scraped.
+	column CaptureDate
+		dataType: string
+		lineageTag: 3329a35f-e13e-437a-907c-08af2c54744b
+		summarizeBy: none
+		sourceColumn: capture_date
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = capture date|date|scrape date
+
+		annotation SynonymCollection = ["capture date","date","scrape date"]
+
+	/// Player display name from Fantrax.
+	column PlayerName
+		dataType: string
+		lineageTag: 3ebbf6ce-907a-45fe-aabc-84a1d4ba13d3
+		summarizeBy: none
+		sourceColumn: player_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player|name|player name
+
+		annotation SynonymCollection = ["player","name","player name"]
+
+	/// Player position as published by Fantrax (raw).
+	column PositionRaw
+		dataType: string
+		lineageTag: 78f9c9f6-acb8-495c-bd2f-122003d036a8
+		summarizeBy: none
+		sourceColumn: position_raw
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = position|pos|role
+
+		annotation SynonymCollection = ["position","pos","role"]
+
+	/// Player's NFL team abbreviation.
+	column NFLTeam
+		dataType: string
+		lineageTag: d3eca7c4-f995-49db-8a27-c0f25f991785
+		summarizeBy: none
+		sourceColumn: nfl_team
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|nfl team|club
+
+		annotation SynonymCollection = ["team","nfl team","club"]
+
+	/// Whether the player is a rookie.
+	column IsRookie
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: fd5ea799-83c1-4563-9080-a3054cd0087e
+		summarizeBy: none
+		sourceColumn: is_rookie
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = rookie|is rookie|first year
+
+		annotation SynonymCollection = ["rookie","is rookie","first year"]
+
+	/// Average draft position on the board. Lower is drafted earlier.
+	column ADP
+		dataType: double
+		lineageTag: a58a90fd-cfd9-4940-9fed-a545c3e53326
+		summarizeBy: none
+		sourceColumn: adp
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = adp|average draft position|draft position
+
+		annotation SynonymCollection = ["adp","average draft position","draft position"]
+
+	/// Fantrax auction salary value ($).
+	column Salary
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 03fc54db-75ae-4e85-9722-3366046a3687
+		summarizeBy: none
+		sourceColumn: salary
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+		annotation Synonyms = salary|auction value|price|cost
+
+		annotation SynonymCollection = ["salary","auction value","price","cost"]
+
+	/// Share of leagues that have drafted the player.
+	column PercentDrafted
+		dataType: double
+		lineageTag: 5de4339d-605f-4967-b619-e0884c0224a6
+		summarizeBy: none
+		sourceColumn: percent_drafted
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = percent drafted|draft rate|ownership
+
+		annotation SynonymCollection = ["percent drafted","draft rate","ownership"]
+
+	/// nflverse universal player id; links to Dim_NFLPlayers.
+	column GSISID
+		dataType: string
+		lineageTag: a50de978-7392-444b-8141-37366edee5b8
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id"]
+
+	/// Draft-class player key for rookies.
+	column PlayerKey
+		dataType: string
+		lineageTag: d71a0a3d-d5aa-40b4-bda4-e22dde28426c
+		summarizeBy: none
+		sourceColumn: player_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player key|rookie key|prospect key
+
+		annotation SynonymCollection = ["player key","rookie key","prospect key"]
+
+	/// Total fantasy points (projected preseason, actual in-season).
+	column Fpts
+		dataType: double
+		lineageTag: 8b718810-4f72-4fa4-b2c3-60beb6798f53
+		summarizeBy: none
+		sourceColumn: fpts
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = fantasy points|fpts|points|total points
+
+		annotation SynonymCollection = ["fantasy points","fpts","points","total points"]
+
+	/// Fantrax overall rank (Rk) by fantasy points. Lower is better.
+	column OverallRank
+		dataType: int64
+		lineageTag: b32f18ae-b404-4e40-b3fa-35ac077cfbd4
+		summarizeBy: none
+		sourceColumn: overall_rank
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = overall rank|rank|rk|ranking
+
+		annotation SynonymCollection = ["overall rank","rank","rk","ranking"]
+
+	/// Fantasy points per game (projected or actual).
+	column FptsPerGame
+		dataType: double
+		lineageTag: d5a82224-71e0-48f2-9d89-b795efcc365b
+		summarizeBy: none
+		sourceColumn: fpts_per_game
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = points per game|fpts per game|ppg|fp/g
+
+		annotation SynonymCollection = ["points per game","fpts per game","ppg","fp/g"]
+
+	/// Player age (years).
+	column Age
+		dataType: int64
+		lineageTag: 072022ec-42ed-4487-9c98-0f4995b80b2b
+		summarizeBy: none
+		sourceColumn: age
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = age|years old|player age
+
+		annotation SynonymCollection = ["age","years old","player age"]
+
+	/// Games played (in-season actuals; from the Players grid).
+	column GamesPlayed
+		dataType: int64
+		lineageTag: ef88dfb6-9f55-4e6a-8fbc-ad2af097eec3
+		summarizeBy: none
+		sourceColumn: games_played
+
+		changedProperty = DataType
+
+		annotation SummarizationSetBy = User
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+		annotation Synonyms = games played|gp|games
+
+		annotation SynonymCollection = ["games played","gp","games"]
+
+	partition Fact_FantraxADP = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_fantrax_adp.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Fantrax ADP|ADP Board|Draft Rankings|Fantrax Board|Player Values
+
+	annotation SynonymCollection = ["Fantrax ADP","ADP Board","Draft Rankings","Fantrax Board","Player Values"]
+

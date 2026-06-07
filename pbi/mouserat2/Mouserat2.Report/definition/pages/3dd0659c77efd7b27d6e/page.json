@@ -1,0 +1,20 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "3dd0659c77efd7b27d6e",
+  "displayName": "Rookie Rankings",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280,
+  "visualInteractions": [
+    {
+      "source": "6d3cf77841e817efbb63",
+      "target": "0ebd31fbab6779c3e6fd",
+      "type": "NoFilter"
+    },
+    {
+      "source": "0ebd31fbab6779c3e6fd",
+      "target": "6d3cf77841e817efbb63",
+      "type": "NoFilter"
+    }
+  ]
+}

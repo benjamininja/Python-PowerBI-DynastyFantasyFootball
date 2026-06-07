@@ -1,0 +1,62 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "name": "953326423dbe685d80b6",
+  "position": {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "height": 240,
+    "width": 320,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Fact_DynastyRankingMetrics"
+                    }
+                  },
+                  "Property": "MetricText"
+                }
+              },
+              "queryRef": "Fact_DynastyRankingMetrics.MetricText",
+              "nativeQueryRef": "Dynasty Sharks Notes",
+              "displayName": "Dynasty Sharks Notes"
+            }
+          ]
+        }
+      }
+    },
+    "objects": {
+      "columnWidth": [
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "302.9999995917381D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Fact_DynastyRankingMetrics.MetricText"
+          }
+        }
+      ],
+      "columnHeaders": [
+        {
+          "properties": {}
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
