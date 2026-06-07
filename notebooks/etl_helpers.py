@@ -502,3 +502,49 @@ def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
             "match_method": method, "match_score": score, "resolved_date": today,
         })
     return pd.DataFrame.from_records(recs)
+
+
+def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name")):
+    """Idempotent replace-by-partition append: drop existing rows whose `part_cols`
+    match any present in `df`, then append `df`. Each source/snapshot run replaces
+    its own slice (no orphans when composition shifts). Returns total row count.
+    Shared by the section-04 dynasty loaders (and any snapshot fact)."""
+    path = Path(path)
+    part_cols = list(part_cols)
+    if path.exists():
+        old = pd.read_parquet(path)
+        keys = set(map(tuple, df[part_cols].drop_duplicates().to_numpy()))
+        mask = old[part_cols].apply(tuple, axis=1).isin(keys)
+        df = pd.concat([old[~mask], df], ignore_index=True)
+    df.to_parquet(path, index=False)
+    return len(df)
+
+
+def upsert_dynasty_crosswalk(new_rows, path):
+    """Replace the source(s) present in `new_rows` within dim_dynasty_crosswalk,
+    keep all other sources, write, and return the full crosswalk DataFrame."""
+    path = Path(path)
+    sources = set(new_rows["source"].unique())
+    if path.exists():
+        prior = pd.read_parquet(path)
+        xw = pd.concat([prior[~prior["source"].isin(sources)], new_rows], ignore_index=True)
+    else:
+        xw = new_rows
+    xw.to_parquet(path, index=False)
+    return xw
+
+
+def write_dynasty_review(crosswalk, path):
+    """Rebuild the dynasty crosswalk review CSV as a projection of ALL unresolved
+    rows across the full crosswalk (not an accumulator, and source-agnostic so no
+    notebook clobbers another's rows). Removes the file when nothing is unresolved.
+    Returns the unresolved count."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    unresolved = crosswalk[crosswalk["match_method"].isin(["review", "unmatched"])].copy()
+    if len(unresolved):
+        unresolved["action"] = ""          # user fills: a gsis_id, or "new"
+        unresolved.to_csv(path, index=False)
+    elif path.exists():
+        path.unlink()
+    return len(unresolved)
