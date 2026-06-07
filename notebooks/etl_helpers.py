@@ -3,7 +3,7 @@ etl_helpers.py — shared helpers for the dynasty fantasy football ETL pipeline.
 
 Single source of truth for league config, name normalization, the player-key
 hash, the HTTP session factory, and the rookie-ranking matcher/ingester. The
-08x ranking notebooks, 08y/08z (alias + review apply), and the dimension seeds
+03x ranking notebooks, 03y/03z (alias + review apply), and the dimension seeds
 import from here so the logic exists once.
 
 Import pattern (notebooks run with CWD = repo root):
@@ -33,6 +33,12 @@ from urllib3.util.retry import Retry
 from thefuzz import fuzz, process
 
 
+# Repo root = parent of this file's dir (notebooks/). Used to anchor data paths so
+# they resolve to the SAME place no matter the CWD a notebook is run from. Running
+# from notebooks/ used to create a stray notebooks/data/ (relative "data" + mkdir).
+_ROOT = Path(__file__).resolve().parent.parent
+
+
 @dataclass
 class LeagueConfig:
     """Central config — all league rules live here, nowhere else."""
@@ -51,12 +57,20 @@ class LeagueConfig:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
 
+    def __post_init__(self):
+        # Anchor relative data paths to the repo root → CWD-independent. (Absolute
+        # paths, e.g. a Fabric abfss:// path, are left untouched.)
+        if not Path(self.data_dir).is_absolute():
+            self.data_dir = str(_ROOT / self.data_dir)
+        if not Path(self.review_dir).is_absolute():
+            self.review_dir = str(_ROOT / self.review_dir)
+
 
 CFG    = LeagueConfig()
 DATA   = Path(CFG.data_dir)
 REVIEW = Path(CFG.review_dir)
 TODAY  = date.today().isoformat()
-ALIAS  = DATA / "dim_player_alias.parquet"   # persistent name->player_key decisions (08y/08z)
+ALIAS  = DATA / "dim_player_alias.parquet"   # persistent name->player_key decisions (03y/03z)
 DATA.mkdir(exist_ok=True)
 REVIEW.mkdir(parents=True, exist_ok=True)
 
@@ -192,7 +206,7 @@ def add_players_from_source(
     existing_lookup = dict(zip(dim_rp["player_name_clean"], dim_rp["player_key"]))
 
     # Persistent decisions: (name_clean, position_raw) already resolved in a prior
-    # review -> never ask again (dim_player_alias, built by 08y, appended by 08z).
+    # review -> never ask again (dim_player_alias, built by 03y, appended by 03z).
     alias_keys = set()
     if ALIAS.exists():
         _al = pd.read_parquet(ALIAS)
@@ -413,3 +427,138 @@ def append_review(reviews: list, path: Path | None = None) -> None:
     else:
         new.to_csv(path, index=False)
         print(f"Review file created: {path} ({len(new)} rows)")
+
+
+def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
+                              auto_threshold=90, review_threshold=70, today=None):
+    """Resolve dynasty-source player identities to registry keys for
+    `dim_dynasty_crosswalk`. Single matcher shared by every section-04 dynasty
+    source notebook (KTC 04b, manual 04x, ...) — do not re-implement per notebook.
+
+    identities: DataFrame with columns source, source_player_id, player_name,
+        position_raw, nfl_team.
+    overrides:  optional {source_player_id: gsis_id} manual fixes (nickname vets,
+        e.g. KTC 'Gabriel Davis' -> Gabe Davis). source_player_id compared as str.
+
+    Returns a crosswalk DataFrame keyed (source, source_player_id):
+        source, source_player_id, source_player_name, source_position, source_team,
+        gsis_id, player_key, match_method, match_score, resolved_date.
+
+    Matching mirrors the Fantrax crosswalk (04z): exact cleaned-name vs
+    dim_nfl_players.display_name -> disambiguate by position / ACT / recency ->
+    fuzzy >= auto_threshold (review_threshold..auto -> 'review', else 'unmatched').
+    player_key from dim_rookie_prospect (rookie fallback); if no gsis but a
+    player_key matches, method='rookie' (resolved, not a review item).
+    """
+    overrides = {str(k): v for k, v in (overrides or {}).items()}
+    today = today or date.today().isoformat()
+    _suffix = re.compile(r"\b(jr|sr|ii|iii|iv|v)\b")
+
+    def _clean(name):
+        if not isinstance(name, str):
+            return ""
+        n = name.lower().replace(".", "").replace("'", "").replace("’", "")
+        n = _suffix.sub("", n)
+        return re.sub(r"\s+", " ", n).strip()
+
+    npl = pd.read_parquet(f"{data_dir}/dim_nfl_players.parquet").copy()
+    rp = pd.read_parquet(f"{data_dir}/dim_rookie_prospect.parquet").copy()
+    npl["name_clean"] = npl["display_name"].map(_clean)
+    rp["name_clean"] = rp["player_name"].map(_clean)
+    rp_lookup = (rp.dropna(subset=["name_clean"]).drop_duplicates("name_clean")
+                   .set_index("name_clean")["player_key"].to_dict())
+    npl_by_name = {n: g for n, g in npl.groupby("name_clean")}
+    npl_names = list(npl_by_name.keys())
+
+    def _disambig(cands, pos):
+        df = cands
+        if pos:
+            m = (df["position"].str.upper() == pos) | (df["position_group"].str.upper() == pos)
+            if m.any():
+                df = df[m]
+        if (df["status"] == "ACT").any():
+            df = df[df["status"] == "ACT"]
+        if "entry_year" in df and df["entry_year"].notna().any():
+            df = df.sort_values("entry_year", ascending=False)
+        return df.iloc[0]
+
+    recs = []
+    for r in identities.itertuples(index=False):
+        spid = str(r.source_player_id)
+        cn = _clean(r.player_name)
+        pos = re.sub(r"\d+", "", str(r.position_raw)).upper().strip()  # 'QB1' -> 'QB'
+        gsis, method, score = None, "unmatched", 0
+        if spid in overrides:
+            gsis, method, score = overrides[spid], "manual", 100
+        elif cn in npl_by_name:
+            cands = npl_by_name[cn]
+            pick = cands.iloc[0] if len(cands) == 1 else _disambig(cands, pos)
+            gsis = pick["gsis_id"]
+            method, score = ("exact" if len(cands) == 1 else "exact+disambig"), 100
+        elif npl_names:
+            best_name, sc = process.extractOne(cn, npl_names, scorer=fuzz.token_sort_ratio)
+            score = int(sc)
+            if sc >= auto_threshold:
+                gsis, method = _disambig(npl_by_name[best_name], pos)["gsis_id"], "fuzzy"
+            elif sc >= review_threshold:
+                method = "review"
+        pkey = rp_lookup.get(cn)
+        if gsis is None and pkey is not None and method in ("review", "unmatched"):
+            method = "rookie"   # resolved via rookie registry — not a review item
+        recs.append({
+            # source_uid = single-column surrogate (source_player_id is NOT unique
+            # across sources — slugs collide DS/FP). Use this for PBI relationships.
+            "source_uid": f"{r.source}|{spid}",
+            "source": r.source, "source_player_id": spid,
+            "source_player_name": r.player_name, "source_position": r.position_raw,
+            "source_team": getattr(r, "nfl_team", None),
+            "gsis_id": gsis, "player_key": pkey,
+            "match_method": method, "match_score": score, "resolved_date": today,
+        })
+    return pd.DataFrame.from_records(recs)
+
+
+def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name")):
+    """Idempotent replace-by-partition append: drop existing rows whose `part_cols`
+    match any present in `df`, then append `df`. Each source/snapshot run replaces
+    its own slice (no orphans when composition shifts). Returns total row count.
+    Shared by the section-04 dynasty loaders (and any snapshot fact)."""
+    path = Path(path)
+    part_cols = list(part_cols)
+    if path.exists():
+        old = pd.read_parquet(path)
+        keys = set(map(tuple, df[part_cols].drop_duplicates().to_numpy()))
+        mask = old[part_cols].apply(tuple, axis=1).isin(keys)
+        df = pd.concat([old[~mask], df], ignore_index=True)
+    df.to_parquet(path, index=False)
+    return len(df)
+
+
+def upsert_dynasty_crosswalk(new_rows, path):
+    """Replace the source(s) present in `new_rows` within dim_dynasty_crosswalk,
+    keep all other sources, write, and return the full crosswalk DataFrame."""
+    path = Path(path)
+    sources = set(new_rows["source"].unique())
+    if path.exists():
+        prior = pd.read_parquet(path)
+        xw = pd.concat([prior[~prior["source"].isin(sources)], new_rows], ignore_index=True)
+    else:
+        xw = new_rows
+    xw.to_parquet(path, index=False)
+    return xw
+
+
+def write_dynasty_review(crosswalk, path):
+    """Rebuild the dynasty crosswalk review CSV as a projection of ALL unresolved
+    rows across the full crosswalk (not an accumulator, and source-agnostic so no
+    notebook clobbers another's rows). Removes the file when nothing is unresolved.
+    Returns the unresolved count."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    unresolved = crosswalk[crosswalk["match_method"].isin(["review", "unmatched"])].copy()
+    if len(unresolved):
+        unresolved["action"] = ""          # user fills: a gsis_id, or "new"
+        unresolved.to_csv(path, index=False)
+    elif path.exists():
+        path.unlink()
+    return len(unresolved)

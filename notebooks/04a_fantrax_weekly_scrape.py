@@ -1,5 +1,5 @@
 # %% [markdown]
-# # 09_fantrax_weekly_scrape  (Playwright, weekly)
+# # 04a_fantrax_weekly_scrape  (Playwright, weekly)
 #
 # **Purpose:** Authenticate to Fantrax via a headless browser and pull the full
 # draft-ranking board (`getDraftRanks`) as a weekly snapshot for league
@@ -17,10 +17,18 @@
 #
 # **Outputs:**
 # - `data/raw/fantrax_draftranks_{season}_wk{NN}.json` — verbatim API response (audit/replay)
-# - `data/fact_fantrax_adp.parquet` — parsed weekly board; grain = scorer_id x season x week
+# - `data/fact_fantrax_adp.parquet` — parsed weekly board; grain = scorer_id x season x week.
+#   Columns include overall_rank (Fantrax "Rk"), adp, salary, fpts, fpts_per_game,
+#   age, percent_drafted. fpts/fpts_per_game are PHASE-AWARE: season projections
+#   preseason, YTD actuals once the season starts (resolve_season_or_projection).
 #
-# **Identity:** rows key on Fantrax `scorer_id`; `gsis_id` / `player_key` are left
-# null. A scorer_id -> player-registry crosswalk is a separate, later task.
+# **Stats not on this board:** games-played and the per-stat splits live only on the
+# Players grid (method `getPlayerStats`, miscDisplayType=1, paged maxResultsPerPage
+# up to 500). Validated for a future in-season GP/splits pull; not wired in yet.
+#
+# **Identity:** rows key on Fantrax `scorer_id`; `gsis_id` / `player_key` are joined
+# from dim_fantrax_crosswalk (built by 04z). `age` is derived from dim_nfl_players
+# via the crosswalk gsis_id — it's a registry attribute, not a board field.
 #
 # **Pipeline (one notebook, E+T+L):** scrape -> write raw JSON -> parse the ADP'd
 # board (~280 of ~8600) -> append to the parquet fact, dedup on [scorer_id, season, week].
@@ -48,7 +56,11 @@ class LeagueConfig:
     league_id: str = "v744203wmmvjqzv6"
     endpoint: str = "https://www.fantrax.com/fxpa/req"
     login_url: str = "https://www.fantrax.com/login"
-    season_or_projection: str = "SEASON_23l_YEAR_TO_DATE"
+    # Stat timeframe is phase-aware (see resolve_season_or_projection):
+    # preseason runs capture the season projection; once Week 1 completes,
+    # in-season runs capture year-to-date actuals (real FPts + games played).
+    projection_code: str = "PROJECTION_0_23l_SEASON"   # "Projected - Season"
+    ytd_code: str = "SEASON_23l_YEAR_TO_DATE"          # "Reg Season - YTD"
     ui_version: int = 3
     api_version: str = "182.4.8"          # 'v' field; bump when Fantrax updates UI
     timezone: str = "America/Chicago"
@@ -70,12 +82,27 @@ class LeagueConfig:
     data_dir: str = "data"
     raw_dir: str = "data/raw"
     fact_name: str = "fact_fantrax_adp"   # parquet fact: weekly ADP/salary snapshots
-    crosswalk_name: str = "dim_fantrax_crosswalk"   # scorer_id -> gsis_id/player_key (built by 09a)
+    crosswalk_name: str = "dim_fantrax_crosswalk"   # scorer_id -> gsis_id/player_key (built by 04z)
+    # --- Players-grid backfill (getPlayerStats): real season actuals incl. GP ---
+    # getDraftRanks lacks games-played and per-stat splits; the Players grid has
+    # them but is paginated and position-group-scoped (the "ALL" group drops GP).
+    # Used to backfill completed-season YTD actuals as a counterpoint to the
+    # projection board (e.g. season=2025, week="YTD").
+    players_page_size: int = 500
+    players_misc_display: str = "1"                          # detailed view -> splits + GP
+    players_pos_groups: tuple = ("FOOTBALL_OFFENSE", "FOOTBALL_DEFENSE")
     # --- Heuristics ---
     min_expected_rows: int = 50
 
 
 CFG = LeagueConfig()
+
+# Completed-season YTD `seasonOrProjection` codes (from the response's
+# seasonOrProjections list). Used by backfill_player_stats to pull actuals.
+YTD_SEASON_CODES = {
+    2025: "SEASON_23j_YEAR_TO_DATE",   # 2025-26 Reg Season - YTD
+    2024: "SEASON_23h_YEAR_TO_DATE",   # 2024-25 Reg Season - YTD
+}
 
 
 # %%
@@ -98,6 +125,16 @@ def derive_week_label(cfg: LeagueConfig, run_dt: date | None = None) -> str:
         return cfg.preseason_label
     weeks = (run_dt - week1_monday).days // 7 + 1
     return f"{max(1, min(18, weeks)):02d}"
+
+
+def resolve_season_or_projection(cfg: LeagueConfig, run_dt: date | None = None) -> str:
+    """
+    Phase-aware stat timeframe. Preseason (week label == preseason_label) ->
+    season projection (projected FPts/FP-G/GP); in-season -> year-to-date
+    actuals. This drives what getDraftRanks returns in statsAll[2]/[3].
+    """
+    week = derive_week_label(cfg, run_dt)
+    return cfg.projection_code if week == cfg.preseason_label else cfg.ytd_code
 
 
 # %%
@@ -188,7 +225,7 @@ class FantraxScraper:
         return {
             "msgs": [
                 {"method": "getDraftRanks",
-                 "data": {"seasonOrProjection": self.cfg.season_or_projection}},
+                 "data": {"seasonOrProjection": resolve_season_or_projection(self.cfg)}},
                 {"method": "getFantasyTeams", "data": {}},
             ],
             "uiv": self.cfg.ui_version,
@@ -198,16 +235,76 @@ class FantraxScraper:
             "v": self.cfg.api_version,
         }
 
-    def _post_draftranks(self, ctx) -> dict:
-        """POST getDraftRanks via the authenticated request context."""
+    def _post_json(self, ctx, payload: dict, what: str = "request") -> dict:
+        """POST an fxpa payload via the authenticated request context."""
         url = f"{self.cfg.endpoint}?leagueId={self.cfg.league_id}"
         resp = ctx.request.post(
-            url, data=json.dumps(self._payload()),
+            url, data=json.dumps(payload),
             headers={"Content-Type": "application/json"},
         )
         if not resp.ok:
-            raise RuntimeError(f"getDraftRanks HTTP {resp.status}")
+            raise RuntimeError(f"{what} HTTP {resp.status}")
         return resp.json()
+
+    def _post_draftranks(self, ctx) -> dict:
+        """POST getDraftRanks via the authenticated request context."""
+        return self._post_json(ctx, self._payload(), "getDraftRanks")
+
+    # --- players-grid (getPlayerStats) backfill ------------------------------
+    def _player_stats_payload(self, season_code: str, timeframe: str,
+                              pos_group: str, page_no: int) -> dict:
+        """getPlayerStats request body for one position group + page."""
+        return {
+            "msgs": [{"method": "getPlayerStats", "data": {
+                "statusOrTeamFilter": "ALL",
+                "pageNumber": str(page_no),
+                "maxResultsPerPage": str(self.cfg.players_page_size),
+                "miscDisplayType": self.cfg.players_misc_display,
+                "positionOrGroup": pos_group,
+                "seasonOrProjection": season_code,
+                "timeframeTypeCode": timeframe,
+            }}],
+            "uiv": self.cfg.ui_version, "refUrl": self.cfg.ref_url,
+            "dt": 0, "at": 0, "tz": self.cfg.timezone, "v": self.cfg.api_version,
+        }
+
+    def fetch_player_stats(self, season_code: str, timeframe: str,
+                           label: str) -> list:
+        """
+        Paginate getPlayerStats across position groups (the 'ALL' group omits GP,
+        so we pull FOOTBALL_OFFENSE + FOOTBALL_DEFENSE and union). Returns every
+        raw page response — each carries its own tableHeader for the parser — and
+        writes a combined raw audit file. Self-heals auth like fetch().
+        """
+        from playwright.sync_api import sync_playwright
+        responses = []
+        with sync_playwright() as p:
+            ctx = p.chromium.launch_persistent_context(
+                self.cfg.user_data_dir, headless=self.cfg.headless,
+            )
+            page = ctx.new_page()
+            page.set_default_timeout(self.cfg.nav_timeout_ms)
+            for pos_group in self.cfg.players_pos_groups:
+                page_no = 1
+                while True:
+                    payload = self._player_stats_payload(
+                        season_code, timeframe, pos_group, page_no)
+                    raw = self._post_json(ctx, payload, "getPlayerStats")
+                    if self._session_dead(raw):
+                        self._login(page)
+                        raw = self._post_json(ctx, payload, "getPlayerStats")
+                    responses.append(raw)
+                    prs = raw["responses"][0]["data"].get("paginatedResultSet", {})
+                    total_pages = prs.get("totalNumPages", 1)
+                    print(f"[info] {pos_group} page {page_no}/{total_pages}")
+                    if page_no >= total_pages:
+                        break
+                    page_no += 1
+            ctx.close()
+        out = f"{self.cfg.raw_dir}/fantrax_playerstats_{label}.json"
+        Path(out).write_text(json.dumps(responses, indent=2), encoding="utf-8")
+        print(f"[ok] getPlayerStats {label}: {len(responses)} pages -> {out}")
+        return responses
 
     # --- main entry -----------------------------------------------------------
     def fetch(self) -> dict:
@@ -329,7 +426,7 @@ def _load_crosswalk(cfg: LeagueConfig) -> dict:
     """
     scorer_id -> (gsis_id, player_key) from dim_fantrax_crosswalk, if built.
     Missing file (first ever run) -> empty map; new scorer_ids stay null until
-    09a_fantrax_crosswalk is (re)run to resolve them.
+    04z_fantrax_crosswalk is (re)run to resolve them.
     """
     path = f"{cfg.data_dir}/{cfg.crosswalk_name}.parquet"
     if not Path(path).exists():
@@ -338,49 +435,200 @@ def _load_crosswalk(cfg: LeagueConfig) -> dict:
     return {r.scorer_id: (r.gsis_id, r.player_key) for r in xw.itertuples()}
 
 
+def _overall_rank_map(raw: dict) -> dict:
+    """
+    Reproduce Fantrax's "Rk" (ranking based on fantasy points among all players):
+    rank the entire scorer pool by FPts (statsAll[2]) descending, 1-based.
+    Players with no FPts are unranked (absent from the map -> null Rk). Ties keep
+    response order. In-season this is YTD-actual rank; preseason it's projected.
+    """
+    rows = raw["responses"][0]["data"]["fullStats"]
+    scored = [(r["scorer"]["scorerId"], r["statsAll"][2])
+              for r in rows
+              if r.get("statsAll") and r["statsAll"][2] is not None and r["statsAll"][2] > 0]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return {sid: i + 1 for i, (sid, _) in enumerate(scored)}
+
+
+def _age_map(cfg: LeagueConfig, gsis_ids: set, as_of: date) -> dict:
+    """
+    gsis_id -> integer age (whole years) as of `as_of`, from
+    dim_nfl_players.birth_date. Age is a player attribute (lives in the registry),
+    not a Fantrax-board field — so we derive it via the crosswalk gsis_id rather
+    than scraping a second endpoint. Missing registry/birth_date -> no entry.
+    """
+    path = f"{cfg.data_dir}/dim_nfl_players.parquet"
+    if not Path(path).exists():
+        return {}
+    dp = pd.read_parquet(path, columns=["gsis_id", "birth_date"])
+    dp = dp[dp["gsis_id"].isin(gsis_ids) & dp["birth_date"].notna()]
+    bd = pd.to_datetime(dp["birth_date"], errors="coerce")
+    out = {}
+    for gid, b in zip(dp["gsis_id"], bd):
+        if pd.isna(b):
+            continue
+        out[gid] = as_of.year - b.year - ((as_of.month, as_of.day) < (b.month, b.day))
+    return out
+
+
 def board_to_frame(raw: dict, cfg: LeagueConfig = CFG) -> pd.DataFrame:
     """
-    Flatten the ranked ADP board into the fact_fantrax_adp shape.
+    Flatten the ranked board into the fact_fantrax_adp shape.
 
-    Grain: one row per scorer_id x season x week. FKs gsis_id / player_key are
-    populated from dim_fantrax_crosswalk when present (null for any scorer_id not
-    yet resolved — run 09a to extend the crosswalk).
-    statsAll order: [bye, salary, score, fptsPerGame, adp, percentOwned].
+    Grain: one row per scorer_id x season x week. FKs gsis_id / player_key come
+    from dim_fantrax_crosswalk when present (null for unresolved scorer_ids — run
+    04z to extend the crosswalk).
+
+    statsAll order: [bye, salary, fpts, fpts_per_game, adp, percent_owned].
+    Phase-aware: fpts/fpts_per_game are season projections preseason, YTD actuals
+    in-season (see resolve_season_or_projection). overall_rank reproduces Fantrax's
+    "Rk"; age is derived from dim_nfl_players via the crosswalk gsis_id.
     """
     week = derive_week_label(cfg)
-    today = date.today().isoformat()
+    today = date.today()
+    today_iso = today.isoformat()
     xwalk = _load_crosswalk(cfg)
+    rank_map = _overall_rank_map(raw)
+    board = extract_ranked_board(raw)
+
+    gsis_ids = {g for g, _ in (xwalk.get(r["scorer"]["scorerId"], (None, None)) for r in board) if g}
+    age_map = _age_map(cfg, gsis_ids, today)
+
     recs = []
-    for r in extract_ranked_board(raw):
+    for r in board:
         s = r["scorer"]
-        gsis, pkey = xwalk.get(s["scorerId"], (None, None))
+        sid = s["scorerId"]
+        gsis, pkey = xwalk.get(sid, (None, None))
+        stats = r["statsAll"]
         recs.append({
-            "scorer_id":       s["scorerId"],
+            "scorer_id":       sid,
             "season":          cfg.snapshot_season,
             "week":            week,
-            "capture_date":    today,
+            "capture_date":    today_iso,
             "player_name":     s.get("name"),
             "position_raw":    re.sub(r"<[^>]+>", "", s.get("posShortNames", "")).strip(),
             "nfl_team":        s.get("teamShortName"),
             "is_rookie":       bool(s.get("rookie")),
-            "adp":             r["statsAll"][4],
+            "overall_rank":    rank_map.get(sid),         # Fantrax "Rk" (by FPts, all players)
+            "adp":             stats[4],
             "salary":          r.get("salary"),
             "percent_drafted": r.get("percentDrafted"),
-            "score":           r.get("score"),
+            "fpts":            stats[2],                  # total fantasy points
+            "fpts_per_game":   stats[3],                  # FP/G
+            "games_played":    None,                      # not on the draft-ranks board (see backfill)
+            "age":             age_map.get(gsis),         # from dim_nfl_players (via crosswalk)
             "gsis_id":         gsis,   # FK -> dim_nfl_players (via crosswalk)
             "player_key":      pkey,   # FK -> dim_rookie_prospect (via crosswalk)
         })
     return pd.DataFrame.from_records(recs)
 
 
+def _cell_num(x):
+    """Fantrax cell content -> float | None. Handles '1,234', '27.31', '78%', '-'."""
+    if x is None:
+        return None
+    x = str(x).replace(",", "").replace("%", "").strip()
+    if x in ("", "-"):
+        return None
+    try:
+        return float(x)
+    except ValueError:
+        return None
+
+
+def player_stats_to_frame(responses: list, cfg: LeagueConfig,
+                          season: int, week: str) -> pd.DataFrame:
+    """
+    Flatten paginated getPlayerStats pages into the fact_fantrax_adp shape (same
+    columns as board_to_frame, with games_played populated). Columns are read by
+    header shortName (not fixed index) since splits differ by position group.
+
+    Filter: active NFL roster only (teamShortName != '(N/A)'). Dual-eligible
+    players appear in both position-group pulls -> first occurrence wins.
+    overall_rank uses Fantrax's global scorer.rank; age comes straight from the
+    grid's Age column (always present here, unlike the draft-ranks board).
+    """
+    today = date.today().isoformat()
+    xwalk = _load_crosswalk(cfg)
+    recs, seen = [], set()
+    for resp in responses:
+        d = resp["responses"][0]["data"]
+        hdr = {c.get("shortName"): i for i, c in enumerate(d["tableHeader"]["cells"])}
+        for r in d.get("statsTable", []):
+            s = r["scorer"]
+            if s.get("teamShortName", "(N/A)") == "(N/A)":
+                continue
+            sid = s["scorerId"]
+            if sid in seen:
+                continue
+            seen.add(sid)
+            cells = r["cells"]
+
+            def col(name):
+                i = hdr.get(name)
+                return cells[i].get("content") if (i is not None and i < len(cells)) else None
+
+            gsis, pkey = xwalk.get(sid, (None, None))
+            age = _cell_num(col("Age"))
+            gp = _cell_num(col("GP"))
+            recs.append({
+                "scorer_id":       sid,
+                "season":          season,
+                "week":            week,
+                "capture_date":    today,
+                "player_name":     s.get("name"),
+                "position_raw":    re.sub(r"<[^>]+>", "", s.get("posShortNames", "")).strip(),
+                "nfl_team":        s.get("teamShortName"),
+                "is_rookie":       bool(s.get("rookie")),
+                "overall_rank":    s.get("rank"),
+                "adp":             _cell_num(col("ADP")),
+                "salary":          _cell_num(col("Sal")),
+                "percent_drafted": _cell_num(col("%D")),
+                "fpts":            _cell_num(col("FPts")),
+                "fpts_per_game":   _cell_num(col("FP/G")),
+                "games_played":    int(gp) if gp is not None else None,
+                "age":             int(age) if age is not None else None,
+                "gsis_id":         gsis,
+                "player_key":      pkey,
+            })
+    return pd.DataFrame.from_records(recs)
+
+
+def backfill_player_stats(cfg: LeagueConfig, season: int, week: str = "YTD",
+                          season_code: str | None = None,
+                          timeframe: str = "YEAR_TO_DATE") -> pd.DataFrame:
+    """
+    Scrape getPlayerStats for a completed season and append its actuals (incl. GP)
+    to fact_fantrax_adp as season=<season>, week=<week>. A real-data counterpoint
+    to the projection board. season_code defaults to YTD_SEASON_CODES[season].
+    """
+    season_code = season_code or YTD_SEASON_CODES[season]
+    label = f"{season}_{week}"
+    responses = FantraxScraper(cfg).fetch_player_stats(season_code, timeframe, label)
+    df = player_stats_to_frame(responses, cfg, season, week)
+    path = load_fact(df, cfg)
+    print(f"[ok] backfill season={season} week={week}: {len(df)} rows -> {path}")
+    return df
+
+
 def load_fact(df: pd.DataFrame, cfg: LeagueConfig = CFG) -> str:
     """
-    Append this week's snapshot to the parquet fact and dedup on
-    [scorer_id, season, week] keep='last' so re-running a week is idempotent.
+    Write this week's snapshot to the parquet fact with replace-by-(season, week):
+    each run scrapes the whole board for the current week, so we drop any existing
+    rows for the (season, week) pairs in `df` and append the fresh ones. This is
+    truly idempotent (no orphan rows left behind when the board composition shifts
+    between runs), unlike a plain key-level drop_duplicates.
     """
     path = f"{cfg.data_dir}/{cfg.fact_name}.parquet"
     if Path(path).exists():
-        df = pd.concat([pd.read_parquet(path), df], ignore_index=True)
+        old = pd.read_parquet(path)
+        # Migrate the pre-2026-06 schema: `score` was renamed to `fpts`.
+        if "score" in old.columns and "fpts" not in old.columns:
+            old = old.rename(columns={"score": "fpts"})
+        keys = set(map(tuple, df[["season", "week"]].drop_duplicates().to_numpy()))
+        mask = old[["season", "week"]].apply(tuple, axis=1).isin(keys)
+        df = pd.concat([old[~mask], df], ignore_index=True)
+    # Safety net for an identical re-run within the same partition.
     df = df.drop_duplicates(subset=["scorer_id", "season", "week"], keep="last")
     df.to_parquet(path, index=False)
     return path
