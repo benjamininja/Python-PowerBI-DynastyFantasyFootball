@@ -19,7 +19,7 @@ ETL pipeline and Power BI reporting for a 28-team, dual-conference IDP dynasty f
 
 ## Data model
 
-Star schema stored as local Parquet files under `data/`. Migration path to Microsoft Fabric: swap `pd.read/write_parquet` for `spark.read.parquet` with `abfss://` paths — schema stays identical.
+Star schema stored as local Parquet files under `data/`. Migration path to potential Microsoft Fabric: swap `pd.read/write_parquet` for `spark.read.parquet` with `abfss://` paths — schema stays identical.
 
 ### Dimensions
 
@@ -52,23 +52,24 @@ All ETL notebooks are `.ipynb` in `notebooks/`. All notebooks execute with CWD =
 
 | Notebook | Output | Notes |
 |---|---|---|
-| `01_dim_rookie_prospect` | `dim_position`, `dim_school`, `dim_rookie_prospect` | Seeds 319 base prospects from nflverse combine |
-| `02_dim_contract_seed` | `dim_contract` | 10 contract type rows |
-| `03_dim_fantasy_teams_seed` | `dim_fantasy_teams` | Reads from public Google Sheet |
-| `04_dim_nfl_teams_seed` | `dim_nfl_teams` | nflreadpy `load_teams()` |
-| `05_dim_nfl_players_seed` | `dim_nfl_players` | nflreadpy `load_players()`; `_COLMAP` maps nflverse → canonical names |
-| `06_fact_nfl_combine_pro_day_metrics` | `fact_nfl_combine_pro_day_metrics` | All seasons 2000–2026; `is_current_season` flag |
-| `07_fact_fantasy_teams_seed` | `fact_fantasy_teams` | Schema seed; populated by draft notebook |
-| `08_fact_rookie_rankings_seed` | `fact_rookie_rankings` | Schema seed only |
-| `08a_fantasypros_rankings` | `fact_rookie_rankings` ← FantasyPros PPR + Superflex | Scrapes embedded `ecrData` JSON |
-| `08b_walterfootball_rankings` | `fact_rookie_rankings` ← WalterFootball | Positional ranks only (no global rank) |
-| `08c_ktc_rankings` | `fact_rookie_rankings` ← KeepTradeCut | `KTC_Consensus` |
-| `08d_draftsharks_rankings` | `fact_rookie_rankings` ← DraftSharks | Top-90 free tier |
-| `08e_manual_rankings` | `fact_rookie_rankings` ← 5 manual sources | Reads `RookieRankings_2026_ManualExtraction.xlsx` |
-| `08y_dim_player_alias` | `dim_player_alias` | Backfills from archived review decisions |
-| `08z_apply_fuzzy_review` | `dim_rookie_prospect`, `dim_player_alias` | Applies `data/review/review_fuzzy_matches.csv` decisions |
-| `09_fantrax_weekly_scrape.py` | `fact_fantrax_adp` | **Scheduled script** (Task Scheduler). Playwright headless auth + Fantrax API |
-| `09a_fantrax_crosswalk` | `dim_fantrax_crosswalk` | Resolves Fantrax `scorer_id` → `gsis_id`/`player_key`; back-fills fact FKs |
+| `01a_dim_rookie_prospect` | `dim_position`, `dim_school`, `dim_rookie_prospect` | Seeds 319 base prospects from nflverse combine |
+| `01b_dim_contract_seed` | `dim_contract` | 10 contract type rows |
+| `01c_dim_fantasy_teams_seed` | `dim_fantasy_teams` | Reads from public Google Sheet |
+| `01d_dim_nfl_teams_seed` | `dim_nfl_teams` | nflreadpy `load_teams()` |
+| `01e_dim_nfl_players_seed` | `dim_nfl_players` | nflreadpy `load_players()`; `_COLMAP` maps nflverse → canonical names |
+| `02a_fact_nfl_combine_pro_day_metrics` | `fact_nfl_combine_pro_day_metrics` | All seasons 2000–2026; `is_current_season` flag |
+| `02b_fact_fantasy_teams_seed` | `fact_fantasy_teams` | Schema seed; populated by draft notebook |
+| `02c_fact_rookie_rankings_seed` | `fact_rookie_rankings` | Schema seed only |
+| `03a_fantasypros_rankings` | `fact_rookie_rankings` ← FantasyPros PPR + Superflex | Scrapes embedded `ecrData` JSON |
+| `03b_walterfootball_rankings` | `fact_rookie_rankings` ← WalterFootball | Positional ranks only (no global rank) |
+| `03c_ktc_rankings` | `fact_rookie_rankings` ← KeepTradeCut | `KTC_Consensus` |
+| `03d_draftsharks_rankings` | `fact_rookie_rankings` ← DraftSharks | Top-90 free tier |
+| `03x_manual_rankings` | `fact_rookie_rankings` ← 5 manual sources | Reads `RookieRankings_2026_ManualExtraction.xlsx` |
+| `03y_dim_player_alias` | `dim_player_alias` | Backfills from archived review decisions |
+| `03z_apply_fuzzy_review` | `dim_rookie_prospect`, `dim_player_alias` | Applies `data/review/review_fuzzy_matches.csv` decisions |
+| `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` | **Scheduled script** (Task Scheduler). Playwright headless auth + Fantrax API |
+| `04b_ktc_dynasty_rankings` | `fact_dynasty_rankings`, `fact_dynasty_ranking_metrics`, `dim_dynasty_crosswalk` | KTC dynasty value/ranks (embedded-HTML `playersArray`); two-layer model |
+| `04z_fantrax_crosswalk` | `dim_fantrax_crosswalk` | Resolves Fantrax `scorer_id` → `gsis_id`/`player_key`; back-fills fact FKs |
 
 ---
 
@@ -95,7 +96,7 @@ Phase cascade: `pre_combine → post_combine → post_draft`. Each phase's compo
 
 ## Fantrax weekly scraper
 
-`09_fantrax_weekly_scrape.py` runs on Windows Task Scheduler (Thursdays ~06:00 CT). It uses Playwright persistent context for session reuse — log in once headfully, subsequent runs are fully headless.
+`04a_fantrax_weekly_scrape.py` runs on Windows Task Scheduler (Thursdays ~06:00 CT). It uses Playwright persistent context for session reuse — log in once headfully, subsequent runs are fully headless.
 
 **Key design notes:**
 - HTTP 200 ≠ success — the Fantrax API returns `WARNING_NOT_LOGGED_IN` in the body. The scraper checks the body and retries after login.
@@ -132,12 +133,12 @@ pip install pandas pyarrow thefuzz nflreadpy requests beautifulsoup4 openpyxl pl
 # Install Playwright browser
 playwright install chromium
 
-# Fantrax credentials (for 09_fantrax_weekly_scrape.py)
+# Fantrax credentials (for 04a_fantrax_weekly_scrape.py)
 # Create notebooks/.env with:
 #   FANTRAX_EMAIL=your@email.com
 #   FANTRAX_PASSWORD=yourpassword
 
-# Run notebooks in order (01 → 09a) with CWD = project root
+# Run notebooks in order (01a → 04z) with CWD = project root
 # or open workspace/FantasyFootball-workspace.code-workspace in VS Code
 ```
 
@@ -157,6 +158,6 @@ playwright install chromium
 | NFL data | nflreadpy (nflverse Python port) |
 | Scraping | requests · BeautifulSoup4 · Playwright |
 | Player matching | thefuzz (RapidFuzz) |
-| Storage | Parquet (local → Fabric migration path) |
+| Storage | Parquet (local → potential Fabric migration path) |
 | Reporting | Power BI Desktop |
 | Version control | Git · GitHub · GitHub CLI |
