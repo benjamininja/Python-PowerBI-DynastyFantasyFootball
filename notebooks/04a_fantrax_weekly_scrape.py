@@ -94,6 +94,23 @@ class LeagueConfig:
     # --- Heuristics ---
     min_expected_rows: int = 50
 
+    def __post_init__(self):
+        # Anchor relative paths to the repo root (parent of notebooks/) so the
+        # script writes to <repo>/data regardless of the CWD it's launched from
+        # (Task Scheduler, notebooks/, repo root). Absolute paths pass through.
+        # __file__ is undefined when the source is exec'd as a code string, so
+        # fall back to CWD-based discovery (find the dir containing notebooks/).
+        _f = globals().get("__file__")
+        if _f:
+            _root = Path(_f).resolve().parent.parent
+        else:
+            _cwd = Path.cwd()
+            _root = _cwd.parent if _cwd.name == "notebooks" else _cwd
+        for _attr in ("data_dir", "raw_dir", "user_data_dir"):
+            _v = getattr(self, _attr)
+            if not Path(_v).is_absolute():
+                setattr(self, _attr, str(_root / _v))
+
 
 CFG = LeagueConfig()
 
