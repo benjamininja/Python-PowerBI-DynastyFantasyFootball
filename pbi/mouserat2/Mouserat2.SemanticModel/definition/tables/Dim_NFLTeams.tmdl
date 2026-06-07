@@ -1,0 +1,139 @@
+/// NFL team dimension from nflreadpy: names, conference, division, colors, and logo/wordmark URLs.
+table Dim_NFLTeams
+	lineageTag: dbfcaa85-45fb-4e65-8438-db7946927532
+
+	/// NFL team abbreviation (key, e.g. KC, PHI).
+	column TeamAbbr
+		dataType: string
+		lineageTag: 73c82179-279a-4cac-9a60-9e719e60c377
+		summarizeBy: none
+		sourceColumn: team_abbr
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = team|team abbreviation|abbr|team code
+
+		annotation SynonymCollection = ["team","team abbreviation","abbr","team code"]
+
+	/// Full NFL team name (e.g. Kansas City Chiefs).
+	column TeamName
+		dataType: string
+		lineageTag: 0b828bc5-5d27-4fe2-8aee-239b089fe20e
+		summarizeBy: none
+		sourceColumn: team_name
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = team name|full name|club name|franchise
+
+		annotation SynonymCollection = ["team name","full name","club name","franchise"]
+
+	/// NFL conference (AFC or NFC).
+	column TeamConf
+		dataType: string
+		lineageTag: 283c0796-66c8-4344-9780-5b13ed63249e
+		summarizeBy: none
+		sourceColumn: team_conf
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = conference|afc or nfc|conf|nfl conference
+
+		annotation SynonymCollection = ["conference","afc or nfc","conf","nfl conference"]
+
+	/// NFL division (e.g. AFC West).
+	column TeamDivision
+		dataType: string
+		lineageTag: d5629c68-d69c-47ec-841f-4b63d1687c5a
+		summarizeBy: none
+		sourceColumn: team_division
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = division|nfl division|div
+
+		annotation SynonymCollection = ["division","nfl division","div"]
+
+	/// Primary team color (hex).
+	column TeamColor
+		dataType: string
+		lineageTag: c31cebea-16e7-4180-87a3-cc8bab045c3d
+		summarizeBy: none
+		sourceColumn: team_color
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = team color|primary color|color
+
+		annotation SynonymCollection = ["team color","primary color","color"]
+
+	/// Secondary team color (hex).
+	column TeamColor2
+		dataType: string
+		lineageTag: 16a66397-9196-4b20-8f4a-a9314de3247a
+		summarizeBy: none
+		sourceColumn: team_color2
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = secondary color|team color 2|alt color
+
+		annotation SynonymCollection = ["secondary color","team color 2","alt color"]
+
+	/// Team logo image URL (Wikipedia).
+	column TeamLogoWikipedia
+		dataType: string
+		lineageTag: e2593be2-e03f-43ac-b951-703db432fd82
+		summarizeBy: none
+		sourceColumn: team_logo_wikipedia
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = logo|team logo|logo url
+
+		annotation SynonymCollection = ["logo","team logo","logo url"]
+
+	/// Team logo image URL (ESPN).
+	column TeamLogoESPN
+		dataType: string
+		lineageTag: 15b14e0f-a33e-40d2-984c-5135105f0a1c
+		summarizeBy: none
+		sourceColumn: team_logo_espn
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = logo|espn logo|logo url
+
+		annotation SynonymCollection = ["logo","espn logo","logo url"]
+
+	/// Team wordmark image URL.
+	column TeamWordmark
+		dataType: string
+		lineageTag: 52c3fb57-6160-4243-b2fb-f49c98ce3d64
+		summarizeBy: none
+		sourceColumn: team_wordmark
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = wordmark|team wordmark|wordmark url
+
+		annotation SynonymCollection = ["wordmark","team wordmark","wordmark url"]
+
+	partition Dim_NFLTeams = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Removed Columns" = Table.RemoveColumns(Source,{"team_id_pfr", "team_stadium"})
+				in
+				    #"Removed Columns"
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = NFL Teams|Teams|Pro Teams|Team Dimension|Clubs
+
+	annotation SynonymCollection = ["NFL Teams","Teams","Pro Teams","Team Dimension","Clubs"]
+

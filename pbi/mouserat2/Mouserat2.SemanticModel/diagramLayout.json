@@ -1,0 +1,377 @@
+{
+  "version": "1.1.0",
+  "diagrams": [
+    {
+      "ordinal": 0,
+      "scrollPosition": {
+        "x": 19.542753154251983,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 1293.302461634556,
+            "y": 13.90353943934403
+          },
+          "nodeIndex": "dim_contract",
+          "nodeLineageTag": "c2dbc871-6ada-4db5-be66-173de0ff79b0",
+          "size": {
+            "height": 296,
+            "width": 176.39962232271751
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 414.21604461790923,
+            "y": 0
+          },
+          "nodeIndex": "dim_position",
+          "nodeLineageTag": "488c3ccf-1a5e-423c-8da6-9cd63e50a9e6",
+          "size": {
+            "height": 200,
+            "width": 160.50986296346719
+          },
+          "zIndex": 9
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 361.30791557049787
+          },
+          "nodeIndex": "dim_school",
+          "nodeLineageTag": "3afc5ee8-b36e-41fc-a25e-400f6927e67a",
+          "size": {
+            "height": 152,
+            "width": 152.56498328384208
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 1048.7241177105211,
+            "y": 0
+          },
+          "nodeIndex": "dim_fantasy_teams",
+          "nodeLineageTag": "e0094a7f-6dc4-416f-aca3-639e6ae8cbe0",
+          "size": {
+            "height": 200,
+            "width": 198.24804144168684
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 634.10395908647945,
+            "y": 1.98621991990629
+          },
+          "nodeIndex": "dim_nfl_players",
+          "nodeLineageTag": "0311adcc-3e37-4573-bf03-9fc74dbd963e",
+          "size": {
+            "height": 300,
+            "width": 170.44096256299872
+          },
+          "zIndex": 8
+        },
+        {
+          "location": {
+            "x": 848.28626166432548,
+            "y": 0
+          },
+          "nodeIndex": "dim_nfl_teams",
+          "nodeLineageTag": "dbfcaa85-45fb-4e65-8438-db7946927532",
+          "size": {
+            "height": 296,
+            "width": 180.37206216253026
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 159.29446031765471,
+            "y": 34.121883307870633
+          },
+          "nodeIndex": "dim_rookie_prospect",
+          "nodeLineageTag": "8348a419-9666-434e-8853-9b007b832d8b",
+          "size": {
+            "height": 300,
+            "width": 206.19292112131194
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 176.789315925778,
+            "y": 487.09048300515809
+          },
+          "nodeIndex": "fact_nfl_combine_pro_day",
+          "nodeLineageTag": "a5579286-a005-42d1-80d1-4fcc975e06f0",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 10
+        },
+        {
+          "location": {
+            "x": 496.68442130888934,
+            "y": 479.19238565428128
+          },
+          "nodeIndex": "fact_rookie_rankings",
+          "nodeLineageTag": "0f573ebf-3ca1-4c3c-8c61-30c724c9cf45",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 1183.9279795818891,
+            "y": 503.38177715280062
+          },
+          "nodeIndex": "fact_fantasy_teams",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 1519.7020839572735,
+            "y": 251.69088857640031
+          },
+          "nodeIndex": "fact_fantrax_adp",
+          "nodeLineageTag": "05ed4866-691f-4bd5-bd35-693f2a75f004",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "fact_dynasty_ranking_metrics",
+          "nodeLineageTag": "c9958674-0792-4495-82c2-d55231b62c0d",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "fact_dynasty_rankings",
+          "nodeLineageTag": "eb0043af-123f-4d08-a346-77999c9ae3b0",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "dim_dynasty_metric",
+          "nodeLineageTag": "6128caf5-04c4-4391-8f68-11b888ea6aca",
+          "size": {
+            "height": 224,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "_Measures",
+          "nodeLineageTag": "57028ca8-1211-42cb-a1c2-3f3212eb23a5",
+          "size": {
+            "height": 104,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "All tables",
+      "zoomValue": 70.955543900968863,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    },
+    {
+      "ordinal": 1,
+      "scrollPosition": {
+        "x": 64.35946300510777,
+        "y": 312.4115642996191
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 928.53312312547337,
+            "y": 164.10279905237172
+          },
+          "nodeIndex": "dim_contract",
+          "nodeLineageTag": "c2dbc871-6ada-4db5-be66-173de0ff79b0",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 588.90696777510209,
+            "y": 417.50596281671193
+          },
+          "nodeIndex": "fact_fantrax_adp",
+          "nodeLineageTag": "05ed4866-691f-4bd5-bd35-693f2a75f004",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 50,
+            "y": 274.1726623470272
+          },
+          "nodeIndex": "dim_nfl_players",
+          "nodeLineageTag": "0311adcc-3e37-4573-bf03-9fc74dbd963e",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 172.52267190243509,
+            "y": 0
+          },
+          "nodeIndex": "dim_position",
+          "nodeLineageTag": "488c3ccf-1a5e-423c-8da6-9cd63e50a9e6",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 475.8115138282584,
+            "y": 54.051891952760016
+          },
+          "nodeIndex": "dim_rookie_prospect",
+          "nodeLineageTag": "8348a419-9666-434e-8853-9b007b832d8b",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 136.66901947013014,
+            "y": 662.39687858165212
+          },
+          "nodeIndex": "dim_nfl_teams",
+          "nodeLineageTag": "dbfcaa85-45fb-4e65-8438-db7946927532",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "Layout 1",
+      "zoomValue": 79.553182037699813,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    },
+    {
+      "ordinal": 2,
+      "scrollPosition": {
+        "x": 0,
+        "y": 75.199996948242188
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 300.4666633605957,
+            "y": 245.39997863769531
+          },
+          "nodeIndex": "fact_dynasty_rankings",
+          "nodeLineageTag": "eb0043af-123f-4d08-a346-77999c9ae3b0",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 29
+          },
+          "nodeIndex": "fact_dynasty_ranking_metrics",
+          "nodeLineageTag": "c9958674-0792-4495-82c2-d55231b62c0d",
+          "size": {
+            "height": 255,
+            "width": 195
+          },
+          "zIndex": 4
+        },
+        {
+          "location": {
+            "x": 537.4666633605957,
+            "y": 5
+          },
+          "nodeIndex": "dim_nfl_players",
+          "nodeLineageTag": "0311adcc-3e37-4573-bf03-9fc74dbd963e",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 0,
+            "y": 386.86665344238281
+          },
+          "nodeIndex": "dim_nfl_teams",
+          "nodeLineageTag": "dbfcaa85-45fb-4e65-8438-db7946927532",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 241.93333053588867,
+            "y": -32.066681861877441
+          },
+          "nodeIndex": "dim_dynasty_metric",
+          "nodeLineageTag": "6128caf5-04c4-4391-8f68-11b888ea6aca",
+          "size": {
+            "height": 224,
+            "width": 234
+          },
+          "zIndex": 5
+        }
+      ],
+      "name": "Layout 2",
+      "zoomValue": 100,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
+    }
+  ],
+  "selectedDiagram": "Layout 2",
+  "defaultDiagram": "All tables"
+}
