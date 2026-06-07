@@ -492,6 +492,9 @@ def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
         if gsis is None and pkey is not None and method in ("review", "unmatched"):
             method = "rookie"   # resolved via rookie registry — not a review item
         recs.append({
+            # source_uid = single-column surrogate (source_player_id is NOT unique
+            # across sources — slugs collide DS/FP). Use this for PBI relationships.
+            "source_uid": f"{r.source}|{spid}",
             "source": r.source, "source_player_id": spid,
             "source_player_name": r.player_name, "source_position": r.position_raw,
             "source_team": getattr(r, "nfl_team", None),
