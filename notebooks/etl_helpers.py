@@ -33,6 +33,12 @@ from urllib3.util.retry import Retry
 from thefuzz import fuzz, process
 
 
+# Repo root = parent of this file's dir (notebooks/). Used to anchor data paths so
+# they resolve to the SAME place no matter the CWD a notebook is run from. Running
+# from notebooks/ used to create a stray notebooks/data/ (relative "data" + mkdir).
+_ROOT = Path(__file__).resolve().parent.parent
+
+
 @dataclass
 class LeagueConfig:
     """Central config — all league rules live here, nowhere else."""
@@ -50,6 +56,14 @@ class LeagueConfig:
     # Optional extras used by specific notebooks:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
+
+    def __post_init__(self):
+        # Anchor relative data paths to the repo root → CWD-independent. (Absolute
+        # paths, e.g. a Fabric abfss:// path, are left untouched.)
+        if not Path(self.data_dir).is_absolute():
+            self.data_dir = str(_ROOT / self.data_dir)
+        if not Path(self.review_dir).is_absolute():
+            self.review_dir = str(_ROOT / self.review_dir)
 
 
 CFG    = LeagueConfig()
