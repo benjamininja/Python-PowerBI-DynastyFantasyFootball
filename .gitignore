@@ -5,8 +5,13 @@ data/raw/
 data/review/
 
 # ── Credentials ───────────────────────────────────────────────────────────────
+# Ignore every .env anywhere: bare, prefixed (foo.env), and dotted (.env.local,
+# .env.production) at any directory depth. Keep .env.example tracked as a template.
 .env
 *.env
+.env.*
+!.env.example
+!**/.env.example
 api_key.txt
 
 # ── Python ────────────────────────────────────────────────────────────────────
