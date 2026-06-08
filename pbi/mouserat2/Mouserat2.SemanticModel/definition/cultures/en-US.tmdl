@@ -18306,7 +18306,7 @@ cultureInfo en-US
 			      "Definition": {
 			        "Binding": {
 			          "ConceptualEntity": "Dim_School",
-			          "ConceptualProperty": "school_abbr"
+			          "ConceptualProperty": "SchoolAbbr"
 			        }
 			      },
 			      "State": "Generated",
@@ -18317,7 +18317,7 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "school_abbr": {
+			          "SchoolAbbr": {
 			            "Type": "Noun",
 			            "State": "Generated",
 			            "Weight": 0.99
