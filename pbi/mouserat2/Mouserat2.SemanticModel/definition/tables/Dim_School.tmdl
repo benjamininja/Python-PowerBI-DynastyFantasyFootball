@@ -41,6 +41,14 @@ table Dim_School
 
 		annotation SynonymCollection = ["conference","college conference","league","conf"]
 
+	column school_abbr
+		dataType: string
+		lineageTag: d177dd45-cae1-4852-98c1-7fa02f0089f8
+		summarizeBy: none
+		sourceColumn: school_abbr
+
+		annotation SummarizationSetBy = Automatic
+
 	partition Dim_School = m
 		mode: import
 		queryGroup: 'Dimension Tables'
