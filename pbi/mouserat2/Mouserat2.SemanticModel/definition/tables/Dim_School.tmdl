@@ -41,6 +41,19 @@ table Dim_School
 
 		annotation SynonymCollection = ["conference","college conference","league","conf"]
 
+	/// Short school abbreviation (e.g. OSU, BAMA). Compact label for charts and crosswalk matching.
+	column SchoolAbbr
+		dataType: string
+		lineageTag: d177dd45-cae1-4852-98c1-7fa02f0089f8
+		summarizeBy: none
+		sourceColumn: school_abbr
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = abbreviation|school abbreviation|school code|abbr
+
+		annotation SynonymCollection = ["abbreviation","school abbreviation","school code","abbr"]
+
 	partition Dim_School = m
 		mode: import
 		queryGroup: 'Dimension Tables'

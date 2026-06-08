@@ -1,37 +1,18 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
-  "name": "9d978767ae3190d2d047",
+  "name": "683655e03d83d8979506",
   "position": {
     "x": 0,
-    "y": 293.057120811803,
-    "z": 2000,
-    "height": 427.13554209824878,
-    "width": 476.93609857607152,
-    "tabOrder": 2000
+    "y": 292.79427972366335,
+    "z": 0,
+    "height": 427.20572027633665,
+    "width": 1279.4150694873795,
+    "tabOrder": 0
   },
   "visual": {
     "visualType": "pivotTable",
     "query": {
       "queryState": {
-        "Columns": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Dim_DynastyMetric"
-                    }
-                  },
-                  "Property": "MetricLabel"
-                }
-              },
-              "queryRef": "Dim_DynastyMetric.MetricLabel",
-              "nativeQueryRef": "MetricLabel",
-              "active": true
-            }
-          ]
-        },
         "Rows": {
           "projections": [
             {
@@ -55,24 +36,62 @@
           "projections": [
             {
               "field": {
-                "Aggregation": {
+                "Measure": {
                   "Expression": {
-                    "Column": {
-                      "Expression": {
-                        "SourceRef": {
-                          "Entity": "Fact_DynastyRankingMetrics"
-                        }
-                      },
-                      "Property": "MetricNum"
+                    "SourceRef": {
+                      "Entity": "_Measures"
                     }
                   },
-                  "Function": 1
+                  "Property": "Percent of Times Kept"
                 }
               },
-              "queryRef": "Sum(Fact_DynastyRankingMetrics.MetricNum)",
-              "nativeQueryRef": "Metric Value",
-              "displayName": "Metric Value",
-              "format": "#,0"
+              "queryRef": "_Measures.Percent of Times Kept",
+              "nativeQueryRef": "%K",
+              "displayName": "%K"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percent of Times Traded"
+                }
+              },
+              "queryRef": "_Measures.Percent of Times Traded",
+              "nativeQueryRef": "%T",
+              "displayName": "%T"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percent of Times Cut"
+                }
+              },
+              "queryRef": "_Measures.Percent of Times Cut",
+              "nativeQueryRef": "%C",
+              "displayName": "%C"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Pos. Trend"
+                }
+              },
+              "queryRef": "_Measures.Pos. Trend",
+              "nativeQueryRef": "Pos. Trend"
             }
           ]
         }
@@ -81,18 +100,13 @@
         "sort": [
           {
             "field": {
-              "Aggregation": {
+              "Measure": {
                 "Expression": {
-                  "Column": {
-                    "Expression": {
-                      "SourceRef": {
-                        "Entity": "Fact_DynastyRankingMetrics"
-                      }
-                    },
-                    "Property": "MetricNum"
+                  "SourceRef": {
+                    "Entity": "_Measures"
                   }
                 },
-                "Function": 1
+                "Property": "Percent of Times Kept"
               }
             },
             "direction": "Descending"
@@ -1096,6 +1110,34 @@
               }
             ]
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "72.38327419982153D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Percent of Times Kept"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "83.39372474189103D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Percent of Times Cut"
+          }
         }
       ],
       "columnHeaders": [
@@ -1151,7 +1193,7 @@
             "valuesOnRow": {
               "expr": {
                 "Literal": {
-                  "Value": "true"
+                  "Value": "false"
                 }
               }
             }
@@ -1186,26 +1228,7 @@
   "filterConfig": {
     "filters": [
       {
-        "name": "87c35df3057610b07a67",
-        "field": {
-          "Aggregation": {
-            "Expression": {
-              "Column": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "Fact_DynastyRankingMetrics"
-                  }
-                },
-                "Property": "MetricNum"
-              }
-            },
-            "Function": 1
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "681c128bc94da2d08b12",
+        "name": "921c82819a11b3483629",
         "field": {
           "Column": {
             "Expression": {
@@ -1219,18 +1242,60 @@
         "type": "Categorical"
       },
       {
-        "name": "3c8bdcd0b0cd36833080",
+        "name": "2ab3e351dbd5dc00ec00",
         "field": {
-          "Column": {
+          "Measure": {
             "Expression": {
               "SourceRef": {
-                "Entity": "Dim_DynastyMetric"
+                "Entity": "_Measures"
               }
             },
-            "Property": "MetricLabel"
+            "Property": "Percent of Times Kept"
           }
         },
-        "type": "Categorical"
+        "type": "Advanced"
+      },
+      {
+        "name": "c4caae8035a7a0dab448",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Percent of Times Traded"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "f892f87b117bd8b8c965",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Percent of Times Cut"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "c3e065705cce333041e1",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Pos. Trend"
+          }
+        },
+        "type": "Advanced"
       }
     ]
   }
