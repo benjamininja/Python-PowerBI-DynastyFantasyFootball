@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(pip install pandas numpy thefuzz python-Levenshtein pyarrow 2>&1)",
-      "PowerShell(tail -5)"
-    ]
-  }
-}

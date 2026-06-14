@@ -87,6 +87,19 @@ table Dim_DynastyMetric
 
 		annotation SynonymCollection = ["direction","good direction","higher or lower","polarity","better"]
 
+	/// Ranking source that owns this metric (KTC, DynastySharks, FantasyPros), or Composite for derived cross-source blends. One source per metric_key.
+	column SourceName
+		dataType: string
+		lineageTag: c1dff62f-f6a9-418a-9bb4-0f48cf6c928b
+		summarizeBy: none
+		sourceColumn: source_name
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = source|metric source|provider|ranking source|owner
+
+		annotation SynonymCollection = ["source","metric source","provider","ranking source","owner"]
+
 	partition Dim_DynastyMetric = m
 		mode: import
 		queryGroup: 'Dimension Tables'

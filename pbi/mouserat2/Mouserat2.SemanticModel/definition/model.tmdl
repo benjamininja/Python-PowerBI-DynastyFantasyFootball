@@ -16,7 +16,7 @@ queryGroup 'Fact Tables'
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 
-annotation PBI_QueryOrder = ["Dim_Contract","Dim_DynastyMetric","Dim_FantasyTeams","Dim_NFLPlayers","Dim_NFLTeams","Dim_Position","Dim_RookieProspect","Dim_School","Fact_DynastyRankingMetrics","Fact_DynastyRankings","Fact_FantasyTeams","Fact_FantraxADP","Fact_NFLCombineProDay","Fact_RookieRankings","_Measures"]
+annotation PBI_QueryOrder = ["Dim_Contract","Dim_DynastyMetric","Dim_FantasyTeams","Dim_NFLPlayers","Dim_NFLTeams","Dim_Position","Dim_RookieProspect","Dim_School","Fact_DynastyRankingMetrics","Fact_FantasyTeams","Fact_FantraxADP","Fact_NFLCombineProDay","Fact_RookieRankings","_Measures"]
 
 annotation PBI_ProTooling = ["DevMode"]
 
@@ -34,9 +34,9 @@ ref table Fact_FantraxADP
 ref table DateTableTemplate_3b3f1b39-5870-42a9-ab0c-55a4b2fbcfd0
 ref table LocalDateTable_04c24871-8178-4798-9972-2dfd4d174e11
 ref table Fact_DynastyRankingMetrics
-ref table Fact_DynastyRankings
 ref table Dim_DynastyMetric
 ref table _Measures
+ref table LocalDateTable_a4aa6594-b0e8-4690-b46e-21b85320987a
 
 ref cultureInfo en-US
 

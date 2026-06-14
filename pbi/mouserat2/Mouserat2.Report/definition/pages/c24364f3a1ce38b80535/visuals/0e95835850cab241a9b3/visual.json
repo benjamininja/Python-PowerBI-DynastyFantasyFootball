@@ -1,13 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
-  "name": "b30121c81e3c8726909b",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "0e95835850cab241a9b3",
   "position": {
     "x": 0,
-    "y": 292.87814843687,
-    "z": 4003,
-    "height": 427.20572027633665,
-    "width": 1279.4150694873795,
-    "tabOrder": 4003
+    "y": 375.64861153138889,
+    "z": 3,
+    "height": 345.1390796303624,
+    "width": 1279.4934940992994,
+    "tabOrder": 3
   },
   "visual": {
     "visualType": "pivotTable",
@@ -34,6 +34,34 @@
         },
         "Values": {
           "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "ADP"
+                }
+              },
+              "queryRef": "_Measures.ADP",
+              "nativeQueryRef": "ADP"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Startup ADP"
+                }
+              },
+              "queryRef": "_Measures.Startup ADP",
+              "nativeQueryRef": "Startup ADP"
+            },
             {
               "field": {
                 "Measure": {
@@ -74,21 +102,8 @@
                 }
               },
               "queryRef": "_Measures.Liquidity",
-              "nativeQueryRef": "Liquidity"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "ADP"
-                }
-              },
-              "queryRef": "_Measures.ADP",
-              "nativeQueryRef": "ADP"
+              "nativeQueryRef": "Liq.",
+              "displayName": "Liq."
             },
             {
               "field": {
@@ -102,7 +117,8 @@
                 }
               },
               "queryRef": "_Measures.Auction %",
-              "nativeQueryRef": "Auction %"
+              "nativeQueryRef": "Auc. %",
+              "displayName": "Auc. %"
             },
             {
               "field": {
@@ -116,21 +132,8 @@
                 }
               },
               "queryRef": "_Measures.Startup Auction %",
-              "nativeQueryRef": "Startup Auction %"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Startup ADP"
-                }
-              },
-              "queryRef": "_Measures.Startup ADP",
-              "nativeQueryRef": "Startup ADP"
+              "nativeQueryRef": "Startup Auc. %",
+              "displayName": "Startup Auc. %"
             },
             {
               "field": {
@@ -252,51 +255,6 @@
                       "Entity": "_Measures"
                     }
                   },
-                  "Property": "Percent of Times Kept"
-                }
-              },
-              "queryRef": "_Measures.Percent of Times Kept",
-              "nativeQueryRef": "%K",
-              "displayName": "%K"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Percent of Times Traded"
-                }
-              },
-              "queryRef": "_Measures.Percent of Times Traded",
-              "nativeQueryRef": "%T",
-              "displayName": "%T"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
-                  "Property": "Percent of Times Cut"
-                }
-              },
-              "queryRef": "_Measures.Percent of Times Cut",
-              "nativeQueryRef": "%C",
-              "displayName": "%C"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "_Measures"
-                    }
-                  },
                   "Property": "Overall Trend"
                 }
               },
@@ -319,23 +277,6 @@
             }
           ]
         }
-      },
-      "sortDefinition": {
-        "sort": [
-          {
-            "field": {
-              "Measure": {
-                "Expression": {
-                  "SourceRef": {
-                    "Entity": "_Measures"
-                  }
-                },
-                "Property": "Percent of Times Kept"
-              }
-            },
-            "direction": "Ascending"
-          }
-        ]
       }
     },
     "expansionStates": [
@@ -1256,7 +1197,15 @@
           }
         },
         {
-          "properties": {},
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "137.67114359535393D"
+                }
+              }
+            }
+          },
           "selector": {
             "metadata": "Dim_NFLPlayers.DisplayName"
           }
@@ -1368,7 +1317,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "61.37281523077195D"
+                  "Value": "36.77582112449503D"
                 }
               }
             }
@@ -1382,7 +1331,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "50.31195438498091D"
+                  "Value": "40.83615879213099D"
                 }
               }
             }
@@ -1396,7 +1345,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "54.76654839964304D"
+                  "Value": "37.529192644507255D"
                 }
               }
             }
@@ -1480,7 +1429,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "50.362366949598425D"
+                  "Value": "46.57580973039761D"
                 }
               }
             }
@@ -1494,7 +1443,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "43.7560947745315D"
+                  "Value": "36.085128029105704D"
                 }
               }
             }
@@ -1508,7 +1457,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "45.95818549955381D"
+                  "Value": "42.12760503868944D"
                 }
               }
             }
@@ -1522,7 +1471,7 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "39.35191332448687D"
+                  "Value": "43.131679337313386D"
                 }
               }
             }
@@ -1550,13 +1499,27 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "72.38327419982153D"
+                  "Value": "55.654569793093565D"
                 }
               }
             }
           },
           "selector": {
-            "metadata": "_Measures.Percent of Times Kept"
+            "metadata": "_Measures.Overall Trend"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "47.999199992507556D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "_Measures.Pos. Trend"
           }
         }
       ],
@@ -1648,7 +1611,7 @@
   "filterConfig": {
     "filters": [
       {
-        "name": "014fe819562a57563874",
+        "name": "da813904bb00831cb35b",
         "field": {
           "Column": {
             "Expression": {
@@ -1662,63 +1625,7 @@
         "type": "Categorical"
       },
       {
-        "name": "41535da0eeb975e8c6e5",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FP Avg Rank"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "7b0c1cb2d610608d9026",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FP Best Rank"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "1fa46a291e670300a003",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FP Worst Rank"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "298633bebe1e078d8216",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "FP Std Dev"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "7ed30c70b83001508007",
+        "name": "bf1614c9017b54605358",
         "field": {
           "Measure": {
             "Expression": {
@@ -1732,7 +1639,7 @@
         "type": "Advanced"
       },
       {
-        "name": "6c0c4f644c90767a3c97",
+        "name": "0dc87cd0c2bb40c72e7c",
         "field": {
           "Measure": {
             "Expression": {
@@ -1746,7 +1653,7 @@
         "type": "Advanced"
       },
       {
-        "name": "0ee9ea5ebd140dc93770",
+        "name": "162607432ee37265199e",
         "field": {
           "Measure": {
             "Expression": {
@@ -1760,91 +1667,7 @@
         "type": "Advanced"
       },
       {
-        "name": "e3bc393b078165200692",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Proj 1-Yr"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "c6c6331c6b97a9a9aed0",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Proj 3-Yr"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "e689afbe572dc3e20ba0",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Proj 5-Yr"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "128666cc07637dd73be6",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Proj 10-Yr"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "1c863edc95add1dc98c0",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "ADP"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "7b73c4add7b562a5b694",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Startup ADP"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "a3d7de642811c247a8a8",
+        "name": "771eef4de1b8bec2e447",
         "field": {
           "Measure": {
             "Expression": {
@@ -1858,7 +1681,7 @@
         "type": "Advanced"
       },
       {
-        "name": "4fb27a2c4b00d0dbaead",
+        "name": "3418b68653d9b7718c68",
         "field": {
           "Measure": {
             "Expression": {
@@ -1872,7 +1695,7 @@
         "type": "Advanced"
       },
       {
-        "name": "0d0ec9b0d33303830e6c",
+        "name": "eda5acaed49cbb020533",
         "field": {
           "Measure": {
             "Expression": {
@@ -1880,13 +1703,13 @@
                 "Entity": "_Measures"
               }
             },
-            "Property": "Percent of Times Kept"
+            "Property": "FP Avg Rank"
           }
         },
         "type": "Advanced"
       },
       {
-        "name": "e494991f49b76590976a",
+        "name": "dc012870eed37e18bd01",
         "field": {
           "Measure": {
             "Expression": {
@@ -1894,13 +1717,13 @@
                 "Entity": "_Measures"
               }
             },
-            "Property": "Percent of Times Traded"
+            "Property": "FP Best Rank"
           }
         },
         "type": "Advanced"
       },
       {
-        "name": "221f2ce938c97d079c30",
+        "name": "eb81371a0d8780babb70",
         "field": {
           "Measure": {
             "Expression": {
@@ -1908,13 +1731,97 @@
                 "Entity": "_Measures"
               }
             },
-            "Property": "Percent of Times Cut"
+            "Property": "FP Worst Rank"
           }
         },
         "type": "Advanced"
       },
       {
-        "name": "f135952eda1e905c15d1",
+        "name": "e55ea677a74868c2ba45",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "FP Std Dev"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "5bf25d6f105080ae5837",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Proj 1-Yr"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "3739f392817079a790ad",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Proj 3-Yr"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "a78110998a000136d8d0",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Proj 5-Yr"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "d589b818509e80805563",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Proj 10-Yr"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "e3a41fa9c1a080727857",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Overall Trend"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "6b160ee77bce0421c68c",
         "field": {
           "Measure": {
             "Expression": {
@@ -1928,7 +1835,7 @@
         "type": "Advanced"
       },
       {
-        "name": "45e108670120c9c0bc11",
+        "name": "d81e4d01c7a26cb94a07",
         "field": {
           "Measure": {
             "Expression": {
@@ -1936,7 +1843,21 @@
                 "Entity": "_Measures"
               }
             },
-            "Property": "Overall Trend"
+            "Property": "ADP"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "55a890b500aea56b60d3",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Startup ADP"
           }
         },
         "type": "Advanced"

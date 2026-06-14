@@ -269,8 +269,6 @@ table Fact_FantraxADP
 		summarizeBy: none
 		sourceColumn: games_played
 
-		changedProperty = DataType
-
 		annotation SummarizationSetBy = User
 
 		annotation PBI_FormatHint = {"isGeneralNumber":true}
@@ -284,9 +282,10 @@ table Fact_FantraxADP
 		queryGroup: 'Fact Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_fantrax_adp.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_fantrax_adp.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"games_played", Int64.Type}})
 				in
-				    Source
+				    #"Changed Type"
 
 	annotation PBI_NavigationStepName = Navigation
 

@@ -1,0 +1,296 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "aa4bb3283029d906c8c6",
+  "position": {
+    "x": 823.75736132771578,
+    "y": 0,
+    "z": 4,
+    "height": 375.64861153138889,
+    "width": 455.73613277158347,
+    "tabOrder": 4
+  },
+  "visual": {
+    "visualType": "scatterChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "DisplayName"
+                }
+              },
+              "queryRef": "Dim_NFLPlayers.DisplayName",
+              "nativeQueryRef": "DisplayName",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Position"
+                    }
+                  },
+                  "Property": "PositionGroup"
+                }
+              },
+              "queryRef": "Dim_Position.PositionGroup",
+              "nativeQueryRef": "PositionGroup"
+            }
+          ]
+        },
+        "Size": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Pos. Trend"
+                }
+              },
+              "queryRef": "_Measures.Pos. Trend",
+              "nativeQueryRef": "Pos. Trend"
+            }
+          ]
+        },
+        "Tooltips": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percent of Times Traded"
+                }
+              },
+              "queryRef": "_Measures.Percent of Times Traded",
+              "nativeQueryRef": "% Traded",
+              "displayName": "% Traded"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Dynasty Ranking - KTC Latest Snapshot"
+                }
+              },
+              "queryRef": "_Measures.Dynasty Ranking - KTC Latest Snapshot",
+              "nativeQueryRef": "KTC Snapshot Date",
+              "displayName": "KTC Snapshot Date"
+            }
+          ]
+        },
+        "X": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percent of Times Kept"
+                }
+              },
+              "queryRef": "_Measures.Percent of Times Kept",
+              "nativeQueryRef": "% Kept",
+              "active": true,
+              "displayName": "% Kept"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Measures"
+                    }
+                  },
+                  "Property": "Percent of Times Cut"
+                }
+              },
+              "queryRef": "_Measures.Percent of Times Cut",
+              "nativeQueryRef": "% Cut",
+              "displayName": "% Cut"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "_Measures"
+                  }
+                },
+                "Property": "Percent of Times Kept"
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    },
+    "objects": {
+      "general": [
+        {
+          "properties": {}
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Dynasty Rankings'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "8386c6068dac48dc76be",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Percent of Times Kept"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "2acf4432b795e18db649",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Percent of Times Cut"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "6977e47027e04eec0d2d",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_NFLPlayers"
+              }
+            },
+            "Property": "DisplayName"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "7b4fc986c6898307cb2e",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Pos. Trend"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "76e9ced7b97db7c9b60a",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Percent of Times Traded"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "bbd6ece14976dbc53cbd",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Dynasty Ranking - KTC Latest Snapshot"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "965106c52824818dbe0e",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_Position"
+              }
+            },
+            "Property": "PositionGroup"
+          }
+        },
+        "type": "Categorical"
+      }
+    ]
+  }
+}
