@@ -11,8 +11,10 @@
 #   (the player's stable natural key), so the surrogate survives a prospect
 #   signing (`player_key` → `gsis_id` fills underneath the same `asset_id`).
 # - **`dim_draft_pick`** — the 2026 startup pick grid (every slot, made or not).
-#   `pick_ref = (draft_season, round, original_owner)`, stable under trade;
-#   `overall_slot` = canonical snake order `(round-1)*N + pick_in_round`.
+#   Keyed on the slot: `pick_ref = (draft_season, divisionId, overall_slot)`.
+#   Records `current_owner` (getDraftResults `teamId`, post-trade); `original_owner`
+#   is NULL until `draftPicks.go` is captured (startup picks were traded — see the
+#   dim_draft_pick cell below). `overall_slot` = snake order `(round-1)*N + pick_in_round`.
 # - **`fact_roster_transactions`** — one `startup_draft` row per **made** pick.
 #   Key `season_id + event_type + team_key + asset_id + event_seq`. Each pick →
 #   an **Initial** contract (yr 1): `contract_value` = the Fantrax `salary`

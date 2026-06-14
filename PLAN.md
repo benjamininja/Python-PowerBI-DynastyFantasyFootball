@@ -179,10 +179,15 @@ The made-pick fact is unaffected (records who drafted).
 2. **Capture `draftPicks.go`** (separate `fxpa/req` method, not yet HAR'd) →
    backfill `dim_draft_pick.original_owner`, light up `pick_allocation`/`trade`
    events, seed 2027/2028 forward-year picks.
-3. **Phase 0 — ADR-0003/0004 text amendments** (batched): `startup_auction`→
-   `startup_draft` rename; v1-is-full-ADR-0004; `contract_value`=Fantrax salary;
-   `dim_draft_pick` slot-keyed + `original_owner` deferred (the trade finding);
-   team identity = Sheet `Fantrax-TeamId` via 01c (heuristic crosswalk retired).
+3. [x] **Phase 0 — ADR-0003/0004 text amendments** ✅ 2026-06-14. Added a dated
+   **Build amendment** section to each ADR (original Decision text preserved as the
+   historical record) + flipped both Status lines to BUILT/MERGED PR #15:
+   `startup_auction`→`startup_draft` rename; v1-is-full-ADR-0004;
+   `contract_value`=Fantrax salary (`fact_fantrax_adp.salary`); `asset_id`=monotonic
+   int; `dim_draft_pick.pick_ref` redefined to slot `(draft_season,divisionId,
+   overall_slot)` + `original_owner` deferred (the trade finding); team identity =
+   Sheet `Fantrax-TeamId` via 01c (heuristic 01g retired). Also fixed 02d's stale
+   header docstring (it claimed `pick_ref=(draft_season,round,original_owner)`).
 4. Still externally gated: ADR-0005 Sheet **write**-sync (Sheets-API auth + PII
    go-ahead); Railway deploy of the merged discord bot.
 - Env note: `.venv` is the full notebook env (`requests`/`rapidfuzz`/`thefuzz`/
