@@ -377,7 +377,7 @@ Imported by 01a, 02a, 03a–03x, 03z, 04b, 04x (NOT copied — consolidated 2026
 - `generate_player_key` — MD5 12-char deterministic hash of name+pos+school
 - `add_players_from_source` / `ingest_ranking_source` — canonical alias-aware matcher/ingester (consolidating these fixed the auto-match alias-drop bug that had silently affected 03a/03c/03d)
 
-Still NOT consolidated (local `LeagueConfig` copies, low-risk seed notebooks): 01b, 01c, 01d, 01e, 02b, 03y, 04a, 04z.
+Config consolidation (swept 2026-06-14): 01b/01c/01d/01e/02b/03y/04z all import the shared `CFG` (no local `LeagueConfig` copy) — reference `CFG.initial_contract_years`, `CFG.fa_minimum_salary`, `CFG.team_sheet_csv_url`, `CFG.alias_name`, `CFG.path(CFG.fact_name)`, `CFG.fuzzy_*`, etc. **04a keeps its own `LeagueConfig` by design** — it is the lean-import SSOT for the Fantrax scraper cluster (04w does `fx.CFG = import 04a`), and 04w relies on 04a being safe to import without `etl_helpers`' heavy deps (requests/thefuzz) or `DATA`/`REVIEW` mkdir side-effects. Overlap is just 2 table-name strings + `data_dir` + a path-anchoring idiom; folding it in would break the lean→heavy boundary. All five `etl_helpers.LeagueConfig` table-name handles are live (`fact_name`/`crosswalk_name`/`nfl_players_name`/`rookie_prospect_name` via 04z+05a, `alias_name` via 03y).
 
 ## Fuzzy Match Workflow (notebook 02c)
 
