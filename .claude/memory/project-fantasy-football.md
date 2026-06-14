@@ -151,7 +151,7 @@ Scheduled headless-browser pull of the Fantrax draft-ranking board for league `v
 - Dual-eligible players (e.g. Travis Hunter `WR,DB`) appear twice in the board with one `scorer_id`; dedup collapses them.
 - **Identity crosswalk (04z)**: `dim_fantrax_crosswalk` maps `scorer_id` → `gsis_id` (via `dim_nfl_players`) + `player_key` (via `dim_rookie_prospect`). `dim_nfl_players` (24,966-row full nflverse registry) covers ~100% — incl. signed rookies; `dim_rookie_prospect` only catches draft-class. So `gsis_id` is the universal key. 04a joins the crosswalk on load (`_load_crosswalk`); new `scorer_id`s stay null until 04z re-runs. Matcher: exact cleaned-name → disambiguate by **position** (strongest) / active status / team / recency → fuzzy ≥90. As of 2026-06-06 (after the 2025 YTD backfill): **2,288 scorer_ids, ~98% gsis** (a few nickname vets manually fixed, e.g. Cameron→Cam Skattebo).
 
-## Roster-transactions ledger — build started 2026-06-14 (ADR-0003/0004)
+## Roster-transactions ledger — BUILT + MERGED 2026-06-14 (ADR-0003/0004, PR #15)
 
 Event-sourced `fact_roster_transactions` (acquisition ledger; `fact_fantasy_teams`
 derived by replay). Grill 2026-06-14 (this session) corrected a load-bearing
@@ -178,7 +178,26 @@ live status in PLAN.md.*
   (what 04w does). Same applies to any other SW-served fxpa method.
 - **Identity (in the parse step)**: player `scorerId → gsis_id/player_key` via
   `dim_fantrax_crosswalk` (04z); team `teamId → team_key` via
-  `dim_fantasy_teams.fantrax_team_id` (01c, ADR-0005).
+  `dim_fantasy_teams.fantrax_team_id` — the league **Sheet now carries the
+  `Fantrax-TeamId` column** (ADR-0005 locked col; user added it 2026-06-14), so 01c
+  ingests it (28/28). A name-match heuristic crosswalk (01g) was built then
+  **retired** once the Sheet column landed (it had inferred the right mappings;
+  re-running 01c also fixed drifted team names — A08 was a stale "Metallica").
+- **Build outcome (S1–S4, verified on the live Riddell capture, `.venv`)**:
+  `01f`→`dim_season`; `02d` (live-loop)→`dim_roster_asset` (137; monotonic
+  `asset_id` minted on `scorer_id`, persisted) + `dim_draft_pick` (490 slots) +
+  `fact_roster_transactions` (137 `startup_draft`); `02e`→12-col `fact_fantasy_teams`
+  + cap rollup; `05a` got a non-destructive "Drafted By" availability column. 137/137
+  picks resolve to gsis_id+salary.
+- **⚠ Finding — startup picks WERE traded** (some teams hold 2 picks/round). So
+  getDraftResults' slot `teamId` = *current* owner → `dim_draft_pick` is keyed on
+  the slot `(draft_season, divisionId, overall_slot)` and `original_owner` is left
+  NULL until `draftPicks.go` is captured (which also lights up `pick_allocation`/
+  `trade`, dormant v1, + 2027/2028 forward picks). Made-pick fact unaffected.
+- **Open**: USER re-runs 04w for the **Wilson** draft (identity already 28/28) → then
+  02d/02e scale to both divisions; `draftPicks.go` capture; ADR-0003/0004 text
+  amendments (startup_draft rename, slot-keyed pick, Sheet identity) → next Phase 0.
+  `.venv` is the full notebook env (added `requests`/`rapidfuzz`/`thefuzz`/`pyarrow`).
 
 ## Dynasty Rankings (section 04) — single EAV fact
 

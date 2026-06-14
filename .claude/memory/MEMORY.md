@@ -7,7 +7,7 @@
 ## Active Files
 
 - [Fantasy Football Project](project-fantasy-football.md) — notebooks 01 dim / 02 fact / 03 rookie-rank / 04 dynasty-rank; shared etl_helpers.py; PBIP + discord_bot layers; feature-branch→main PRs (noreply email); .env hygiene remediated
-- [Data Model Architecture](data-model.md) — star schema; registries (dim_nfl_players/dim_rookie_prospect); rookie/fantrax/dynasty pipelines; dynasty = single EAV fact (2026-06-12: backbone retired, ranks→source-prefixed keys, composite_adp, gsis on fact, source in dim); crosswalk identity; acquisition ledger `fact_roster_transactions` + derived `fact_fantasy_teams` (2026-06-13, ADR-0003); unified `asset_id`/`dim_roster_asset` over player/prospect/pick + `dim_draft_pick` + `dim_season` (2026-06-13, ADR-0004); owner manifest Fantrax→Sheet sync + `dim_division` (2026-06-13, ADR-0005)
+- [Data Model Architecture](data-model.md) — star schema; registries (dim_nfl_players/dim_rookie_prospect); rookie/fantrax/dynasty pipelines; dynasty = single EAV fact (2026-06-12: backbone retired, ranks→source-prefixed keys, composite_adp, gsis on fact, source in dim); crosswalk identity; acquisition ledger `fact_roster_transactions` + derived `fact_fantasy_teams` + `dim_roster_asset`/`dim_draft_pick`(slot-keyed)/`dim_season` (**BUILT 2026-06-14**, ADR-0003/0004); owner manifest Fantrax→Sheet sync `dim_division` (ADR-0005, write-sync deferred)
 - [Domain glossary](../../CONTEXT.md) — repo-root `CONTEXT.md`: canonical terms (Roster Asset/asset_id, Draft Pick, Sign vs Exercise, Season, Conference vs Division, Owner Manifest). Grill-with-docs maintains it inline.
 - [Source manifest](../../docs/SOURCES.md) — `docs/SOURCES.md`: external-input boundary (Fantrax, Google Sheet, nflverse, KTC/FantasyPros/WalterFootball/DraftSharks/DynastySharks, manual Excel) with locator · auth-method · Feeds (notebook→table) · cadence. Internal lineage stays in data-model `Source` col + README.
 - [Power BI Semantic Model](powerbi-semantic-model.md) — PBIP/TMDL model + PBIR report at pbi/mouserat2/; Fact_/Dim_ PascalCase (sourceColumn stays snake); rename-cascade; dynasty measures (latest-snapshot/avg) + 2026-06-12 single-EAV refactor; Prep-for-AI gates
@@ -17,9 +17,9 @@
 
 - `docs/adr/0001-token-gated-grill-execute-loop.md` — runtime token-gating loop (grill→compact→execute, ~35% Opus budget, deferred Phase-0). General method mirrored in root `token-gating-loop.md`.
 - `docs/adr/0002-discord-rankings-position-group.md` — discord rankings groups by `dim_nfl_players.position_group` (offense QB/RB/WR/TE, IDP DL/LB/DB) + re-ranks 1..N per field. Do NOT revert to granular `position`. Stage A rewrite landed + verified 2026-06-13.
-- `docs/adr/0003-event-sourced-roster-transactions.md` — NEW `fact_roster_transactions` (was `fact_dead_money_drafts`): event-sourced acquisition ledger = SSOT; `fact_fantasy_teams` DERIVED by replay; live-draft → 05a board. Key amended by ADR-0004. **Build STARTED 2026-06-14** (grill corrected `startup_auction`→`startup_draft`: the startup is a snake draft, not an auction).
-- `docs/adr/0004-polymorphic-asset-id.md` — polymorphic `asset_id` + `dim_roster_asset` unify player/prospect/pick; ledger key `gsis_id→asset_id`; Sign = same asset, Exercise = new asset + lineage; `dim_draft_pick` (`pick_ref` stable under trade), `dim_season` (`season_id` `"2026-2027"`); picks event-sourced via `pick_allocation` (trade dormant v1); valuation deferred. Glossary → `CONTEXT.md`. Build deferred.
-- `docs/adr/0005-owner-manifest-fantrax-to-sheet-sync.md` — Fantrax = upstream SSOT, Google Sheet = field-scoped synced mirror; join on `Fantrax-TeamId`; locked cols (Division/Team ID/Fantrax-TeamId) vs synced (name/abbr/emails); diff-only writes, soft-fail unmatched; Sheet both read(01c)+written(sync); `01c` maps `fantrax_team_id`; new `dim_division` `(season_id,conference)→name` (seasonal label, no downstream IF). External-write+PII gate at build. Build deferred.
+- `docs/adr/0003-event-sourced-roster-transactions.md` — `fact_roster_transactions` (was `fact_dead_money_drafts`): event-sourced acquisition ledger = SSOT; `fact_fantasy_teams` DERIVED by replay; live-draft → 05a board. Key amended by ADR-0004. **BUILT + MERGED 2026-06-14 (PR #15)** (grill corrected `startup_auction`→`startup_draft`: a snake draft, not an auction). Text amendment pending Phase 0.
+- `docs/adr/0004-polymorphic-asset-id.md` — polymorphic `asset_id` + `dim_roster_asset` unify player/prospect/pick; Sign = same asset, Exercise = new asset + lineage; `dim_draft_pick`, `dim_season` (`season_id` `"2026-2027"`); `pick_allocation`/`trade` dormant v1; valuation deferred. Glossary → `CONTEXT.md`. **BUILT 2026-06-14** — but `dim_draft_pick` is **slot-keyed** (`original_owner` deferred to `draftPicks.go`: startup picks were traded), superseding the planned `pick_ref=(season,round,original_owner)`. Text amendment pending Phase 0.
+- `docs/adr/0005-owner-manifest-fantrax-to-sheet-sync.md` — Fantrax = upstream SSOT, Google Sheet = field-scoped synced mirror; join on `Fantrax-TeamId`; locked cols (Division/Team ID/Fantrax-TeamId) vs synced (name/abbr/emails); diff-only writes. **Read-side BUILT 2026-06-14**: Sheet now carries `Fantrax-TeamId`, `01c` ingests → `dim_fantasy_teams.fantrax_team_id` (lit up the ledger join). **Still deferred**: the Sheet **write**-sync (external-write+PII gate) + new `dim_division` `(season_id,conference)→name`.
 
 ## Directional shift (2026-06-13)
 
@@ -33,26 +33,14 @@
 - **Docs destaled + authored**: `docs/SOURCES.md` (new), `notebooks/README.md` + the `discord-bot-github-fetch` skill's `references/data-model.md` rewritten to the single-EAV/`position_group` board; `CLAUDE.md` gained the token-gating "Execution loop" pointer. `.claude/settings.local.json` untracked + gitignored (per-developer local).
 - **Still deferred — externally gated**: owner-manifest Sheet sync (needs Sheets-API auth + PII go-ahead); Railway deploy of the merged bot. Designs locked in ADR-0005.
 
-## Ledger v1 — BUILT + VERIFIED 2026-06-14 (Riddell capture, `.venv`)
+## Ledger v1 — BUILT + MERGED 2026-06-14 (PRs #12/#13/#15 → `main`; Riddell, `.venv`)
 
-- **`fact_roster_transactions` ledger** (ADR-0003/0004) shipped S1–S4. New files:
-  `01f_dim_season_seed.ipynb` (dim_season),
-  `02d_fact_roster_transactions.py` (live-loop parse →
-  `dim_roster_asset` monotonic `asset_id` on `scorer_id` + `dim_draft_pick` slot grid
-  + `fact_roster_transactions` startup_draft rows; contract `1st` yr1,
-  `contract_value`=Fantrax salary, cap_hit 0.50×), `02e_fact_fantasy_teams_derive.py`
-  (replay → 12-col `fact_fantasy_teams` + dim_fantasy_teams cap rollup). 05a got a
-  non-destructive "Drafted By" availability column.
-- **Team identity = Sheet `Fantrax-TeamId`** (ADR-0005 locked col, added to the Sheet
-  2026-06-14). `01c` ingests it → `dim_fantasy_teams.fantrax_team_id` (28/28); 02d
-  joins teamId→team_key off it. A name-match heuristic crosswalk was built then
-  **retired** once the Sheet column landed (it had inferred the right mappings). 01c
-  also refreshes drifted team names.
-- **Findings**: 137/137 picks resolve to gsis_id+salary; **startup picks WERE traded**
-  → getDraftResults `teamId`=current owner, so `dim_draft_pick` keyed on slot
-  `(draft_season,divisionId,overall_slot)`, `original_owner` null (needs `draftPicks.go`).
-  `pick_allocation`/`trade` dormant v1.
-- ➡ **Open**: user re-runs 04w for Wilson draft capture (identity already 28/28; then 02d+02e);
-  `draftPicks.go` for original_owner/forward picks; ADR-0003/0004 amendments → Phase 0.
-- Pre-build PRs still open: #12 (`clean_name_for_match` DRY), #13 (plan + HAR doc).
-  This build is **uncommitted** on `plan-ledger-v1-grill`. Detail → PLAN.md.
+- **`fact_roster_transactions` ledger** (ADR-0003/0004) shipped S1–S4: `01f`→dim_season,
+  `02d` (live-loop)→dim_roster_asset + dim_draft_pick + the startup_draft fact, `02e`→
+  derived fact_fantasy_teams + cap rollup; `05a` gained a "Drafted By" availability column;
+  team identity via the Sheet's new `Fantrax-TeamId` (01c) — heuristic crosswalk retired.
+  **Full detail in [project-fantasy-football.md](project-fantasy-football.md) + schemas in
+  [data-model.md](data-model.md).**
+- ➡ **Open** (also in PLAN.md): user re-runs 04w for the **Wilson** draft (identity already
+  28/28) → 02d/02e; `draftPicks.go` for `original_owner`/trades/forward picks; ADR-0003/0004/
+  0005 text amendments → next Phase 0.

@@ -138,7 +138,8 @@ own authed scraper**, which is the real pipeline anyway.
   not captured — getDraftResults covers the CURRENT startup picks; capture forward
   picks separately when seeding 2027/2028.
 
-**Build stages — ✅ BUILT + VERIFIED 2026-06-14 against the Riddell capture (`.venv`):**
+**Build stages — ✅ BUILT + VERIFIED + MERGED 2026-06-14** (PRs #12 matcher, #13 plan,
+#15 build all merged to `main`; branches deleted; repo flat). Riddell capture, `.venv`:
 - [x] **S1 `01f_dim_season_seed.ipynb`** → `dim_season` (3 rows: 2026-2027 +2;
   fantasy Mar 1→last Feb; NFL dates null; leap-year Feb correct).
 - [x] **S2a — team identity via the Sheet (01c).** The league Sheet now carries the
@@ -171,15 +172,21 @@ own authed scraper**, which is the real pipeline anyway.
 `original_owner` null. `pick_allocation`/`trade` events stay dormant v1 (no source).
 The made-pick fact is unaffected (records who drafted).
 
-**Open after this stage:**
-- **USER: re-run 04w for Wilson** → then 02d/02e (→both divisions). Team identity
-  already covers all 28 (Sheet `Fantrax-TeamId`), so only the Wilson *draft* capture
-  is missing; 02d maps its teamIds directly.
-- Capture `draftPicks.go` → backfill `original_owner`, light up `pick_allocation`/`trade`,
-  seed 2027/2028 `dim_draft_pick` forward years.
-- ADR-0003/0004 amendments (startup_draft rename, v1-is-full, contract_value=Fantrax
-  salary, slot-keyed dim_draft_pick + original_owner-deferred) → next Phase 0.
-- `.venv` gained `requests`/`rapidfuzz`/`thefuzz`/`pyarrow` (full notebook env).
+**➡ FOLLOW-UPS (post-merge 2026-06-14, ordered):**
+1. **USER: re-run 04w for the Wilson division** → then `02d` → `02e` (scales to 28
+   teams / both divisions automatically). Identity already 28/28 (Sheet
+   `Fantrax-TeamId`); only the Wilson *draft* capture is missing.
+2. **Capture `draftPicks.go`** (separate `fxpa/req` method, not yet HAR'd) →
+   backfill `dim_draft_pick.original_owner`, light up `pick_allocation`/`trade`
+   events, seed 2027/2028 forward-year picks.
+3. **Phase 0 — ADR-0003/0004 text amendments** (batched): `startup_auction`→
+   `startup_draft` rename; v1-is-full-ADR-0004; `contract_value`=Fantrax salary;
+   `dim_draft_pick` slot-keyed + `original_owner` deferred (the trade finding);
+   team identity = Sheet `Fantrax-TeamId` via 01c (heuristic crosswalk retired).
+4. Still externally gated: ADR-0005 Sheet **write**-sync (Sheets-API auth + PII
+   go-ahead); Railway deploy of the merged discord bot.
+- Env note: `.venv` is the full notebook env (`requests`/`rapidfuzz`/`thefuzz`/
+  `pyarrow` added 2026-06-14); do NOT use anaconda base.
 
 ### NEW high-value tasks — ALL GRILLED 2026-06-13 (designs resolved; builds queued)
 Decision trees cleared via `/grill-with-docs`. Builds are their own post-compact
