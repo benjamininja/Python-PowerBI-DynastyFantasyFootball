@@ -2,13 +2,14 @@
 
 > Project-local memory. Cross-project preferences, terminology, and working
 > method live in root (`C:\Users\benha\.claude\`). Last consolidated:
-> 2026-06-13.
+> 2026-06-14.
 
 ## Active Files
 
 - [Fantasy Football Project](project-fantasy-football.md) — notebooks 01 dim / 02 fact / 03 rookie-rank / 04 dynasty-rank; shared etl_helpers.py; PBIP + discord_bot layers; feature-branch→main PRs (noreply email); .env hygiene remediated
 - [Data Model Architecture](data-model.md) — star schema; registries (dim_nfl_players/dim_rookie_prospect); rookie/fantrax/dynasty pipelines; dynasty = single EAV fact (2026-06-12: backbone retired, ranks→source-prefixed keys, composite_adp, gsis on fact, source in dim); crosswalk identity; acquisition ledger `fact_roster_transactions` + derived `fact_fantasy_teams` (2026-06-13, ADR-0003); unified `asset_id`/`dim_roster_asset` over player/prospect/pick + `dim_draft_pick` + `dim_season` (2026-06-13, ADR-0004); owner manifest Fantrax→Sheet sync + `dim_division` (2026-06-13, ADR-0005)
 - [Domain glossary](../../CONTEXT.md) — repo-root `CONTEXT.md`: canonical terms (Roster Asset/asset_id, Draft Pick, Sign vs Exercise, Season, Conference vs Division, Owner Manifest). Grill-with-docs maintains it inline.
+- [Source manifest](../../docs/SOURCES.md) — `docs/SOURCES.md`: external-input boundary (Fantrax, Google Sheet, nflverse, KTC/FantasyPros/WalterFootball/DraftSharks/DynastySharks, manual Excel) with locator · auth-method · Feeds (notebook→table) · cadence. Internal lineage stays in data-model `Source` col + README.
 - [Power BI Semantic Model](powerbi-semantic-model.md) — PBIP/TMDL model + PBIR report at pbi/mouserat2/; Fact_/Dim_ PascalCase (sourceColumn stays snake); rename-cascade; dynasty measures (latest-snapshot/avg) + 2026-06-12 single-EAV refactor; Prep-for-AI gates
 - [Startup draft board 05a](startup-draft-board-05a.md) — `notebooks/05a_startup_draft_board.py`; composite weights, Offense/Defense split, judgment-overlay CSV, Yo-Yo runway (games-played) semantics, IDP/crosswalk quirks
 
@@ -24,3 +25,10 @@
 
 - Project-specific memory moved out of root global into this repo's `.claude/memory/`. Root now holds only cross-project (preferences, token-gating loop). `CLAUDE.md` + `PLAN.md` generated at repo root; first ADR created.
 - Migrated `startup-draft-board-05a.md` here from the harness skills-CWD store (`~/.claude/projects/C--Users-benha--claude-skills/memory/`); that store now redirects to root+project. Memory tier model + Phase 0 algorithm: root `memory-architecture.md`.
+
+## Shipped (2026-06-14)
+
+- **All design work through 2026-06-13 is now MERGED to `main`** (PRs #9 refactor+docs, #10 bot; #9 first). Feature branches deleted; repo flat on `main`. `PLAN.md` is the live status board.
+- **Grill seams built**: 04c generates its 6 Rank rows from `etl.SOURCE_PREFIX` (`prefix.upper()` = display abbrev; ADR/grill "Option B"); 05a keys `METRIC_MAP` by `metric_key` alone (each key owns one source — "Option A"). Both verified behavior-preserving.
+- **Docs destaled + authored**: `docs/SOURCES.md` (new), `notebooks/README.md` + the `discord-bot-github-fetch` skill's `references/data-model.md` rewritten to the single-EAV/`position_group` board; `CLAUDE.md` gained the token-gating "Execution loop" pointer. `.claude/settings.local.json` untracked + gitignored (per-developer local).
+- **Still deferred — externally gated**: `fact_roster_transactions` ledger (needs Fantrax `draftPicks.go`/`getDraftResults` HAR-capture + auth) and owner-manifest Sheet sync (needs Sheets-API auth + PII go-ahead); Railway deploy of the merged bot. Designs locked in ADR-0003/0004/0005.
