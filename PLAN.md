@@ -54,7 +54,6 @@ deferred item); surface `dim_division` in the PBI semantic model (join
      in place; runs locally only).
 
 ## [ ] Deferred - User Requested
-- [ ] Additional Discord bot commands (`player`, `adp`) — v1 scoped to `rankings`.
 - [ ] `git filter-repo` history-scrub follow-up for `notebooks/.env` /
   `data/.pw_profile` (2026-05-30 incident) — user-owned, low urgency.
 
@@ -68,6 +67,13 @@ deferred item); surface `dim_division` in the PBI semantic model (join
 - [ ] Generalize composite ADP blending (`ADP_KEYS`) beyond 2 sources when a 3rd lands.
 
 ## Shipped (one-liners; full detail in ADR / MEMORY / data-model)
+- **Discord bot expansion** (branch `discord-bot-expand`, 2026-06-14): extracted
+  shared `delivery.py` (privacy routing + ShareView + `respond_with_embeds`) +
+  `render.py` (embed pagination); rebuilt `rankings.py` on them; added 4 commands
+  — `/adp` (Fantrax ADP + league-owner overlay), `/player` (curated card), `/cap`
+  (conference cap standings via dim_division), `/roster` (team contracts +
+  empty-state). Offline harness `tests/offline_smoke.py` asserts embed limits for
+  all 5. No new deps; `github_fetch` unchanged.
 - **Dynasty single-EAV refactor** (ADR-0002) + Discord `rankings.py` rewrite
   (`position_group`, re-rank 1..N) + 04z gsis-collision soft-fail. PRs #9/#10.
 - **Ledger v1** (ADR-0003/0004; PRs #12/#13/#15): `01f`→dim_season,
