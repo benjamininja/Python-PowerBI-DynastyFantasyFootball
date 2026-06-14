@@ -111,6 +111,22 @@ def clean_player_name(name: str) -> str:
     s = s.replace("\u2018", "'").replace("\u2019", "'").replace("`", "'")
     return " ".join(s.split()).lower()
 
+# Aggressive name normalizer for fuzzy cross-source MATCHING only. Distinct from
+# clean_player_name above: that one feeds the deterministic player_key hash and
+# must stay byte-stable (changing it rewrites every key seeded in 01). This one
+# additionally strips generational suffixes (jr/sr/ii..v) and apostrophes so
+# Fantrax / dynasty-source names match the nflverse registry despite inconsistent
+# suffix/apostrophe usage. Shared by resolve_dynasty_crosswalk (04b/04x) and the
+# Fantrax crosswalk (04z) so the matching rule lives in exactly one place.
+_MATCH_SUFFIX = re.compile(r"\b(jr|sr|ii|iii|iv|v)\b")
+
+def clean_name_for_match(name: str) -> str:
+    if not isinstance(name, str):
+        return ""
+    n = name.lower().replace(".", "").replace("'", "").replace("\u2019", "")
+    n = _MATCH_SUFFIX.sub("", n)
+    return re.sub(r"\s+", " ", n).strip()
+
 def generate_player_key(name: str, position: str, school: str) -> str:
     # Deterministic 12-char MD5 hash -- matches keys generated in 01.
     raw = f"{clean_player_name(name)}|{str(position).upper().strip()}|{str(school).strip().lower()}"
@@ -471,14 +487,7 @@ def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
     """
     overrides = {str(k): v for k, v in (overrides or {}).items()}
     today = today or date.today().isoformat()
-    _suffix = re.compile(r"\b(jr|sr|ii|iii|iv|v)\b")
-
-    def _clean(name):
-        if not isinstance(name, str):
-            return ""
-        n = name.lower().replace(".", "").replace("'", "").replace("’", "")
-        n = _suffix.sub("", n)
-        return re.sub(r"\s+", " ", n).strip()
+    _clean = clean_name_for_match  # shared match-normalizer (see top of module)
 
     npl = pd.read_parquet(f"{data_dir}/dim_nfl_players.parquet").copy()
     rp = pd.read_parquet(f"{data_dir}/dim_rookie_prospect.parquet").copy()
