@@ -77,16 +77,52 @@ event_seq`); new `dim_roster_asset` (player/prospect/pick bridge), `dim_draft_pi
 Picks seeded from Fantrax `draftPicks.go` snapshot; `fact_fantasy_teams` derives
 pick inventory by replay. v1 = inventory only (valuation deferred).
 
-Open (build-time, not blocking): finalize `event_type` enum incl. `drop`;
-roster-page role under ledger-SSOT (recommend defer roster scrape for v1 startup —
-no prior roster; use later for in-season status/IR reconciliation); exact
-`dead_money` schedule per contract year; 05a availability-join wiring;
-**HAR-capture `draftPicks.go` for the `fxpa/req` method + shape; add
-`fantrax_team_id` to `dim_fantasy_teams` (Fantrax teamId→team_key; front-runs
-task #1); confirm current+2 pick horizon during rookie-draft window; `dim_season`
-NFL date lookup; `asset_id` surrogate scheme (sequence vs deterministic hash).**
+#### GRILL 2026-06-14 — v1 scope RESOLVED (supersedes the open list above)
+League reality correction: we are at the **STARTUP DRAFT now, and it is a snake/
+linear DRAFT, not an auction** (auctions = FA/re-sign, next offseason). The ADRs'
+`startup_auction` event is misnamed for v1 → **rename `startup_auction` →
+`startup_draft`** (snake draft; players acquired via picks, not bids). Resolved:
+- **v1 = FULL ADR-0004** (user decision): build the polymorphic-asset machinery
+  now — `dim_roster_asset` + `dim_draft_pick` + `dim_season` + `pick_allocation`/
+  `trade` enum + `asset_id` — with live `startup_draft` events as the driver.
+- **Contract**: every startup pick gets an **Initial** contract, yr 1 →
+  `dim_contract.contract_id="1st"` (`cap_hit_pct=0.50`, `guaranteed=True`,
+  3-yr term). `contract_value` = the **Fantrax `salary` field** (already captured
+  in `fact_fantrax_adp.salary`; projection-based by construction). `cap_hit` =
+  0.50 × value (yr 1); dead money applies. Use the salary **as-of the pick**
+  (locked) — HAR shape decides whether `getDraftResults` carries it or we join
+  the nearest snapshot. No rookie-scale, no new projection math.
+- **Pick horizon**: `dim_draft_pick` seeds **current + 2** (2026/2027/2028).
+- **`asset_id` scheme**: **monotonic integer sequence**, assigned at first sight,
+  persisted in `dim_roster_asset`, never re-derived (ADR-0004 forbids deriving
+  from the migrating `gsis_id`/`player_key` resolvers).
+- **Sequencing**: user captures HAR **first**; build parses against the real
+  wire shape (no schema-first guessing).
+- Identity joins already exist: player `scorerId → gsis_id/player_key` via
+  `dim_fantrax_crosswalk` (04z); team `teamId → team_key` via
+  `dim_fantasy_teams.fantrax_team_id` (added by 01c, ADR-0005).
 
-⟂ after Phase 0 + COMPACT → build stage (own window)
+**⛔ GATING PREREQUISITE — user HAR capture** (build blocked until delivered):
+capture the live draft-room responses for (a) the **draft-results / completed-
+picks** method and (b) the **pick-inventory** method (`draftPicks.go`). Exact
+method names + shapes are unknown — that is *why* we capture. Spec written for
+the user 2026-06-14; save raw JSON to `data/raw/` (gitignored). See the build
+plan handoff below.
+
+**Build stages (post-HAR, post-compact)** — each its own window:
+- S1 `dim_season` (`season_id "2026-2027"` + 2 future rows; NFL dates nullable).
+- S2 `dim_roster_asset` (asset_id sequence; `asset_type` player/prospect/pick;
+  resolvers gsis_id?/player_key?/pick_ref?) + `dim_draft_pick` (current+2,
+  `pick_ref=(draft_season,round,original_owner)`).
+- S3 `fact_roster_transactions` schema + the `startup_draft` + `pick_allocation`
+  parse from the captured HAR; idempotent replace-by-`(season_id, event_type)`.
+- S4 `fact_fantasy_teams` derivation (replay → current roster + cap rollups) +
+  05a availability-join wiring (drafted assets → unavailable on the board).
+- Add `fantrax_team_id` to `dim_fantasy_teams` (01c) if not already present.
+
+⟂ **COMPACT** now — grill complete, decisions recorded; next session resumes at
+the HAR capture (user) → S1. ADR-0003/0004 amendments (startup_draft rename,
+v1-is-full, contract_value=Fantrax salary, locked decisions) batched into Phase 0.
 
 ### NEW high-value tasks — ALL GRILLED 2026-06-13 (designs resolved; builds queued)
 Decision trees cleared via `/grill-with-docs`. Builds are their own post-compact
