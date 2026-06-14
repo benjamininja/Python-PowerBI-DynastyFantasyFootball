@@ -1,6 +1,6 @@
 # Event-sourced `fact_roster_transactions`; `fact_fantasy_teams` is derived
 
-- Status: accepted (design; build deferred)
+- Status: accepted — **BUILT + MERGED 2026-06-14 (PR #15)**; see the Build amendment below
 - Date: 2026-06-13
 - Scope: new `fact_roster_transactions`, `fact_fantasy_teams`, `dim_fantasy_teams`
 - **Amended 2026-06-13 by [ADR-0004](0004-polymorphic-asset-id.md):** the ledger
@@ -71,3 +71,42 @@ and make `fact_fantasy_teams` a **derived** current-state projection.
   v1 startup — there is no prior roster — and use it later for in-season
   status/IR reconciliation); the exact `dead_money` schedule by contract year;
   the 05a availability-join wiring.
+
+## Build amendment (2026-06-14) — built reality
+
+Built S1–S4 and merged to `main` (PR #15) against the live Riddell capture
+(`.venv`). Where the build diverged from the design above:
+
+- **`startup_auction` → `startup_draft`.** League reality (grill 2026-06-14): the
+  league is at the **startup now, and it is a snake/linear DRAFT, not an auction** —
+  players are acquired via picks, not bids. Auctions are the FA / re-sign mechanism
+  next offseason (~2027). The `startup_auction` value in the enum above is
+  **misnamed for v1**; the built event is `startup_draft`. The auction event types
+  stay forward-defined for when FA arrives.
+- **Grain key is the ADR-0004 form**, not this ADR's `gsis_id` key:
+  `season_id + event_type + team_key + asset_id + event_seq` (`event_seq` =
+  `overall_slot`). v1 built the **full** ADR-0004 polymorphic-asset machinery, not a
+  `gsis_id`-keyed interim.
+- **`contract_value` = the Fantrax `salary` field** (already captured in
+  `fact_fantrax_adp.salary`, projection-based), joined by `scorer_id` from the
+  latest snapshot (as-of the pick). Each made pick → an **Initial** contract, yr 1
+  (`dim_contract` `"1st"`: `cap_hit_pct = 0.50`, guaranteed, 3-yr term); `cap_hit` =
+  `0.50 × value`; `dead_money = 0` at acquisition. `getDraftResults` carries **no**
+  salary on the pick, so the snapshot join is the source.
+- **Source = `getDraftResults`**, fetched by new `notebooks/04w_fantrax_draft_results.py`
+  (reuses 04a's `FantraxScraper`). The draft board is served by Fantrax's
+  **service worker**, so a DevTools HAR records the response *size* but not the
+  *body* — a HAR cannot deliver it; 04w fetches through the authed request context.
+  `getDraftResults` returns **one division per call** (14 teams × 35 = 490 slots);
+  04w loops both divisions (Riddell + Wilson), writing one raw file each, and 02d
+  globs + dedups them on `(divisionId, round, pickNumber)`.
+- **Built tables**: `01f`→`dim_season`; `02d` (one pass)→`dim_roster_asset` +
+  `dim_draft_pick` + `fact_roster_transactions`; `02e`→derived `fact_fantasy_teams`
+  + `dim_fantasy_teams` cap rollup; `05a` gained a non-destructive "Drafted By"
+  availability column. Idempotent replace-by `(season_id, event_type)`.
+- **Live-draft status**: Riddell is drafting (138/490 made as of 2026-06-14);
+  Wilson has not started (0/490). The ledger scales to both divisions automatically
+  as picks land — re-run `04w → 02d → 02e`.
+- See [ADR-0004](0004-polymorphic-asset-id.md)'s Build amendment for the
+  `asset_id` scheme and the slot-keyed `dim_draft_pick` / `original_owner`-deferred
+  trade finding.
