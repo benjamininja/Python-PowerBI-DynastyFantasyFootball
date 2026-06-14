@@ -41,9 +41,20 @@ def load_config() -> Config:
             + ". Set them in discord_bot/.env (local) or as Railway service "
             "variables (production)."
         )
+    # Parse the guild id explicitly so a non-numeric value fails with a message
+    # that names the culprit, not a raw `int()` ValueError on first boot.
+    raw_guild = os.environ["DISCORD_GUILD_ID"]
+    try:
+        guild_id = int(raw_guild)
+    except ValueError as e:
+        raise RuntimeError(
+            f"DISCORD_GUILD_ID must be a numeric Discord snowflake, got {raw_guild!r}. "
+            "Enable Developer Mode in Discord, right-click the server, then Copy "
+            "Server ID."
+        ) from e
     return Config(
         discord_bot_token=os.environ["DISCORD_BOT_TOKEN"],
-        discord_guild_id=int(os.environ["DISCORD_GUILD_ID"]),
+        discord_guild_id=guild_id,
         github_pat=os.environ["GITHUB_PAT"],
         github_owner=os.environ.get("GITHUB_OWNER", "benjamininja"),
         github_repo=os.environ.get(

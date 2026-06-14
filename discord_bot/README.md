@@ -54,7 +54,8 @@ Persistent worker, deployed from this GitHub repo. See the skill's
 1. Create a Railway service from the connected repo.
 2. Set `rootDirectory` = `discord_bot`.
 3. Set the env vars above as **service variables** (never commit them).
-4. Start command is `python bot.py` (via `Procfile`).
+4. Start command and restart policy come from `railway.json` (`python bot.py`,
+   `ON_FAILURE` capped at 5 retries so a bad token/config can't crash-loop).
 5. No HTTP port / domain needed — it's a gateway worker.
 6. Verify the deployment reaches **SUCCESS** and the bot shows online.
 
@@ -65,6 +66,7 @@ config.py         # env → Config; fails loud on missing required vars
 github_fetch.py   # GitHub contents API → DataFrame, TTL cache
 rankings.py       # the rankings command (Cog) + embed rendering
 bot.py            # entrypoint: intents, hybrid commands, guild sync, gateway
+railway.json      # start command + bounded restart policy (deploy contract)
 ```
 
 ## Extend
