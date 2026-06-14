@@ -307,9 +307,17 @@ the two heavy stages (ledger / manifest sync, each external-gated).
   Both now call the shared fn; 04z no longer shadows the gentle (hash-feeding)
   `clean_player_name`. Output verified byte-identical to the prior copies, so
   behavior-preserving for both Fantrax (04z) and dynasty (04b/04x) matching.
-- [ ] Sweep `01b`-`01e`, `02b`, `03y`, `04a` for local `LeagueConfig`-style
+- [x] Sweep `01b`-`01e`, `02b`, `03y`, `04a` for local `LeagueConfig`-style
   constants that duplicate what's now in `etl_helpers` (`CFG`,
   `SOURCE_PREFIX`, `ZERO_IS_MISSING`, `fold_ranks_long`) and consolidate.
+  ✅ 2026-06-14 — sweep found 01b/01c/01d/01e/02b/03y (+04z) already on the
+  shared `CFG` (prior refactor; no local copies, no literal constants).
+  **04a left standalone by design**: it is the lean-import SSOT for the Fantrax
+  scraper cluster — `04w` imports `04a.CFG` (`fx.CFG`) and depends on 04a being
+  safe to import without `etl_helpers`' heavy deps (requests/thefuzz) + `DATA`/
+  `REVIEW` mkdir side-effects. Overlap is only 2 fantrax table-name strings +
+  `data_dir` + a path-anchoring idiom — not worth coupling the lean scraper to
+  the heavy helper module. No notebook changes needed.
 - [x] `.claude/settings.local.json` resolved ✅ 2026-06-14 — untracked
   (`git rm --cached`, file kept on disk) + gitignored as per-developer local
   settings. Merged in PR #9.
