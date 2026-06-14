@@ -151,6 +151,35 @@ Scheduled headless-browser pull of the Fantrax draft-ranking board for league `v
 - Dual-eligible players (e.g. Travis Hunter `WR,DB`) appear twice in the board with one `scorer_id`; dedup collapses them.
 - **Identity crosswalk (04z)**: `dim_fantrax_crosswalk` maps `scorer_id` → `gsis_id` (via `dim_nfl_players`) + `player_key` (via `dim_rookie_prospect`). `dim_nfl_players` (24,966-row full nflverse registry) covers ~100% — incl. signed rookies; `dim_rookie_prospect` only catches draft-class. So `gsis_id` is the universal key. 04a joins the crosswalk on load (`_load_crosswalk`); new `scorer_id`s stay null until 04z re-runs. Matcher: exact cleaned-name → disambiguate by **position** (strongest) / active status / team / recency → fuzzy ≥90. As of 2026-06-06 (after the 2025 YTD backfill): **2,288 scorer_ids, ~98% gsis** (a few nickname vets manually fixed, e.g. Cameron→Cam Skattebo).
 
+## Roster-transactions ledger — build started 2026-06-14 (ADR-0003/0004)
+
+Event-sourced `fact_roster_transactions` (acquisition ledger; `fact_fantasy_teams`
+derived by replay). Grill 2026-06-14 (this session) corrected a load-bearing
+assumption and resolved v1 scope — *full design in data-model.md + ADR-0003/0004,
+live status in PLAN.md.*
+- **Reality correction**: the league is at the **STARTUP DRAFT now, and it is a
+  snake/linear DRAFT — NOT an auction** (auctions = FA / re-sign, next offseason,
+  i.e. ~2027). The ADRs' `startup_auction` event is **misnamed** → use
+  `startup_draft`. (ADR-0003/0004 text amendment pending Phase 0.)
+- **v1 decisions**: full ADR-0004 (build `dim_roster_asset` + `dim_draft_pick` +
+  `dim_season` + `pick_allocation`/`trade` + polymorphic `asset_id`). Each pick →
+  Initial contract yr1 (`dim_contract` "1st", 0.50 cap_hit, guaranteed);
+  `contract_value` = **the Fantrax `salary` field** (already in `fact_fantrax_adp`),
+  as-of the pick. Pick horizon = **current + 2** (2026/2027/2028). `asset_id` =
+  **monotonic integer sequence**, persisted in `dim_roster_asset`, never re-derived.
+- **Source = `getDraftResults`, fetched by NEW `notebooks/04w_fantrax_draft_results.py`**
+  (reuses 04a's `FantraxScraper`/`.pw_profile`). Request (from the 2026-06-14
+  /draft-results HAR): `msgs=[getDraftResults{}, getFantasyLeagueInfo{},
+  getRefObject{FantasyDraftPickType}]`, `v 183.1.5` (getDraftRanks was 182.4.8).
+- **⚠ Fantrax gotcha (cost a debug cycle)**: the draft board is served via Fantrax's
+  **service worker** (`fx-sw.js`), so a DevTools HAR records the response *size* but
+  **NOT the body** (`_fetchedViaServiceWorker:true`, empty `content.text`). A HAR
+  cannot deliver `getDraftResults` — must fetch through the authed request context
+  (what 04w does). Same applies to any other SW-served fxpa method.
+- **Identity (in the parse step)**: player `scorerId → gsis_id/player_key` via
+  `dim_fantrax_crosswalk` (04z); team `teamId → team_key` via
+  `dim_fantasy_teams.fantrax_team_id` (01c, ADR-0005).
+
 ## Dynasty Rankings (section 04) — single EAV fact
 
 Whole-roster (veteran+rookie) dynasty value/ranks from multiple sources with
