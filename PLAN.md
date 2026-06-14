@@ -65,6 +65,14 @@ deferred item); surface `dim_division` in the PBI semantic model (join
 - [ ] Prep-for-AI / Fabric Data Agent config for the dynasty semantic model
   (`semantic-modeling-prepforai`), after PBI model cleanup.
 - [ ] Generalize composite ADP blending (`ADP_KEYS`) beyond 2 sources when a 3rd lands.
+- [ ] **Revisit table architecture: merge `dim_rookie_prospect` into `dim_nfl_players`.**
+  Hypothesis (user): rookies graduate into NFL players, so one registry keyed on
+  the recently-developed **persistent player ID** (confirm which during planning —
+  `player_key` / `gsis_id` / asset lineage) removes the prospect→player handoff
+  and the dual-registry/crosswalk seams. **Planning task** — grill the design
+  before building (identity collisions, pre-draft rows without `gsis_id`, downstream
+  FKs in rookie-ranking + dynasty + ledger tables, PBI model impact). **Work to be
+  done on `pbi-dim-division-integration`.**
 
 ## Shipped (one-liners; full detail in ADR / MEMORY / data-model)
 - **Discord bot expansion** (branch `discord-bot-expand`, 2026-06-14): extracted
