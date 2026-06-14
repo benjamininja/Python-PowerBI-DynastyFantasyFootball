@@ -21,11 +21,11 @@ data-model. Blow-by-blow does NOT live here.
   `scripts/requirements.txt`, installed into `.venv`.
 
 ## ➡ NEXT
-**Build `dim_division` read-side (ADR-0005).** New dim `(season_id, conference)
-→ division name` (`A`→Riddell, `B`→Wilson for 2026-2027). Read-only seed (no
-external write) — the Sheet **write**-sync stays gated. Add a seed notebook
-(01-series) + register the source row in `sources.yml`. Distinct from the gated
-write-sync.
+Immediately-buildable queue is **drained** — remaining work is externally gated
+(Wilson draft, ADR-0006 captures, Sheets-API; see Active/gated). Optional small
+buildables when ready: wire `check_sources.py` into a pre-commit hook (ADR-0007
+deferred item); surface `dim_division` in the PBI semantic model (join
+`Dim_FantasyTeams.conference`).
 
 ## [ ] Active / gated
 1. **Ledger → both divisions (Wilson).** 04w capture proven for BOTH divisions
@@ -89,3 +89,6 @@ write-sync.
   `scripts/check_sources.py` (`validate`/`--render`/`--check`) does schema +
   notebook-exists + token-match (live, hard-fail) + reverse-drift (WARN). 9 live
   sources validate clean.
+- **`dim_division` read-side** (ADR-0005, 2026-06-14): `01g_dim_division_seed.ipynb`
+  → `dim_division.parquet`, `(season_id, conference)→division_name` derived from
+  the Sheet truth (v1 = 2026-2027: A→Riddell, B→Wilson). Sheet write-sync stays gated.
