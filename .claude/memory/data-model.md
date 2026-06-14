@@ -372,7 +372,8 @@ hand_size, arm_length, wingspan  -- optional nflverse cols
 Imported by 01a, 02a, 03a–03x, 03z, 04b, 04x (NOT copied — consolidated 2026-05-30, ~1,500 dup lines removed). Exports `LeagueConfig`, `clean_player_name`, `generate_player_key`, `parse_height_to_inches`, `_make_session`, `_parse_rank_date`, `add_players_from_source`, `ingest_ranking_source`, `append_review`, `resolve_dynasty_crosswalk` (shared dynasty matcher), `load_replace_partition` / `upsert_dynasty_crosswalk` / `write_dynasty_review` (shared dynasty load/upsert/review, added 2026-06-06), `DEFAULT_HEADERS`.
 
 - `parse_height_to_inches` — `6'2"`, `6-2`, `602`, numeric, None
-- `clean_player_name` — strip periods, normalize NBSP/apostrophes, lowercase. **Keeps apostrophes + suffixes.** (04z has its OWN divergent copy that strips apostrophes/suffixes — known open item: can under-match its secondary `player_key` lookup; `gsis_id` unaffected.)
+- `clean_player_name` — strip periods, normalize NBSP/apostrophes, lowercase. **Keeps apostrophes + suffixes** (feeds the deterministic `generate_player_key` hash → must stay byte-stable).
+- `clean_name_for_match` — aggressive normalizer for fuzzy cross-source **matching only**: additionally strips apostrophes + generational suffixes (jr/sr/ii..v). Shared by `resolve_dynasty_crosswalk` (04b/04x) and the Fantrax crosswalk (04z). (2026-06-14: consolidated — was duplicated verbatim in 04z's local def + `resolve_dynasty_crosswalk._clean`.)
 - `generate_player_key` — MD5 12-char deterministic hash of name+pos+school
 - `add_players_from_source` / `ingest_ranking_source` — canonical alias-aware matcher/ingester (consolidating these fixed the auto-match alias-drop bug that had silently affected 03a/03c/03d)
 
