@@ -200,16 +200,19 @@ the two heavy stages (ledger / manifest sync, each external-gated).
   on `gsis_id`, re-rank 1..N per group, `_PREFERRED_SOURCE` defaults. Retired
   `fact_dynasty_rankings`/`position_raw` references removed. ✅ 2026-06-13
   (Skill file, outside the repo: `~/.claude/skills/discord-bot-github-fetch/`.)
-- [ ] `04z`'s divergent `clean_player_name` copy (apostrophe/suffix handling
-  differs from `etl_helpers.clean_player_name`) can under-match its
-  secondary `player_key` lookup — known open item per data-model.md.
-  Consolidate once the gsis soft-fail change above lands.
+- [x] `04z`'s divergent `clean_player_name` copy consolidated ✅ 2026-06-14.
+  Promoted the aggressive match-normalizer (strips periods/apostrophes/
+  generational suffixes) to shared `etl_helpers.clean_name_for_match`; it was
+  duplicated verbatim in 04z's local def AND `resolve_dynasty_crosswalk._clean`.
+  Both now call the shared fn; 04z no longer shadows the gentle (hash-feeding)
+  `clean_player_name`. Output verified byte-identical to the prior copies, so
+  behavior-preserving for both Fantrax (04z) and dynasty (04b/04x) matching.
 - [ ] Sweep `01b`-`01e`, `02b`, `03y`, `04a` for local `LeagueConfig`-style
   constants that duplicate what's now in `etl_helpers` (`CFG`,
   `SOURCE_PREFIX`, `ZERO_IS_MISSING`, `fold_ranks_long`) and consolidate.
-- [ ] Confirm whether `.claude/settings.local.json` (currently tracked)
-  should be gitignored like other Claude Code local-settings files, or is
-  intentionally shared across the team.
+- [x] `.claude/settings.local.json` resolved ✅ 2026-06-14 — untracked
+  (`git rm --cached`, file kept on disk) + gitignored as per-developer local
+  settings. Merged in PR #9.
 
 ## [ ] Deferred - Future
 
