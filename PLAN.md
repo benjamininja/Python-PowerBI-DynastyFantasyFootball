@@ -152,15 +152,16 @@ the two heavy stages (ledger / manifest sync, each external-gated).
   relationships, and stale `cultures/en-US.tmdl` entries (2026-06-12
   refactor leftover).                                     · **[user · off-thread]**
 
-### Cross-branch consistency — check-in (later, can split)
-- [ ] Reconcile + commit the architecture-doc edits (`CLAUDE.md`, `PLAN.md`,
-  `docs/adr/0001-*`) across all active branches
-  (`update-dynasty_metrics-refactor`, `harden-discord-bot`) so the
-  convention is consistent everywhere. Some work is still in-progress and may
-  need to be **pushed before fully resolved** to keep architecture changes in
-  sync across branches — split into per-branch tasks as the grills land.
-- [ ] Once Stage A + both grills' code land: commit and open the PR for
-  `update-dynasty_metrics-refactor` → `main`.            · **[cheap]**
+### Cross-branch consistency — check-in · ✅ DONE 2026-06-14
+- [x] Split the single uncommitted tree into two stream branches (grill
+  2026-06-13): Stream A (refactor + all architecture docs/memory) →
+  `update-dynasty_metrics-refactor`; Stream B (bot) → `harden-discord-bot`.
+  Stray cleanup applied (probe deleted, `.pbix` restored, PBI `LocalDateTable_*`
+  gitignored). Stale remote branches (add-dynasty-rankings,
+  add-dim-school-abbr-report-page, dev) deleted; superseded GHD `dev` stash dropped.
+- [x] PRs opened: **#9** `update-dynasty_metrics-refactor → main` (refactor +
+  docs); **#10** `harden-discord-bot → main` (bot). ⚠ **Merge order: #9 first**
+  (bot reads #9's EAV schema). Railway deploy still deferred. · **[cheap]** ✅
 
 ## [ ] Deferred - User Requested
 
@@ -183,8 +184,9 @@ the two heavy stages (ledger / manifest sync, each external-gated).
   `Feeds` notebook still references its source URL — rot-proof vs the hand-doc.
   Deferred per owner: door left open, not v1.            · [med]
 
-- [ ] Add the one-line token-gating pointer to `CLAUDE.md` (→
-  [ADR-0001](docs/adr/0001-token-gated-grill-execute-loop.md)) — the ADR's
+- [x] Add the one-line token-gating pointer to `CLAUDE.md` (→
+  [ADR-0001](docs/adr/0001-token-gated-grill-execute-loop.md)) — ✅ 2026-06-14
+  ("Execution loop" bullet, committed in PR #9. The ADR's
   Consequences section already assumes it's there.            · [cheap]
 - [x] `notebooks/README.md` 04b inventory row + "two-layer model" section
   updated to the single-EAV-fact design (ADR-0002, 2026-06-12 refactor):
