@@ -1,13 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
-  "name": "34ffbcfae86900c050be",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "1655d83bee29905ba080",
   "position": {
     "x": 0,
-    "y": 108.15819480285663,
-    "z": 1000,
-    "height": 184.36055932305106,
-    "width": 1128.2866230570726,
-    "tabOrder": 1000
+    "y": 87.714904215451213,
+    "z": 1,
+    "height": 272.67894136542441,
+    "width": 823.75736132771578,
+    "tabOrder": 1
   },
   "visual": {
     "visualType": "tableEx",
@@ -42,8 +42,8 @@
                 }
               },
               "queryRef": "Dim_Position.PositionGroup",
-              "nativeQueryRef": "Position",
-              "displayName": "Position"
+              "nativeQueryRef": "Pos.",
+              "displayName": "Pos."
             },
             {
               "field": {
@@ -372,6 +372,62 @@
           "selector": {
             "metadata": "Dim_NFLPlayers.EntryYear"
           }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "58.503803613224235D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Max(Dim_NFLPlayers.DraftRdOvr)"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "45.87783393708412D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Max(Dim_NFLPlayers.DraftClub)"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "47.22748646041792D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Max(Dim_NFLPlayers.EntryYear)"
+          }
+        },
+        {
+          "properties": {
+            "value": {
+              "expr": {
+                "Literal": {
+                  "Value": "56.60151453336874D"
+                }
+              }
+            }
+          },
+          "selector": {
+            "metadata": "Max(Fact_FantraxADP.PercentDrafted)"
+          }
         }
       ],
       "columnHeaders": [
@@ -440,7 +496,7 @@
   "filterConfig": {
     "filters": [
       {
-        "name": "86e1424ecd93a8543397",
+        "name": "c09a9cc340717dc80d89",
         "field": {
           "Column": {
             "Expression": {
@@ -454,7 +510,7 @@
         "type": "Categorical"
       },
       {
-        "name": "9c8d7b1399e10c11a71a",
+        "name": "bac7c81067b0a18bce52",
         "field": {
           "Column": {
             "Expression": {
@@ -468,7 +524,7 @@
         "type": "Categorical"
       },
       {
-        "name": "f0956e8f1de46a84a03a",
+        "name": "8d84e83d8030e36dc042",
         "field": {
           "Column": {
             "Expression": {
@@ -482,7 +538,7 @@
         "type": "Categorical"
       },
       {
-        "name": "c27bfdbba8a398e3c78e",
+        "name": "f2ab5b5eca17b9bdacee",
         "field": {
           "Column": {
             "Expression": {
@@ -496,7 +552,7 @@
         "type": "Advanced"
       },
       {
-        "name": "7d6d987160030aa32751",
+        "name": "66ffc88891a091bc3714",
         "field": {
           "Column": {
             "Expression": {
@@ -510,7 +566,7 @@
         "type": "Categorical"
       },
       {
-        "name": "8ae403f62321b9e1a623",
+        "name": "6d3c725bee0a9806dac9",
         "field": {
           "Column": {
             "Expression": {
@@ -524,7 +580,7 @@
         "type": "Advanced"
       },
       {
-        "name": "c21341280b52c000e970",
+        "name": "53afb63ae226a756e867",
         "field": {
           "Column": {
             "Expression": {
@@ -538,7 +594,7 @@
         "type": "Advanced"
       },
       {
-        "name": "55ad5d6d42e6932e66da",
+        "name": "3983bdd408c22552055e",
         "field": {
           "Column": {
             "Expression": {
@@ -552,7 +608,7 @@
         "type": "Categorical"
       },
       {
-        "name": "61c5b4f910e97ae48d11",
+        "name": "9b3459db0bd692e1b259",
         "field": {
           "Column": {
             "Expression": {
@@ -566,7 +622,7 @@
         "type": "Categorical"
       },
       {
-        "name": "2dc1ad9fbd0477e2b304",
+        "name": "44e14f9003e5b744cc28",
         "field": {
           "Aggregation": {
             "Expression": {
@@ -585,7 +641,7 @@
         "type": "Advanced"
       },
       {
-        "name": "5fea942b0cc9091e2832",
+        "name": "14ea8afa055d6006cb40",
         "field": {
           "Aggregation": {
             "Expression": {
@@ -604,7 +660,7 @@
         "type": "Advanced"
       },
       {
-        "name": "57706f9fd98437c62b94",
+        "name": "0af2f59260cb1022351d",
         "field": {
           "Aggregation": {
             "Expression": {
@@ -623,7 +679,7 @@
         "type": "Advanced"
       },
       {
-        "name": "0857d2a6c530e0b04998",
+        "name": "03afb7771ad8c8a6a014",
         "field": {
           "Aggregation": {
             "Expression": {
@@ -642,7 +698,7 @@
         "type": "Advanced"
       },
       {
-        "name": "8b09bb943394e274a01c",
+        "name": "c366e0b62e62a10ebee2",
         "field": {
           "Aggregation": {
             "Expression": {
@@ -661,7 +717,7 @@
         "type": "Advanced"
       },
       {
-        "name": "2d2c2fc04107d55b0b47",
+        "name": "64db1cff211ce50a363a",
         "field": {
           "Aggregation": {
             "Expression": {

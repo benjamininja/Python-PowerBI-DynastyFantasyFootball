@@ -12,7 +12,7 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 | **01** | Core **dimension** tables (registries, transformers, seeds) |
 | **02** | Core **fact** tables (combine metrics, schema seeds) |
 | **03** | **Rookie-ranking** tables & processes (draft-class expert ranks → `fact_rookie_rankings`) |
-| **04** | **Dynasty-ranking** tables & processes (whole-roster value/ranks → `fact_dynasty_rankings`, plus Fantrax) |
+| **04** | **Dynasty-ranking** tables & processes (whole-roster value/ranks → `fact_dynasty_ranking_metrics`, plus Fantrax) |
 
 > **Run convention:** execute every notebook with **CWD = repository root** (not `notebooks/`),
 > so relative paths like `data/...` resolve. The shared module is imported via a small
@@ -45,24 +45,26 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 | 03y | `03y_dim_player_alias.ipynb` | `dim_player_alias` (backfill from archived reviews) |
 | 03z | `03z_apply_fuzzy_review.ipynb` | Applies `data/review/review_fuzzy_matches.csv` decisions |
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
-| 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_rankings` + `fact_dynasty_ranking_metrics` + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
+| 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` (overall/positional rank folded in as metric_keys) + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
 `04a` is the one `.py` (a headless-browser scrape run by Windows Task Scheduler); everything else is `.ipynb`.
 
-### Dynasty rankings (04) — two-layer model
+### Dynasty rankings (04) — single EAV fact
 
 Dynasty sources expose **incompatible metric vocabularies** (KTC trade value/tiers/trends;
-DynastySharks 1/3/5/10-yr projections; FantasyPros best/worst/avg/std-dev). Only **rank**
-is comparable across them, so `04` splits into:
-- `fact_dynasty_rankings` — universal **ranking backbone** (`overall_rank`, `positional_rank`
-  + identity + FKs), grain `snapshot_date × source_name × source_player_id × format`.
-- `fact_dynasty_ranking_metrics` — **long** companion (`metric_key → metric_num/metric_text`);
-  new sources/metrics add rows, never columns.
+DynastySharks 1/3/5/10-yr projections; FantasyPros best/worst/avg/std-dev). The 2026-06-12
+refactor (ADR-0002) collapsed the former two-layer backbone+companion model into **one
+long EAV fact** — even rank is just another metric:
+- `fact_dynasty_ranking_metrics` — **long EAV** (`metric_key → metric_num/metric_text`),
+  grain `snapshot_date × source_name × source_player_id × format`. Overall/positional rank
+  fold in as source-prefixed metric_keys (`ktc_overall_rank`, `fp_positional_rank`, …);
+  new sources/metrics add rows, never columns. (The separate `fact_dynasty_rankings`
+  ranking backbone is **retired**.)
 - `dim_dynasty_crosswalk` — `(source, source_player_id) → gsis_id + player_key` (unified across sources).
-- `dim_dynasty_metric` — curated index for `metric_key` (`metric_label`/`metric_group`/`metric_order`/`direction`); use as the matrix **column axis**, sort `metric_label` by `metric_order`.
+- `dim_dynasty_metric` — curated index for `metric_key` (`metric_label`/`metric_group`/`metric_order`/`direction`); use as the matrix **column axis**, sort `metric_label` by `metric_order`. The 6 per-source rank rows are generated from `SOURCE_PREFIX` (one source list shared with `04b`/`04x`).
 
 Formats are a dimension (`SF`, `TEPP`, `IDP`, …). Sources: KTC = `04b` (scrape),
 DynastySharks + FantasyPros = `04x` (manual Excel). Identity is resolved by the

@@ -537,6 +537,35 @@ def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
     return pd.DataFrame.from_records(recs)
 
 
+# ---- Dynasty metrics: shared vocabulary (single source of truth) -------------
+# Source -> metric_key prefix. The refactor's load-bearing invariant is that each
+# metric_key maps to exactly ONE source (so SourceName lives on Dim_DynastyMetric),
+# which means rank keys must be source-prefixed. Adding a source = one entry here;
+# 04b/04x and the 04c SEED all read this map instead of hardcoding prefixes.
+SOURCE_PREFIX = {"KTC": "ktc", "DynastySharks": "ds", "FantasyPros": "fp"}
+
+# metric_keys where 0 is an upstream "no value recorded" sentinel, not a real
+# measurement (KTC writes 0 for players with no ADP, which would read as best rank).
+# Centralized so every producer/consumer drops the same zeros instead of each
+# rediscovering the hazard.
+ZERO_IS_MISSING = {"ktc_adp", "startup_adp"}
+
+
+def fold_ranks_long(df, source_col="source_name",
+                    rank_cols=("overall_rank", "positional_rank"),
+                    id_cols=("source_name", "source_player_id", "format", "source_uid")):
+    """Melt wide overall/positional rank columns into source-prefixed EAV rows
+    (metric_key/metric_num/metric_text), the shape the single dynasty fact expects.
+    `metric_key` becomes e.g. ``ds_overall_rank`` via SOURCE_PREFIX. Rows with a
+    null rank are dropped. Shared by 04b/04x so the fold lives in one place."""
+    long = df.melt(id_vars=list(id_cols), value_vars=list(rank_cols),
+                   var_name="metric_key", value_name="metric_num").dropna(subset=["metric_num"])
+    long["metric_key"] = long[source_col].map(SOURCE_PREFIX) + "_" + long["metric_key"]
+    long["metric_num"] = long["metric_num"].astype(float)
+    long["metric_text"] = None
+    return long
+
+
 def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name")):
     """Idempotent replace-by-partition append: drop existing rows whose `part_cols`
     match any present in `df`, then append `df`. Each source/snapshot run replaces
