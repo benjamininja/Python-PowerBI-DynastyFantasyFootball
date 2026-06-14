@@ -48,7 +48,7 @@ table _Measures
 			VAR denom_KTC = [Number Times Kept] + [Number Times Traded] + [Number Times Cut]
 			RETURN
 			DIVIDE ( [Number Times Cut], denom_KTC )
-		formatString: 0.00%;-0.00%;0.00%
+		formatString: 0.0%;-0.0%;0.0%
 		displayFolder: Dynasty Rankings
 		lineageTag: eac694cc-5cb7-4737-9b75-23f5850e0631
 
@@ -74,7 +74,7 @@ table _Measures
 			VAR denom_KTC = [Number Times Kept] + [Number Times Traded] + [Number Times Cut]
 			RETURN
 			DIVIDE ( [Number Times Traded], denom_KTC )
-		formatString: 0.00%;-0.00%;0.00%
+		formatString: 0.0%;-0.0%;0.0%
 		displayFolder: Dynasty Rankings
 		lineageTag: 1cbfa551-a23a-431e-a0c0-6198274f22db
 
@@ -286,7 +286,7 @@ table _Measures
 
 	/// Market liquidity score at the latest snapshot, averaged across formats. Higher means more frequently traded.
 	measure Liquidity = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "std_liquidity" )
-		formatString: 0.0
+		formatString: 0
 		displayFolder: Dynasty Rankings
 		lineageTag: f42569eb-1725-45df-aa5b-264b675eeb9d
 
@@ -586,6 +586,13 @@ table _Measures
 		annotation Synonyms = analysis|blurb|scouting report|notes|writeup
 
 		annotation SynonymCollection = ["analysis","blurb","scouting report","notes","writeup"]
+
+	measure 'Dynasty Ranking - KTC Latest Snapshot' =
+			
+			CALCULATE( MAX(Fact_DynastyRankingMetrics[SnapshotDate]), Dim_DynastyMetric[SourceName] = "KTC")
+		formatString: Short Date
+		displayFolder: Formatting & References
+		lineageTag: 94c88768-8fe5-46fc-9881-6c2e748bc131
 
 	/// Hidden placeholder column for this measure-only table. Not for reporting.
 	column _Measures

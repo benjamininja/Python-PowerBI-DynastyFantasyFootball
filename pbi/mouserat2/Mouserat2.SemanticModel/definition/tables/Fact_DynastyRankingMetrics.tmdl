@@ -2,31 +2,24 @@
 table Fact_DynastyRankingMetrics
 	lineageTag: c9958674-0792-4495-82c2-d55231b62c0d
 
-	/// Date the rankings were captured (YYYY-MM-DD). Use the latest snapshot for current values; the table is a manual-cadence time series.
+	/// Date the rankings were captured. Use the latest snapshot for current values; the table is a manual-cadence time series.
 	column SnapshotDate
-		dataType: string
+		dataType: dateTime
+		formatString: yyyy-mm-dd
 		lineageTag: d274cc23-6797-43ce-84b9-17d775cb150f
 		summarizeBy: none
 		sourceColumn: snapshot_date
+
+		variation Variation
+			isDefault
+			relationship: d379b904-5978-47ff-b866-ad0aae8a05a3
+			defaultHierarchy: LocalDateTable_a4aa6594-b0e8-4690-b46e-21b85320987a.'Date Hierarchy'
 
 		annotation SummarizationSetBy = Automatic
 
 		annotation Synonyms = snapshot|date|as of date|capture date|snapshot date
 
 		annotation SynonymCollection = ["snapshot","date","as of date","capture date","snapshot date"]
-
-	/// Ranking source that produced the metric (KTC, DynastySharks, FantasyPros).
-	column SourceName
-		dataType: string
-		lineageTag: 3b33beb3-a756-42c7-9400-24ec1df466d1
-		summarizeBy: none
-		sourceColumn: source_name
-
-		annotation SummarizationSetBy = Automatic
-
-		annotation Synonyms = source|ranking source|provider|site|source name
-
-		annotation SynonymCollection = ["source","ranking source","provider","site","source name"]
 
 	/// The source's own player id/slug. Not unique across sources; combine with source_name (see source_uid) for identity.
 	column SourcePlayerID
@@ -67,7 +60,7 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["metric","metric key","stat","measure key"]
 
-	/// Numeric value of the metric (blank for text metrics). Aggregate via the dynasty measures, not raw SUM (format duplicates inflate sums).
+	/// Numeric value of the metric (blank for text metrics). Defaults to AVERAGE; per metric_key, blend duplicates across format/source rather than summing.
 	column MetricNum
 		dataType: double
 		lineageTag: e1e692ac-495d-4f1a-8a81-07e6af5ab5b8
@@ -95,19 +88,6 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["text","metric text","note","comment","description"]
 
-	/// Composite key (snapshot-source-player-format) relating each metric row to its backbone row in Fact_DynastyRankings.
-	column MetricIndex
-		dataType: string
-		lineageTag: 43773bf9-e2ac-49eb-a11c-a4c563ad50fc
-		summarizeBy: none
-		sourceColumn: MetricIndex
-
-		annotation SummarizationSetBy = Automatic
-
-		annotation Synonyms = metric index|row key|backbone key|join key
-
-		annotation SynonymCollection = ["metric index","row key","backbone key","join key"]
-
 	/// Player identity key = source_name|source_player_id. Single-column key linking to the crosswalk; the metrics grain's only path to player identity.
 	column SourceUID
 		dataType: string
@@ -121,15 +101,35 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["source uid","player uid","identity key","unique id"]
 
+	/// nflverse universal player id; the metrics grain's own link to Dim_NFLPlayers, independent of the ranking backbone.
+	column GSISID
+		dataType: string
+		lineageTag: 2f6fc8be-6364-4d43-9969-22862132dc18
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = gsis id|player id|nfl id|gsis
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id","gsis"]
+
+	column source_name
+		dataType: string
+		lineageTag: ff239fa3-2901-4590-9f76-f937f4f603e4
+		summarizeBy: none
+		sourceColumn: source_name
+
+		annotation SummarizationSetBy = Automatic
+
 	partition Fact_DynastyRankingMetrics = m
 		mode: import
 		queryGroup: 'Fact Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_dynasty_ranking_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
-				    #"Inserted Merged Column" = Table.AddColumn(Source, "MetricIndex", each Text.Combine({"20260606-", [source_name], "-", [source_player_id], "-", [format]}))
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_dynasty_ranking_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
 				in
-				    #"Inserted Merged Column"
+				    Source
 
 	annotation PBI_NavigationStepName = Navigation
 

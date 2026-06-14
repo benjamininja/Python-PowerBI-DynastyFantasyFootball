@@ -51,36 +51,20 @@ relationship Fact_FantraxADP_to_Dim_RookieProspect_via_PlayerKey
 	fromColumn: Fact_FantraxADP.PlayerKey
 	toColumn: Dim_RookieProspect.PlayerKey
 
-relationship Fact_FantraxADP_to_Dim_NFLTeams_via_Team
-	fromColumn: Fact_FantraxADP.NFLTeam
-	toColumn: Dim_NFLTeams.TeamAbbr
-
-relationship Fact_DynastyRankings_to_Dim_NFLPlayers_via_PlayerGsis
-	fromColumn: Fact_DynastyRankings.GSISID
-	toColumn: Dim_NFLPlayers.GSISID
-
-relationship Fact_DynastyRankings_to_Dim_Position_via_Position
-	isActive: false
-	fromColumn: Fact_DynastyRankings.PositionRaw
-	toColumn: Dim_Position.PositionRaw
-
-relationship Fact_DynastyRankings_to_Dim_RookieProspect_via_PlayerKey
-	isActive: false
-	fromColumn: Fact_DynastyRankings.PlayerKey
-	toColumn: Dim_RookieProspect.PlayerKey
-
-relationship Fact_DynastyRankingMetrics_to_Fact_DynastyRankings_via_MetricIndex
-	crossFilteringBehavior: bothDirections
-	securityFilteringBehavior: bothDirections
-	toCardinality: many
-	fromColumn: Fact_DynastyRankingMetrics.MetricIndex
-	toColumn: Fact_DynastyRankings.MetricIndex
-
-relationship Fact_DynastyRankings_to_Dim_NFLTeams_via_Team
-	fromColumn: Fact_DynastyRankings.NFLTeam
-	toColumn: Dim_NFLTeams.TeamAbbr
-
 relationship Fact_DynastyRankingMetrics_to_Dim_DynastyMetric_via_MetricKey
 	fromColumn: Fact_DynastyRankingMetrics.MetricKey
 	toColumn: Dim_DynastyMetric.MetricKey
+
+relationship Fact_DynastyRankingMetrics_to_Dim_NFLPlayers_via_PlayerGsis
+	fromColumn: Fact_DynastyRankingMetrics.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship d379b904-5978-47ff-b866-ad0aae8a05a3
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Fact_DynastyRankingMetrics.SnapshotDate
+	toColumn: LocalDateTable_a4aa6594-b0e8-4690-b46e-21b85320987a.Date
+
+relationship 86b5f8ad-1d06-62a2-6aea-09b1545605cf
+	fromColumn: Dim_NFLPlayers.TeamAbbr
+	toColumn: Dim_NFLTeams.TeamAbbr
 

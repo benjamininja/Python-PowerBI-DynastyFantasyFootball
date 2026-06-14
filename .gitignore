@@ -3,6 +3,8 @@ data/.pw_profile/
 # ── Unneccessary ─────────────────────────────────────────────────────────────
 data/raw/
 data/review/
+data/outputs/
+skills/
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 # Ignore every .env anywhere: bare, prefixed (foo.env), and dotted (.env.local,
@@ -16,6 +18,7 @@ api_key.txt
 
 # ── Python ────────────────────────────────────────────────────────────────────
 .venv/
+.botvenv/
 __pycache__/
 *.py[cod]
 *.pyo
@@ -35,7 +38,12 @@ desktop.ini
 *.swp
 *.swo
 .vscode/settings.json
+# Claude Code per-developer local settings (permissions allowlist etc.) — not shared.
+.claude/settings.local.json
 
 # ── Power BI project (PBIP) local artifacts ───────────────────────────────────
 **/.pbi/
 *.abf
+# Auto-generated time-intelligence tables — Power BI recreates these on open.
+**/LocalDateTable_*.tmdl
+**/DateTableTemplate_*.tmdl

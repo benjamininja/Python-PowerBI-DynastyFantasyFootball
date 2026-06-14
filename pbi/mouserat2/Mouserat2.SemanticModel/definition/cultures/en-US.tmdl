@@ -774,6 +774,9 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
+			      "Visibility": {
+			        "Value": "Hidden"
+			      },
 			      "Terms": [
 			        {
 			          "team abbr": {
@@ -2688,6 +2691,12 @@ cultureInfo en-US
 			          }
 			        },
 			        {
+			          "position": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
 			          "dim location": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -2705,6 +2714,26 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "location": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "situation": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
 			          }
 			        },
 			        {
@@ -2758,33 +2787,13 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "dim opinion": {
+			          "place": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "dim policy": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "dim stance": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
+			            "Weight": 0.476
 			          }
 			        }
 			      ]
@@ -3120,16 +3129,6 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "Position": {
-			            "State": "Suggested",
-			            "Source": {
-			              "Type": "External",
-			              "Agent": "PowerBI.VisualColumnRename"
-			            },
-			            "Weight": 0.9
 			          }
 			        },
 			        {
@@ -5485,12 +5484,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "NFL team": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "dim nfl lineup": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -5498,16 +5491,6 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.508
-			          }
-			        },
-			        {
-			          "nfl lineup": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
 			          }
 			        },
 			        {
@@ -5551,43 +5534,53 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "nfl side": {
+			          "dim nfl unit": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.485
+			            "Weight": 0.482
 			          }
 			        },
 			        {
-			          "nfl squad": {
+			          "dim nfl group": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.485
+			            "Weight": 0.468
 			          }
 			        },
 			        {
-			          "nfl crew": {
+			          "dim nfl band": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.485
+			            "Weight": 0.468
 			          }
 			        },
 			        {
-			          "nfl club": {
+			          "dim nfl panel": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.485
+			            "Weight": 0.468
+			          }
+			        },
+			        {
+			          "dim nfl set": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.468
 			          }
 			        }
 			      ]
@@ -13350,9 +13343,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "NFL team": {
@@ -14647,6 +14637,12 @@ cultureInfo en-US
 			          }
 			        },
 			        {
+			          "date": {
+			            "State": "Generated",
+			            "Weight": 0.7
+			          }
+			        },
+			        {
 			          "snapshot moment": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -14666,70 +14662,114 @@ cultureInfo en-US
 			            "Weight": 0.727
 			          }
 			        }
-			      ]
+			      ],
+			      "SemanticType": "Time"
 			    },
-			    "fact_dynasty_ranking_metrics.source_name": {
+			    "fact_dynasty_ranking_metrics.snapshot_date.year": {
 			      "Definition": {
 			        "Binding": {
 			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
-			          "ConceptualProperty": "SourceName"
+			          "VariationSource": "SnapshotDate",
+			          "VariationSet": "Variation",
+			          "Hierarchy": "Date Hierarchy",
+			          "HierarchyLevel": "Year"
 			        }
 			      },
 			      "State": "Generated",
 			      "Terms": [
 			        {
-			          "source name": {
+			          "snapshot year": {
 			            "State": "Generated"
 			          }
 			        },
 			        {
-			          "SourceName": {
-			            "Type": "Noun",
+			          "year": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "snapshot date year": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "date year": {
 			            "State": "Generated",
-			            "Weight": 0.99
+			            "Weight": 0.97
 			          }
 			        },
 			        {
-			          "source nickname": {
+			          "snapshot date yr": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.727
+			            "Weight": 0.762
 			          }
 			        },
 			        {
-			          "source title": {
+			          "snapshot yr": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.727
+			            "Weight": 0.75
 			          }
 			        },
 			        {
-			          "source label": {
+			          "date yr": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.727
+			            "Weight": 0.75
 			          }
 			        },
 			        {
-			          "source tag": {
+			          "snapshot moment year": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.727
+			            "Weight": 0.609
+			          }
+			        },
+			        {
+			          "moment year": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.6
+			          }
+			        },
+			        {
+			          "snapshot period year": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.591
+			          }
+			        },
+			        {
+			          "period year": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.582
 			          }
 			        }
-			      ]
+			      ],
+			      "SemanticType": "Time"
 			    },
 			    "fact_dynasty_ranking_metrics.source_player_ID": {
 			      "Definition": {
@@ -15292,1530 +15332,30 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_dynasty_ranking_metrics.metric_index": {
+			    "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
 			      "Definition": {
 			        "Binding": {
 			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
-			          "ConceptualProperty": "MetricIndex"
+			          "VariationSource": "SnapshotDate",
+			          "VariationSet": "Variation",
+			          "Hierarchy": "Date Hierarchy"
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
-			          "metric index": {
+			          "snapshot date hierarchy": {
 			            "State": "Generated"
 			          }
 			        },
 			        {
-			          "MetricIndex": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "index": {
+			          "date hierarchy": {
 			            "State": "Generated",
 			            "Weight": 0.97
 			          }
-			        },
-			        {
-			          "metric directory": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric catalogue": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric catalog": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric guide": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric file": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric table": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "directory": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "catalogue": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "catalog": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "guide": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
 			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "fact dynasty ranking": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "Fact_DynastyRankings": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "ranking": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "dynasty ranking": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "fact dynasty status": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.508
-			          }
-			        },
-			        {
-			          "fact dynasty classification": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.508
-			          }
-			        },
-			        {
-			          "dynasty status": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "dynasty classification": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "fact dynasty position": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        },
-			        {
-			          "fact dynasty place": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        },
-			        {
-			          "fact dynasty grade": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        },
-			        {
-			          "fact dynasty standing": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        },
-			        {
-			          "fact dynasty level": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        },
-			        {
-			          "fact dynasty rank": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.492
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.snapshot_date": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "SnapshotDate"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "snapshot date": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "SnapshotDate": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "snapshot moment": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "snapshot period": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.source_name": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "SourceName"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "source name": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "SourceName": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "source nickname": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "source title": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "source label": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "source tag": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.source_player_ID": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "SourcePlayerID"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "source player ID": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "SourcePlayerID": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "source player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "player ID": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "source player identification": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.762
-			          }
-			        },
-			        {
-			          "source player identity": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.762
-			          }
-			        },
-			        {
-			          "source player identifier": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.762
-			          }
-			        },
-			        {
-			          "player identification": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "player identity": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "player identifier": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "source player credential": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.739
-			          }
-			        },
-			        {
-			          "player credential": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "source actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "source performer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.format": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "Format"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "format": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "arrangement": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "setup": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "presentation": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "organization": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "layout": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "system": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "set-up": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "plan": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "design": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "structure": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.source_site": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "SourceSite"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "source site": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "SourceSite": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "site": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "source website": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "source campus": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "source homepage": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "source locale": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.75
-			          }
-			        },
-			        {
-			          "website": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "campus": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "homepage": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "locale": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "source place": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "source position": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.player_name": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "PlayerName"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "player name": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "PlayerName": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "player nickname": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "player title": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "player label": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "player tag": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "performer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "entertainer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "trouper": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "thespian": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "play-actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.position_raw": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "PositionRaw"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "position raw": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "PositionRaw": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "location raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "situation raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "place raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "site raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "spot raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "point raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "station raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "opinion raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "policy raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "stance raw": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.NFL_team": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "NFLTeam"
-			        }
-			      },
-			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
-			      "Terms": [
-			        {
-			          "NFL team": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "NFLTeam": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "nfl lineup": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.5
-			          }
-			        },
-			        {
-			          "nfl side": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "nfl squad": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "nfl crew": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "nfl club": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "nfl unit": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "nfl group": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.461
-			          }
-			        },
-			        {
-			          "nfl band": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.461
-			          }
-			        },
-			        {
-			          "nfl panel": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.461
-			          }
-			        },
-			        {
-			          "nfl set": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.461
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.age": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "Age"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "age": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "oldness": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "stage": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "era": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.466
-			          }
-			        },
-			        {
-			          "epoch": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.466
-			          }
-			        },
-			        {
-			          "period": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.452
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.overall_rank": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "OverallRank"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "overall rank": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "OverallRank": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.positional_rank": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "PositionalRank"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "positional rank": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "PositionalRank": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.gsisid": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "GSISID"
-			        }
-			      },
-			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
-			      "Terms": [
-			        {
-			          "gsisid": {
-			            "State": "Generated"
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.player_key": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "PlayerKey"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "player key": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "PlayerKey": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "key": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "main": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "basic": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "fundamental": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "central": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "major": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "keynote": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "essential": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "player solution": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "player explanation": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        },
-			        {
-			          "player basis": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.475
-			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.metric_index": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "MetricIndex"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "metric index": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "MetricIndex": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "index": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "metric directory": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric catalogue": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric catalog": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric guide": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric file": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "metric table": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.485
-			          }
-			        },
-			        {
-			          "directory": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "catalogue": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "catalog": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "guide": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        }
-			      ]
+			      ],
+			      "SemanticType": "Time"
 			    },
 			    "fact_dynasty_ranking_metrics.source_UID": {
 			      "Definition": {
@@ -17175,6 +15715,16 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.9
 			          }
+			        },
+			        {
+			          "% Cut": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
 			        }
 			      ]
 			    },
@@ -17254,6 +15804,16 @@ cultureInfo en-US
 			        },
 			        {
 			          "%K": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        },
+			        {
+			          "% Kept": {
 			            "State": "Suggested",
 			            "Source": {
 			              "Type": "External",
@@ -17347,34 +15907,15 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.9
 			          }
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking.source_UID": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_DynastyRankings",
-			          "ConceptualProperty": "SourceUID"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "source UID": {
-			            "State": "Generated"
-			          }
 			        },
 			        {
-			          "SourceUID": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "UID": {
-			            "State": "Generated",
-			            "Weight": 0.97
+			          "% Traded": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
 			          }
 			        }
 			      ]
@@ -19197,6 +17738,16 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.727
 			          }
+			        },
+			        {
+			          "Auc. %": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
 			        }
 			      ]
 			    },
@@ -19232,6 +17783,16 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.739
+			          }
+			        },
+			        {
+			          "Startup Auc. %": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
 			          }
 			        }
 			      ]
@@ -19328,6 +17889,16 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.452
+			          }
+			        },
+			        {
+			          "Liq.": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
 			          }
 			        }
 			      ]
@@ -20517,9 +19088,850 @@ cultureInfo en-US
 			          }
 			        }
 			      ]
+			    },
+			    "fact_dynasty_ranking_metrics.snapshot_date.quarter": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
+			          "VariationSource": "SnapshotDate",
+			          "VariationSet": "Variation",
+			          "Hierarchy": "Date Hierarchy",
+			          "HierarchyLevel": "Quarter"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "snapshot quarter": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "quarter": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "snapshot date quarter": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "date quarter": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "snapshot date qtr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.846
+			          }
+			        },
+			        {
+			          "snapshot qtr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.833
+			          }
+			        },
+			        {
+			          "date qtr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.833
+			          }
+			        },
+			        {
+			          "qtr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.818
+			          }
+			        },
+			        {
+			          "snapshot moment quarter": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.609
+			          }
+			        },
+			        {
+			          "moment quarter": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.6
+			          }
+			        },
+			        {
+			          "snapshot period quarter": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.591
+			          }
+			        },
+			        {
+			          "period quarter": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.582
+			          }
+			        }
+			      ],
+			      "SemanticType": "Time"
+			    },
+			    "fact_dynasty_ranking_metrics.snapshot_date.month": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
+			          "VariationSource": "SnapshotDate",
+			          "VariationSet": "Variation",
+			          "Hierarchy": "Date Hierarchy",
+			          "HierarchyLevel": "Month"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "snapshot month": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "month": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "snapshot date month": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "date month": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "snapshot date mth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.762
+			          }
+			        },
+			        {
+			          "snapshot mth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "date mth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "mth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.736
+			          }
+			        },
+			        {
+			          "snapshot moment month": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.609
+			          }
+			        },
+			        {
+			          "moment month": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.6
+			          }
+			        },
+			        {
+			          "snapshot period month": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.591
+			          }
+			        },
+			        {
+			          "period month": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.582
+			          }
+			        }
+			      ],
+			      "SemanticType": "Time"
+			    },
+			    "fact_dynasty_ranking_metrics.snapshot_date.day": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
+			          "VariationSource": "SnapshotDate",
+			          "VariationSet": "Variation",
+			          "Hierarchy": "Date Hierarchy",
+			          "HierarchyLevel": "Day"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "snapshot day": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "day": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "snapshot date day": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "date day": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "snapshot moment day": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.609
+			          }
+			        },
+			        {
+			          "moment day": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.6
+			          }
+			        },
+			        {
+			          "snapshot period day": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.591
+			          }
+			        },
+			        {
+			          "period day": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.582
+			          }
+			        }
+			      ],
+			      "SemanticType": "Time"
+			    },
+			    "fact_dynasty_ranking_metrics.gsisid": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
+			          "ConceptualProperty": "GSISID"
+			        }
+			      },
+			      "State": "Generated",
+			      "Visibility": {
+			        "Value": "Hidden"
+			      },
+			      "Terms": [
+			        {
+			          "gsisid": {
+			            "State": "Generated"
+			          }
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics.source_name": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_DynastyRankingMetrics",
+			          "ConceptualProperty": "source_name"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "source name": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "source_name": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "source nickname": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source title": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source label": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source tag": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        }
+			      ]
+			    },
+			    "dim_dynasty_metric.source_name": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_DynastyMetric",
+			          "ConceptualProperty": "SourceName"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "source name": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "SourceName": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "source nickname": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source title": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source label": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "source tag": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        }
+			      ]
+			    },
+			    "entity__measure.dynasty_ranking__KTC_latest_snapshot": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Dynasty Ranking - KTC Latest Snapshot"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "dynasty ranking - KTC latest snapshot": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "dynasty ranking KTC latest snapshot": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "snapshot": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "latest snapshot": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "KTC latest snapshot": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "ranking KTC latest snapshot": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest Polaroid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.52
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest portrait": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.52
+			          }
+			        },
+			        {
+			          "ranking ktc latest Polaroid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.514
+			          }
+			        },
+			        {
+			          "ranking ktc latest portrait": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.514
+			          }
+			        },
+			        {
+			          "ktc latest Polaroid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.508
+			          }
+			        },
+			        {
+			          "ktc latest portrait": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.508
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest photo": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.504
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest photograph": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.504
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest picture": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.504
+			          }
+			        },
+			        {
+			          "dynasty ranking ktc latest snap": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.504
+			          }
+			        },
+			        {
+			          "KTC Snapshot Date": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ],
+			      "SemanticType": "Time"
 			    }
 			  },
 			  "Relationships": {
+			    "dim_NFL_player_has_dim_position": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_NFLPlayers"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_NFL_player": {
+			          "Target": {
+			            "Entity": "dim_NFL_player"
+			          }
+			        },
+			        "dim_position": {
+			          "Target": {
+			            "Entity": "dim_position"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_player"
+			            },
+			            "Object": {
+			              "Role": "dim_position"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_NFL_players_have_dim_positions"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_has_entity__measure_dynasty_ranking__KTC_latest_snapshot": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "entity__measure.dynasty_ranking__KTC_latest_snapshot": {
+			          "Target": {
+			            "Entity": "entity__measure.dynasty_ranking__KTC_latest_snapshot"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.dynasty_ranking__KTC_latest_snapshot"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_dynasty_ranking_metrics_have_dynasty_ranking__KTC_latest_snapshot"
+			        }
+			      ]
+			    },
+			    "dim_dynasty_metric_has_source_name": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_DynastyMetric"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_dynasty_metric": {
+			          "Target": {
+			            "Entity": "dim_dynasty_metric"
+			          }
+			        },
+			        "dim_dynasty_metric.source_name": {
+			          "Target": {
+			            "Entity": "dim_dynasty_metric.source_name"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_dynasty_metric"
+			            },
+			            "Object": {
+			              "Role": "dim_dynasty_metric.source_name"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_dynasty_metrics_have_source_names"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_has_source_name": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.source_name": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.source_name"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.source_name"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_dynasty_ranking_metrics_have_source_names"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_has_entity__measure_analysis": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "entity__measure.analysis": {
+			          "Target": {
+			            "Entity": "entity__measure.analysis"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.analysis"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_dynasty_ranking_metrics_have_analysis"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_has_entity__measure_number_times_cut_total": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "entity__measure.number_times_cut_total": {
+			          "Target": {
+			            "Entity": "entity__measure.number_times_cut_total"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.number_times_cut_total"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_dynasty_ranking_metrics_have_number_times_cut_total"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_has_entity__measure_number_times_traded_total": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "entity__measure.number_times_traded_total": {
+			          "Target": {
+			            "Entity": "entity__measure.number_times_traded_total"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.number_times_traded_total"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_dynasty_ranking_metrics_have_number_times_traded_total"
+			        }
+			      ]
+			    },
 			    "fact_dynasty_ranking_metrics_has_entity__measure_number_times_kept_total": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
@@ -22170,39 +21582,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_dynasty_ranking_has_source_UID": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.source_UID": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.source_UID"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.source_UID"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_source_UIDs"
-			        }
-			      ]
-			    },
 			    "fact_dynasty_ranking_metrics_has_entity__measure_percent_of_times_traded": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
@@ -22467,495 +21846,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_dynasty_ranking_has_metric_index": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.metric_index": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.metric_index"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.metric_index"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_metric_indices"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_player_key": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.player_key": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.player_key"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.player_key"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_player_keys"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_positional_rank": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.positional_rank": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.positional_rank"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.positional_rank"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_positional_ranks"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_overall_rank": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.overall_rank": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.overall_rank"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.overall_rank"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_overall_ranks"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_age": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.age": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.age"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.age"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_ages"
-			        },
-			        {
-			          "Adjective": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Adjectives": [
-			              {
-			                "old": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Antonyms": [
-			              {
-			                "young": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Measurement": {
-			              "Role": "fact_dynasty_ranking.age"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "age_indicates_how_old_fact_dynasty_ranking_are"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_position_raw": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.position_raw": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.position_raw"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.position_raw"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_position_raw"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_player_name": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.player_name": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.player_name"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.player_name"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_player_names"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking.player_name"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "player_names_play_fact_dynasty_ranking"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking.player_name"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "player_names_have_fact_dynasty_ranking"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_source_site": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.source_site": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.source_site"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.source_site"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_source_sites"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_format": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.format": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.format"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.format"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_formats"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_source_player_ID": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.source_player_ID": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.source_player_ID"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.source_player_ID"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_source_player_ID"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking.source_player_ID"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "source_player_ID_play_fact_dynasty_ranking"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking.source_player_ID"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "source_player_ID_have_fact_dynasty_ranking"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_source_name": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.source_name": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.source_name"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.source_name"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_source_names"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_snapshot_date": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "fact_dynasty_ranking.snapshot_date": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking.snapshot_date"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking.snapshot_date"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_snapshot_dates"
-			        }
-			      ]
-			    },
 			    "fact_dynasty_ranking_metrics_has_metric_text": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
@@ -23118,39 +22008,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "source_player_ID_have_fact_dynasty_ranking_metrics"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_metrics_has_source_name": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking_metrics": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics"
-			          }
-			        },
-			        "fact_dynasty_ranking_metrics.source_name": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics.source_name"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking_metrics.source_name"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_metrics_have_source_names"
 			        }
 			      ]
 			    },
@@ -23727,6 +22584,39 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantrax_ADP_have_is_rookies"
+			        }
+			      ]
+			    },
+			    "fact_fantrax_ADP_has_NFL_team": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantraxADP"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantrax_ADP": {
+			          "Target": {
+			            "Entity": "fact_fantrax_ADP"
+			          }
+			        },
+			        "fact_fantrax_ADP.NFL_team": {
+			          "Target": {
+			            "Entity": "fact_fantrax_ADP.NFL_team"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantrax_ADP"
+			            },
+			            "Object": {
+			              "Role": "fact_fantrax_ADP.NFL_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantrax_ADP_have_NFL_teams"
 			        }
 			      ]
 			    },
@@ -28009,39 +26899,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_NFL_player_has_team_abbr": {
-			      "Binding": {
-			        "ConceptualEntity": "Dim_NFLPlayers"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "dim_NFL_player": {
-			          "Target": {
-			            "Entity": "dim_NFL_player"
-			          }
-			        },
-			        "dim_NFL_player.team_abbr": {
-			          "Target": {
-			            "Entity": "dim_NFL_player.team_abbr"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_NFL_player"
-			            },
-			            "Object": {
-			              "Role": "dim_NFL_player.team_abbr"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_NFL_players_have_team_abbrs"
-			        }
-			      ]
-			    },
 			    "dim_NFL_player_has_status": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_NFLPlayers"
@@ -28385,6 +27242,48 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.9,
 			          "ID": "dim_NFL_players_are_born_on_birth_dates"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_is_snapshotted_on_snapshot_date": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date"
+			          }
+			        }
+			      },
+			      "SemanticSlots": {
+			        "When": {
+			          "Role": "fact_dynasty_ranking_metrics.snapshot_date"
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Verb": {
+			            "Verbs": [
+			              {
+			                "snapshot": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.9,
+			          "ID": "fact_dynasty_ranking_metrics_are_snapshotted_on_snapshot_dates"
 			        }
 			      ]
 			    },
@@ -28790,138 +27689,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_dynasty_ranking_metrics_has_entity__measure_number_times_traded_total": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking_metrics": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics"
-			          }
-			        },
-			        "entity__measure.number_times_traded_total": {
-			          "Target": {
-			            "Entity": "entity__measure.number_times_traded_total"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            },
-			            "Object": {
-			              "Role": "entity__measure.number_times_traded_total"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_metrics_have_number_times_traded_total"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_metrics_has_entity__measure_number_times_cut_total": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking_metrics": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics"
-			          }
-			        },
-			        "entity__measure.number_times_cut_total": {
-			          "Target": {
-			            "Entity": "entity__measure.number_times_cut_total"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            },
-			            "Object": {
-			              "Role": "entity__measure.number_times_cut_total"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_metrics_have_number_times_cut_total"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_metrics_has_entity__measure_analysis": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking_metrics": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics"
-			          }
-			        },
-			        "entity__measure.analysis": {
-			          "Target": {
-			            "Entity": "entity__measure.analysis"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            },
-			            "Object": {
-			              "Role": "entity__measure.analysis"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_metrics_have_analysis"
-			        }
-			      ]
-			    },
-			    "dim_NFL_player_has_dim_position": {
-			      "Binding": {
-			        "ConceptualEntity": "Dim_NFLPlayers"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "dim_NFL_player": {
-			          "Target": {
-			            "Entity": "dim_NFL_player"
-			          }
-			        },
-			        "dim_position": {
-			          "Target": {
-			            "Entity": "dim_position"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_NFL_player"
-			            },
-			            "Object": {
-			              "Role": "dim_position"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_NFL_players_have_dim_positions"
-			        }
-			      ]
-			    },
 			    "dim_rookie_prospect_has_dim_school": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_RookieProspect"
@@ -29093,85 +27860,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_fantrax_ADP_has_dim_NFL_team": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_FantraxADP"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_fantrax_ADP": {
-			          "Target": {
-			            "Entity": "fact_fantrax_ADP"
-			          }
-			        },
-			        "dim_NFL_team": {
-			          "Target": {
-			            "Entity": "dim_NFL_team"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_fantrax_ADP"
-			            },
-			            "Object": {
-			              "Role": "dim_NFL_team"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_fantrax_ADP_have_dim_NFL_teams"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_NFL_team"
-			            },
-			            "Object": {
-			              "Role": "fact_fantrax_ADP"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_NFL_teams_have_fact_fantrax_ADP"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_metrics_has_fact_dynasty_ranking": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking_metrics": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking_metrics"
-			          }
-			        },
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_metrics_have_fact_dynasty_ranking"
-			        }
-			      ]
-			    },
 			    "fact_dynasty_ranking_metrics_has_dim_dynasty_metric": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
@@ -29218,15 +27906,15 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_dynasty_ranking_has_dim_NFL_player": {
+			    "fact_dynasty_ranking_metrics_has_dim_NFL_player": {
 			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
 			      },
 			      "State": "Generated",
 			      "Roles": {
-			        "fact_dynasty_ranking": {
+			        "fact_dynasty_ranking_metrics": {
 			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
+			            "Entity": "fact_dynasty_ranking_metrics"
 			          }
 			        },
 			        "dim_NFL_player": {
@@ -29239,7 +27927,7 @@ cultureInfo en-US
 			        {
 			          "Attribute": {
 			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
+			              "Role": "fact_dynasty_ranking_metrics"
 			            },
 			            "Object": {
 			              "Role": "dim_NFL_player"
@@ -29247,7 +27935,7 @@ cultureInfo en-US
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_dim_NFL_players"
+			          "ID": "fact_dynasty_ranking_metrics_have_dim_NFL_players"
 			        },
 			        {
 			          "Attribute": {
@@ -29255,58 +27943,12 @@ cultureInfo en-US
 			              "Role": "dim_NFL_player"
 			            },
 			            "Object": {
-			              "Role": "fact_dynasty_ranking"
+			              "Role": "fact_dynasty_ranking_metrics"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_NFL_players_have_fact_dynasty_ranking"
-			        }
-			      ]
-			    },
-			    "fact_dynasty_ranking_has_dim_NFL_team": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_DynastyRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_dynasty_ranking": {
-			          "Target": {
-			            "Entity": "fact_dynasty_ranking"
-			          }
-			        },
-			        "dim_NFL_team": {
-			          "Target": {
-			            "Entity": "dim_NFL_team"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking"
-			            },
-			            "Object": {
-			              "Role": "dim_NFL_team"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_dynasty_ranking_have_dim_NFL_teams"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_NFL_team"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_NFL_teams_have_fact_dynasty_ranking"
+			          "ID": "dim_NFL_players_have_fact_dynasty_ranking_metrics"
 			        }
 			      ]
 			    },
@@ -29472,6 +28114,171 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "birth_date_hierarchies_have_birth_days"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_snapshot_date_has_date_hierarchy": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics.snapshot_date": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "snapshot_dates_have_snapshot_date_hierarchies"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_snapshot_date_date_hierarchy_has_fact_dynasty_ranking_metrics_snapshot_date_year": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date.year": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.year"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.year"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "snapshot_date_hierarchies_have_snapshot_years"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_snapshot_date_date_hierarchy_has_fact_dynasty_ranking_metrics_snapshot_date_quarter": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date.quarter": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.quarter"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.quarter"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "snapshot_date_hierarchies_have_snapshot_quarters"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_snapshot_date_date_hierarchy_has_fact_dynasty_ranking_metrics_snapshot_date_month": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date.month": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.month"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.month"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "snapshot_date_hierarchies_have_snapshot_months"
+			        }
+			      ]
+			    },
+			    "fact_dynasty_ranking_metrics_snapshot_date_date_hierarchy_has_fact_dynasty_ranking_metrics_snapshot_date_day": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_DynastyRankingMetrics"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			          }
+			        },
+			        "fact_dynasty_ranking_metrics.snapshot_date.day": {
+			          "Target": {
+			            "Entity": "fact_dynasty_ranking_metrics.snapshot_date.day"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.date_hierarchy"
+			            },
+			            "Object": {
+			              "Role": "fact_dynasty_ranking_metrics.snapshot_date.day"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "snapshot_date_hierarchies_have_snapshot_days"
 			        }
 			      ]
 			    }
