@@ -26,6 +26,18 @@ attributes (draft season, round, original owner) and no person behind it until
 it is Exercised.
 _Avoid_: selection, slot (a "slot" is the position in draft order, not the asset)
 
+**Original Owner**:
+The team a Draft Pick was allocated to at its season's creation — one pick per
+round per team. Deterministic and **identity-bearing**: it never changes, even
+after the pick is traded, and together with (season, round) it identifies the
+pick.
+_Avoid_: drafting team, holder
+
+**Current Owner**:
+The team that holds a Draft Pick now, after any trades. Moves via Trade; **not**
+part of the pick's identity. Equals the Original Owner until the pick is traded.
+_Avoid_: original owner (that's the fixed allocation)
+
 ### Asset transitions
 
 **Sign** (a.k.a. graduation):
@@ -39,6 +51,12 @@ A Draft Pick is spent to acquire a player. **Consumption, not continuity** — t
 pick is retired and a *new* player Roster Asset is born, linked to the pick by
 lineage. Not the same asset.
 _Avoid_: use, redeem, cash in
+
+**Trade**:
+An exchange that moves one or more Roster Assets between two teams. Recorded as
+faithful, **multi-hop** history — every hand-change is its own Trade, not a
+single net transfer from first owner to last.
+_Avoid_: swap, deal
 
 ### Time
 
