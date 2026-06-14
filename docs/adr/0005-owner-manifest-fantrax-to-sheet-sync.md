@@ -1,6 +1,7 @@
 # Owner manifest: Fantrax is upstream SSOT, the Google Sheet is a field-scoped synced mirror
 
-- Status: accepted (design; build deferred)
+- Status: accepted — **read-side BUILT 2026-06-14** (`01c` Fantrax-TeamId ingest;
+  `dim_division` seed); the Sheet **write**-sync stays deferred (auth + PII gate)
 - Date: 2026-06-13
 - Scope: new owner-manifest sync notebook/script, `01c_dim_fantasy_teams_seed`,
   `dim_fantasy_teams`, new `dim_division`
@@ -73,3 +74,15 @@ by `(season_id, conference)` join — no downstream conditional.
 - Open at build time: confirm Fantrax commissioner-admin exposes co-manager email
   + abbreviation; Sheets-API write mechanism + auth; whether `Team Abbreviation`
   is truly Fantrax-owned or league-native (move to locked if the latter).
+
+## Build amendment (2026-06-14) — read-side built
+
+- **`01c` ingests `Fantrax-TeamId`** → `dim_fantasy_teams.fantrax_team_id` (28/28),
+  lighting up the `teamId → team_key` join the ledger needs; the interim
+  name-match heuristic was retired (see ADR-0004 build amendment).
+- **`dim_division` built** by `01g_dim_division_seed.ipynb` → `data/dim_division.parquet`.
+  Grain `(season_id, conference)`; names **derived** from `dim_fantasy_teams.division`
+  (the Sheet's `Division`, ingested by 01c) rather than hardcoded, then stamped with
+  the current `season_id`. v1 seeds only the known season (2026-2027: `A`→Riddell,
+  `B`→Wilson, 2 rows); append future seasons as they gain themed names.
+- **Still deferred**: the Sheet **write**-sync (Sheets-API auth + PII go-ahead).
