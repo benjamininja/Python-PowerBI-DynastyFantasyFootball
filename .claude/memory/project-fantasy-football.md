@@ -113,6 +113,7 @@ All ETL notebooks `.ipynb` in `notebooks/`. Storage: parquet everywhere; review 
 **Naming convention (formalized 2026-06-06)**: `NN<letter>_name` — group prefix is the project pattern: `01`=core **dimension** tables, `02`=core **fact** tables, `03`=**rookie-ranking** tables/processes, `04`=**dynasty-ranking** tables/processes (incl. Fantrax). Letter = order within group; `x`/`y`/`z` reserved for late-stage / apply / resolver steps. `notebooks/README.md` is the source of truth.
 Exception: `04a_fantrax_weekly_scrape.py` is a `.py` script (scheduled headless-browser scrape — not a notebook).
 Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied). Each folder has a README (`data/`, `notebooks/`, `pbi/`).
+**Launch `.py` scripts via `.\run.ps1 <script.py>` from repo root** (added 2026-06-14; new file `run.ps1`) — it pins `.venv\Scripts\python.exe` and passes extra args through. VS Code "Run Python File" / a bare `python x.py` select **anaconda base** (no `playwright` → `ModuleNotFoundError`; broken `pyarrow` → "Repetition level histogram size mismatch"). Repo has two venvs (`venv\` and `.venv\`); the launcher pins the right one. This is the recurring "won't run" trap — not a venv defect.
 
 | # | Notebook | Primary output |
 |---|---|---|

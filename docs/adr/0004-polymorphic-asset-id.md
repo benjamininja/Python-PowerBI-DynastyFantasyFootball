@@ -1,6 +1,6 @@
 # Polymorphic `asset_id` + `dim_roster_asset` unifies players, prospects, and picks
 
-- Status: accepted (design; build deferred with the ADR-0003 ledger stage)
+- Status: accepted — **BUILT + MERGED 2026-06-14 (PR #15)**; see the Build amendment below
 - Date: 2026-06-13
 - Scope: `fact_roster_transactions`, `fact_fantasy_teams`, new `dim_roster_asset`,
   new `dim_draft_pick`, new `dim_season`
@@ -91,3 +91,42 @@ Introduce a **polymorphic `asset_id`** as the single, stable identity for any
   `teamId → team_key`; front-runs the owner-manifest task); confirm the
   current+2 pick horizon during the rookie-draft window; `dim_season` NFL date
   lookup; the `asset_id` surrogate scheme (sequence vs deterministic hash).
+
+## Build amendment (2026-06-14) — built reality
+
+Built + merged (PR #15) against the live Riddell capture. Resolutions of the
+"open at build time" list, and the two design points reality changed:
+
+- **v1 = FULL ADR-0004** (user decision): built `dim_roster_asset` +
+  `dim_draft_pick` + `dim_season` + the `pick_allocation`/`trade` enum +
+  polymorphic `asset_id` now, driven by live `startup_draft` events (ADR-0003's
+  `startup_auction` is renamed — see that ADR's Build amendment).
+- **`asset_id` = monotonic integer sequence** (resolves "sequence vs hash"):
+  minted at first sight on the stable Fantrax `scorer_id`, persisted in
+  `dim_roster_asset`, **never re-derived**. Known assets only refresh their
+  `gsis_id`/`player_key` resolvers underneath the fixed `asset_id`.
+- **`dim_draft_pick.pick_ref` was redefined to the SLOT, not the planned
+  `(draft_season, round, original_owner)`.** ⚠ **Startup picks WERE traded** —
+  `getDraftResults` gives each slot's **current** owner (some teams hold 2 picks
+  in a round, others 0), and the pre-trade allocation lives only in Fantrax
+  `draftPicks.go`, which is **not yet captured**. So the built natural key is the
+  slot `pick_ref = (draft_season, divisionId, overall_slot)`, the dim records
+  `current_owner`, and **`original_owner` is left NULL** until `draftPicks.go`
+  lands. `pick_allocation` / `trade` events therefore stay **dormant in v1** (no
+  source). The made-pick fact is unaffected — it records who actually drafted.
+  **→ Superseded 2026-06-14 by [ADR-0006](0006-draft-pick-ownership-and-trades.md):**
+  once `draftPicks.go` (ownership SSOT) + `transactions/history;view=TRADE` (faithful
+  trade log) are sourced, `dim_draft_pick` re-keys back to
+  `(season, round, original_owner)`, `trade` goes live, and `original_owner` is
+  populated deterministically.
+- **Team identity = the league Sheet's `Fantrax-TeamId` column** (ADR-0005 locked
+  col; user added it 2026-06-14), ingested by `01c` →
+  `dim_fantasy_teams.fantrax_team_id` (28/28, unique). `02d` joins
+  `teamId → team_key` straight off it. The interim name-match heuristic
+  (`01g_dim_fantrax_team_crosswalk`) was built and then **retired** — superseded by
+  the Sheet (it had inferred the right mappings; re-running 01c also fixed drifted
+  team names, e.g. A08's stale "Metallica").
+- **Pick horizon = current + 2** (2026/2027/2028) confirmed; `dim_season` seeds 3
+  rows. Forward-year picks (2027/2028) and the `original_owner` backfill both await
+  the `draftPicks.go` capture.
+- **Pick valuation** still deferred (v1 = inventory only) — unchanged.

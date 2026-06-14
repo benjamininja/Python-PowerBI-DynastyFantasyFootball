@@ -1,0 +1,169 @@
+# sources.yml — machine-readable external-input manifest (SSOT).
+#
+# This file is the single source of truth for every place data crosses into the
+# repo from outside. SOURCES.md renders its tables FROM this file — do not
+# hand-edit the generated table regions in SOURCES.md; edit here and run:
+#     .\run.ps1 scripts/check_sources.py --render
+#
+# Validation (see scripts/check_sources.py):
+#   - schema check (all sources)            : required fields, unique id, valid status
+#   - notebook-exists + token-match (live)  : each feeds[].notebook exists and
+#                                             contains >=1 match token (OR)
+#   - reverse-drift (WARN)                  : notebook external hosts not registered
+#                                             here and not in ignore_hosts
+#
+# Field notes:
+#   id       : stable slug, primary key (never rendered)
+#   name     : display -> SOURCES.md "Source" column
+#   status   : live | planned   (lint enforces notebook+token on live only)
+#   locator  : human URL/locator for the rendered table
+#   auth     : METHOD only — never a token/password/email/key (secrets rule)
+#   feeds    : list of {notebook, table}; lint asserts token in EACH notebook
+#   match    : token(s) the lint searches for in feed notebooks (case-insensitive
+#              substring, OR across the list). Internal — never rendered.
+
+# Hosts that legitimately appear in notebooks but are NOT data sources.
+# The reverse-drift check subtracts these (plus registered source hosts).
+# Populate when a new non-source host is flagged; keep alphabetized.
+ignore_hosts:
+  - github.com
+  - githubusercontent.com
+
+sources:
+  # ---------------------------------------------------------------- live
+  - id: fantrax_getdraftranks
+    name: "Fantrax — getDraftRanks"
+    status: live
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getDraftRanks)"
+    purpose: "League-specific dynasty draft-ranking board + percent-drafted (cross-league demand)"
+    auth: "Fantrax account login, env-stored (FANTRAX_EMAIL/FANTRAX_PASSWORD); persistent Playwright profile (data/.pw_profile/)"
+    cadence: "Weekly (Windows Task Scheduler)"
+    feeds:
+      - { notebook: 04a_fantrax_weekly_scrape.py, table: fact_fantrax_adp }
+    match: ["v744203wmmvjqzv6"]
+
+  - id: google_sheet_team_manifest
+    name: "Google Sheet — team manifest"
+    status: live
+    locator: "https://docs.google.com/spreadsheets/d/1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc (gid 178660131), read via export?format=csv"
+    purpose: "Owner/team roster manifest: team name, abbrev, manager emails, division, Team ID, Fantrax-TeamId"
+    auth: "Published CSV export (link-readable, no creds) for read"
+    cadence: "On league/owner change (manual rerun)"
+    feeds:
+      - { notebook: 01c_dim_fantasy_teams_seed.ipynb, table: dim_fantasy_teams }
+    # URL lives in CFG.team_sheet_csv_url (etl_helpers.py); 01c references it via
+    # this symbol. Notebook-resident fingerprint (scope is notebook-only).
+    match: ["team_sheet_csv_url", "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"]
+
+  - id: nflverse
+    name: "nflverse (via nflreadpy)"
+    status: live
+    locator: "nflreadpy package (nflverse release data)"
+    purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id)"
+    auth: "None (public package)"
+    cadence: "Per pipeline run"
+    feeds:
+      - { notebook: 01e_dim_nfl_players_seed.ipynb, table: dim_nfl_players }
+      - { notebook: 02a_fact_nfl_combine_pro_day_metrics.ipynb, table: fact_nfl_combine_pro_day_metrics }
+      - { notebook: 05a_startup_draft_board.py, table: "(career-games lookup)" }
+    match: ["nflreadpy"]
+
+  - id: keeptradecut
+    name: "KeepTradeCut (KTC)"
+    status: live
+    locator: "https://keeptradecut.com (embedded-HTML / JSON scrape)"
+    purpose: "Dynasty trade value, tiers, trends, startup ADP/auction; rookie consensus"
+    auth: "None (public scrape)"
+    cadence: "Per pipeline run"
+    feeds:
+      - { notebook: 03c_ktc_rankings.ipynb, table: fact_rookie_rankings }
+      - { notebook: 04b_ktc_dynasty_rankings.ipynb, table: fact_dynasty_ranking_metrics }
+    match: ["keeptradecut"]
+
+  - id: fantasypros
+    name: "FantasyPros"
+    status: live
+    locator: "https://www.fantasypros.com (scrape) + manual Excel for IDP/SF"
+    purpose: "Rookie PPR + Superflex consensus (scrape); dynasty SF/IDP best/worst/avg/stddev (manual)"
+    auth: "None (scrape); manual file (Excel)"
+    cadence: "Per pipeline run"
+    feeds:
+      - { notebook: 03a_fantasypros_rankings.ipynb, table: fact_rookie_rankings }
+      - { notebook: 04x_manual_dynasty_rankings.ipynb, table: fact_dynasty_ranking_metrics }
+    match: ["fantasypros"]
+
+  - id: walterfootball
+    name: "WalterFootball"
+    status: live
+    locator: "https://walterfootball.com (scrape)"
+    purpose: "Rookie positional rankings"
+    auth: "None (public scrape)"
+    cadence: "Per pipeline run"
+    feeds:
+      - { notebook: 03b_walterfootball_rankings.ipynb, table: fact_rookie_rankings }
+    match: ["walterfootball"]
+
+  - id: draftsharks
+    name: "DraftSharks"
+    status: live
+    locator: "https://www.draftsharks.com (scrape)"
+    purpose: "Rookie top-90 board"
+    auth: "None (public scrape)"
+    cadence: "Per pipeline run"
+    feeds:
+      - { notebook: 03d_draftsharks_rankings.ipynb, table: fact_rookie_rankings }
+    match: ["draftsharks"]
+
+  - id: dynastysharks
+    name: "DynastySharks"
+    status: live
+    locator: "Manual extraction -> data/raw/DynastyRankings_2026_ManualExtraction.xlsx"
+    purpose: "Dynasty 1/3/5/10-yr fantasy-point projections + 3D value (SF/TEPP)"
+    auth: "Manual file placement (no creds)"
+    cadence: "Manual (on refresh)"
+    feeds:
+      - { notebook: 04x_manual_dynasty_rankings.ipynb, table: fact_dynasty_ranking_metrics }
+    match: ["DynastySharks", "DynastyRankings_2026_ManualExtraction.xlsx"]
+
+  - id: manual_excel_misc
+    name: "Manual Excel — misc rankings"
+    status: live
+    locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP)"
+    purpose: "Supplemental rookie/dynasty expert ranks not available via scrape"
+    auth: "Manual file placement (no creds)"
+    cadence: "Manual (on refresh)"
+    feeds:
+      - { notebook: 03x_manual_rankings.ipynb, table: fact_rookie_rankings }
+    match: ["RookieRankings_2026_ManualExtraction.xlsx", "RotoBaller", "FantasyCalc"]
+
+  # ------------------------------------------------------------- planned
+  - id: fantrax_draftresults_draftpicks
+    name: "Fantrax — getDraftResults / draftPicks.go"
+    status: planned
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (getDraftResults live-draft; draftPicks.go ownership — capture pending)"
+    purpose: "Made-pick attribution (live draft) + pick-ownership/trades inventory -> event-sourced ledger"
+    auth: "Same as getDraftRanks (Fantrax login + Playwright profile)"
+    cadence: "Between picks (live draft) + on settle"
+    feeds:
+      - { notebook: 04w_fantrax_draft_results.py, table: fact_roster_transactions }
+    match: ["getDraftResults", "draftPicks", "v744203wmmvjqzv6"]
+
+  - id: fantrax_commissioner_admin
+    name: "Fantrax — commissioner admin"
+    status: planned
+    locator: "Fantrax commissioner pages (league v744203wmmvjqzv6)"
+    purpose: "Contract/cap reconciliation, manual corrections"
+    auth: "Commissioner-account login (env-stored)"
+    cadence: "Ad hoc"
+    feeds: []
+    match: []
+
+  - id: google_sheet_manifest_write
+    name: "Google Sheet — manifest sync (write)"
+    status: planned
+    locator: "Same sheet as the team manifest (write-back)"
+    purpose: "Sync Fantrax-owned fields back into the Sheet mirror (ADR-0005)"
+    auth: "Sheets API OAuth / service account — owner-set-up; external write + PII gate"
+    cadence: "On owner-manifest change"
+    feeds: []
+    match: []

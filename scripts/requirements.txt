@@ -1,0 +1,4 @@
+# Tooling deps for repo scripts/ (not the notebook stack).
+# Install into the .venv:  .\run.ps1 -m pip install -r scripts/requirements.txt
+#   (or: .venv\Scripts\python.exe -m pip install -r scripts/requirements.txt)
+PyYAML>=6

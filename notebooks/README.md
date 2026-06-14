@@ -18,6 +18,21 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 > so relative paths like `data/...` resolve. The shared module is imported via a small
 > bootstrap that adds `notebooks/` to `sys.path` regardless of CWD.
 
+## Running the `.py` scripts
+
+Launch the `.py` scripts (`04a`, `04w`, `02d`, `02e`, …) through the repo-root
+launcher so they always use the project venv:
+
+```powershell
+.\run.ps1 notebooks\04w_fantrax_draft_results.py        # extra args pass through
+```
+
+`run.ps1` pins `.venv\Scripts\python.exe`. Don't use VS Code's "Run Python File"
+or a bare `python x.py` — those pick the *selected* interpreter (usually anaconda
+base), which lacks `playwright` and ships a broken `pyarrow`
+(`Repetition level histogram size mismatch`). The repo has two venv folders
+(`venv\` and `.venv\`); the launcher pins the correct one.
+
 ## Shared module
 
 - **`etl_helpers.py`** — single source of truth for `LeagueConfig`, `clean_player_name`,
@@ -34,6 +49,8 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 | 01c | `01c_dim_fantasy_teams_seed.ipynb` | `dim_fantasy_teams` (from Google Sheet) |
 | 01d | `01d_dim_nfl_teams_seed.ipynb` | `dim_nfl_teams` |
 | 01e | `01e_dim_nfl_players_seed.ipynb` | `dim_nfl_players` (maps nflverse names → canonical schema) |
+| 01f | `01f_dim_season_seed.ipynb` | `dim_season` (calendar spine, current+2; ADR-0004) |
+| 01g | `01g_dim_division_seed.ipynb` | `dim_division` (`(season_id, conference)` → division name; ADR-0005 read-side) |
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
 | 02b | `02b_fact_fantasy_teams_seed.ipynb` | `fact_fantasy_teams` (schema seed) |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
