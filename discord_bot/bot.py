@@ -36,7 +36,21 @@ class LeagueBot(commands.Bot):
         # league guild and sync there so commands appear immediately.
         guild = discord.Object(id=self.cfg.discord_guild_id)
         self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
+        try:
+            await self.tree.sync(guild=guild)
+        except discord.Forbidden as e:
+            # Caught here, at the one call that can 403 for an invite/scope
+            # reason — not around the whole gateway lifetime, where a runtime
+            # 403 would be unrelated and the message misleading.
+            log.error(
+                "Slash-command sync was refused (403 %s). The bot must be in "
+                "guild %s AND invited with the applications.commands scope. "
+                "Re-invite with scope=bot+applications.commands and confirm "
+                "DISCORD_GUILD_ID — retrying will not fix an invite/scope problem.",
+                e,
+                self.cfg.discord_guild_id,
+            )
+            raise SystemExit(1) from None
         log.info("Slash commands synced to guild %s", self.cfg.discord_guild_id)
 
     async def on_ready(self) -> None:
@@ -44,10 +58,36 @@ class LeagueBot(commands.Bot):
 
 
 async def main() -> None:
-    cfg = load_config()
+    # Fail fast and loud on unrecoverable startup errors. On Railway these exits
+    # are bounded by the restart policy in railway.json (restartPolicyMaxRetries),
+    # so a bad token or missing intent can't become an endless crash-restart loop
+    # that hammers the Discord login endpoint and gets the token rate-limited.
+    try:
+        cfg = load_config()
+    except RuntimeError as e:
+        log.error("Configuration error — fix the variable(s) before redeploying: %s", e)
+        raise SystemExit(1) from None
+
     bot = LeagueBot(cfg)
-    async with bot:
-        await bot.start(cfg.discord_bot_token)
+    # Setup-time failures (e.g. slash-sync 403) are handled in setup_hook. Here we
+    # catch the login-time errors so a bad token / missing intent fails fast with
+    # a clear message instead of an opaque traceback that crash-loops on Railway.
+    try:
+        async with bot:
+            await bot.start(cfg.discord_bot_token)
+    except discord.LoginFailure:
+        log.error(
+            "Discord login failed: DISCORD_BOT_TOKEN is invalid. Reset it in the "
+            "Developer Portal and update the variable before redeploying — "
+            "retrying with a bad token will not help."
+        )
+        raise SystemExit(1) from None
+    except discord.PrivilegedIntentsRequired:
+        log.error(
+            "Message Content intent is not enabled. Turn it on in the Developer "
+            "Portal (Bot -> Privileged Gateway Intents) before redeploying."
+        )
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
