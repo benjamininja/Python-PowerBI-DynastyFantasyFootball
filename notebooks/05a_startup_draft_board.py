@@ -142,6 +142,19 @@ def load_dynasty_metrics() -> pd.DataFrame:
     return pd.concat(cols, axis=1).reset_index()
 
 
+def load_drafted() -> dict:
+    """gsis_id -> team_key for players already taken in the live startup draft,
+    read from the derived current roster (`fact_fantasy_teams`, built by 02e from
+    the `fact_roster_transactions` ledger). Returns {} if the ledger hasn't been
+    built yet, so the board still runs pre-draft. Re-run 04w -> 02d -> 02e between
+    picks to refresh; this surfaces who's gone and to whom on the board."""
+    p = DATA / "fact_fantasy_teams.parquet"
+    if not p.exists():
+        return {}
+    fft = pd.read_parquet(p).dropna(subset=["gsis_id"])
+    return dict(zip(fft["gsis_id"], fft["team_key"]))
+
+
 def load_career_games(pool: pd.DataFrame) -> pd.Series:
     """Exact NFL games played (REG+POST) per gsis_id for recent entrants.
     entry_year < GAMES_CHECK_FLOOR is assumed >= ML_GAMES_LIMIT games."""
@@ -337,6 +350,7 @@ def apply_notes(df: pd.DataFrame) -> pd.DataFrame:
 # ── Excel output ─────────────────────────────────────────────────────
 BOARD_COLS = {
     "tier": "Tier", "side_rank": "Rank", "board_rank": "Ovr Rank",
+    "drafted_by": "Drafted By",
     "player_name": "Player", "position_raw": "Position",
     "position_group": "Pos Group", "nfl_team": "NFL Team", "age": "Age",
     "draft_year": "Draft Year", "years_in_league": "Years In League",
@@ -459,6 +473,14 @@ def main() -> pd.DataFrame:
     pool["ml_games_left"] = np.where(
         recent, (ML_GAMES_LIMIT - pool["career_games"]).clip(lower=0), 0)
     pool["ml_eligible"] = pool["ml_games_left"] > 0
+
+    # Live-draft availability: flag players already taken (and by whom). Non-
+    # destructive — kept on the board so runs stay visible; filter in Excel.
+    drafted = load_drafted()
+    pool["drafted_by"] = pool["gsis_id"].map(drafted)
+    pool["available"] = pool["drafted_by"].isna()
+    print(f"[info] live draft: {len(drafted)} players taken, "
+          f"{int(pool['available'].sum())} of {len(pool)} pool still available")
 
     df = assign_tiers(score(pool))
     df = apply_notes(df)

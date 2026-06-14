@@ -102,27 +102,84 @@ linear DRAFT, not an auction** (auctions = FA/re-sign, next offseason). The ADRs
   `dim_fantrax_crosswalk` (04z); team `teamId → team_key` via
   `dim_fantasy_teams.fantrax_team_id` (added by 01c, ADR-0005).
 
-**⛔ GATING PREREQUISITE — user HAR capture** (build blocked until delivered):
-capture the live draft-room responses for (a) the **draft-results / completed-
-picks** method and (b) the **pick-inventory** method (`draftPicks.go`). Exact
-method names + shapes are unknown — that is *why* we capture. Spec written for
-the user 2026-06-14; save raw JSON to `data/raw/` (gitignored). See the build
-plan handoff below.
+**⛔ GATING PREREQUISITE — capture `getDraftResults` (UPDATED 2026-06-14).**
+HAR delivered. It gave us the exact **request** but NOT the response body: the
+draft board is served via Fantrax's **service worker**, so DevTools persists the
+size (157 KB) but not the bytes — a HAR cannot carry it. **Pivot: capture via our
+own authed scraper**, which is the real pipeline anyway.
+- Request recovered: POST `fxpa/req?leagueId=v744203wmmvjqzv6`, `msgs =
+  [getDraftResults{}, getFantasyLeagueInfo{}, getRefObject{FantasyDraftPickType}]`,
+  `uiv 3`, `v 183.1.5` (04a's getDraftRanks was 182.4.8), refUrl `/draft-results`.
+- **NEW `notebooks/04w_fantrax_draft_results.py`** (built 2026-06-14): reuses
+  04a's `FantraxScraper` (persistent `.pw_profile`, server-verdict re-login),
+  POSTs the bundle, writes `data/raw/fantrax_draftresults_{season}.json`.
+- **✅ CAPTURED + DECODED 2026-06-14**: 04w ran (`.venv`, not anaconda — see env
+  note). Real `getDraftResults` shape: `draftPicksOrdered` (round, pickNumber,
+  teamId, **scorerId**, positionId, `type`→FantasyDraftPickType, divisionId,
+  modifiedDate=epoch ms) + `scorers` (player detail, join scorerId→gsis via 04z) +
+  `fantasyTeamsOrdered` (teamId→name) + `draftDirection` (snake ±1) + `positionMap`
+  + FantasyDraftPickType ref. **NO salary on pick** → contract_value from
+  `fact_fantrax_adp.salary` by scorerId (nearest snapshot = as-of pick), as planned.
+  **Draft is LIVE/in-progress** (~137/490 picks made in Riddell).
+- **Per-division finding**: getDraftResults returns ONE division (14 teams, 490=14×35).
+  League = 2 divisions (Riddell `rhf63kfummvk3jnh` + Wilson `svxeyvvgmmvk3jnh`). 04w
+  now loops divisions (passes `divisionId`, writes one raw file per division). ➡
+  **USER: re-run 04w to capture BOTH** (verify Wilson switches; if `⚠ param ignored`
+  → fall back to UI division-switch capture).
+- **ENV (resolved 2026-06-14)**: build runs in **`.venv`** (has playwright + pandas
+  + dotenv; **pyarrow installed this session** — reads all existing parquets, incl.
+  `dim_position` which anaconda's pyarrow couldn't). Do NOT use anaconda base
+  (no playwright; broken pyarrow "Repetition level histogram size mismatch").
+- **Identity gap for S2/S3**: `dim_fantasy_teams` has **no `fantrax_team_id`** yet
+  (cols: team_key/team_name/team_abbr/conference/division/manager_email). Need
+  `teamId→team_key`: from draft `fantasyTeamsOrdered` (teamId+names) or Sheet
+  `Fantrax-TeamId` (ADR-0005, 01c). Resolve as first step of S2.
+- `draftPicks.go` (future-pick inventory for dim_draft_pick forward years) still
+  not captured — getDraftResults covers the CURRENT startup picks; capture forward
+  picks separately when seeding 2027/2028.
 
-**Build stages (post-HAR, post-compact)** — each its own window:
-- S1 `dim_season` (`season_id "2026-2027"` + 2 future rows; NFL dates nullable).
-- S2 `dim_roster_asset` (asset_id sequence; `asset_type` player/prospect/pick;
-  resolvers gsis_id?/player_key?/pick_ref?) + `dim_draft_pick` (current+2,
-  `pick_ref=(draft_season,round,original_owner)`).
-- S3 `fact_roster_transactions` schema + the `startup_draft` + `pick_allocation`
-  parse from the captured HAR; idempotent replace-by-`(season_id, event_type)`.
-- S4 `fact_fantasy_teams` derivation (replay → current roster + cap rollups) +
-  05a availability-join wiring (drafted assets → unavailable on the board).
-- Add `fantrax_team_id` to `dim_fantasy_teams` (01c) if not already present.
+**Build stages — ✅ BUILT + VERIFIED 2026-06-14 against the Riddell capture (`.venv`):**
+- [x] **S1 `01f_dim_season_seed.ipynb`** → `dim_season` (3 rows: 2026-2027 +2;
+  fantasy Mar 1→last Feb; NFL dates null; leap-year Feb correct).
+- [x] **S2a — team identity via the Sheet (01c).** The league Sheet now carries the
+  authoritative **`Fantrax-TeamId`** column (ADR-0005 locked col; user added it
+  2026-06-14), so `01c_dim_fantasy_teams_seed.ipynb` ingests it →
+  `dim_fantasy_teams.fantrax_team_id` (28/28, no nulls, unique). 02d joins
+  `teamId→team_key` straight off it. The earlier name-match heuristic
+  (`01g_dim_fantrax_team_crosswalk`) is **RETIRED** — superseded by the Sheet (it
+  had correctly inferred `Big L`→A10, `Brantley Gilbert`→A08, now confirmed exact).
+  Bonus: 01c also refreshed stale team names (A08 was a stale "Metallica" snapshot).
+- [x] **S2b/c+S3 `02d_fact_roster_transactions.py`** (live-loop script) → one parse
+  emits `dim_roster_asset` (137 assets; monotonic `asset_id` minted on stable
+  `scorer_id`, persisted, never re-derived), `dim_draft_pick` (490 slots), and
+  `fact_roster_transactions` (137 `startup_draft` rows; key
+  `season_id+event_type+team_key+asset_id+event_seq`; contract `1st` yr1,
+  `contract_value`=Fantrax salary, `cap_hit`=0.50×). Idempotent replace-by
+  `(season_id,event_type)`. Globs+dedups all division files. **137/137 resolve to
+  both gsis_id and salary.**
+- [x] **S4 `02e_fact_fantasy_teams_derive.py`** → replay ledger → 12-col
+  `fact_fantasy_teams` (137 active rows) + cap rollup into `dim_fantasy_teams`
+  (active_roster_salary/remaining recomputed). 05a wired: non-destructive
+  **"Drafted By"** column from `fact_fantasy_teams` (137 taken / 1519 available),
+  guarded to run pre-draft.
 
-⟂ **COMPACT** now — grill complete, decisions recorded; next session resumes at
-the HAR capture (user) → S1. ADR-0003/0004 amendments (startup_draft rename,
-v1-is-full, contract_value=Fantrax salary, locked decisions) batched into Phase 0.
+**⚠ FINDING — startup picks WERE traded.** getDraftResults' slot `teamId` is the
+**current** owner (some teams hold 2 picks/round, others 0). ADR-0004's
+`pick_ref=(draft_season,round,original_owner)` needs the pre-trade allocation from
+**`draftPicks.go`** (not captured) → `dim_draft_pick` is keyed on the slot
+`(draft_season,divisionId,overall_slot)`, records `current_owner`, leaves
+`original_owner` null. `pick_allocation`/`trade` events stay dormant v1 (no source).
+The made-pick fact is unaffected (records who drafted).
+
+**Open after this stage:**
+- **USER: re-run 04w for Wilson** → then 02d/02e (→both divisions). Team identity
+  already covers all 28 (Sheet `Fantrax-TeamId`), so only the Wilson *draft* capture
+  is missing; 02d maps its teamIds directly.
+- Capture `draftPicks.go` → backfill `original_owner`, light up `pick_allocation`/`trade`,
+  seed 2027/2028 `dim_draft_pick` forward years.
+- ADR-0003/0004 amendments (startup_draft rename, v1-is-full, contract_value=Fantrax
+  salary, slot-keyed dim_draft_pick + original_owner-deferred) → next Phase 0.
+- `.venv` gained `requests`/`rapidfuzz`/`thefuzz`/`pyarrow` (full notebook env).
 
 ### NEW high-value tasks — ALL GRILLED 2026-06-13 (designs resolved; builds queued)
 Decision trees cleared via `/grill-with-docs`. Builds are their own post-compact
