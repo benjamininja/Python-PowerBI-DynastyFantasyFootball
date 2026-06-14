@@ -13,8 +13,12 @@ import logging
 import discord
 from discord.ext import commands
 
+from adp import setup_adp
+from cap import setup_cap
 from config import Config, load_config
+from player import setup_player
 from rankings import setup_rankings
+from roster import setup_roster
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("league-bot")
@@ -32,6 +36,10 @@ class LeagueBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         await setup_rankings(self, self.cfg)
+        await setup_adp(self, self.cfg)
+        await setup_player(self, self.cfg)
+        await setup_cap(self, self.cfg)
+        await setup_roster(self, self.cfg)
         # Guild-scoped sync is instant; global can take ~1h. Copy globals to the
         # league guild and sync there so commands appear immediately.
         guild = discord.Object(id=self.cfg.discord_guild_id)
