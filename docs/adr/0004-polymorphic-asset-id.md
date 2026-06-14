@@ -114,6 +114,11 @@ Built + merged (PR #15) against the live Riddell capture. Resolutions of the
   `current_owner`, and **`original_owner` is left NULL** until `draftPicks.go`
   lands. `pick_allocation` / `trade` events therefore stay **dormant in v1** (no
   source). The made-pick fact is unaffected — it records who actually drafted.
+  **→ Superseded 2026-06-14 by [ADR-0006](0006-draft-pick-ownership-and-trades.md):**
+  once `draftPicks.go` (ownership SSOT) + `transactions/history;view=TRADE` (faithful
+  trade log) are sourced, `dim_draft_pick` re-keys back to
+  `(season, round, original_owner)`, `trade` goes live, and `original_owner` is
+  populated deterministically.
 - **Team identity = the league Sheet's `Fantrax-TeamId` column** (ADR-0005 locked
   col; user added it 2026-06-14), ingested by `01c` →
   `dim_fantasy_teams.fantrax_team_id` (28/28, unique). `02d` joins
