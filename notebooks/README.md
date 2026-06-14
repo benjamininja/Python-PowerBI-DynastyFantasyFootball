@@ -18,6 +18,21 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 > so relative paths like `data/...` resolve. The shared module is imported via a small
 > bootstrap that adds `notebooks/` to `sys.path` regardless of CWD.
 
+## Running the `.py` scripts
+
+Launch the `.py` scripts (`04a`, `04w`, `02d`, `02e`, …) through the repo-root
+launcher so they always use the project venv:
+
+```powershell
+.\run.ps1 notebooks\04w_fantrax_draft_results.py        # extra args pass through
+```
+
+`run.ps1` pins `.venv\Scripts\python.exe`. Don't use VS Code's "Run Python File"
+or a bare `python x.py` — those pick the *selected* interpreter (usually anaconda
+base), which lacks `playwright` and ships a broken `pyarrow`
+(`Repetition level histogram size mismatch`). The repo has two venv folders
+(`venv\` and `.venv\`); the launcher pins the correct one.
+
 ## Shared module
 
 - **`etl_helpers.py`** — single source of truth for `LeagueConfig`, `clean_player_name`,
