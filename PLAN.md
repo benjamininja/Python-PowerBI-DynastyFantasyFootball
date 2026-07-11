@@ -54,7 +54,6 @@ deferred item); surface `dim_division` in the PBI semantic model (join
      in place; runs locally only).
 
 ## [ ] Deferred - User Requested
-- [ ] Additional Discord bot commands (`player`, `adp`) — v1 scoped to `rankings`.
 - [ ] `git filter-repo` history-scrub follow-up for `notebooks/.env` /
   `data/.pw_profile` (2026-05-30 incident) — user-owned, low urgency.
 
@@ -66,8 +65,23 @@ deferred item); surface `dim_division` in the PBI semantic model (join
 - [ ] Prep-for-AI / Fabric Data Agent config for the dynasty semantic model
   (`semantic-modeling-prepforai`), after PBI model cleanup.
 - [ ] Generalize composite ADP blending (`ADP_KEYS`) beyond 2 sources when a 3rd lands.
+- [ ] **Revisit table architecture: merge `dim_rookie_prospect` into `dim_nfl_players`.**
+  Hypothesis (user): rookies graduate into NFL players, so one registry keyed on
+  the recently-developed **persistent player ID** (confirm which during planning —
+  `player_key` / `gsis_id` / asset lineage) removes the prospect→player handoff
+  and the dual-registry/crosswalk seams. **Planning task** — grill the design
+  before building (identity collisions, pre-draft rows without `gsis_id`, downstream
+  FKs in rookie-ranking + dynasty + ledger tables, PBI model impact). **Work to be
+  done on `pbi-dim-division-integration`.**
 
 ## Shipped (one-liners; full detail in ADR / MEMORY / data-model)
+- **Discord bot expansion** (branch `discord-bot-expand`, 2026-06-14): extracted
+  shared `delivery.py` (privacy routing + ShareView + `respond_with_embeds`) +
+  `render.py` (embed pagination); rebuilt `rankings.py` on them; added 4 commands
+  — `/adp` (Fantrax ADP + league-owner overlay), `/player` (curated card), `/cap`
+  (conference cap standings via dim_division), `/roster` (team contracts +
+  empty-state). Offline harness `tests/offline_smoke.py` asserts embed limits for
+  all 5. No new deps; `github_fetch` unchanged.
 - **Dynasty single-EAV refactor** (ADR-0002) + Discord `rankings.py` rewrite
   (`position_group`, re-rank 1..N) + 04z gsis-collision soft-fail. PRs #9/#10.
 - **Ledger v1** (ADR-0003/0004; PRs #12/#13/#15): `01f`→dim_season,
