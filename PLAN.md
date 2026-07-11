@@ -9,29 +9,82 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~35% window (Opus)**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
-## Working state (2026-06-14)
-- Branch **`ledger-followups`** holds all uncommitted work; `main` = `origin/main`
-  (clean — **never commit direct to main; feature branch → PR**). Committed on the
-  branch: `run.ps1`, ADR-0003/4 build amendments, ledger parquet refresh.
-  **Uncommitted on the branch** (grill output): ADR-0006 + `CONTEXT.md` terms +
-  ADR-0007 + `sources.yml`/`check_sources.py`/`scripts/requirements.txt` +
-  regenerated `SOURCES.md` + this PLAN + MEMORY index.
-- Launch `.py` scripts via `.\run.ps1 <script.py>` (pins `.venv`; anaconda base
-  lacks playwright + has broken pyarrow). Tooling deps (PyYAML) in
-  `scripts/requirements.txt`, installed into `.venv`.
+## Working state (2026-07-11)
+- Branch **`data-2026-draft-cap-update`**, off `main` (`b89671c`). Uncommitted:
+  2026 startup-draft ingest (**both divisions live and ingested through
+  `02d`/`02e`**: Riddell 485/490, Wilson 450/490, 935 total picks — re-run
+  `04w → 02d → 02e` to refresh as picks finish), $500M→$300M cap change, `04z`
+  crosswalk universe fix (draft-only scorer_ids), `requirements.txt`,
+  `Fact_FantasyTeams`/`Dim_FantasyTeams` cap-consistency fix (`CapHit`/
+  `Conference`/the old ETL rollup all removed as stored columns — derived live
+  via relationships/measures instead), `discord_bot/capmath.py`,
+  `dim_season.relative_nfl_season_number` + self-extending anchor+2 horizon
+  (`01f`, floats off today's date, never drops history).
+  Full detail: project-fantasy-football.md "Cap architecture", powerbi-semantic-model.md
+  "No ETL-frozen rollups", data-model.md `dim_season` row.
+- Launch `.py` scripts via `.\run.ps1 <script.py>` (pins `.venv`). Notebooks run
+  headless via `.venv\Scripts\python.exe -m nbconvert --to notebook --execute
+  --inplace <nb>.ipynb` (not `python -m jupyter nbconvert` — PATH dispatch trap).
+  `requirements.txt` (repo root) is now the `.venv` dependency source of truth.
+- **Not yet done, agreed scope**: singular/plural table rename (`Dim_FantasyTeams`
+  →`Dim_FantasyTeam`, `Dim_NFLPlayers`→`Dim_NFLPlayer`, `Dim_NFLTeams`→
+  `Dim_NFLTeam`) — spec in powerbi-semantic-model.md "Pending" section, agreed
+  to land as its own commit on this same branch.
+- **Nothing committed this session** — everything above is uncommitted working-tree
+  state per standing "commit only when asked" rule.
+
+## [ ] Active — dead money (3-version design, in progress in PBI Desktop by user)
+User is building this live in `_Measures.tmdl` (`'Dead Money Active - Current
+Year'`, `'Dead Money Cap Hit - Current Year'` already exist, WIP). Design as
+described 2026-07-11: three versions —
+- **`dim_season.relative_nfl_season_number` — BUILT 2026-07-11** (`01f`, ADR-0004
+  calendar spine): 0 = the season whose `season_fantasy_start_date`/`_end_date`
+  window contains today (anchor), negative = past, positive = future.
+  Recomputed every `01f` run from the current date. Not yet wired into a PBI
+  relationship (`dim_season` isn't in the semantic model yet) — needed before
+  the dead-money measures below can actually reference it.
+- **Current year**: `Dim_Contract[CapHitPct]` (looked up by `contract_id`) x
+  the player's salary **at time of separation** x
+  `relative_nfl_season_number = 0`.
+- **Next year**: same, at `relative_nfl_season_number = 1`.
+- **Total**: needs more design; the mechanics (contract cycle rows in
+  `Dim_Contract`) are already there.
+- Must track **when a player is actually dropped** — trades do NOT incur a cap
+  hit/dead money, only drops do. No `drop` event exists in
+  `fact_roster_transactions` yet (ADR-0003/0004 ledger only has `startup_draft`
+  in v1) — this needs that event type built out first.
+- Ties directly into the Minor League/draft-transition task below (drops are
+  how a team moves a player to make Minor League room, or cuts for cap space).
+
+## [ ] Active — identify Minor League squad + draft-completion transition plan
+**New task, not yet started (added 2026-07-11).** Once the startup draft
+finishes for both divisions: identify which drafted players should move to
+each team's Minor League squad (100% cap-exempt bench slot until 20 NFL games
+played — the "Yo-Yo Rule", per league rules doc), and plan the transition
+mechanics — does moving a player to Minor League go through the ledger as its
+own event type, or is it a `dim_roster_asset`/`fact_fantasy_teams` status
+change? Needs a design pass (grill-me candidate) before building — touches the
+ledger event-type enum, `fact_fantasy_teams.status`, and probably the dead-money
+work above (a Minor League slot getting cut is a drop). Depends on Wilson
+finishing its draft.
 
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
-(Wilson draft, ADR-0006 captures, Sheets-API; see Active/gated). Optional small
-buildables when ready: wire `check_sources.py` into a pre-commit hook (ADR-0007
-deferred item); surface `dim_division` in the PBI semantic model (join
-`Dim_FantasyTeams.conference`).
+(Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).
+Optional small buildables when ready: wire `check_sources.py` into a pre-commit
+hook (ADR-0007 deferred item); surface `dim_division`/`dim_season` in the PBI
+semantic model (join `Dim_FantasyTeams.conference`; `dim_season` also needed
+before the dead-money measures can reference `relative_nfl_season_number`, see
+Active above); the singular/plural table rename (see Working state).
 
 ## [ ] Active / gated
-1. **Ledger → both divisions (Wilson).** 04w capture proven for BOTH divisions
-   this session; **Wilson draft not started (0/490)** — nothing to ingest there
-   yet. Riddell at 138. `02d`/`02e` scale automatically once Wilson drafts; USER
-   re-runs `04w → 02d → 02e` as Wilson picks land. Team identity already 28/28.
+1. **Ledger → both divisions (Wilson) — status 2026-07-11: near-complete, not
+   done.** Both divisions ingested through `02d`/`02e` (935 picks total):
+   Riddell 485/490, Wilson 450/490. USER re-runs `04w → 02d → 02e` as the
+   remaining Wilson picks land. 122 picks currently have a null
+   `contract_value` — Fantrax's own payload missing `salary` on those specific
+   picks (draft-in-progress state, unrelated to identity resolution) — recheck
+   once Wilson finishes.
 2. **Draft-pick ownership & trades build → [ADR-0006](docs/adr/0006-draft-pick-ownership-and-trades.md)**
    (design RESOLVED 2026-06-14 via `/grill-with-docs`). Gated on **two**
    user-driven per-division authed captures, then extend `02d`/`02e` + add

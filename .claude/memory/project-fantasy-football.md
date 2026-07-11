@@ -3,7 +3,9 @@
 ## Branch Convention
 
 - `main` — stable/production. **Never commit directly.**
-- Work on a **feature branch → `main` via PR**. `gh pr create --base main --head <branch>`; **squash-merge** with a body-of-work description, `--delete-branch`. Merged so far: PR #3 (dynasty rankings), #4 (semantic-model PascalCase + measures + AI metadata), #5 (notebooks/data write-leak fix), #6 (Dim_School SchoolAbbr + new report page), #7 (discord_bot scaffold), #8 (untrack notebooks/.env + harden .env ignore), #9 (dynasty single-EAV refactor + project docs/memory + ADR-0001..0005), #10 (discord_bot hardening on the EAV schema). One logical change per PR (e.g. model vs ETL split into #4/#5; refactor vs bot split into #9/#10 — #9 merged first since the bot reads its schema).
+- Work on a **feature branch → `main` via PR**. `gh pr create --base main --head <branch>`; **squash-merge** with a body-of-work description, `--delete-branch`. Merged so far: PR #3 (dynasty rankings), #4 (semantic-model PascalCase + measures + AI metadata), #5 (notebooks/data write-leak fix), #6 (Dim_School SchoolAbbr + new report page), #7 (discord_bot scaffold), #8 (untrack notebooks/.env + harden .env ignore), #9 (dynasty single-EAV refactor + project docs/memory + ADR-0001..0005), #10 (discord_bot hardening on the EAV schema), #16 (discord_bot adp/player/cap/roster expansion, merged 2026-07-11). One logical change per PR (e.g. model vs ETL split into #4/#5; refactor vs bot split into #9/#10 — #9 merged first since the bot reads its schema).
+- **`CONTRIBUTING.md` describes a `dev` branch that doesn't exist** (no local or remote `dev` — checked 2026-07-11). Actual practice, matching recent PR history: feature branch off `main` directly, PR to `main`, squash-merge, delete branch. Follow the actual practice, not the stale doc.
+- **Current branch (2026-07-11): `data-2026-draft-cap-update`**, off `main` (`b89671c`). Scope: 2026 startup-draft ingest (both divisions), $500M→$300M cap change, `Fact_FantasyTeams`/`Dim_FantasyTeams` cap-consistency fix, the `04z` crosswalk universe fix, `discord_bot/capmath.py`. The pending singular/plural table rename (`Dim_FantasyTeams`→`Dim_FantasyTeam` etc., see powerbi-semantic-model.md) is agreed to land as a **separate commit on this same branch**, not yet done.
 - `gh` CLI on PATH (v2.93, winget). Commit only when asked; leave unrelated working-tree changes (e.g. `pbi/Mouserat2.pbix`, untracked `skills/`, `workspace/`) out unless told otherwise.
 - **Push rule (GitHub email privacy ON)**: commits must use the noreply author email `38588919+benjamininja@users.noreply.github.com` or `git push` is rejected ("push declined due to email privacy restrictions"). Repo `user.email` is set to it; if a commit slips through with `benjamin.hanna77@gmail.com`, `git commit --amend --reset-author` before pushing.
 
@@ -14,6 +16,7 @@
 ## Discord bot layer
 
 - **`discord_bot/`** (PR #7) — a `discord.py` command bot that fetches dynasty parquet from this repo via the **authenticated GitHub contents API** and posts a per-position rankings board. v1 = `/rankings` (hybrid slash+prefix). Authored from the **`discord-bot-github-fetch`** skill (`~/.claude/skills/`) — that skill is the source of truth for architecture, config, security gates, Railway deploy, first-run setup, and triage; keep it in sync.
+- **PR #16 (merged 2026-07-11)**: expanded to `/adp`, `/player`, `/cap`, `/roster` (same cog-per-command shape as `/rankings`). `cap.py`/`roster.py` share cap math via `discord_bot/capmath.py` (added 2026-07-11, see "Cap architecture" below) instead of reading a cached `dim_fantasy_teams` column.
 - **Status (merged to main 2026-06-14, PR #10)**: scaffolded, hardened (code-review + simplify), and **live** — bot `DeadMoney-LiveData#6589` runs locally and `/rankings` answers in the guild. Hardening (config guild-id guard, null-safe rendering, `asyncio.to_thread` fetch, `len(embed)` cap, fail-fast startup, `railway.json`, `.botvenv/` ignore) **plus the `rankings.py` rewrite onto the single-EAV schema** (reads `fact_dynasty_ranking_metrics` + `dim_nfl_players`, joins on `gsis_id`, groups by `position_group`, re-ranks 1..N — ADR-0002) are now on `main`. Local test venv = `discord_bot/.botvenv/` (gitignored, untracked).
 - **Privacy = standing policy (2026-06-08)**: bot replies are **private by default**, public **only on explicit per-invocation opt-in** — every command must follow this. Ephemeral is interaction-only, so: slash defers `ephemeral=not share` with both a `share:true` option and a requester-restricted "Post publicly" button (`ShareView`); prefix can't be ephemeral, so in a public channel it **DMs the requester** (📬 react; redirect + no data if DMs closed), and replies in-place when already in a DM. Closed-DM/error paths never leak data; generic user error + `log.exception` server-side. Routing lives in `_deliver_embeds`/`_deliver_text` for reuse.
 - **Data caveat baked into the bot**: no single (format, source) spans all positions — `SF`/`TEPP` = offense (KTC primary), `IDP` = defense (FantasyPros only; KTC has no IDP). So `/rankings` is **format-scoped** and auto-picks the primary source per format.
@@ -40,7 +43,7 @@ Power BI file: `pbi\Mouserat2.pbix`
 - 28 teams, 2 conferences, 14 teams each
 - **Riddell conference** = A (A01–A14)
 - **Wilson conference** = B (B01–B14)
-- Salary cap: $500,000,000 per team
+- Salary cap: $300,000,000 per team
 - FA minimum salary: $2,000,000
 - Draft year in active development: 2026
 
@@ -114,6 +117,7 @@ All ETL notebooks `.ipynb` in `notebooks/`. Storage: parquet everywhere; review 
 Exception: `04a_fantrax_weekly_scrape.py` is a `.py` script (scheduled headless-browser scrape — not a notebook).
 Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied). Each folder has a README (`data/`, `notebooks/`, `pbi/`).
 **Launch `.py` scripts via `.\run.ps1 <script.py>` from repo root** (added 2026-06-14; new file `run.ps1`) — it pins `.venv\Scripts\python.exe` and passes extra args through. VS Code "Run Python File" / a bare `python x.py` select **anaconda base** (no `playwright` → `ModuleNotFoundError`; broken `pyarrow` → "Repetition level histogram size mismatch"). Repo has two venvs (`venv\` and `.venv\`); the launcher pins the right one. This is the recurring "won't run" trap — not a venv defect.
+**Dependencies (added 2026-07-11)**: root `requirements.txt` is the `.venv` source of truth (`pip install -r requirements.txt`) — curated/loosely-pinned like `discord_bot/requirements.txt`, not a full freeze. Includes `nbformat`/`nbclient`/`nbconvert` (headless notebook execution only — `.venv\Scripts\python.exe -m nbconvert --to notebook --execute --inplace <nb>`, **not** `python -m jupyter nbconvert`, which can dispatch to a different interpreter via PATH) and `nflreadpy`. `openpyxl` is documented there but was still missing from `.venv` as of 2026-07-11 (needed by `03x`/`04x`) — install before running those.
 
 | # | Notebook | Primary output |
 |---|---|---|
@@ -125,6 +129,8 @@ Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied).
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` (all seasons) |
 | 02b | `02b_fact_fantasy_teams_seed.ipynb` | `fact_fantasy_teams` (schema seed) |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed only) |
+| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` (ledger, replay from `04w` draft-results JSON) + `dim_roster_asset` + `dim_draft_pick` |
+| 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster). Since 2026-07-11 this is the **only** location for contract/salary/cap-hit data — no longer rolls anything up into `dim_fantasy_teams` (see "Cap architecture" below) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
 | 03c | `03c_ktc_rankings.ipynb` | KeepTradeCut consensus (scraped) |
@@ -135,9 +141,10 @@ Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied).
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` (Fantrax projection board + season-actuals backfill; Playwright scrape) |
 | 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` (metric_key index: label/group/order/direction/**source_name**; matrix column axis) |
+| 04w | `04w_fantrax_draft_results.py` | Raw `fantrax_draftresults_{season}_{divisionId}.json` per division (live startup-draft capture via Playwright, reuses `04a`'s auth). E-step only — `02d` does the parse/identity resolution. Re-run during the live draft to refresh |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ metrics fact ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) manual Excel |
 | 04y | `04y_composite_dynasty_metrics.ipynb` | `composite_adp` + `sources_count` (cross-source percentile blend of `ktc_adp`/`ds_adp`; Composite partition; runs after 04b+04x) |
-| 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk` (scorer_id -> gsis_id/player_key); back-fills fact FKs |
+| 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk` (scorer_id -> gsis_id/player_key); back-fills fact FKs. **Universe extended 2026-07-11**: unions in scorer_ids from `04w`'s draft-results JSON, not just `fact_fantrax_adp` — draft-only picks (deep bench/IDP/unranked rookies) never appear in ADP and were silently falling through to null gsis_id/player_key downstream (`dim_roster_asset`, `02d`) without ever hitting the review CSV, since they were outside the crosswalk's old input universe entirely |
 
 ## Fantrax Weekly Scrape (notebook 04a)
 
@@ -195,10 +202,66 @@ live status in PLAN.md.*
   the slot `(draft_season, divisionId, overall_slot)` and `original_owner` is left
   NULL until `draftPicks.go` is captured (which also lights up `pick_allocation`/
   `trade`, dormant v1, + 2027/2028 forward picks). Made-pick fact unaffected.
-- **Open**: USER re-runs 04w for the **Wilson** draft (identity already 28/28) → then
-  02d/02e scale to both divisions; `draftPicks.go` capture; ADR-0003/0004 text
-  amendments (startup_draft rename, slot-keyed pick, Sheet identity) → next Phase 0.
-  `.venv` is the full notebook env (added `requests`/`rapidfuzz`/`thefuzz`/`pyarrow`).
+- **Status update 2026-07-11**: both divisions now live — Riddell 485/490 picks made,
+  Wilson 450/490 (near-complete, re-run `04w` to refresh). `02d`/`02e` scale to both
+  divisions cleanly: 935 total picks, all 935 resolve to gsis_id/player_key (04z
+  universe-extension fix, above) and cap-hit. 122 picks still have a null
+  `contract_value` — that's Fantrax's own payload missing a `salary` field on those
+  specific picks (draft-in-progress state), unrelated to identity resolution; re-check
+  after Wilson finishes. **Open**: `draftPicks.go` capture (pick trading/allocation,
+  dormant v1); ADR-0003/0004 text amendments (startup_draft rename, slot-keyed pick,
+  Sheet identity) → next Phase 0.
+
+## Cap architecture (changed 2026-07-11)
+
+**`Fact_FantasyTeams`/`fact_fantasy_teams.parquet` is the only location for
+contract/salary/cap-hit data.** `Dim_FantasyTeams`/`dim_fantasy_teams.parquet`
+only carries `original_cap`/`reinvestment_cap` — the two cap facts true
+independent of the roster. It used to also cache an ETL-frozen rollup
+(`active_roster_salary`, `cap_hits_current_yr`, `remaining_cap_current_yr`,
+etc., written by `02e`) that a real Power BI bug traced back to — see
+powerbi-semantic-model.md "No ETL-frozen rollups" for the full root-cause
+writeup. Fixed end-to-end, not just in PBI:
+- **ETL** (`01c`, `02e`): schema trimmed, `02e` no longer writes anything back
+  into `dim_fantasy_teams.parquet`.
+- **Power BI**: `_Measures.tmdl` computes `'Active Roster Salary'` (`SUM(CapHit)`),
+  `'Contract Value'` (`SUM(ContractValue)`, total deal size — different from
+  Active Roster Salary, which is just this year's charge), `'Dead Money'`
+  (`SUM(DeadMoney)`, previously unused anywhere in the report), `'Remaining
+  Salary Cap'`, `'Percent of Cap Used/Remaining'`, `'Player Pct of Team Cap'` —
+  all live off `Fact_FantasyTeams` + `Dim_FantasyTeams[OriginalCap|ReinvestmentCap]`.
+- **Discord bot**: new `discord_bot/capmath.py` — `teams_with_cap(cfg)` computes
+  the identical formula in pandas at read-time (`cap.py`/`roster.py` call it
+  instead of reading a cached column). Kept in sync in the
+  `discord-bot-github-fetch` skill.
+- Dead money's actual home is `Fact_FantasyTeams.DeadMoney` (contract-value
+  grain — needs a specific player's contract, which `Dim_Contract`'s shared
+  10-row rule table can't hold). `Dim_Contract.Guaranteed` is the *rule* that
+  determines whether a dropped contract carries dead money; the dollar amount
+  is necessarily fact-grain.
+- One formula, implemented twice on purpose (DAX + pandas — neither consumer
+  has the other's engine), cached nowhere.
+
+**Follow-on finding (same session, same principle)**: `Fact_FantasyTeams.CapHit`
+and `.Conference` were ALSO redundant stored columns — `CapHit` = `ContractValue
+x Dim_Contract.CapHitPct` (100% derivable once the missing `Fact_FantasyTeams.
+ContractID → Dim_Contract.ContractID` relationship was added), `Conference` =
+100% derivable via the existing `TeamKey → Dim_FantasyTeams.TeamKey`
+relationship. Both removed from `fact_fantasy_teams.parquet`/`02e`/the TMDL;
+`_Measures.tmdl` derives `CapHit` via `RELATED()`; `discord_bot/capmath.py`
+gained `roster_with_cap_hit()` for the same join in pandas. `DeadMoney` was
+**not** touched — no simple single-row formula exists yet (needs real
+drop-event tracking, ledger `drop` event type doesn't exist); the user is
+building the 3-version design (current/next/total year) live in `_Measures.tmdl`
+themselves — **see PLAN.md "Active — dead money"** for the full spec, don't
+duplicate it here as it'll drift. `dim_season.relative_nfl_season_number`
+(one of that design's dependencies) is **built** (`01f`, 2026-07-11) — 0 =
+season containing today via the fantasy window, negative=past/positive=future.
+Not yet in the PBI model (`dim_season` isn't a TMDL table yet).
+
+**New task (2026-07-11, not started)**: identify Minor League squad + plan the
+draft-completion transition mechanics — **see PLAN.md "Active — identify Minor
+League squad"**. Ties into the dead-money work above (a drop is a cap event).
 
 ## Dynasty Rankings (section 04) — single EAV fact
 
@@ -243,7 +306,7 @@ Whole-roster (veteran+rookie) dynasty value/ranks from multiple sources with
 
 ```python
 draft_year: int = 2026
-total_cap: int = 500_000_000
+total_cap: int = 300_000_000
 num_teams: int = 28
 num_conferences: int = 2
 initial_contract_years: int = 3

@@ -32,6 +32,11 @@ the parquet alone.
 
 ## Project-wide architectural rules
 
+- **Dependencies**: `requirements.txt` (repo root) is the single source of
+  truth for the `.venv` used by `run.ps1` — curated, loosely pinned (mirrors
+  `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a
+  `ModuleNotFoundError` while running a notebook/script means the package is
+  missing from this file — add it there, don't just `pip install` ad hoc.
 - **Storage**: parquet for every dim/fact table (`data/*.parquet`); CSV only
   for human-review staging (`data/review/*.csv`). Migration path to Fabric =
   swap `pd.read/write_parquet` for `spark.read.parquet` + `abfss://` — schema
