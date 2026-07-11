@@ -15,13 +15,13 @@ import pandas as pd
 from discord.ext import commands
 
 import render
+from capmath import teams_with_cap
 from config import Config
 from delivery import CommandError, respond_with_embeds
 from github_fetch import fetch_parquet
 
 log = logging.getLogger("league-bot.cap")
 
-_TEAMS_PATH = "data/dim_fantasy_teams.parquet"
 _DIVISION_PATH = "data/dim_division.parquet"
 
 
@@ -47,7 +47,7 @@ def _team_line(row: pd.Series) -> str:
 
 
 def build_cap_embeds(cfg: Config) -> list[discord.Embed]:
-    teams = fetch_parquet(_TEAMS_PATH, cfg)
+    teams = teams_with_cap(cfg)
     if teams.empty:
         raise CommandError("No team cap data available.")
     labels = _division_labels(cfg)

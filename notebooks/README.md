@@ -18,6 +18,21 @@ order within the group (`x`/`y`/`z` reserved for late-stage / apply / resolver s
 > so relative paths like `data/...` resolve. The shared module is imported via a small
 > bootstrap that adds `notebooks/` to `sys.path` regardless of CWD.
 
+## Environment setup
+
+`requirements.txt` at the repo root is the single source of truth for the
+`.venv` dependency list — install/refresh with:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Includes `nbformat`/`nbclient`/`nbconvert`, needed only for headless notebook
+execution (`python -m nbconvert --to notebook --execute --inplace ...` — CI,
+Claude Code, scheduled jobs), not for interactive VS Code editing. If a
+notebook run fails on `ModuleNotFoundError`, add the package here rather than
+`pip install`-ing it ad hoc — this file is what keeps re-runs reproducible.
+
 ## Running the `.py` scripts
 
 Launch the `.py` scripts (`04a`, `04w`, `02d`, `02e`, …) through the repo-root

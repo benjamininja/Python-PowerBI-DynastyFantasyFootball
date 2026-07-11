@@ -594,6 +594,75 @@ table _Measures
 		displayFolder: Formatting & References
 		lineageTag: 94c88768-8fe5-46fc-9881-6c2e748bc131
 
+	/// Player's cap hit as a percent of their team's total starting cap. Live calc against Fact_FantasyTeams + Dim_FantasyTeams[OriginalCap] -- no ETL-frozen rollup.
+	measure 'Player Pct of Team Cap' =
+
+			VAR PlayerCapHit =
+			    [Active Roster Salary]
+
+			VAR TeamTotalCap =
+			    CALCULATE(
+			        [Starting Salary Cap],
+			        ALLEXCEPT('Dim_FantasyTeams', 'Dim_FantasyTeams'[TeamName])
+			    )
+			
+			RETURN
+			    DIVIDE(PlayerCapHit, TeamTotalCap, 0)
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Salary & Cap
+		lineageTag: 1b7b8790-b0fd-4943-b181-4311669cf879
+
+	/// This-year cap charge for the active roster: ContractValue x Dim_Contract[CapHitPct] via the ContractID relationship, not a stored CapHit column (removed 2026-07-11 -- 100% derivable, was a redundant duplicate of the same math). Same formula as the Discord bot's discord_bot/capmath.py -- see 'Contract Value' for total deal size instead.
+	measure 'Active Roster Salary' = SUMX(Fact_FantasyTeams, Fact_FantasyTeams[ContractValue] * RELATED(Dim_Contract[CapHitPct]))
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: f6e934e4-6811-44cf-ac61-1c3c7edd16fa
+
+	measure 'Starting Salary Cap' = SUM(Dim_FantasyTeams[OriginalCap])
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: 13ef7dc7-b523-4094-bcde-9a46721b524f
+
+	/// original_cap - (active_roster_salary + dead_money + reinvestment_cap) -- same formula as discord_bot/capmath.py, computed live here so it responds to report filters (no cached Dim_FantasyTeams rollup exists anymore).
+	measure 'Remaining Salary Cap' = [Starting Salary Cap] - [Active Roster Salary] - [Dead Money Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: bfbe96fa-03d3-490f-a572-6dfb91da9c92
+
+	measure 'Percent of Cap Remaining' = DIVIDE ( [Remaining Salary Cap], [Starting Salary Cap] )
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Salary & Cap
+		lineageTag: 6451e6d3-5723-4487-bd35-5c7af1895463
+
+	measure 'Percent of Cap Used' = 1 - [Percent of Cap Remaining]
+		formatString: 0.0%;-0.0%;0.0%
+		displayFolder: Salary & Cap
+		lineageTag: 6eec5cc5-4191-4e2d-91c9-ac855c158cc1
+
+	/// Total multi-year contract value of the active roster (not just this year's cap charge -- see 'Active Roster Salary' for that).
+	measure 'Contract Value' = SUM(Fact_FantasyTeams[ContractValue])
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: 3280ec07-3c3a-47c1-8770-c8d7eaa1c62a
+
+	/// Dead money charged against the cap from dropped players. Lives on Fact_FantasyTeams (contract-value grain); Dim_Contract only holds the guarantee rule that determines whether a dropped contract carries dead money.
+	measure 'Dead Money Active - Current Year' = ```
+			
+			SWITCH(TRUE,
+			    SELECTEDVALUE('Fact_FantasyTeams'[Status]) = "Active", 0,
+			    
+			    SUM(Fact_FantasyTeams[ContractValue]) * SELECTEDVALUE(Dim_Contract[CapHitPct])
+			)
+			```
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: ccab9ac4-5f71-4ae1-a459-af6f37e399bd
+
+	measure 'Dead Money Cap Hit - Current Year' = SELECTEDVALUE(Fact_FantasyTeams[ContractValue]) * SELECTEDVALUE(Dim_Contract[CapHitPct])
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: bc17c6c7-510c-4ace-aab5-4d0e341a16f9
+
 	/// Hidden placeholder column for this measure-only table. Not for reporting.
 	column _Measures
 		dataType: string

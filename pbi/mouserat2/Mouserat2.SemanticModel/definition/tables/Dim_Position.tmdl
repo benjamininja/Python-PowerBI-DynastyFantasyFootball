@@ -82,7 +82,7 @@ table Dim_Position
 		dataType: int64
 		formatString: 0
 		lineageTag: c8a409ce-54d3-4503-9d47-f37b41fc4a85
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: position_sort_order
 
 		annotation SummarizationSetBy = Automatic
@@ -96,7 +96,7 @@ table Dim_Position
 		dataType: int64
 		formatString: 0
 		lineageTag: 97438a89-cafc-4476-bfe1-3af5e4dbb2e2
-		summarizeBy: sum
+		summarizeBy: none
 		sourceColumn: side_of_ball_sort_order
 
 		annotation SummarizationSetBy = Automatic

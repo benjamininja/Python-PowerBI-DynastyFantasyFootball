@@ -16,14 +16,13 @@ import pandas as pd
 from discord.ext import commands
 
 import render
+from capmath import roster_with_cap_hit, teams_with_cap
 from config import Config
 from delivery import CommandError, respond_with_embeds
 from github_fetch import fetch_parquet
 
 log = logging.getLogger("league-bot.roster")
 
-_TEAMS_PATH = "data/dim_fantasy_teams.parquet"
-_OWNERSHIP_PATH = "data/fact_fantasy_teams.parquet"
 _PLAYERS_PATH = "data/dim_nfl_players.parquet"
 
 _PLAYERS_PER_FIELD = 15
@@ -58,13 +57,13 @@ def _player_line(row: pd.Series) -> str:
 
 
 def build_roster_embeds(cfg: Config, team: str) -> list[discord.Embed]:
-    teams = fetch_parquet(_TEAMS_PATH, cfg)
+    teams = teams_with_cap(cfg)
     if teams.empty:
         raise CommandError("No team data available.")
     t = _resolve_team(teams, team)
     tname = render.safe_str(t["team_name"])
 
-    owned = fetch_parquet(_OWNERSHIP_PATH, cfg)
+    owned = roster_with_cap_hit(cfg)
     mine = owned[owned["team_key"] == t["team_key"]] if not owned.empty else owned
     if mine is None or mine.empty:
         # Prefer remaining cap; fall back to original only when it's actually

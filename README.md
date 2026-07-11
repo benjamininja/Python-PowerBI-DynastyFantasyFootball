@@ -11,7 +11,7 @@ ETL pipeline and Power BI reporting for a 28-team, dual-conference IDP dynasty f
 | Format | Dynasty · IDP |
 | Teams | 28 (14 per conference) |
 | Conferences | Riddell (A01–A14) · Wilson (B01–B14) |
-| Salary cap | $500,000,000 per team |
+| Salary cap | $300,000,000 per team |
 | FA minimum | $2,000,000 |
 | Draft year (active) | 2026 |
 

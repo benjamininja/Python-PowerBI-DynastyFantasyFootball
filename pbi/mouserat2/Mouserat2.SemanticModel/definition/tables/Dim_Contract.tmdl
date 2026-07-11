@@ -85,13 +85,12 @@ table Dim_Contract
 	/// Cap-hit percentage applied this contract year. Drives salary cap math.
 	column CapHitPct
 		dataType: double
+		formatString: 0.00
 		lineageTag: 33022398-91ab-40c4-8844-5b21bba5d47c
 		summarizeBy: none
 		sourceColumn: cap_hit_pct
 
 		annotation SummarizationSetBy = User
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
 		annotation Synonyms = cap hit percent|cap percentage|cap hit pct
 

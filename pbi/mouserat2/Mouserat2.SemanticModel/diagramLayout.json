@@ -177,6 +177,16 @@
             "width": 234
           },
           "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "Dim_Division",
+          "nodeLineageTag": "2015d377-c91b-43b0-a69c-35136316163e",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 0
         }
       ],
       "name": "All tables",
@@ -283,7 +293,7 @@
       "ordinal": 2,
       "scrollPosition": {
         "x": 0,
-        "y": 0
+        "y": 637.56093623844231
       },
       "nodes": [
         {
@@ -297,7 +307,7 @@
             "height": 224,
             "width": 234
           },
-          "zIndex": 5
+          "zIndex": 6
         },
         {
           "location": {
@@ -310,7 +320,7 @@
             "height": 300,
             "width": 234
           },
-          "zIndex": 1
+          "zIndex": 3
         },
         {
           "location": {
@@ -323,7 +333,7 @@
             "height": 296,
             "width": 234
           },
-          "zIndex": 2
+          "zIndex": 4
         },
         {
           "location": {
@@ -336,15 +346,54 @@
             "height": 255,
             "width": 195
           },
-          "zIndex": 4
+          "zIndex": 5
         },
         {
           "location": {
-            "x": 521.31736685488761,
-            "y": 521.02394503639732
+            "x": 0,
+            "y": 702.034932040989
           },
           "nodeIndex": "Fact_FantraxADP",
           "nodeLineageTag": "05ed4866-691f-4bd5-bd35-693f2a75f004",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 595.48159069704684,
+            "y": 556.05290645390164
+          },
+          "nodeIndex": "Fact_FantasyTeams",
+          "nodeLineageTag": "b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 179.40772473510322,
+            "y": 1221.1007180125523
+          },
+          "nodeIndex": "Dim_Division",
+          "nodeLineageTag": "2015d377-c91b-43b0-a69c-35136316163e",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 562.79905137677315,
+            "y": 877.934035969066
+          },
+          "nodeIndex": "Dim_FantasyTeams",
+          "nodeLineageTag": "e0094a7f-6dc4-416f-aca3-639e6ae8cbe0",
           "size": {
             "height": 300,
             "width": 234
@@ -358,8 +407,114 @@
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
       "tablesLocked": false
+    },
+    {
+      "ordinal": 3,
+      "scrollPosition": {
+        "x": 0,
+        "y": 0
+      },
+      "nodes": [
+        {
+          "location": {
+            "x": 727.53819762967953,
+            "y": 0
+          },
+          "nodeIndex": "Dim_Division",
+          "nodeLineageTag": "2015d377-c91b-43b0-a69c-35136316163e",
+          "size": {
+            "height": 152,
+            "width": 234
+          },
+          "zIndex": 1
+        },
+        {
+          "location": {
+            "x": 740.59721355747547,
+            "y": 206.2444798815298
+          },
+          "nodeIndex": "Dim_FantasyTeams",
+          "nodeLineageTag": "e0094a7f-6dc4-416f-aca3-639e6ae8cbe0",
+          "size": {
+            "height": 181,
+            "width": 234
+          },
+          "zIndex": 2
+        },
+        {
+          "location": {
+            "x": 41.545967630312816,
+            "y": 462.77866462661575
+          },
+          "nodeIndex": "Dim_NFLPlayers",
+          "nodeLineageTag": "0311adcc-3e37-4573-bf03-9fc74dbd963e",
+          "size": {
+            "height": 259.87741965249927,
+            "width": 270.99858901663981
+          },
+          "zIndex": 6
+        },
+        {
+          "location": {
+            "x": 1,
+            "y": 105.91366208720922
+          },
+          "nodeIndex": "Dim_Position",
+          "nodeLineageTag": "488c3ccf-1a5e-423c-8da6-9cd63e50a9e6",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 3
+        },
+        {
+          "location": {
+            "x": 349.13196811688471,
+            "y": 0
+          },
+          "nodeIndex": "Fact_FantraxADP",
+          "nodeLineageTag": "05ed4866-691f-4bd5-bd35-693f2a75f004",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 5
+        },
+        {
+          "location": {
+            "x": 510.35423994475843,
+            "y": 430.41648728075546
+          },
+          "nodeIndex": "Fact_FantasyTeams",
+          "nodeLineageTag": "b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692",
+          "size": {
+            "height": 300,
+            "width": 292.46374249642793
+          },
+          "zIndex": 7
+        },
+        {
+          "location": {
+            "x": 1058.5973838167804,
+            "y": 454.87517558570278
+          },
+          "nodeIndex": "Dim_Contract",
+          "nodeLineageTag": "c2dbc871-6ada-4db5-be66-173de0ff79b0",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        }
+      ],
+      "name": "Layout 3",
+      "zoomValue": 63.287087723234038,
+      "pinKeyFieldsToTop": false,
+      "showExtraHeaderInfo": false,
+      "hideKeyFieldsWhenCollapsed": false,
+      "tablesLocked": false
     }
   ],
-  "selectedDiagram": "Layout 2",
+  "selectedDiagram": "Layout 3",
   "defaultDiagram": "All tables"
 }

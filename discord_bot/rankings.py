@@ -178,7 +178,7 @@ class Rankings(commands.Cog):
     @discord.app_commands.describe(
         fmt="League format: SF (default), TEPP, or IDP.",
         position="Filter to one position (e.g. QB, LB). Omit for all.",
-        source="Ranking source override (default: best available for the format).",
+        source="Ranking source override (eg, KTC-DynastySharks-FantasyPros).",
         limit="Players per position (default 10, max 25).",
         share="Post the result publicly in the channel (default: private to you).",
     )
