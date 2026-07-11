@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+# Scoped to tests/ only — discord_bot/tests/ runs under its own .botvenv (see
+# discord_bot/tests/test_offline_smoke.py's docstring), not this repo's .venv.
+testpaths = ["tests"]

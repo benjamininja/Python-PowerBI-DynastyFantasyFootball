@@ -19,3 +19,6 @@ openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
 nbformat>=5.10
 nbclient>=0.10
 nbconvert>=7.16
+
+# Regression testing (ADR-0008) — unit tests for etl_helpers.py's pure functions.
+pytest>=8.0

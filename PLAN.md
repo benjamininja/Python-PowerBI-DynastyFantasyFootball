@@ -71,11 +71,11 @@ finishing its draft.
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).
-Optional small buildables when ready: wire `check_sources.py` into a pre-commit
-hook (ADR-0007 deferred item); surface `dim_division`/`dim_season` in the PBI
-semantic model (join `Dim_FantasyTeams.conference`; `dim_season` also needed
-before the dead-money measures can reference `relative_nfl_season_number`, see
-Active above); the singular/plural table rename (see Working state).
+Optional small buildables when ready: surface `dim_division`/`dim_season` in
+the PBI semantic model (join `Dim_FantasyTeams.conference`; `dim_season` also
+needed before the dead-money measures can reference
+`relative_nfl_season_number`, see Active above); the singular/plural table
+rename (see Working state).
 
 ## [ ] Active / gated
 1. **Ledger → both divisions (Wilson) — status 2026-07-11: near-complete, not
@@ -159,3 +159,10 @@ Active above); the singular/plural table rename (see Working state).
 - **`dim_division` read-side** (ADR-0005, 2026-06-14): `01g_dim_division_seed.ipynb`
   → `dim_division.parquet`, `(season_id, conference)→division_name` derived from
   the Sheet truth (v1 = 2026-2027: A→Riddell, B→Wilson). Sheet write-sync stays gated.
+- **Regression-testing standard** ([ADR-0008](docs/adr/0008-regression-testing-standard.md),
+  2026-07-11): `pyproject.toml` scopes `.venv` pytest to `tests/`;
+  `tests/test_etl_helpers.py` unit-tests the pure `etl_helpers.py` functions;
+  `discord_bot/tests/offline_smoke.py` renamed to `test_offline_smoke.py`
+  (pytest-discoverable, same assertions); `.pre-commit-config.yaml` wires
+  `check_sources.py validate` (the ADR-0007 deferred item, now done). CI and
+  Python lint/format logged as deliberately deferred, not built this pass.

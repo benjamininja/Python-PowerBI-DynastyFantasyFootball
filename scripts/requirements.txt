@@ -2,3 +2,7 @@
 # Install into the .venv:  .\run.ps1 -m pip install -r scripts/requirements.txt
 #   (or: .venv\Scripts\python.exe -m pip install -r scripts/requirements.txt)
 PyYAML>=6
+
+# pre-commit (ADR-0008): runs .pre-commit-config.yaml's local hooks.
+# Activate once installed: .venv\Scripts\python.exe -m pre_commit install
+pre-commit>=4.0
