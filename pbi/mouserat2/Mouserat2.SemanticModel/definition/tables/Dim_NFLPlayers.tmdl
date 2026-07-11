@@ -200,10 +200,10 @@ table Dim_NFLPlayers
 		dataType: int64
 		formatString: 0
 		lineageTag: 0ef40cc9-464e-4da0-a98c-730f629e7154
-		summarizeBy: none
+		summarizeBy: sum
 		sourceColumn: entry_year
 
-		annotation SummarizationSetBy = User
+		annotation SummarizationSetBy = Automatic
 
 		annotation Synonyms = entry year|rookie season|first season
 

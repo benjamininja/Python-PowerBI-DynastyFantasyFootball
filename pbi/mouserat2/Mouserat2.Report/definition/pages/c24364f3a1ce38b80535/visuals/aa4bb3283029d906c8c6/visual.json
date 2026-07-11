@@ -4,10 +4,10 @@
   "position": {
     "x": 823.75736132771578,
     "y": 0,
-    "z": 4,
+    "z": 4000,
     "height": 375.64861153138889,
     "width": 455.73613277158347,
-    "tabOrder": 4
+    "tabOrder": 4000
   },
   "visual": {
     "visualType": "scatterChart",
@@ -190,107 +190,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "8386c6068dac48dc76be",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Percent of Times Kept"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "2acf4432b795e18db649",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Percent of Times Cut"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "6977e47027e04eec0d2d",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Dim_NFLPlayers"
-              }
-            },
-            "Property": "DisplayName"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "7b4fc986c6898307cb2e",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Pos. Trend"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "76e9ced7b97db7c9b60a",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Percent of Times Traded"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "bbd6ece14976dbc53cbd",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "_Measures"
-              }
-            },
-            "Property": "Dynasty Ranking - KTC Latest Snapshot"
-          }
-        },
-        "type": "Advanced"
-      },
-      {
-        "name": "965106c52824818dbe0e",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Dim_Position"
-              }
-            },
-            "Property": "PositionGroup"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }
