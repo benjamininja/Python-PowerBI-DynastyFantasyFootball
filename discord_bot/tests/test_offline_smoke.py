@@ -5,7 +5,7 @@ No Discord round-trip and no network: monkeypatch each command module's
 they honour Discord's hard limits (<=25 fields, each value <=1024, total <=6000).
 This is the fast iteration loop the skill calls for — run it from the bot venv:
 
-    .\discord_bot\.botvenv\Scripts\python.exe discord_bot\tests\offline_smoke.py
+    discord_bot\.botvenv\Scripts\python.exe -m pytest discord_bot\tests\test_offline_smoke.py
 
 It exercises the real data, so it also catches schema drift (a renamed column
 surfaces here, not in production).
@@ -24,6 +24,7 @@ sys.path.insert(0, str(_BOT_DIR))
 
 import adp  # noqa: E402
 import cap  # noqa: E402
+import capmath  # noqa: E402
 import player  # noqa: E402
 import rankings  # noqa: E402
 import roster  # noqa: E402
@@ -42,8 +43,10 @@ def _local_fetch(path: str, _cfg: Config) -> pd.DataFrame:
 
 
 # Each module did `from github_fetch import fetch_parquet`, so patch the name in
-# each module's own namespace.
-for mod in (rankings, adp, player, cap, roster):
+# each module's own namespace. capmath (cap.py/roster.py's shared cap-math helper)
+# imports fetch_parquet itself — omitting it here means teams_with_cap/
+# roster_with_cap_hit silently hit real GitHub instead of local parquet.
+for mod in (rankings, adp, player, cap, roster, capmath):
     mod.fetch_parquet = _local_fetch
 
 
@@ -54,40 +57,41 @@ def _check(embeds, label: str) -> None:
         assert len(e.fields) <= 25, f"{label}: {len(e.fields)} fields > 25"
         for f in e.fields:
             assert len(f.value) <= 1024, f"{label}: field '{f.name}' value > 1024"
-    print(f"  OK  {label}: {len(embeds)} embed(s)")
 
 
 def _expect_error(fn, label: str) -> None:
     try:
         fn()
-    except CommandError as e:
-        print(f"  OK  {label}: CommandError -> {e}")
-    else:
-        raise AssertionError(f"{label}: expected CommandError, got a result")
+    except CommandError:
+        return
+    raise AssertionError(f"{label}: expected CommandError, got a result")
 
 
-def main() -> None:
-    print("rankings")
+def test_rankings():
     _check(rankings.build_rankings_embeds(CFG, fmt="SF"), "rankings SF all")
     _check(rankings.build_rankings_embeds(CFG, fmt="IDP"), "rankings IDP all")
     _check(rankings.build_rankings_embeds(CFG, fmt="SF", position="QB"), "rankings SF QB")
     _expect_error(lambda: rankings.build_rankings_embeds(CFG, fmt="ZZZ"), "rankings bad format")
 
-    print("adp")
+
+def test_adp():
     _check(adp.build_adp_embeds(CFG), "adp overall")
     _check(adp.build_adp_embeds(CFG, position="QB"), "adp QB")
     _check(adp.build_adp_embeds(CFG, limit=50), "adp limit 50")
     _expect_error(lambda: adp.build_adp_embeds(CFG, position="ZZZ"), "adp bad position")
 
-    print("player")
+
+def test_player():
     _check(player.build_player_embeds(CFG, "Bijan Robinson"), "player exact")
     _check(player.build_player_embeds(CFG, "bijan"), "player substring")
     _expect_error(lambda: player.build_player_embeds(CFG, "zzzznotaplayer"), "player not found")
 
-    print("cap")
+
+def test_cap():
     _check(cap.build_cap_embeds(CFG), "cap standings")
 
-    print("roster")
+
+def test_roster():
     teams = pd.read_parquet(_DATA / "dim_fantasy_teams.parquet")
     owned = pd.read_parquet(_DATA / "fact_fantasy_teams.parquet")
     drafted_key = owned["team_key"].iloc[0]
@@ -101,9 +105,3 @@ def main() -> None:
             "roster undrafted (empty-state)",
         )
     _expect_error(lambda: roster.build_roster_embeds(CFG, "zzzznoteam"), "roster not found")
-
-    print("\nALL OFFLINE CHECKS PASSED")
-
-
-if __name__ == "__main__":
-    main()
