@@ -1,0 +1,116 @@
+/// School transformer: maps raw college names to a canonical school and conference. Join at ETL; add rows, never if/else.
+table Dim_Season
+	lineageTag: 2881e84e-ef71-4601-941a-692f773d088e
+
+	column season_id
+		dataType: string
+		lineageTag: b5afea5a-b623-4a9e-8055-fefb07a54e81
+		summarizeBy: none
+		sourceColumn: season_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_start_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 05e7bd91-df71-4f14-982f-202c8bffe3d2
+		summarizeBy: sum
+		sourceColumn: season_start_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_end_year
+		dataType: int64
+		formatString: 0
+		lineageTag: 7348514b-1e89-4e37-b6a0-748c9cc801dc
+		summarizeBy: sum
+		sourceColumn: season_end_year
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_fantasy_start_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: e27cdb65-7628-4edc-9606-abfe97fdc56f
+		summarizeBy: none
+		sourceColumn: season_fantasy_start_date
+
+		variation Variation
+			isDefault
+			relationship: c89c3e15-1659-4a03-80b6-0d2331000679
+			defaultHierarchy: LocalDateTable_f8921f97-398a-4500-8e21-4c5a3cfd145d.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_fantasy_end_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 2e868966-7b0c-4bf6-9778-4d3a7a38a957
+		summarizeBy: none
+		sourceColumn: season_fantasy_end_date
+
+		variation Variation
+			isDefault
+			relationship: 64629042-90f4-4e40-9904-674996ed7e96
+			defaultHierarchy: LocalDateTable_e4bc78bd-6d06-4e5a-88bb-b61d1cfd07b5.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_nfl_start_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: c2f14cf5-f091-4d11-926d-94d642e381c5
+		summarizeBy: none
+		sourceColumn: season_nfl_start_date
+
+		variation Variation
+			isDefault
+			relationship: 5df683a8-fd10-4311-8526-5460c03bad6d
+			defaultHierarchy: LocalDateTable_99583f14-18bb-4a00-804e-9335e869d589.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column season_nfl_end_date
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 90410fff-4404-4efb-8660-05a357c898fc
+		summarizeBy: none
+		sourceColumn: season_nfl_end_date
+
+		variation Variation
+			isDefault
+			relationship: 3e4befef-0ed9-49af-85d9-2d42b886cbf0
+			defaultHierarchy: LocalDateTable_7e57fca2-d3c0-4672-9810-026fbedf8275.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+	column theme
+		dataType: string
+		lineageTag: 7cc9bbcb-6d30-434f-aa5a-4577734e41aa
+		summarizeBy: none
+		sourceColumn: theme
+
+		annotation SummarizationSetBy = Automatic
+
+	column relative_nfl_season_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 5c860fa9-6f1b-4953-aabc-050d511efa41
+		summarizeBy: sum
+		sourceColumn: relative_nfl_season_number
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dim_Season = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_season.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+

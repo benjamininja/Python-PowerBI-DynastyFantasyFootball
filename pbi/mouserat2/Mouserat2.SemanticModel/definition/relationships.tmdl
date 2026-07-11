@@ -66,3 +66,36 @@ relationship 94f2e0f6-dad8-7f66-eda1-923b7a5f50dd
 	fromColumn: Fact_FantasyTeams.ContractID
 	toColumn: Dim_Contract.ContractID
 
+relationship c89c3e15-1659-4a03-80b6-0d2331000679
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Dim_Season.season_fantasy_start_date
+	toColumn: LocalDateTable_f8921f97-398a-4500-8e21-4c5a3cfd145d.Date
+
+relationship 64629042-90f4-4e40-9904-674996ed7e96
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Dim_Season.season_fantasy_end_date
+	toColumn: LocalDateTable_e4bc78bd-6d06-4e5a-88bb-b61d1cfd07b5.Date
+
+relationship 5df683a8-fd10-4311-8526-5460c03bad6d
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Dim_Season.season_nfl_start_date
+	toColumn: LocalDateTable_99583f14-18bb-4a00-804e-9335e869d589.Date
+
+relationship 3e4befef-0ed9-49af-85d9-2d42b886cbf0
+	joinOnDateBehavior: datePartOnly
+	fromColumn: Dim_Season.season_nfl_end_date
+	toColumn: LocalDateTable_7e57fca2-d3c0-4672-9810-026fbedf8275.Date
+
+relationship AutoDetected_8cf628df-3c23-4e2a-96d8-bd46b5b97ac7
+	isActive: false
+	fromColumn: Dim_Division.season_id
+	toColumn: Dim_Season.season_id
+
+relationship AutoDetected_ceee0073-3387-4d16-acb6-c377f9a6c383
+	fromColumn: Fact_FantasyTeams.Season
+	toColumn: Dim_Season.season_id
+
+relationship b4f92857-7fe4-1586-5251-c7a02a0db21a
+	fromColumn: Fact_FantraxADP.Season
+	toColumn: Dim_Season.season_id
+
