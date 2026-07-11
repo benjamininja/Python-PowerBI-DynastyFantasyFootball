@@ -1,0 +1,21 @@
+# ETL / notebook environment (.venv, pinned via run.ps1 -- see notebooks/README.md).
+# Curated top-level deps, not a full `pip freeze` (mirrors discord_bot/requirements.txt).
+# Install: .venv\Scripts\python.exe -m pip install -r requirements.txt
+
+pandas>=2.0
+pyarrow>=15
+numpy>=1.26
+requests>=2.31
+beautifulsoup4>=4.12
+python-dotenv>=1.0
+thefuzz>=0.20
+playwright>=1.45
+nflreadpy>=0.1
+openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
+
+# Headless/agent notebook execution (jupyter nbconvert --execute --inplace).
+# Not needed for interactive VS Code notebook editing -- only when running
+# .ipynb notebooks from the command line (CI, Claude Code, scheduled jobs).
+nbformat>=5.10
+nbclient>=0.10
+nbconvert>=7.16

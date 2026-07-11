@@ -1,4 +1,4 @@
-/// Roster fact: one row per team and player, with contract, cap hit, dead money, and status. Dual-conference rosters supported.
+/// Roster fact: one row per team and player, with contract, dead money, and status. Dual-conference rosters supported. CapHit is derived via the Dim_Contract relationship (RELATED(Dim_Contract[CapHitPct]) x ContractValue), not stored -- see 'Active Roster Salary' in _Measures.tmdl.
 table Fact_FantasyTeams
 	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
 
@@ -41,19 +41,6 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["player key","rookie key","prospect key"]
 
-	/// Conference roster the player sits on (players may be on one per conference).
-	column Conference
-		dataType: string
-		lineageTag: 3e6844e2-22ac-4791-af7e-af6ceec01dc5
-		summarizeBy: none
-		sourceColumn: conference
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = conference|conf|roster conference
-
-		annotation SynonymCollection = ["conference","conf","roster conference"]
-
 	/// Contract rule applied; links to Dim_Contract.
 	column ContractID
 		dataType: string
@@ -69,8 +56,8 @@ table Fact_FantasyTeams
 
 	/// Total contract value ($).
 	column ContractValue
-		dataType: int64
-		formatString: 0
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
 		lineageTag: 39c38be4-85a9-4354-9513-3c2f23ff8360
 		summarizeBy: none
 		sourceColumn: contract_value
@@ -94,20 +81,6 @@ table Fact_FantasyTeams
 		annotation Synonyms = contract year|year of deal|deal year
 
 		annotation SynonymCollection = ["contract year","year of deal","deal year"]
-
-	/// Cap hit charged to the team this season ($).
-	column CapHit
-		dataType: int64
-		formatString: 0
-		lineageTag: f8b4d6ad-20e6-40ff-afb3-9fc652257727
-		summarizeBy: none
-		sourceColumn: cap_hit
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = cap hit|cap charge|salary hit
-
-		annotation SynonymCollection = ["cap hit","cap charge","salary hit"]
 
 	/// Dead money owed if the player is dropped ($).
 	column DeadMoney
@@ -151,13 +124,12 @@ table Fact_FantasyTeams
 
 	/// League season the roster row applies to.
 	column Season
-		dataType: int64
-		formatString: 0
+		dataType: string
 		lineageTag: b0bc91d9-2e78-427e-b56a-7aa2087e32af
 		summarizeBy: none
 		sourceColumn: season
 
-		annotation SummarizationSetBy = User
+		annotation SummarizationSetBy = Automatic
 
 		annotation Synonyms = season|year|league year
 

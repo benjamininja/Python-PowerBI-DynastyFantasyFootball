@@ -44,7 +44,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 class LeagueConfig:
     """Central config — all league rules live here, nowhere else."""
     draft_year: int = 2026
-    total_cap: int = 500_000_000
+    total_cap: int = 300_000_000
     num_teams: int = 28
     num_conferences: int = 2
     initial_contract_years: int = 3

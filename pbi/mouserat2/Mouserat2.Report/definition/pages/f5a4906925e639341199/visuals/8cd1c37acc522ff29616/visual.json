@@ -1,0 +1,55 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.10.0/schema.json",
+  "name": "8cd1c37acc522ff29616",
+  "position": {
+    "x": 882.87458946600168,
+    "y": 308.90645906823988,
+    "z": 2003,
+    "height": 410.54664882617686,
+    "width": 386.63131005960344
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_Contract"
+                    }
+                  },
+                  "Property": "CapHitPct"
+                }
+              },
+              "queryRef": "Dim_Contract.CapHitPct",
+              "nativeQueryRef": "CapHitPct"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "c474a1ea651e311be515",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_Contract"
+              }
+            },
+            "Property": "CapHitPct"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

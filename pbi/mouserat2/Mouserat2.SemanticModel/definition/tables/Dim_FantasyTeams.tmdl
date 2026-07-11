@@ -1,4 +1,4 @@
-/// Fantasy team dimension: 28 league teams across two conferences, with managers and current/next-year cap state.
+/// Fantasy team dimension: 28 league teams across two conferences, with managers and starting/reinvestment cap. Roster-derived cap figures (active salary, remaining cap) are computed live from Fact_FantasyTeams via _Measures.tmdl, not stored here.
 table Dim_FantasyTeams
 	lineageTag: e0094a7f-6dc4-416f-aca3-639e6ae8cbe0
 
@@ -107,34 +107,6 @@ table Dim_FantasyTeams
 
 		annotation SynonymCollection = ["original cap","starting cap","cap"]
 
-	/// Total cap hits for the current year ($).
-	column CapHitsCurrentYr
-		dataType: int64
-		formatString: 0
-		lineageTag: 50f86b80-a1c4-4634-b1e3-5d66dd821138
-		summarizeBy: none
-		sourceColumn: cap_hits_current_yr
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = current cap hits|cap used|this year cap
-
-		annotation SynonymCollection = ["current cap hits","cap used","this year cap"]
-
-	/// Total cap hits for next year ($).
-	column CapHitsNextYr
-		dataType: int64
-		formatString: 0
-		lineageTag: 7566fc4f-520e-48be-9a6f-7c4dd0161f66
-		summarizeBy: none
-		sourceColumn: cap_hits_next_yr
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = next year cap hits|future cap|next cap
-
-		annotation SynonymCollection = ["next year cap hits","future cap","next cap"]
-
 	/// Reinvestment cap available ($).
 	column ReinvestmentCap
 		dataType: int64
@@ -149,47 +121,13 @@ table Dim_FantasyTeams
 
 		annotation SynonymCollection = ["reinvestment cap","reinvest cap"]
 
-	/// Total salary of the active roster ($).
-	column ActiveRosterSalary
-		dataType: int64
-		formatString: 0
-		lineageTag: 6a7dd304-2594-495b-9712-69f0fd86cb3f
+	column fantrax_team_id
+		dataType: string
+		lineageTag: f4cf429f-eeb0-45c6-8153-7f3c8b8a33b7
 		summarizeBy: none
-		sourceColumn: active_roster_salary
+		sourceColumn: fantrax_team_id
 
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = active salary|roster salary|active roster salary
-
-		annotation SynonymCollection = ["active salary","roster salary","active roster salary"]
-
-	/// Cap space remaining this year ($).
-	column RemainingCapCurrentYr
-		dataType: int64
-		formatString: 0
-		lineageTag: 77f0e2d1-e927-4920-9867-14398d55b4a2
-		summarizeBy: none
-		sourceColumn: remaining_cap_current_yr
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = remaining cap|cap space|space left
-
-		annotation SynonymCollection = ["remaining cap","cap space","space left"]
-
-	/// Cap space remaining next year ($).
-	column RemainingCapNextYr
-		dataType: int64
-		formatString: 0
-		lineageTag: ca9bead2-1773-4f32-9e46-976580f86692
-		summarizeBy: none
-		sourceColumn: remaining_cap_next_yr
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = next year cap space|future cap space|remaining cap next
-
-		annotation SynonymCollection = ["next year cap space","future cap space","remaining cap next"]
+		annotation SummarizationSetBy = Automatic
 
 	partition Dim_FantasyTeams = m
 		mode: import

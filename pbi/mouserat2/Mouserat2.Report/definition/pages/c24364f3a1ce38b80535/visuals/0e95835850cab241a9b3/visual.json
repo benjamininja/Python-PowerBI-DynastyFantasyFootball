@@ -1197,15 +1197,7 @@
           }
         },
         {
-          "properties": {
-            "value": {
-              "expr": {
-                "Literal": {
-                  "Value": "137.67114359535393D"
-                }
-              }
-            }
-          },
+          "properties": {},
           "selector": {
             "metadata": "Dim_NFLPlayers.DisplayName"
           }

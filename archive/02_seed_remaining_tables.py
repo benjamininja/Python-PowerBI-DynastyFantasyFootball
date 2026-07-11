@@ -5,7 +5,7 @@
 #
 # **Outputs**:
 # - `data/dim_contract.parquet` — contract scale definitions derived from LeagueConfig
-# - dim_player
+# - dim_nfl_players
 # - dim_position
 # - dim_school
 # - `data/dim_team.parquet` — 28-team placeholder seed (update owners/names before draft)
@@ -27,7 +27,7 @@ from pathlib import Path
 class LeagueConfig:
     """Central config — all league rules live here, nowhere else."""
     draft_year: int = 2026
-    total_cap: int = 500_000_000
+    total_cap: int = 300_000_000
     num_teams: int = 28
     num_conferences: int = 2
     initial_contract_years: int = 3
@@ -53,7 +53,7 @@ def parse_height_to_inches(ht_value) -> float | None:
     """
     Convert any height format to total inches.
     Handles: numeric, "6'2\"", "6-2", "602" compact, None/NaN.
-    Copied from 01_dim_player_seed so this notebook runs standalone.
+    Copied from 01_dim_nfl_players_seed so this notebook runs standalone.
     """
     if pd.isna(ht_value):
         return None
@@ -155,7 +155,7 @@ dim_team
 # ## 3 — fact_combine_metrics
 #
 # Full athletic measurements from the nflverse combine CSV.
-# Joins to `dim_player` via `pfr_id` to attach `player_key`.
+# Joins to `dim_nfl_players` via `pfr_id` to attach `player_key`.
 #
 # **Columns not in nflverse** (`ten_split`, `hand_size`, `arm_length`, `wingspan`)
 # are kept as NA — populate from pro-day scraping notebooks when available.
@@ -197,7 +197,7 @@ _FACT_COMBINE_SCHEMA = [
 def build_fact_combine_metrics(cfg: LeagueConfig) -> pd.DataFrame:
     """
     Pull nflverse combine CSV, filter to draft_year season, map column names,
-    and join player_key from dim_player via pfr_id.
+    and join player_key from dim_nfl_players via pfr_id.
     Players without a pfr_id in both sources are excluded and noted in output.
     """
     print(f"Fetching nflverse combine data for {cfg.draft_year}...")
@@ -218,10 +218,10 @@ def build_fact_combine_metrics(cfg: LeagueConfig) -> pd.DataFrame:
         metrics["height_inches"] = metrics["_ht_raw"].apply(parse_height_to_inches)
         metrics.drop(columns=["_ht_raw"], inplace=True)
 
-    # Join player_key from dim_player via pfr_id
-    dim_player = pd.read_parquet(DATA / "dim_player.parquet")
+    # Join player_key from dim_nfl_players via pfr_id
+    dim_nfl_players = pd.read_parquet(DATA / "dim_nfl_players.parquet")
     key_lookup = (
-        dim_player[["player_key", "pfr_id", "draft_year"]]
+        dim_nfl_players[["player_key", "pfr_id", "draft_year"]]
         .dropna(subset=["pfr_id"])
         .drop_duplicates(subset=["pfr_id"])
     )
@@ -237,7 +237,7 @@ def build_fact_combine_metrics(cfg: LeagueConfig) -> pd.DataFrame:
     result.to_parquet(DATA / "fact_combine_metrics.parquet", index=False)
 
     unmatched = len(year_raw) - len(result)
-    print(f"  Matched to dim_player: {len(result)}")
+    print(f"  Matched to dim_nfl_players: {len(result)}")
     print(f"  Unmatched (no shared pfr_id): {unmatched}")
     print(f"fact_combine_metrics: {len(result)} rows -> data/fact_combine_metrics.parquet")
     return result
@@ -296,7 +296,7 @@ fact_rookie_rankings.dtypes
 
 # %%
 _ALL_TABLES = {
-    "dim_player":           DATA / "dim_player.parquet",
+    "dim_nfl_players":           DATA / "dim_nfl_players.parquet",
     "dim_position":         DATA / "dim_position.parquet",
     "dim_school":           DATA / "dim_school.parquet",
     "dim_contract":         DATA / "dim_contract.parquet",
@@ -313,12 +313,12 @@ for name, path in _ALL_TABLES.items():
     size_kb = path.stat().st_size / 1024
     print(f"{name:<25} {len(df):>6}  {len(df.columns):>4}  {size_kb:>8.1f} KB")
 
-# Referential integrity: every fact_combine_metrics player_key must be in dim_player
+# Referential integrity: every fact_combine_metrics player_key must be in dim_nfl_players
 print()
-dim_pk = set(pd.read_parquet(DATA / "dim_player.parquet")["player_key"])
+dim_pk = set(pd.read_parquet(DATA / "dim_nfl_players.parquet")["player_key"])
 fcm_pk = set(pd.read_parquet(DATA / "fact_combine_metrics.parquet")["player_key"])
 orphans = fcm_pk - dim_pk
 if orphans:
     print(f"WARN: {len(orphans)} orphaned player_keys in fact_combine_metrics")
 else:
-    print("OK: All fact_combine_metrics player_keys resolve to dim_player")
+    print("OK: All fact_combine_metrics player_keys resolve to dim_nfl_players")

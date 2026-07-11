@@ -26,12 +26,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "NFL player": {
 			            "State": "Generated",
 			            "Weight": 0.97
@@ -349,12 +343,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "name": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "DisplayName": {
 			            "Type": "Noun",
 			            "State": "Generated",
@@ -402,6 +390,16 @@ cultureInfo en-US
 			          }
 			        },
 			        {
+			          "Player": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        },
+			        {
 			          "Player Name": {
 			            "State": "Suggested",
 			            "Source": {
@@ -411,8 +409,7 @@ cultureInfo en-US
 			            "Weight": 0.9
 			          }
 			        }
-			      ],
-			      "NameType": "Name"
+			      ]
 			    },
 			    "dim_NFL_player.first_name": {
 			      "Definition": {
@@ -4351,6 +4348,16 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.727
 			          }
+			        },
+			        {
+			          "Team": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
 			        }
 			      ]
 			    },
@@ -4362,6 +4369,9 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
+			      "Visibility": {
+			        "Value": "Hidden"
+			      },
 			      "Terms": [
 			        {
 			          "conference": {
@@ -4856,187 +4866,226 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team.cap_hits_current_yr": {
+			    "entity__measure.percent_of_cap_remaining": {
 			      "Definition": {
 			        "Binding": {
-			          "ConceptualEntity": "Dim_FantasyTeams",
-			          "ConceptualProperty": "CapHitsCurrentYr"
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Percent of Cap Remaining"
 			        }
 			      },
 			      "State": "Generated",
 			      "Terms": [
 			        {
-			          "cap hits current yr": {
+			          "percent of cap remaining": {
 			            "State": "Generated"
 			          }
 			        },
 			        {
-			          "cap hit current yr": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.78
-			          }
-			        },
-			        {
-			          "CapHitsCurrentYr": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "current yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "hits current yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "hit current yr": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.7566
-			          }
-			        },
-			        {
-			          "cap hit latest yr": {
+			          "percentage of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.599
+			            "Weight": 0.489
 			          }
 			        },
 			        {
-			          "cap hit contemporary yr": {
+			          "ratio of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.599
+			            "Weight": 0.489
 			          }
 			        },
 			        {
-			          "cap hit present yr": {
+			          "percentile of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.599
+			            "Weight": 0.489
 			          }
 			        },
 			        {
-			          "hit latest yr": {
+			          "part of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.591
+			            "Weight": 0.474
 			          }
 			        },
 			        {
-			          "hit contemporary yr": {
+			          "proportion of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.591
+			            "Weight": 0.474
 			          }
 			        },
 			        {
-			          "hit present yr": {
+			          "fraction of cap remaining": {
 			            "Type": "Noun",
 			            "State": "Suggested",
 			            "Source": {
 			              "Agent": "Thesaurus"
 			            },
-			            "Weight": 0.591
+			            "Weight": 0.474
 			          }
 			        },
 			        {
-			          "latest yr": {
-			            "Type": "Noun",
+			          "Cap Remain (%)": {
 			            "State": "Suggested",
 			            "Source": {
-			              "Agent": "Thesaurus"
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
 			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "contemporary yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "present yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "cap hit present day yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.494
+			            "Weight": 0.9
 			          }
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team.cap_hits_next_yr": {
+			    "entity__measure.remaining_salary_cap": {
 			      "Definition": {
 			        "Binding": {
-			          "ConceptualEntity": "Dim_FantasyTeams",
-			          "ConceptualProperty": "CapHitsNextYr"
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Remaining Salary Cap"
 			        }
 			      },
 			      "State": "Generated",
 			      "Terms": [
 			        {
-			          "cap hits next yr": {
+			          "remaining salary cap": {
 			            "State": "Generated"
 			          }
 			        },
 			        {
-			          "cap hit next yr": {
-			            "Type": "Noun",
+			          "cap": {
 			            "State": "Generated",
-			            "Weight": 0.78
+			            "Weight": 0.97
 			          }
 			        },
 			        {
-			          "CapHitsNextYr": {
-			            "Type": "Noun",
+			          "salary cap": {
 			            "State": "Generated",
-			            "Weight": 0.99
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "remaining salary lid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "remaining salary cover": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "remaining salary top": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "remaining salary stopper": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "remaining salary plug": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "salary lid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary cover": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary top": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary stopper": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary plug": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "Cap Remain $": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
 			          }
 			        }
 			      ]
@@ -5170,11 +5219,139 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team.active_roster_salary": {
+			    "entity__measure.starting_salary_cap": {
 			      "Definition": {
 			        "Binding": {
-			          "ConceptualEntity": "Dim_FantasyTeams",
-			          "ConceptualProperty": "ActiveRosterSalary"
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Starting Salary Cap"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "starting salary cap": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "cap": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "salary cap": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "starting salary lid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "starting salary cover": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "starting salary top": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "starting salary stopper": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "starting salary plug": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.492
+			          }
+			        },
+			        {
+			          "salary lid": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary cover": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary top": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary stopper": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "salary plug": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        }
+			      ]
+			    },
+			    "entity__measure.active_roster_salary": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Active Roster Salary"
 			        }
 			      },
 			      "State": "Generated",
@@ -5182,13 +5359,6 @@ cultureInfo en-US
 			        {
 			          "active roster salary": {
 			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "ActiveRosterSalary": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
 			          }
 			        },
 			        {
@@ -5296,169 +5466,31 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.492
 			          }
+			        },
+			        {
+			          "Active Roster $": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team.remaining_cap_current_yr": {
+			    "entity__measure.player_pct_of_team_cap": {
 			      "Definition": {
 			        "Binding": {
-			          "ConceptualEntity": "Dim_FantasyTeams",
-			          "ConceptualProperty": "RemainingCapCurrentYr"
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Player Pct of Team Cap"
 			        }
 			      },
 			      "State": "Generated",
 			      "Terms": [
 			        {
-			          "remaining cap current yr": {
+			          "player pct of team cap": {
 			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "RemainingCapCurrentYr": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "current yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "cap current yr": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
-			          "remaining cap latest yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.599
-			          }
-			        },
-			        {
-			          "remaining cap contemporary yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.599
-			          }
-			        },
-			        {
-			          "remaining cap present yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.599
-			          }
-			        },
-			        {
-			          "cap latest yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.591
-			          }
-			        },
-			        {
-			          "cap contemporary yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.591
-			          }
-			        },
-			        {
-			          "cap present yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.591
-			          }
-			        },
-			        {
-			          "latest yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "contemporary yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "present yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.582
-			          }
-			        },
-			        {
-			          "remaining cap present day yr": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.494
-			          }
-			        }
-			      ]
-			    },
-			    "dim_fantasy_team.remaining_cap_next_yr": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Dim_FantasyTeams",
-			          "ConceptualProperty": "RemainingCapNextYr"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "remaining cap next yr": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "RemainingCapNextYr": {
-			            "Type": "Noun",
-			            "State": "Generated",
-			            "Weight": 0.99
 			          }
 			        }
 			      ]
@@ -6363,12 +6395,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "player nickname": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -6406,66 +6432,6 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.727
-			          }
-			        },
-			        {
-			          "actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "performer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "entertainer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "trouper": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "thespian": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "play-actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
 			          }
 			        }
 			      ]
@@ -6541,9 +6507,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "position raw": {
@@ -8313,12 +8276,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "player nickname": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -8357,66 +8314,6 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.727
 			          }
-			        },
-			        {
-			          "actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "performer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "entertainer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "trouper": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "thespian": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "play-actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
 			        }
 			      ]
 			    },
@@ -8428,9 +8325,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "pos": {
@@ -8787,9 +8681,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "player key": {
@@ -10461,9 +10352,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "gsisid": {
@@ -11184,6 +11072,9 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
+			      "Visibility": {
+			        "Value": "Hidden"
+			      },
 			      "Terms": [
 			        {
 			          "team key": {
@@ -11313,6 +11204,9 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
+			      "Visibility": {
+			        "Value": "Hidden"
+			      },
 			      "Terms": [
 			        {
 			          "gsisid": {
@@ -11846,12 +11740,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "year": {
-			            "State": "Generated",
-			            "Weight": 0.7
-			          }
-			        },
-			        {
 			          "contract yr": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -11861,8 +11749,7 @@ cultureInfo en-US
 			            "Weight": 0.75
 			          }
 			        }
-			      ],
-			      "SemanticType": "Time"
+			      ]
 			    },
 			    "fact_fantasy_team.cap_hit": {
 			      "Definition": {
@@ -13102,12 +12989,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
-			          }
-			        },
-			        {
 			          "player nickname": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -13146,66 +13027,6 @@ cultureInfo en-US
 			            },
 			            "Weight": 0.727
 			          }
-			        },
-			        {
-			          "actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "performer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "entertainer": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "trouper": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.491
-			          }
-			        },
-			        {
-			          "thespian": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
-			        },
-			        {
-			          "play-actor": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.476
-			          }
 			        }
 			      ]
 			    },
@@ -13217,9 +13038,6 @@ cultureInfo en-US
 			        }
 			      },
 			      "State": "Generated",
-			      "Visibility": {
-			        "Value": "Hidden"
-			      },
 			      "Terms": [
 			        {
 			          "position raw": {
@@ -14442,6 +14260,16 @@ cultureInfo en-US
 			          }
 			        },
 			        {
+			          "yr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.736
+			          }
+			        },
+			        {
 			          "birth moment year": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -14729,6 +14557,16 @@ cultureInfo en-US
 			          }
 			        },
 			        {
+			          "yr": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.736
+			          }
+			        },
+			        {
 			          "snapshot moment year": {
 			            "Type": "Noun",
 			            "State": "Suggested",
@@ -14790,12 +14628,6 @@ cultureInfo en-US
 			            "Type": "Noun",
 			            "State": "Generated",
 			            "Weight": 0.99
-			          }
-			        },
-			        {
-			          "player": {
-			            "State": "Generated",
-			            "Weight": 0.97
 			          }
 			        },
 			        {
@@ -15707,16 +15539,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "%C": {
-			            "State": "Suggested",
-			            "Source": {
-			              "Type": "External",
-			              "Agent": "PowerBI.VisualColumnRename"
-			            },
-			            "Weight": 0.9
-			          }
-			        },
-			        {
 			          "% Cut": {
 			            "State": "Suggested",
 			            "Source": {
@@ -15803,16 +15625,6 @@ cultureInfo en-US
 			          }
 			        },
 			        {
-			          "%K": {
-			            "State": "Suggested",
-			            "Source": {
-			              "Type": "External",
-			              "Agent": "PowerBI.VisualColumnRename"
-			            },
-			            "Weight": 0.9
-			          }
-			        },
-			        {
 			          "% Kept": {
 			            "State": "Suggested",
 			            "Source": {
@@ -15896,16 +15708,6 @@ cultureInfo en-US
 			              "Agent": "Thesaurus"
 			            },
 			            "Weight": 0.474
-			          }
-			        },
-			        {
-			          "%T": {
-			            "State": "Suggested",
-			            "Source": {
-			              "Type": "External",
-			              "Agent": "PowerBI.VisualColumnRename"
-			            },
-			            "Weight": 0.9
 			          }
 			        },
 			        {
@@ -19698,9 +19500,1088 @@ cultureInfo en-US
 			        }
 			      ],
 			      "SemanticType": "Time"
+			    },
+			    "dim_fantasy_team.fantrax_team_id": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_FantasyTeams",
+			          "ConceptualProperty": "fantrax_team_id"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "fantrax team id": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "fantrax_team_id": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "fantrax team identification": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.762
+			          }
+			        },
+			        {
+			          "fantrax team identity": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.762
+			          }
+			        },
+			        {
+			          "fantrax team identifier": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.762
+			          }
+			        },
+			        {
+			          "fantrax team credential": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.739
+			          }
+			        }
+			      ]
+			    },
+			    "dim_division": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_Division"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "dim division": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "Dim_Division": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "dim separation": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dim dissection": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dim detachment": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dim disunion": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dim partition": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "dim disagreement": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.475
+			          }
+			        },
+			        {
+			          "dim schism": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.475
+			          }
+			        },
+			        {
+			          "dim disharmony": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.475
+			          }
+			        },
+			        {
+			          "dim dissonance": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.475
+			          }
+			        },
+			        {
+			          "dim split": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.461
+			          }
+			        }
+			      ]
+			    },
+			    "dim_division.season_id": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_Division",
+			          "ConceptualProperty": "season_id"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "season id": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "season_id": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "season identification": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "season identity": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "season identifier": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.75
+			          }
+			        },
+			        {
+			          "season credential": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        }
+			      ]
+			    },
+			    "dim_division.conference": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_Division",
+			          "ConceptualProperty": "conference"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "conference": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "session": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "discussion": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "consultation": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "meeting": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.476
+			          }
+			        },
+			        {
+			          "symposium": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.466
+			          }
+			        },
+			        {
+			          "seminar": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.466
+			          }
+			        },
+			        {
+			          "forum": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.466
+			          }
+			        },
+			        {
+			          "convention": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.466
+			          }
+			        },
+			        {
+			          "congress": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.452
+			          }
+			        },
+			        {
+			          "summit": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.452
+			          }
+			        }
+			      ]
+			    },
+			    "dim_division.division_name": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Dim_Division",
+			          "ConceptualProperty": "division_name"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "division name": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "division_name": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        },
+			        {
+			          "division nickname": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "division title": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "division label": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "division tag": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.727
+			          }
+			        },
+			        {
+			          "Division": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    },
+			    "entity__measure.percent_of_cap_used": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Percent of Cap Used"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "percent of cap used": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "percentage of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.489
+			          }
+			        },
+			        {
+			          "ratio of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.489
+			          }
+			        },
+			        {
+			          "percentile of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.489
+			          }
+			        },
+			        {
+			          "part of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.474
+			          }
+			        },
+			        {
+			          "proportion of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.474
+			          }
+			        },
+			        {
+			          "fraction of cap used": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.474
+			          }
+			        }
+			      ]
+			    },
+			    "entity__measure.contract_value": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Contract Value"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "contract value": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "value": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "contract assessment": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "assessment": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "contract worth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "contract price": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "contract cost": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "contract charge": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "contract rate": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "worth": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.476
+			          }
+			        },
+			        {
+			          "price": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.476
+			          }
+			        },
+			        {
+			          "cost": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.476
+			          }
+			        }
+			      ]
+			    },
+			    "entity__measure.dead_money": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "_Measures",
+			          "ConceptualProperty": "Dead Money Active - Current Year"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "dead money": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "money": {
+			            "State": "Generated",
+			            "Weight": 0.97
+			          }
+			        },
+			        {
+			          "dead currency": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dead coinage": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dead dosh": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "dead dough": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.5
+			          }
+			        },
+			        {
+			          "currency": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "coinage": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "dosh": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "dough": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.491
+			          }
+			        },
+			        {
+			          "dead cash": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        },
+			        {
+			          "dead change": {
+			            "Type": "Noun",
+			            "State": "Suggested",
+			            "Source": {
+			              "Agent": "Thesaurus"
+			            },
+			            "Weight": 0.485
+			          }
+			        }
+			      ]
 			    }
 			  },
 			  "Relationships": {
+			    "fact_fantasy_team_has_dim_NFL_player": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "dim_NFL_player": {
+			          "Target": {
+			            "Entity": "dim_NFL_player"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_dim_NFL_players"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_player"
+			            },
+			            "Object": {
+			              "Role": "fact_fantasy_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_NFL_players_have_fact_fantasy_teams"
+			        }
+			      ]
+			    },
+			    "fact_fantasy_team_has_dim_fantasy_team": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "dim_fantasy_team": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "dim_fantasy_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_dim_fantasy_teams"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "fact_fantasy_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_fantasy_teams_have_fact_fantasy_teams"
+			        }
+			      ]
+			    },
+			    "fact_rookie_ranking_has_dim_rookie_prospect": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_RookieRankings"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_rookie_ranking": {
+			          "Target": {
+			            "Entity": "fact_rookie_ranking"
+			          }
+			        },
+			        "dim_rookie_prospect": {
+			          "Target": {
+			            "Entity": "dim_rookie_prospect"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_rookie_ranking"
+			            },
+			            "Object": {
+			              "Role": "dim_rookie_prospect"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_rookie_ranking_have_dim_rookie_prospects"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_rookie_prospect"
+			            },
+			            "Object": {
+			              "Role": "fact_rookie_ranking"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_rookie_prospects_have_fact_rookie_ranking"
+			        }
+			      ]
+			    },
+			    "fact_NFL_combine_pro_day_has_dim_NFL_player": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_NFLCombineProDay"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_NFL_combine_pro_day": {
+			          "Target": {
+			            "Entity": "fact_NFL_combine_pro_day"
+			          }
+			        },
+			        "dim_NFL_player": {
+			          "Target": {
+			            "Entity": "dim_NFL_player"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_NFL_combine_pro_day"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_NFL_combine_pro_day_have_dim_NFL_players"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_player"
+			            },
+			            "Object": {
+			              "Role": "fact_NFL_combine_pro_day"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_NFL_players_have_fact_NFL_combine_pro_day"
+			        }
+			      ]
+			    },
+			    "dim_rookie_prospect_has_dim_school": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_RookieProspect"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_rookie_prospect": {
+			          "Target": {
+			            "Entity": "dim_rookie_prospect"
+			          }
+			        },
+			        "dim_school": {
+			          "Target": {
+			            "Entity": "dim_school"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_rookie_prospect"
+			            },
+			            "Object": {
+			              "Role": "dim_school"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_rookie_prospects_have_dim_schools"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_school"
+			            },
+			            "Object": {
+			              "Role": "dim_rookie_prospect"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_schools_have_dim_rookie_prospects"
+			        }
+			      ]
+			    },
+			    "dim_fantasy_team_has_dim_division": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_fantasy_team": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team"
+			          }
+			        },
+			        "dim_division": {
+			          "Target": {
+			            "Entity": "dim_division"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "dim_division"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_fantasy_teams_have_dim_divisions"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_division"
+			            },
+			            "Object": {
+			              "Role": "dim_fantasy_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_divisions_have_dim_fantasy_teams"
+			        }
+			      ]
+			    },
+			    "dim_NFL_player_has_dim_NFL_team": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_NFLPlayers"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_NFL_player": {
+			          "Target": {
+			            "Entity": "dim_NFL_player"
+			          }
+			        },
+			        "dim_NFL_team": {
+			          "Target": {
+			            "Entity": "dim_NFL_team"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_player"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_team"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_NFL_players_have_dim_NFL_teams"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_team"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_NFL_teams_have_dim_NFL_players"
+			        }
+			      ]
+			    },
 			    "dim_NFL_player_has_dim_position": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_NFLPlayers"
@@ -19731,6 +20612,283 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "dim_NFL_players_have_dim_positions"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_position"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_positions_have_dim_NFL_players"
+			        }
+			      ]
+			    },
+			    "fact_fantasy_team_has_entity__measure_dead_money": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "entity__measure.dead_money": {
+			          "Target": {
+			            "Entity": "entity__measure.dead_money"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.dead_money"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_dead_money"
+			        }
+			      ]
+			    },
+			    "fact_fantasy_team_has_entity__measure_contract_value": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "entity__measure.contract_value": {
+			          "Target": {
+			            "Entity": "entity__measure.contract_value"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.contract_value"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_contract_value"
+			        }
+			      ]
+			    },
+			    "fact_fantasy_team_has_entity__measure_percent_of_cap_used": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "entity__measure.percent_of_cap_used": {
+			          "Target": {
+			            "Entity": "entity__measure.percent_of_cap_used"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.percent_of_cap_used"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_percent_of_cap_used"
+			        }
+			      ]
+			    },
+			    "dim_fantasy_team_has_entity__measure_percent_of_cap_used": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_fantasy_team": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team"
+			          }
+			        },
+			        "entity__measure.percent_of_cap_used": {
+			          "Target": {
+			            "Entity": "entity__measure.percent_of_cap_used"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.percent_of_cap_used"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_fantasy_teams_have_percent_of_cap_used"
+			        }
+			      ]
+			    },
+			    "dim_division_has_division_name": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_Division"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_division": {
+			          "Target": {
+			            "Entity": "dim_division"
+			          }
+			        },
+			        "dim_division.division_name": {
+			          "Target": {
+			            "Entity": "dim_division.division_name"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_division"
+			            },
+			            "Object": {
+			              "Role": "dim_division.division_name"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_divisions_have_division_names"
+			        }
+			      ]
+			    },
+			    "dim_division_has_conference": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_Division"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_division": {
+			          "Target": {
+			            "Entity": "dim_division"
+			          }
+			        },
+			        "dim_division.conference": {
+			          "Target": {
+			            "Entity": "dim_division.conference"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_division"
+			            },
+			            "Object": {
+			              "Role": "dim_division.conference"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_divisions_have_conferences"
+			        }
+			      ]
+			    },
+			    "dim_division_has_season_id": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_Division"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_division": {
+			          "Target": {
+			            "Entity": "dim_division"
+			          }
+			        },
+			        "dim_division.season_id": {
+			          "Target": {
+			            "Entity": "dim_division.season_id"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_division"
+			            },
+			            "Object": {
+			              "Role": "dim_division.season_id"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_divisions_have_season_ids"
+			        }
+			      ]
+			    },
+			    "dim_fantasy_team_has_fantrax_team_id": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_fantasy_team": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team"
+			          }
+			        },
+			        "dim_fantasy_team.fantrax_team_id": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team.fantrax_team_id"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "dim_fantasy_team.fantrax_team_id"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_fantasy_teams_have_fantrax_team_ids"
 			        }
 			      ]
 			    },
@@ -21975,39 +23133,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_dynasty_ranking_metrics_have_source_player_ID"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics.source_player_ID"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "source_player_ID_play_fact_dynasty_ranking_metrics"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_dynasty_ranking_metrics.source_player_ID"
-			            },
-			            "Object": {
-			              "Role": "fact_dynasty_ranking_metrics"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "source_player_ID_have_fact_dynasty_ranking_metrics"
 			        }
 			      ]
 			    },
@@ -22620,6 +23745,39 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
+			    "fact_fantrax_ADP_has_position_raw": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantraxADP"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantrax_ADP": {
+			          "Target": {
+			            "Entity": "fact_fantrax_ADP"
+			          }
+			        },
+			        "fact_fantrax_ADP.position_raw": {
+			          "Target": {
+			            "Entity": "fact_fantrax_ADP.position_raw"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantrax_ADP"
+			            },
+			            "Object": {
+			              "Role": "fact_fantrax_ADP.position_raw"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantrax_ADP_have_position_raw"
+			        }
+			      ]
+			    },
 			    "fact_fantrax_ADP_has_player_name": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_FantraxADP"
@@ -22650,39 +23808,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantrax_ADP_have_player_names"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "fact_fantrax_ADP.player_name"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_fantrax_ADP"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "player_names_play_fact_fantrax_ADP"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_fantrax_ADP.player_name"
-			            },
-			            "Object": {
-			              "Role": "fact_fantrax_ADP"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "player_names_have_fact_fantrax_ADP"
 			        }
 			      ]
 			    },
@@ -23343,6 +24468,33 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantasy_teams_have_cap_hits"
+			        },
+			        {
+			          "Adjective": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Adjectives": [
+			              {
+			                "expensive": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Antonyms": [
+			              {
+			                "cheap": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Measurement": {
+			              "Role": "fact_fantasy_team.cap_hit"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "cap_hit_indicates_how_expensive_fact_fantasy_teams_are"
 			        }
 			      ]
 			    },
@@ -23409,6 +24561,33 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantasy_teams_have_contract_values"
+			        },
+			        {
+			          "Adjective": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Adjectives": [
+			              {
+			                "expensive": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Antonyms": [
+			              {
+			                "cheap": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Measurement": {
+			              "Role": "fact_fantasy_team.contract_value"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "contract_value_indicates_how_expensive_fact_fantasy_teams_are"
 			        }
 			      ]
 			    },
@@ -23508,72 +24687,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantasy_teams_have_player_keys"
-			        }
-			      ]
-			    },
-			    "fact_fantasy_team_has_gsisid": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_FantasyTeams"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_fantasy_team": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team"
-			          }
-			        },
-			        "fact_fantasy_team.gsisid": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team.gsisid"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_fantasy_team"
-			            },
-			            "Object": {
-			              "Role": "fact_fantasy_team.gsisid"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_fantasy_teams_have_gsisids"
-			        }
-			      ]
-			    },
-			    "fact_fantasy_team_has_team_key": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_FantasyTeams"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_fantasy_team": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team"
-			          }
-			        },
-			        "fact_fantasy_team.team_key": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team.team_key"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_fantasy_team"
-			            },
-			            "Object": {
-			              "Role": "fact_fantasy_team.team_key"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_fantasy_teams_have_team_keys"
 			        }
 			      ]
 			    },
@@ -23871,6 +24984,39 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_rookie_ranking_have_phases"
+			        }
+			      ]
+			    },
+			    "fact_rookie_ranking_has_gsisid": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_RookieRankings"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_rookie_ranking": {
+			          "Target": {
+			            "Entity": "fact_rookie_ranking"
+			          }
+			        },
+			        "fact_rookie_ranking.gsisid": {
+			          "Target": {
+			            "Entity": "fact_rookie_ranking.gsisid"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_rookie_ranking"
+			            },
+			            "Object": {
+			              "Role": "fact_rookie_ranking.gsisid"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_rookie_ranking_have_gsisids"
 			        }
 			      ]
 			    },
@@ -24324,6 +25470,39 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
+			    "fact_NFL_combine_pro_day_has_player_key": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_NFLCombineProDay"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_NFL_combine_pro_day": {
+			          "Target": {
+			            "Entity": "fact_NFL_combine_pro_day"
+			          }
+			        },
+			        "fact_NFL_combine_pro_day.player_key": {
+			          "Target": {
+			            "Entity": "fact_NFL_combine_pro_day.player_key"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_NFL_combine_pro_day"
+			            },
+			            "Object": {
+			              "Role": "fact_NFL_combine_pro_day.player_key"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_NFL_combine_pro_day_have_player_keys"
+			        }
+			      ]
+			    },
 			    "fact_NFL_combine_pro_day_has_shuttle": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_NFLCombineProDay"
@@ -24423,6 +25602,39 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
+			    "fact_NFL_combine_pro_day_has_pos": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_NFLCombineProDay"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_NFL_combine_pro_day": {
+			          "Target": {
+			            "Entity": "fact_NFL_combine_pro_day"
+			          }
+			        },
+			        "fact_NFL_combine_pro_day.pos": {
+			          "Target": {
+			            "Entity": "fact_NFL_combine_pro_day.pos"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_NFL_combine_pro_day"
+			            },
+			            "Object": {
+			              "Role": "fact_NFL_combine_pro_day.pos"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_NFL_combine_pro_day_have_pos"
+			        }
+			      ]
+			    },
 			    "fact_NFL_combine_pro_day_has_player_name": {
 			      "Binding": {
 			        "ConceptualEntity": "Fact_NFLCombineProDay"
@@ -24453,39 +25665,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_NFL_combine_pro_day_have_player_names"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "fact_NFL_combine_pro_day.player_name"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_NFL_combine_pro_day"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "player_names_play_fact_NFL_combine_pro_day"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_NFL_combine_pro_day.player_name"
-			            },
-			            "Object": {
-			              "Role": "fact_NFL_combine_pro_day"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "player_names_have_fact_NFL_combine_pro_day"
 			        }
 			      ]
 			    },
@@ -25011,6 +26190,39 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
+			    "dim_rookie_prospect_has_position_raw": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_RookieProspect"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_rookie_prospect": {
+			          "Target": {
+			            "Entity": "dim_rookie_prospect"
+			          }
+			        },
+			        "dim_rookie_prospect.position_raw": {
+			          "Target": {
+			            "Entity": "dim_rookie_prospect.position_raw"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_rookie_prospect"
+			            },
+			            "Object": {
+			              "Role": "dim_rookie_prospect.position_raw"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_rookie_prospects_have_position_raw"
+			        }
+			      ]
+			    },
 			    "dim_rookie_prospect_has_player_name_clean": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_RookieProspect"
@@ -25074,39 +26286,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "dim_rookie_prospects_have_player_names"
-			        },
-			        {
-			          "Verb": {
-			            "Subject": {
-			              "Role": "dim_rookie_prospect.player_name"
-			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "dim_rookie_prospect"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "player_names_play_dim_rookie_prospects"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_rookie_prospect.player_name"
-			            },
-			            "Object": {
-			              "Role": "dim_rookie_prospect"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "player_names_have_dim_rookie_prospects"
 			        }
 			      ]
 			    },
@@ -25440,20 +26619,20 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team_has_remaining_cap_next_yr": {
+			    "fact_fantasy_team_has_entity__measure_player_pct_of_team_cap": {
 			      "Binding": {
-			        "ConceptualEntity": "Dim_FantasyTeams"
+			        "ConceptualEntity": "Fact_FantasyTeams"
 			      },
 			      "State": "Generated",
 			      "Roles": {
-			        "dim_fantasy_team": {
+			        "fact_fantasy_team": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team"
+			            "Entity": "fact_fantasy_team"
 			          }
 			        },
-			        "dim_fantasy_team.remaining_cap_next_yr": {
+			        "entity__measure.player_pct_of_team_cap": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team.remaining_cap_next_yr"
+			            "Entity": "entity__measure.player_pct_of_team_cap"
 			          }
 			        }
 			      },
@@ -25461,19 +26640,19 @@ cultureInfo en-US
 			        {
 			          "Attribute": {
 			            "Subject": {
-			              "Role": "dim_fantasy_team"
+			              "Role": "fact_fantasy_team"
 			            },
 			            "Object": {
-			              "Role": "dim_fantasy_team.remaining_cap_next_yr"
+			              "Role": "entity__measure.player_pct_of_team_cap"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_remaining_cap_next_yrs"
+			          "ID": "fact_fantasy_teams_have_player_pct_of_team_cap"
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team_has_remaining_cap_current_yr": {
+			    "dim_fantasy_team_has_entity__measure_player_pct_of_team_cap": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_FantasyTeams"
 			      },
@@ -25484,9 +26663,9 @@ cultureInfo en-US
 			            "Entity": "dim_fantasy_team"
 			          }
 			        },
-			        "dim_fantasy_team.remaining_cap_current_yr": {
+			        "entity__measure.player_pct_of_team_cap": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team.remaining_cap_current_yr"
+			            "Entity": "entity__measure.player_pct_of_team_cap"
 			          }
 			        }
 			      },
@@ -25497,16 +26676,49 @@ cultureInfo en-US
 			              "Role": "dim_fantasy_team"
 			            },
 			            "Object": {
-			              "Role": "dim_fantasy_team.remaining_cap_current_yr"
+			              "Role": "entity__measure.player_pct_of_team_cap"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_remaining_cap_current_yrs"
+			          "ID": "dim_fantasy_teams_have_player_pct_of_team_cap"
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team_has_active_roster_salary": {
+			    "fact_fantasy_team_has_entity__measure_active_roster_salary": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "entity__measure.active_roster_salary": {
+			          "Target": {
+			            "Entity": "entity__measure.active_roster_salary"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.active_roster_salary"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_active_roster_salary"
+			        }
+			      ]
+			    },
+			    "dim_fantasy_team_has_entity__measure_starting_salary_cap": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_FantasyTeams"
 			      },
@@ -25517,9 +26729,9 @@ cultureInfo en-US
 			            "Entity": "dim_fantasy_team"
 			          }
 			        },
-			        "dim_fantasy_team.active_roster_salary": {
+			        "entity__measure.starting_salary_cap": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team.active_roster_salary"
+			            "Entity": "entity__measure.starting_salary_cap"
 			          }
 			        }
 			      },
@@ -25530,12 +26742,12 @@ cultureInfo en-US
 			              "Role": "dim_fantasy_team"
 			            },
 			            "Object": {
-			              "Role": "dim_fantasy_team.active_roster_salary"
+			              "Role": "entity__measure.starting_salary_cap"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_active_roster_salaries"
+			          "ID": "dim_fantasy_teams_have_starting_salary_cap"
 			        }
 			      ]
 			    },
@@ -25572,20 +26784,20 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team_has_cap_hits_next_yr": {
+			    "fact_fantasy_team_has_entity__measure_remaining_salary_cap": {
 			      "Binding": {
-			        "ConceptualEntity": "Dim_FantasyTeams"
+			        "ConceptualEntity": "Fact_FantasyTeams"
 			      },
 			      "State": "Generated",
 			      "Roles": {
-			        "dim_fantasy_team": {
+			        "fact_fantasy_team": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team"
+			            "Entity": "fact_fantasy_team"
 			          }
 			        },
-			        "dim_fantasy_team.cap_hits_next_yr": {
+			        "entity__measure.remaining_salary_cap": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team.cap_hits_next_yr"
+			            "Entity": "entity__measure.remaining_salary_cap"
 			          }
 			        }
 			      },
@@ -25593,19 +26805,19 @@ cultureInfo en-US
 			        {
 			          "Attribute": {
 			            "Subject": {
-			              "Role": "dim_fantasy_team"
+			              "Role": "fact_fantasy_team"
 			            },
 			            "Object": {
-			              "Role": "dim_fantasy_team.cap_hits_next_yr"
+			              "Role": "entity__measure.remaining_salary_cap"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_cap_hits_next_yrs"
+			          "ID": "fact_fantasy_teams_have_remaining_salary_cap"
 			        }
 			      ]
 			    },
-			    "dim_fantasy_team_has_cap_hits_current_yr": {
+			    "dim_fantasy_team_has_entity__measure_remaining_salary_cap": {
 			      "Binding": {
 			        "ConceptualEntity": "Dim_FantasyTeams"
 			      },
@@ -25616,9 +26828,9 @@ cultureInfo en-US
 			            "Entity": "dim_fantasy_team"
 			          }
 			        },
-			        "dim_fantasy_team.cap_hits_current_yr": {
+			        "entity__measure.remaining_salary_cap": {
 			          "Target": {
-			            "Entity": "dim_fantasy_team.cap_hits_current_yr"
+			            "Entity": "entity__measure.remaining_salary_cap"
 			          }
 			        }
 			      },
@@ -25629,12 +26841,78 @@ cultureInfo en-US
 			              "Role": "dim_fantasy_team"
 			            },
 			            "Object": {
-			              "Role": "dim_fantasy_team.cap_hits_current_yr"
+			              "Role": "entity__measure.remaining_salary_cap"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_cap_hits_current_yrs"
+			          "ID": "dim_fantasy_teams_have_remaining_salary_cap"
+			        }
+			      ]
+			    },
+			    "fact_fantasy_team_has_entity__measure_percent_of_cap_remaining": {
+			      "Binding": {
+			        "ConceptualEntity": "Fact_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "fact_fantasy_team": {
+			          "Target": {
+			            "Entity": "fact_fantasy_team"
+			          }
+			        },
+			        "entity__measure.percent_of_cap_remaining": {
+			          "Target": {
+			            "Entity": "entity__measure.percent_of_cap_remaining"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.percent_of_cap_remaining"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantasy_teams_have_percent_of_cap_remaining"
+			        }
+			      ]
+			    },
+			    "dim_fantasy_team_has_entity__measure_percent_of_cap_remaining": {
+			      "Binding": {
+			        "ConceptualEntity": "Dim_FantasyTeams"
+			      },
+			      "State": "Generated",
+			      "Roles": {
+			        "dim_fantasy_team": {
+			          "Target": {
+			            "Entity": "dim_fantasy_team"
+			          }
+			        },
+			        "entity__measure.percent_of_cap_remaining": {
+			          "Target": {
+			            "Entity": "entity__measure.percent_of_cap_remaining"
+			          }
+			        }
+			      },
+			      "Phrasings": [
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_fantasy_team"
+			            },
+			            "Object": {
+			              "Role": "entity__measure.percent_of_cap_remaining"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "dim_fantasy_teams_have_percent_of_cap_remaining"
 			        }
 			      ]
 			    },
@@ -25800,39 +27078,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "dim_fantasy_teams_have_team_abbrs"
-			        }
-			      ]
-			    },
-			    "dim_fantasy_team_has_conference": {
-			      "Binding": {
-			        "ConceptualEntity": "Dim_FantasyTeams"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "dim_fantasy_team": {
-			          "Target": {
-			            "Entity": "dim_fantasy_team"
-			          }
-			        },
-			        "dim_fantasy_team.conference": {
-			          "Target": {
-			            "Entity": "dim_fantasy_team.conference"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_fantasy_team"
-			            },
-			            "Object": {
-			              "Role": "dim_fantasy_team.conference"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_fantasy_teams_have_conferences"
 			        }
 			      ]
 			    },
@@ -27063,17 +28308,37 @@ cultureInfo en-US
 			          "ID": "dim_NFL_players_have_display_names"
 			        },
 			        {
-			          "Name": {
+			          "Verb": {
 			            "Subject": {
-			              "Role": "dim_NFL_player"
-			            },
-			            "Name": {
 			              "Role": "dim_NFL_player.display_name"
+			            },
+			            "Verbs": [
+			              {
+			                "Play": {
+			                  "State": "Generated"
+			                }
+			              }
+			            ],
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.75,
+			          "ID": "display_names_Play_dim_NFL_players"
+			        },
+			        {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "dim_NFL_player.display_name"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "display_names_are_names_IDs_of_dim_NFL_players"
+			          "ID": "display_names_have_dim_NFL_players"
 			        }
 			      ]
 			    },
@@ -27326,48 +28591,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.9,
 			          "ID": "dim_NFL_players_are_drafted_on_draft_years"
-			        }
-			      ]
-			    },
-			    "fact_fantasy_team_is_contracted_in_contract_year": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_FantasyTeams"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_fantasy_team": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team"
-			          }
-			        },
-			        "fact_fantasy_team.contract_year": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team.contract_year"
-			          }
-			        }
-			      },
-			      "SemanticSlots": {
-			        "When": {
-			          "Role": "fact_fantasy_team.contract_year"
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Verb": {
-			            "Verbs": [
-			              {
-			                "contract": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ],
-			            "Object": {
-			              "Role": "fact_fantasy_team"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.9,
-			          "ID": "fact_fantasy_teams_are_contracted_on_contract_years"
 			        }
 			      ]
 			    },
@@ -27657,12 +28880,17 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_NFL_player_play": {
+			    "fact_fantrax_ADP_has_dim_NFL_player": {
 			      "Binding": {
-			        "ConceptualEntity": "Dim_NFLPlayers"
+			        "ConceptualEntity": "Fact_FantraxADP"
 			      },
 			      "State": "Generated",
 			      "Roles": {
+			        "fact_fantrax_ADP": {
+			          "Target": {
+			            "Entity": "fact_fantrax_ADP"
+			          }
+			        },
 			        "dim_NFL_player": {
 			          "Target": {
 			            "Entity": "dim_NFL_player"
@@ -27671,192 +28899,30 @@ cultureInfo en-US
 			      },
 			      "Phrasings": [
 			        {
-			          "Verb": {
+			          "Attribute": {
+			            "Subject": {
+			              "Role": "fact_fantrax_ADP"
+			            },
+			            "Object": {
+			              "Role": "dim_NFL_player"
+			            }
+			          },
+			          "State": "Generated",
+			          "Weight": 0.99,
+			          "ID": "fact_fantrax_ADP_have_dim_NFL_players"
+			        },
+			        {
+			          "Attribute": {
 			            "Subject": {
 			              "Role": "dim_NFL_player"
 			            },
-			            "Verbs": [
-			              {
-			                "play": {
-			                  "State": "Generated"
-			                }
-			              }
-			            ]
-			          },
-			          "State": "Generated",
-			          "Weight": 0.75,
-			          "ID": "dim_NFL_players_play"
-			        }
-			      ]
-			    },
-			    "dim_rookie_prospect_has_dim_school": {
-			      "Binding": {
-			        "ConceptualEntity": "Dim_RookieProspect"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "dim_rookie_prospect": {
-			          "Target": {
-			            "Entity": "dim_rookie_prospect"
-			          }
-			        },
-			        "dim_school": {
-			          "Target": {
-			            "Entity": "dim_school"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_rookie_prospect"
-			            },
 			            "Object": {
-			              "Role": "dim_school"
+			              "Role": "fact_fantrax_ADP"
 			            }
 			          },
 			          "State": "Generated",
 			          "Weight": 0.99,
-			          "ID": "dim_rookie_prospects_have_dim_schools"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_school"
-			            },
-			            "Object": {
-			              "Role": "dim_rookie_prospect"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_schools_have_dim_rookie_prospects"
-			        }
-			      ]
-			    },
-			    "fact_NFL_combine_pro_day_has_dim_rookie_prospect": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_NFLCombineProDay"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_NFL_combine_pro_day": {
-			          "Target": {
-			            "Entity": "fact_NFL_combine_pro_day"
-			          }
-			        },
-			        "dim_rookie_prospect": {
-			          "Target": {
-			            "Entity": "dim_rookie_prospect"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_NFL_combine_pro_day"
-			            },
-			            "Object": {
-			              "Role": "dim_rookie_prospect"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_NFL_combine_pro_day_have_dim_rookie_prospects"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_rookie_prospect"
-			            },
-			            "Object": {
-			              "Role": "fact_NFL_combine_pro_day"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_rookie_prospects_have_fact_NFL_combine_pro_day"
-			        }
-			      ]
-			    },
-			    "fact_NFL_combine_pro_day_has_dim_position": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_NFLCombineProDay"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_NFL_combine_pro_day": {
-			          "Target": {
-			            "Entity": "fact_NFL_combine_pro_day"
-			          }
-			        },
-			        "dim_position": {
-			          "Target": {
-			            "Entity": "dim_position"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_NFL_combine_pro_day"
-			            },
-			            "Object": {
-			              "Role": "dim_position"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_NFL_combine_pro_day_have_dim_positions"
-			        }
-			      ]
-			    },
-			    "fact_rookie_ranking_has_dim_rookie_prospect": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_RookieRankings"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_rookie_ranking": {
-			          "Target": {
-			            "Entity": "fact_rookie_ranking"
-			          }
-			        },
-			        "dim_rookie_prospect": {
-			          "Target": {
-			            "Entity": "dim_rookie_prospect"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_rookie_ranking"
-			            },
-			            "Object": {
-			              "Role": "dim_rookie_prospect"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_rookie_ranking_have_dim_rookie_prospects"
-			        },
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_rookie_prospect"
-			            },
-			            "Object": {
-			              "Role": "fact_rookie_ranking"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_rookie_prospects_have_fact_rookie_ranking"
+			          "ID": "dim_NFL_players_have_fact_fantrax_ADP"
 			        }
 			      ]
 			    },

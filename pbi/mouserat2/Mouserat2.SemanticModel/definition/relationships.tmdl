@@ -3,11 +3,8 @@ relationship 53e0ede5-c799-4f64-9cdd-c23f83ebe15f
 	fromColumn: Dim_NFLPlayers.BirthDate
 	toColumn: LocalDateTable_04c24871-8178-4798-9972-2dfd4d174e11.Date
 
-relationship Fact_RookieRankings_to_Dim_NFLPlayers_via_PlayerGsis
-	fromColumn: Fact_RookieRankings.GSISID
-	toColumn: Dim_NFLPlayers.GSISID
-
 relationship Dim_RookieProspect_to_Dim_Position_via_Position
+	isActive: false
 	fromColumn: Dim_RookieProspect.PositionRaw
 	toColumn: Dim_Position.PositionRaw
 
@@ -15,23 +12,13 @@ relationship Fact_RookieRankings_to_Dim_RookieProspect_via_PlayerKey
 	fromColumn: Fact_RookieRankings.PlayerKey
 	toColumn: Dim_RookieProspect.PlayerKey
 
-relationship Fact_NFLCombineProDay_to_Dim_NFLPlayers_via_PlayerGsis
-	fromColumn: Fact_NFLCombineProDay.GSISID
-	toColumn: Dim_NFLPlayers.GSISID
-
 relationship Fact_NFLCombineProDay_to_Dim_RookieProspect_via_PlayerKey
+	isActive: false
 	fromColumn: Fact_NFLCombineProDay.PlayerKey
 	toColumn: Dim_RookieProspect.PlayerKey
 
 relationship Dim_NFLPlayers_to_Dim_Position_via_Position
-	crossFilteringBehavior: bothDirections
-	toCardinality: many
 	fromColumn: Dim_NFLPlayers.Position
-	toColumn: Dim_Position.PositionRaw
-
-relationship Fact_NFLCombineProDay_to_Dim_Position_via_Position
-	toCardinality: many
-	fromColumn: Fact_NFLCombineProDay.Pos
 	toColumn: Dim_Position.PositionRaw
 
 relationship Dim_RookieProspect_to_Dim_School_via_School
@@ -41,15 +28,6 @@ relationship Dim_RookieProspect_to_Dim_School_via_School
 relationship Fact_FantraxADP_to_Dim_NFLPlayers_via_PlayerGsis
 	fromColumn: Fact_FantraxADP.GSISID
 	toColumn: Dim_NFLPlayers.GSISID
-
-relationship Fact_FantraxADP_to_Dim_Position_via_Position
-	fromColumn: Fact_FantraxADP.PositionRaw
-	toColumn: Dim_Position.PositionRaw
-
-relationship Fact_FantraxADP_to_Dim_RookieProspect_via_PlayerKey
-	isActive: false
-	fromColumn: Fact_FantraxADP.PlayerKey
-	toColumn: Dim_RookieProspect.PlayerKey
 
 relationship Fact_DynastyRankingMetrics_to_Dim_DynastyMetric_via_MetricKey
 	fromColumn: Fact_DynastyRankingMetrics.MetricKey
@@ -67,4 +45,24 @@ relationship d379b904-5978-47ff-b866-ad0aae8a05a3
 relationship 86b5f8ad-1d06-62a2-6aea-09b1545605cf
 	fromColumn: Dim_NFLPlayers.TeamAbbr
 	toColumn: Dim_NFLTeams.TeamAbbr
+
+relationship AutoDetected_96e4e900-a336-406a-9ec5-c9ba03d69c72
+	fromColumn: Dim_FantasyTeams.Conference
+	toColumn: Dim_Division.conference
+
+relationship 8248ec6d-0695-c387-ea23-62b48c196c5b
+	fromColumn: Fact_FantasyTeams.TeamKey
+	toColumn: Dim_FantasyTeams.TeamKey
+
+relationship cd7311d2-38b8-19d1-dd84-cc8f9e6bac2d
+	fromColumn: Fact_NFLCombineProDay.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship d1853993-594b-9611-c2aa-e667b36d53d1
+	fromColumn: Fact_FantasyTeams.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+
+relationship 94f2e0f6-dad8-7f66-eda1-923b7a5f50dd
+	fromColumn: Fact_FantasyTeams.ContractID
+	toColumn: Dim_Contract.ContractID
 

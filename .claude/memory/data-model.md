@@ -50,7 +50,7 @@ Two-table player system bridged by `pfr_id`:
 | `dim_player_alias` | `name_clean + position_raw` | notebook 03y | Persistent fuzzy-review decisions → player_key; stops repeat questions |
 | `dim_roster_asset` | `asset_id` | notebook 02d (**BUILT 2026-06-14**) | **ADR-0004.** Polymorphic bridge: `asset_type` (player/prospect/pick) + nullable resolvers `gsis_id?`/`player_key?`/`pick_ref?` + **`scorer_id`** (the stable Fantrax natural key `asset_id` is minted on). `asset_id` = monotonic int, assigned at first sight, persisted, never re-derived; stable across Sign; Exercise mints a NEW asset + lineage. v1: 137, all `player` |
 | `dim_draft_pick` | `(draft_season, divisionId, overall_slot)` slot key (`pick_ref` mirrors it) | notebook 02d ← `getDraftResults` (**BUILT 2026-06-14**) | **ADR-0004.** Pick grid (490 slots/division, made or not). `overall_slot = (round-1)*N + pick_in_round` (snake). Carries `current_owner`, `round`, `pick_in_round`, `is_made`. ⚠ **`original_owner` NULL** — getDraftResults' `teamId` is the *current* owner and **startup picks were traded**; original allocation needs `draftPicks.go` (not captured), which also lights up `pick_allocation`/`trade` (dormant v1) + forward years |
-| `dim_season` | `season_id` (`"2026-2027"`) | notebook 01f (**BUILT 2026-06-14**) | **ADR-0004.** Calendar spine, current+2. `season_start/end_year`, `season_fantasy_start_date` (Mar 1 start yr) / `_end_date` (last Feb day end yr), `season_nfl_start/end_date` (public sched, nullable), `theme`. Fantasy yr = Mar 1 → before Mar 1 |
+| `dim_season` | `season_id` (`"2026-2027"`) | notebook 01f (**BUILT 2026-06-14**) | **ADR-0004.** Calendar spine, self-extending anchor+2 horizon (**changed 2026-07-11**: floats off today's date via `_anchor_start_year`, not pinned to `CFG.draft_year` — re-running after crossing into a new fantasy season, Mar 1, auto-adds the next future row; history is never dropped, each run unions with existing `season_start_year`s). `season_start/end_year`, `season_fantasy_start_date` (Mar 1 start yr) / `_end_date` (last Feb day end yr), `season_nfl_start/end_date` (public sched, nullable), `theme`, **`relative_nfl_season_number`** (0 = anchor season containing today via the fantasy window, negative=past/positive=future, recomputed every run — feeds the dead-money design, see project-fantasy-football.md). Fantasy yr = Mar 1 → before Mar 1 |
 | `dim_division` | `(season_id, conference)` | notebook 01g (**BUILT 2026-06-14**) | **ADR-0005 (read-side).** Transformer (dim_position pattern): `conference` stable `A`/`B` → `division_name` (seasonal label, `Riddell`/`Wilson` for 2026-2027). Season-scoped division naming; `dim_fantasy_teams.conference` resolves label by join (no downstream IF). Names **derived** from `dim_fantasy_teams.division` (Sheet truth via 01c), stamped current `season_id`; seeds known seasons only (v1 = 2026-2027, 2 rows). Sheet **write**-sync still gated |
 
 ### Facts
@@ -58,7 +58,7 @@ Two-table player system bridged by `pfr_id`:
 | Table | Key | Notes |
 |---|---|---|
 | `fact_nfl_combine_pro_day_metrics` | `pfr_id + season` | All seasons; `is_current_season` flag; both FKs present (notebook 02a) |
-| `fact_fantasy_teams` | `team_key + gsis_id` | Current-roster state, 12-col schema. **DERIVED** by `02e` (replay `fact_roster_transactions` → latest active contract per (team_key, asset_id), ADR-0003); also rolls cap up into `dim_fantasy_teams`. **BUILT 2026-06-14** (137 rows). |
+| `fact_fantasy_teams` | `team_key + gsis_id` | Current-roster state, **10-col schema** (`team_key`, `gsis_id`, `player_key`, `contract_id`, `contract_value`, `contract_year`, `dead_money`, `status`, `acquired_method`, `season` — trimmed from 12 cols 2026-07-11: `conference`/`cap_hit` removed, both 100% derivable via relationships, see below). **DERIVED** by `02e` (replay `fact_roster_transactions` → latest active contract per (team_key, asset_id), ADR-0003). `02e` no longer rolls cap up into `dim_fantasy_teams` either (changed 2026-07-11; see "dim_fantasy_teams Cap Columns" below). **BUILT 2026-06-14** (137 rows). |
 | `fact_roster_transactions` | `season_id + event_type + team_key + asset_id + event_seq` | Event-sourced acquisition ledger = SSOT (ADR-0003 key amended by ADR-0004). **BUILT 2026-06-14** by `02d` (live-loop), 137 `startup_draft` rows (Riddell). `event_type` enum = **startup_draft** (snake draft — corrected from the ADRs' misnamed `startup_auction`; real auctions = FA/re-sign next offseason) / rookie_draft / fa_auction / fa_pickup / resign(+drop) / pick_allocation / trade — last two **dormant v1**. Each pick → Initial contract yr1 (`contract_id`=1st, cap_hit 0.50×), `contract_value` = Fantrax `salary` (as-of capture, via `dim_fantrax_crosswalk` scorer_id→gsis→adp). 18 cols incl. `event_seq`=overall pick#, `event_date`, `scorer_id`/`gsis_id` audit, `draft_round`/`pick_in_round`/`pick_overall`. Source `getDraftResults` via `04w` (**SW-served → HAR can't carry body**; fetch through authed ctx). Idempotent replace-by `(season_id, event_type)` |
 | `fact_rookie_rankings` | `player_key + source + phase + draft_year` | Rookie-class expert ranks; pipeline 02c + 03a–03x |
 | `fact_fantrax_adp` | `scorer_id + season + week` | Fantrax projection board + season-actuals; notebook 04a |
@@ -333,17 +333,25 @@ Fantrax (upstream SSOT for owner/team attributes). Resolved via `/grill-with-doc
 
 ## dim_fantasy_teams Cap Columns
 
-All initialized to 0 at seed time; ETL rollup overwrites:
+**Changed 2026-07-11**: `dim_fantasy_teams` only carries the two cap facts
+that are true independent of the roster:
 
 | Column | Formula |
 |---|---|
 | `original_cap` | `CFG.total_cap` — static |
-| `cap_hits_current_yr` | ETL: committed charges (dead money etc.) |
-| `cap_hits_next_yr` | ETL: year-2 contracts rolling forward |
 | `reinvestment_cap` | In-season bonus cap charges |
-| `active_roster_salary` | ETL: sum of active cap hits this season |
-| `remaining_cap_current_yr` | `original_cap - (active_roster_salary + cap_hits_current_yr + reinvestment_cap)` |
-| `remaining_cap_next_yr` | `original_cap - (proj_next_yr_salary + cap_hits_next_yr)` |
+
+Everything roster-derived (`active_roster_salary`, `cap_hits_current_yr` /
+dead money, `remaining_cap_current_yr`, `remaining_cap_next_yr`) used to be
+an ETL rollup `02e` wrote back into this table — that was a second,
+ETL-frozen implementation of the same math already sitting live on
+`fact_fantasy_teams`, and it went stale under any Power BI report filter
+(fixed 2026-07-11). It's now computed on read, not cached: DAX measures in
+`pbi/mouserat2/.../_Measures.tmdl` (`'Active Roster Salary'`, `'Dead
+Money'`, `'Remaining Salary Cap'`) for Power BI, `discord_bot/capmath.py`
+for the bot. One formula (`original_cap - (active_roster_salary +
+dead_money + reinvestment_cap)`), implemented twice (DAX + pandas), not
+cached a third time in the parquet.
 
 ## Transformer Tables
 
