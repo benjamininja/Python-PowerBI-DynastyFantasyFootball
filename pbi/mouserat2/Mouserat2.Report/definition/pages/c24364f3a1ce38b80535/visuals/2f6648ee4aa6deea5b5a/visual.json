@@ -4,10 +4,10 @@
   "position": {
     "x": 34.323223388654824,
     "y": 0,
-    "z": 2,
+    "z": 2000,
     "height": 87.714904215451213,
     "width": 366.11438281231813,
-    "tabOrder": 2
+    "tabOrder": 2000
   },
   "visual": {
     "visualType": "slicer",
@@ -191,51 +191,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "e0634814d10dc466142e",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Dim_Position"
-              }
-            },
-            "Property": "SideOfBall"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "5f989d854d30851059b9",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Dim_Position"
-              }
-            },
-            "Property": "PositionGroup"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "c8a645573a80a336400d",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "Dim_Position"
-              }
-            },
-            "Property": "PositionRaw"
-          }
-        },
-        "type": "Categorical"
-      }
-    ]
   }
 }

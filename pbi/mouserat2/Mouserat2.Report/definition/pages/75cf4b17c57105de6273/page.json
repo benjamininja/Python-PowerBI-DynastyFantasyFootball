@@ -1,0 +1,120 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "75cf4b17c57105de6273",
+  "displayName": "Compare Fantasy Teams",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280,
+  "visualInteractions": [
+    {
+      "source": "a5c588735148958a1050",
+      "target": "6949b0a00715222a8b32",
+      "type": "NoFilter"
+    },
+    {
+      "source": "6949b0a00715222a8b32",
+      "target": "a5c588735148958a1050",
+      "type": "NoFilter"
+    },
+    {
+      "source": "abbfee0cfdc17f35eeb0",
+      "target": "caff970433c3b952e2d7",
+      "type": "DataFilter"
+    },
+    {
+      "source": "abbfee0cfdc17f35eeb0",
+      "target": "a5c588735148958a1050",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7cbae41095f2eff4d2a9",
+      "target": "a5c588735148958a1050",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7cbae41095f2eff4d2a9",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7cbae41095f2eff4d2a9",
+      "target": "caff970433c3b952e2d7",
+      "type": "NoFilter"
+    },
+    {
+      "source": "caff970433c3b952e2d7",
+      "target": "6949b0a00715222a8b32",
+      "type": "NoFilter"
+    },
+    {
+      "source": "caff970433c3b952e2d7",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7232377d7a2cdb99a5df",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7232377d7a2cdb99a5df",
+      "target": "7cbae41095f2eff4d2a9",
+      "type": "NoFilter"
+    },
+    {
+      "source": "7232377d7a2cdb99a5df",
+      "target": "caff970433c3b952e2d7",
+      "type": "NoFilter"
+    },
+    {
+      "source": "45c3c5fabfb14d157bfa",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "NoFilter"
+    },
+    {
+      "source": "45c3c5fabfb14d157bfa",
+      "target": "7cbae41095f2eff4d2a9",
+      "type": "NoFilter"
+    },
+    {
+      "source": "45c3c5fabfb14d157bfa",
+      "target": "caff970433c3b952e2d7",
+      "type": "NoFilter"
+    },
+    {
+      "source": "36957bb1243c79746297",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "NoFilter"
+    },
+    {
+      "source": "36957bb1243c79746297",
+      "target": "7cbae41095f2eff4d2a9",
+      "type": "DataFilter"
+    },
+    {
+      "source": "36957bb1243c79746297",
+      "target": "caff970433c3b952e2d7",
+      "type": "DataFilter"
+    },
+    {
+      "source": "89db1379b22fc8f25575",
+      "target": "caff970433c3b952e2d7",
+      "type": "NoFilter"
+    },
+    {
+      "source": "89db1379b22fc8f25575",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "DataFilter"
+    },
+    {
+      "source": "f0b578108aef023038eb",
+      "target": "abbfee0cfdc17f35eeb0",
+      "type": "DataFilter"
+    },
+    {
+      "source": "caff970433c3b952e2d7",
+      "target": "7cbae41095f2eff4d2a9",
+      "type": "NoFilter"
+    }
+  ]
+}

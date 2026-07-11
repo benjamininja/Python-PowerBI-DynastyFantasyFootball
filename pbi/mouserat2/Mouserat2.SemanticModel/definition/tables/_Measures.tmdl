@@ -244,8 +244,17 @@ table _Measures
 
 		annotation SynonymCollection = ["10 year projection","ten year","proj 10yr","career projection","long term value"]
 
-	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier.
-	measure ADP = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "adp" )
+	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Uses the blended Composite ADP across all dynasty sources (metric_key "composite_adp") -- fixed 2026-07-11, was filtering on "adp", a metric_key that doesn't exist in dim_dynasty_metric (real keys are ktc_adp/ds_adp/composite_adp/startup_adp), so this measure was always blank everywhere, not just alongside salary fields. IsRosterRow gate added 2026-07-11: Dim_Contract is a 10-row rule lookup (1st/2nd/.../FA) unrelated to Fact_DynastyRankingMetrics, so ADP ignores the Contract row filter and returns the same player value regardless of which contract row is in context. The 9999 sentinel used to fill in for every one of those 10 rows per player (not just their real contract), and a non-blank measure defeats the matrix's blank-row suppression -- so every player showed all 10 phantom contract combinations with blank salary fields next to a repeated ADP. Gating on COUNTROWS(Fact_FantasyTeams) > 0 restores blank on the 9 non-matching combos so they go back to being suppressed, and only fills 9999 on the one real roster row.
+	measure ADP =
+			
+			VAR adp = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "composite_adp" )
+			VAR IsRosterRow = COUNTROWS ( Fact_FantasyTeams ) > 0
+			
+			RETURN
+			SWITCH( TRUE(),
+			NOT IsRosterRow, BLANK(),
+			NOT ISBLANK(adp), adp,
+			9999.0)
 		formatString: 0.0
 		displayFolder: Dynasty Rankings
 		lineageTag: a5a5728e-d719-481f-85cd-ac8fd670dab1
@@ -454,8 +463,8 @@ table _Measures
 
 		annotation SynonymCollection = ["std dev","standard deviation","rank spread","disagreement","consensus spread"]
 
-	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Subtotal-correct across players (averaged).
-	measure 'ADP (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "adp" )
+	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Subtotal-correct across players (averaged). Same "composite_adp" fix as 'ADP' -- was filtering on a metric_key that doesn't exist.
+	measure 'ADP (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "composite_adp" )
 		formatString: 0.0
 		displayFolder: Dynasty Rankings - extra
 		lineageTag: a7a41fcf-585b-4a8c-aa52-ab3dcb2d0cb2
@@ -596,10 +605,10 @@ table _Measures
 
 	/// Player's cap hit as a percent of their team's total starting cap. Live calc against Fact_FantasyTeams + Dim_FantasyTeams[OriginalCap] -- no ETL-frozen rollup.
 	measure 'Player Pct of Team Cap' =
-
+			
 			VAR PlayerCapHit =
 			    [Active Roster Salary]
-
+			
 			VAR TeamTotalCap =
 			    CALCULATE(
 			        [Starting Salary Cap],
@@ -612,29 +621,48 @@ table _Measures
 		displayFolder: Salary & Cap
 		lineageTag: 1b7b8790-b0fd-4943-b181-4311669cf879
 
-	/// This-year cap charge for the active roster: ContractValue x Dim_Contract[CapHitPct] via the ContractID relationship, not a stored CapHit column (removed 2026-07-11 -- 100% derivable, was a redundant duplicate of the same math). Same formula as the Discord bot's discord_bot/capmath.py -- see 'Contract Value' for total deal size instead.
-	measure 'Active Roster Salary' = SUMX(Fact_FantasyTeams, Fact_FantasyTeams[ContractValue] * RELATED(Dim_Contract[CapHitPct]))
+	/// This year's cap charge for a rostered (kept) player: the full ContractValue, no percentage applied. CapHitPct on Dim_Contract is a dead-money-only number -- it only prices what's still owed if you CUT the player (see the Dead Money measures below); it has no bearing on what a kept player costs. Same value as 'Contract Value', just season-filtered to the current year so it stays correct once Fact_FantasyTeams carries more than one season's rows.
+	measure 'Active Roster Salary' =
+			
+			CALCULATE(
+			    SUM(Fact_FantasyTeams[ContractValue]),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
 		lineageTag: f6e934e4-6811-44cf-ac61-1c3c7edd16fa
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
 	measure 'Starting Salary Cap' = SUM(Dim_FantasyTeams[OriginalCap])
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
 		lineageTag: 13ef7dc7-b523-4094-bcde-9a46721b524f
 
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
 	/// original_cap - (active_roster_salary + dead_money + reinvestment_cap) -- same formula as discord_bot/capmath.py, computed live here so it responds to report filters (no cached Dim_FantasyTeams rollup exists anymore).
-	measure 'Remaining Salary Cap' = [Starting Salary Cap] - [Active Roster Salary] - [Dead Money Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
+	measure 'Remaining Salary Cap' = [Starting Salary Cap] - [Contract Value] - [Dead Money - Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
 		lineageTag: bfbe96fa-03d3-490f-a572-6dfb91da9c92
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
 	measure 'Percent of Cap Remaining' = DIVIDE ( [Remaining Salary Cap], [Starting Salary Cap] )
 		formatString: 0.0%;-0.0%;0.0%
 		displayFolder: Salary & Cap
 		lineageTag: 6451e6d3-5723-4487-bd35-5c7af1895463
 
-	measure 'Percent of Cap Used' = 1 - [Percent of Cap Remaining]
+	measure 'Percent of Cap Used' = ```
+			
+			SWITCH ( 
+			    TRUE(), 
+			    NOT ISBLANK([Percent of Cap Remaining]),
+			        1 - [Percent of Cap Remaining],
+			    BLANK() 
+			)
+			```
 		formatString: 0.0%;-0.0%;0.0%
 		displayFolder: Salary & Cap
 		lineageTag: 6eec5cc5-4191-4e2d-91c9-ac855c158cc1
@@ -645,23 +673,182 @@ table _Measures
 		displayFolder: Salary & Cap
 		lineageTag: 3280ec07-3c3a-47c1-8770-c8d7eaa1c62a
 
-	/// Dead money charged against the cap from dropped players. Lives on Fact_FantasyTeams (contract-value grain); Dim_Contract only holds the guarantee rule that determines whether a dropped contract carries dead money.
-	measure 'Dead Money Active - Current Year' = ```
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// Dead money = ContractValue x Dim_Contract[CapHitPct] -- CapHitPct only ever prices dead money, never the active cap hit (see 'Active Roster Salary'). ACTIVE means real: only counts players actually Cut on a Guaranteed contract -- this is what's really hitting the cap right now. SPECULATIVE (see below) drops the Cut requirement to answer "what would it cost to cut this player today," for planning before you pull the trigger. CURRENT YEAR = this season's Dim_Contract row's own CapHitPct.
+	measure 'Dead Money - Active - Current Year' =
 			
-			SWITCH(TRUE,
-			    SELECTEDVALUE('Fact_FantasyTeams'[Status]) = "Active", 0,
-			    
-			    SUM(Fact_FantasyTeams[ContractValue]) * SELECTEDVALUE(Dim_Contract[CapHitPct])
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        IF(
+			            Fact_FantasyTeams[Status] = "Cut" && RELATED(Dim_Contract[Guaranteed]),
+			            Fact_FantasyTeams[ContractValue] * RELATED(Dim_Contract[CapHitPct]),
+			            0
+			        )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
 			)
-			```
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
 		lineageTag: ccab9ac4-5f71-4ae1-a459-af6f37e399bd
 
-	measure 'Dead Money Cap Hit - Current Year' = SELECTEDVALUE(Fact_FantasyTeams[ContractValue]) * SELECTEDVALUE(Dim_Contract[CapHitPct])
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// NEXT YEAR = looks up the CapHitPct of (ContractType, TotalYears, ContractYear+1) in Dim_Contract -- e.g. a player on '1st' (initial, year 1) prices the '2nd' row's pct. Single-year contract types (Tag/X/Minor/FA) have no year+1 row, so this is 0 for them. ACTIVE = real: only Cut players on a Guaranteed contract. See 'Dead Money - Active - Current Year' for the full ACTIVE/SPECULATIVE explanation.
+	measure 'Dead Money - Active - Next Year' =
+			
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        VAR NextPct =
+			            LOOKUPVALUE(
+			                Dim_Contract[CapHitPct],
+			                Dim_Contract[ContractType], RELATED(Dim_Contract[ContractType]),
+			                Dim_Contract[TotalYears], RELATED(Dim_Contract[TotalYears]),
+			                Dim_Contract[ContractYear], RELATED(Dim_Contract[ContractYear]) + 1
+			            )
+			        RETURN
+			            IF(
+			                Fact_FantasyTeams[Status] = "Cut" && RELATED(Dim_Contract[Guaranteed]) && NOT ISBLANK(NextPct),
+			                Fact_FantasyTeams[ContractValue] * NextPct,
+			                0
+			            )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
-		lineageTag: bc17c6c7-510c-4ace-aab5-4d0e341a16f9
+		lineageTag: 2465b3f2-d177-4dcb-ad69-a6cf7d93e20a
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// TOTAL = sums CapHitPct across every remaining contract_year in the same (ContractType, TotalYears) cycle -- e.g. a player in year 1 of a 3-year 'initial' deal (.50/.40/.00) prices .50+.40+.00 = .90 x ContractValue. Uses ALL(Dim_Contract) to scan sibling contract-year rows outside the single-row relationship context. ACTIVE = real: only Cut players on a Guaranteed contract. See 'Dead Money - Active - Current Year' for the full ACTIVE/SPECULATIVE explanation.
+	measure 'Dead Money - Active - Total' =
+			
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        VAR CT = RELATED(Dim_Contract[ContractType])
+			        VAR TY = RELATED(Dim_Contract[TotalYears])
+			        VAR CY = RELATED(Dim_Contract[ContractYear])
+			        VAR RemainingPct =
+			            SUMX(
+			                FILTER(
+			                    ALL(Dim_Contract),
+			                    Dim_Contract[ContractType] = CT
+			                        && Dim_Contract[TotalYears] = TY
+			                        && Dim_Contract[ContractYear] >= CY
+			                ),
+			                Dim_Contract[CapHitPct]
+			            )
+			        RETURN
+			            IF(
+			                Fact_FantasyTeams[Status] = "Cut" && RELATED(Dim_Contract[Guaranteed]),
+			                Fact_FantasyTeams[ContractValue] * RemainingPct,
+			                0
+			            )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: f6a58ab2-6ba6-4cba-a848-5309d9bbc59e
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// SPECULATIVE CURRENT YEAR = same as 'Dead Money - Active - Current Year' but drops the Cut requirement (keeps Guaranteed), pricing what it WOULD cost to cut any rostered player today, not just players already dropped -- a what-if number for planning before pulling the trigger.
+	measure 'Dead Money - Speculative - Current Year' =
+			
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        IF(
+			            RELATED(Dim_Contract[Guaranteed]),
+			            Fact_FantasyTeams[ContractValue] * RELATED(Dim_Contract[CapHitPct]),
+			            0
+			        )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: 2a522abd-aa42-4abe-81e3-27be8d82a8d2
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// SPECULATIVE NEXT YEAR = same as 'Dead Money - Active - Next Year' but drops the Cut requirement (keeps Guaranteed) -- what it would cost to cut this player next season if he's kept through this one.
+	measure 'Dead Money - Speculative - Next Year' =
+			
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        VAR NextPct =
+			            LOOKUPVALUE(
+			                Dim_Contract[CapHitPct],
+			                Dim_Contract[ContractType], RELATED(Dim_Contract[ContractType]),
+			                Dim_Contract[TotalYears], RELATED(Dim_Contract[TotalYears]),
+			                Dim_Contract[ContractYear], RELATED(Dim_Contract[ContractYear]) + 1
+			            )
+			        RETURN
+			            IF(
+			                RELATED(Dim_Contract[Guaranteed]) && NOT ISBLANK(NextPct),
+			                Fact_FantasyTeams[ContractValue] * NextPct,
+			                0
+			            )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: 2d23f47b-42d9-41ef-b60b-8484652f1c28
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// SPECULATIVE TOTAL = same as 'Dead Money - Active - Total' but drops the Cut requirement (keeps Guaranteed) -- what it would cost to cut this player right now, for the whole remaining life of the contract cycle. The "should I cut this guy" number.
+	measure 'Dead Money - Speculative - Total' =
+			
+			CALCULATE(
+			    SUMX(
+			        Fact_FantasyTeams,
+			        VAR CT = RELATED(Dim_Contract[ContractType])
+			        VAR TY = RELATED(Dim_Contract[TotalYears])
+			        VAR CY = RELATED(Dim_Contract[ContractYear])
+			        VAR RemainingPct =
+			            SUMX(
+			                FILTER(
+			                    ALL(Dim_Contract),
+			                    Dim_Contract[ContractType] = CT
+			                        && Dim_Contract[TotalYears] = TY
+			                        && Dim_Contract[ContractYear] >= CY
+			                ),
+			                Dim_Contract[CapHitPct]
+			            )
+			        RETURN
+			            IF(
+			                RELATED(Dim_Contract[Guaranteed]),
+			                Fact_FantasyTeams[ContractValue] * RemainingPct,
+			                0
+			            )
+			    ),
+			    Dim_Season[relative_nfl_season_number] = 0
+			)
+		formatString: \$#,0;(\$#,0);\$#,0
+		displayFolder: Salary & Cap
+		lineageTag: 9b798d2d-afc0-40ce-9ed1-53a861fda9fc
+
+		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
+
+	/// Player's Contract Value rank within their own team (1 = highest-paid), ignoring whatever player-level filter the visual currently has. ALLEXCEPT keeps only the TeamKey filter, so RANKX iterates every roster row on that team regardless of which players are otherwise shown. Not a Top N report filter (PBI's built-in Top N is global, not per-group) -- drag this into a visual's Filters pane and set "is less than or equal to 5" to get top-5-per-team in one chart.
+	measure 'Contract Value Rank in Team' =
+			
+			RANKX(
+			    ALLEXCEPT(Fact_FantasyTeams, Fact_FantasyTeams[TeamKey]),
+			    [Contract Value]
+			)
+		formatString: 0
+		displayFolder: Salary & Cap
+		lineageTag: d3ca52a0-3638-4350-8318-8d9c3c5b4ea8
 
 	/// Hidden placeholder column for this measure-only table. Not for reporting.
 	column _Measures

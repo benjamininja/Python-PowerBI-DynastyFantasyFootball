@@ -187,6 +187,16 @@
             "width": 234
           },
           "zIndex": 0
+        },
+        {
+          "location": {},
+          "nodeIndex": "Dim_Season",
+          "nodeLineageTag": "2881e84e-ef71-4601-941a-692f773d088e",
+          "size": {
+            "height": 296,
+            "width": 234
+          },
+          "zIndex": 0
         }
       ],
       "name": "All tables",
@@ -412,7 +422,7 @@
       "ordinal": 3,
       "scrollPosition": {
         "x": 0,
-        "y": 0
+        "y": 257.87250262161768
       },
       "nodes": [
         {
@@ -443,8 +453,8 @@
         },
         {
           "location": {
-            "x": 41.545967630312816,
-            "y": 462.77866462661575
+            "x": 82.628597492667581,
+            "y": 552.84443009408585
           },
           "nodeIndex": "Dim_NFLPlayers",
           "nodeLineageTag": "0311adcc-3e37-4573-bf03-9fc74dbd963e",
@@ -502,6 +512,19 @@
           "nodeLineageTag": "c2dbc871-6ada-4db5-be66-173de0ff79b0",
           "size": {
             "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 709.395029986765,
+            "y": 807.0270449795438
+          },
+          "nodeIndex": "Dim_Season",
+          "nodeLineageTag": "2881e84e-ef71-4601-941a-692f773d088e",
+          "size": {
+            "height": 296,
             "width": 234
           },
           "zIndex": 0

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/bookmarksMetadata/1.0.0/schema.json",
+  "items": [
+    {
+      "name": "7918ea13231c2f692fc3",
+      "displayName": "Dvision_ComparisonReset",
+      "children": [
+        "d68b4915e6881b197736",
+        "06c6d3a07ba982b37ecc"
+      ]
+    }
+  ]
+}

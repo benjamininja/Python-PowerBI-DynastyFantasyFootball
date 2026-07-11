@@ -67,32 +67,6 @@ table Dim_FantasyTeams
 
 		annotation SynonymCollection = ["division","div","group"]
 
-	/// Primary manager's email.
-	column ManagerEmail
-		dataType: string
-		lineageTag: c07d5d18-8561-4df6-905f-99ad6488e223
-		summarizeBy: none
-		sourceColumn: manager_email
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = manager|owner|manager email|email
-
-		annotation SynonymCollection = ["manager","owner","manager email","email"]
-
-	/// Co-manager's email.
-	column ManagerEmail2
-		dataType: string
-		lineageTag: f85103c6-3f0e-4598-9413-5c3f881dc684
-		summarizeBy: none
-		sourceColumn: manager_email_2
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = co-manager|second manager|manager email 2
-
-		annotation SynonymCollection = ["co-manager","second manager","manager email 2"]
-
 	/// Starting salary cap for the team ($).
 	column OriginalCap
 		dataType: int64
