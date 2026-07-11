@@ -5,9 +5,14 @@ posts formatted rankings in the league server. Authored from the
 `discord-bot-github-fetch` skill — that skill is the source of truth for
 architecture, security gates, and Railway deploy.
 
-## Command (v1)
+## Commands
 
-`/rankings` (also `!rankings`) — a **format-scoped, per-position board**.
+All commands are **hybrid** (slash `/cmd` + prefix `!cmd`) and **private by
+default** — the result goes only to you (slash → ephemeral with a "Post
+publicly" button; prefix in a public channel → DM). Pass `share: true` to post
+publicly in one step.
+
+### `/rankings` — format-scoped, per-position dynasty board
 
 | Arg | Default | Notes |
 |---|---|---|
@@ -18,6 +23,36 @@ architecture, security gates, and Railway deploy.
 
 Why format-scoped: no single format+source spans all positions — SF/TEPP hold
 offense, IDP holds defense (FantasyPros only). One board = one format.
+
+### `/adp` — Fantrax ADP board (with league-ownership overlay)
+
+One overall board sorted by ADP ascending; two lines per player so ADP, salary,
+overall rank, position/team/age, and the player's owner in *our* league all fit.
+
+| Arg | Default | Notes |
+|---|---|---|
+| `position` | all | Filter to one position group. |
+| `limit` | `15` | Players to show (max 50). |
+
+The owner column is blank for anyone not yet drafted and fills in as teams draft.
+
+### `/player <name>` — single-player card
+
+Resolves a name (normalize + substring; asks you to disambiguate a collision
+like the two Josh Allens), then shows dynasty ranks + value per source (for the
+player's format — IDP for defense, SF otherwise), composite + Fantrax ADP, and
+the player's contract in our league if rostered.
+
+### `/cap` — league salary-cap standings
+
+Every team's spend and remaining cap, grouped by conference (division names from
+`dim_division`), sorted by current spend.
+
+### `/roster <team>` — a team's roster + contracts
+
+Resolve a team by abbreviation or name; players listed by cap hit with contract
+and status. A team that hasn't drafted yet gets a friendly note with its
+available cap instead of an empty board.
 
 ## Configuration
 
@@ -63,15 +98,33 @@ Persistent worker, deployed from this GitHub repo. See the skill's
 
 ```
 config.py         # env → Config; fails loud on missing required vars
-github_fetch.py   # GitHub contents API → DataFrame, TTL cache
-rankings.py       # the rankings command (Cog) + embed rendering
-bot.py            # entrypoint: intents, hybrid commands, guild sync, gateway
+github_fetch.py   # GitHub contents API → DataFrame, TTL cache (all data access)
+delivery.py       # privacy routing + ShareView + respond_with_embeds wrapper
+render.py         # embed pagination + null-safe cell formatting (shared)
+rankings.py       # /rankings cog + query
+adp.py            # /adp cog + query
+player.py         # /player cog + query
+cap.py            # /cap cog + query
+roster.py         # /roster cog + query
+bot.py            # entrypoint: intents, cog registration, guild sync, gateway
 railway.json      # start command + bounded restart policy (deploy contract)
+tests/offline_smoke.py  # no-network harness: build every command, assert limits
 ```
+
+## Test (offline, no Discord/network)
+
+```bash
+.botvenv/Scripts/python.exe tests/offline_smoke.py
+```
+
+Monkeypatches `fetch_parquet` to read the local `data/` parquet, builds every
+command's embeds, and asserts Discord's limits — also catches schema drift.
 
 ## Extend
 
-Add a command as its own `@commands.hybrid_command` (own module or this Cog),
-keep all data access in `github_fetch.py`, map columns via the skill's
-`references/data-model.md`, and respect Discord embed limits. The startup sync
-surfaces new commands immediately.
+Add a command as its own module with a `@commands.hybrid_command` cog. Keep data
+access in `github_fetch.py`, build `(name, value)` fields and call
+`render.paginate_fields`, then `delivery.respond_with_embeds` (which gives you
+defer, off-loop fetch, error handling, and the private-by-default routing for
+free). Map columns via the skill's `references/data-model.md`. Register the cog's
+`setup_*` in `bot.py`; the startup sync surfaces the command immediately.
