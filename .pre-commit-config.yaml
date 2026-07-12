@@ -7,3 +7,7 @@ repos:
         language: system
         pass_filenames: false
         files: ^(docs/sources\.yml|docs/SOURCES\.md|notebooks/.*)$
+  - repo: https://github.com/benjamininja/project-memory-template
+    rev: 460804dc1b2dd011e8810ab0599ddf3e53f63eec
+    hooks:
+      - id: check-in-hygiene
