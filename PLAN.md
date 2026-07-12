@@ -9,7 +9,23 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~35% window (Opus)**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
-## Working state (2026-07-11)
+## Working state (2026-07-12)
+
+- The 2026-07-11 uncommitted slate below **landed on `main`** as PR #17
+  ("2026 startup draft ingest, $300M cap change, cap-consistency fixes") —
+  the branch-and-uncommitted framing is stale history now, kept for detail.
+- **Subagent audit run (2026-07-12, uncommitted)**: first run of the
+  `subagent-audit` skill (`skills-plugins-hooks-agents` PR #22) against
+  this repo. Outcome: two read-only subagents defined in
+  `.claude/agents/` — `fantrax-payload-analyst` (context firewall + typed
+  schema/drift analysis for the 16–32MB `data/raw/` payloads) and
+  `cap-ledger-auditor` (adversarial pre-merge audit of
+  cap/contract/ledger logic, grounded in ADR-0003/0004/0006/0008) — plus
+  [ADR-0009](docs/adr/0009-first-subagent-roster.md) recording the
+  accepted and rejected-with-reason candidates. Awaiting "commit when
+  asked".
+
+## 2026-07-11 detail (landed as PR #17)
 - Branch **`data-2026-draft-cap-update`**, off `main` (`b89671c`). Uncommitted:
   2026 startup-draft ingest (**both divisions live and ingested through
   `02d`/`02e`**: Riddell 485/490, Wilson 450/490, 935 total picks — re-run
