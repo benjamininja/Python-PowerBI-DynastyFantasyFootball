@@ -22,3 +22,4 @@ nbconvert>=7.16
 
 # Regression testing (ADR-0008) — unit tests for etl_helpers.py's pure functions.
 pytest>=8.0
+pre-commit>=3.7    # ADR-0008's check_sources.py gate — see CONTRIBUTING.md setup
