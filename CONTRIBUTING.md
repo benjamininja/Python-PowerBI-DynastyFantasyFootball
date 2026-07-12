@@ -26,6 +26,18 @@ git push origin dev
 gh pr create --base main --head dev --draft --title "..." --body "..."
 ```
 
+## One-time environment setup
+
+Wires the ADR-0008 `check_sources.py` pre-commit gate into `git commit` —
+without this step, `.pre-commit-config.yaml` exists but nothing runs it:
+
+```bash
+.venv\Scripts\python.exe -m pip install -r requirements.txt   # pulls in pre-commit
+.venv\Scripts\python.exe -m pre_commit install                # wires .git/hooks/pre-commit
+```
+
+Verify with `.venv\Scripts\python.exe -m pre_commit run --all-files`.
+
 ## Commit message format
 
 ```
