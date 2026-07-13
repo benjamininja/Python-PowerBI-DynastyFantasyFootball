@@ -42,6 +42,20 @@ sources:
       - { notebook: 04a_fantrax_weekly_scrape.py, table: fact_fantrax_adp }
     match: ["v744203wmmvjqzv6"]
 
+  - id: fantrax_minor_contracts
+    name: "Fantrax — getPlayerStats (MINOR_FANTASY filters) + getTeamRosterInfo"
+    status: live
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN; getTeamRosterInfo per team)"
+    purpose: "Yo-Yo Rule compliance: site's minors-eligibility verdict + per-team roster placement (Active/Reserve/Minors) + per-copy contract types"
+    auth: "Same Fantrax session as fantrax_getdraftranks (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
+    cadence: "Weekly (Windows Task Scheduler, after 04a)"
+    feeds:
+      - { notebook: 04v_minor_contracts.py, table: fact_roster_placement }
+      - { notebook: 04v_minor_contracts.py, table: fact_minor_eligibility }
+    # 04v reuses 04a's CFG, so the league id never appears in its source —
+    # match on the filter enum that defines this feed instead.
+    match: ["MINOR_FANTASY"]
+
   - id: google_sheet_team_manifest
     name: "Google Sheet — team manifest"
     status: live
