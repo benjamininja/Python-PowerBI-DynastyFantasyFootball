@@ -56,10 +56,20 @@ contracts = pd.read_parquet(DATA / "dim_contract.parquet")
 cap_hit_pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
 print(f"[info] ledger: {len(ledger)} events, {ledger['event_type'].nunique()} type(s)")
 
-# last event wins per player+team (event_seq = canonical acquisition order).
+# last event wins per player+team (event_seq = canonical order: startup slots
+# 1..490, then minor_assignment/minor_graduation at 1000+snapshot ordinal).
 latest = (ledger.sort_values("event_seq")
           .drop_duplicates(["team_key", "asset_id"], keep="last"))
 active = latest[~latest["event_type"].isin(TERMINAL)].copy()
+
+# acquired_method = the copy's FIRST event (how the player arrived), not the
+# last — contract-state events (minor_*) update the contract columns via
+# last-event-wins above but must not masquerade as an acquisition method.
+first = (ledger.sort_values("event_seq")
+         .drop_duplicates(["team_key", "asset_id"], keep="first")
+         .rename(columns={"event_type": "acquired_method"})
+         [["team_key", "asset_id", "acquired_method"]])
+active = active.merge(first, on=["team_key", "asset_id"], how="left")
 
 # resolve asset_id -> gsis_id / player_key via the polymorphic bridge.
 res = assets.set_index("asset_id")[["gsis_id", "player_key"]]
@@ -76,7 +86,7 @@ fact_fantasy_teams = pd.DataFrame({
     "contract_year":  active["contract_year"],
     "dead_money":     active["dead_money"],
     "status":         active["status"],
-    "acquired_method": active["event_type"],
+    "acquired_method": active["acquired_method"],
     "season":         active["season_id"],
 }).reset_index(drop=True)
 

@@ -102,19 +102,30 @@ Defense rows); we read its verdict, never re-derive it.
   detection (flagged needs_verification). Unit tests
   `tests/test_04v_minor_contracts.py` (ADR-0008) pin both; `docs/sources.yml`
   gained the `fantrax_minor_contracts` entry (lean-import blind spot noted).
+- **Ledger events BUILT 2026-07-12** (branch `yo-yo-ledger-events`, stacked on
+  the 04v PR): `02d` derives `minor_assignment`/`minor_graduation` from
+  **observed** per-copy contract transitions across `fact_roster_placement`
+  snapshot history (event dated at the capture where the new state first
+  appears — reflects what the site shows, not worklist intent). `event_seq =
+  1000 + snapshot ordinal` so `02e`'s last-event-wins replay ranks flips after
+  startup picks (max slot 490); `02e`'s `acquired_method` now comes from the
+  copy's FIRST event (contract-state events must not masquerade as
+  acquisitions). Rebuilt-from-history each run, replace-by-(season_id,
+  event_type) → idempotent. Verified via simulated wk01/wk02 snapshots:
+  assignments at cap_hit 0, graduation at 1st/50%, replay ordering correct.
+  A copy vanishing while Minor = a **drop** — still out of scope until the
+  drop event type exists (dead-money work above).
 - **Next (in order)**: (1) `--apply` mode — replay the worklist through
   Fantrax's commissioner contract-edit endpoint; **USER captures the request
   shape** (one manual contract edit with DevTools recording — request bodies
   survive the service-worker HAR gap). Opt-in flag, never unattended; explicit
-  scoped exception to the no-write-side rule per grill sign-off. (2) `02d`
-  ledger events `minor_assignment` (startup batch, dated at draft completion) +
-  `minor_graduation` (payload: new contract_id, salary, graduation season);
-  `02e` replay derives contract type, `contract_year` advancement keys off
-  graduation season. (3) capmath/PBI: charge Active+Reserve salaries, exempt
-  Minors placement (join `fact_roster_placement`). (4) `dim_nfl_players`
-  career-GP column (nflverse) as a cross-check monitor vs Fantrax's count,
-  reported early-season. Ties into the dead-money work above (a Minor drop is
-  penalty-free by contract rule).
+  scoped exception to the no-write-side rule per grill sign-off. (2) capmath/
+  PBI: charge Active+Reserve salaries, exempt Minors placement (join
+  `fact_roster_placement`). (3) `dim_nfl_players` career-GP column (nflverse)
+  as a cross-check monitor vs Fantrax's count, reported early-season. Ties
+  into the dead-money work above (a Minor drop is penalty-free by contract
+  rule). **USER actions open**: fix site eligibility condition 20 → 19 (both
+  rows); merge PR #22; capture the contract-edit request.
 
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
