@@ -75,7 +75,10 @@ the parquet alone.
 - **Git**: feature branch → `main` via PR, squash-merge,
   `--delete-branch`. One logical change per PR. Commits use the GitHub noreply
   author email (`38588919+benjamininja@users.noreply.github.com`) — repo
-  `user.email` is already set to it. Commit only when asked.
+  `user.email` is already set to it. Commit only when asked. **One codified
+  exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) commits
+  machine-generated `data/*.parquet` refreshes directly to `main`
+  (allowlist-verified, change-detected, rebase-then-push — CONTRIBUTING.md).
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,
   `api_key.txt`. Bot/scraper code does no destructive or write-side calls to
@@ -110,7 +113,7 @@ the parquet alone.
   missed once. `resolve_dynasty_crosswalk`, `load_replace_partition`,
   `fold_ranks_long`, `SOURCE_PREFIX`, `ZERO_IS_MISSING` are this pattern.
 - **Editing `.ipynb` programmatically**: load JSON → mutate `cell["source"]`
-  (`[l + "\n" for l in lines[:-1]] + [lines[-1]]`) → `json.dump(nb, f,
+  (`[l + "\n" for l in lines[:-1]] + lines[-1:]`) → `json.dump(nb, f,
   ensure_ascii=False, indent=1)`. Find cells by `cell["id"]`, never by index.
   Prefer a full-cell rebuild over >3 stacked patches in one session.
 - **Network calls**: wrap in try/except with descriptive errors;
