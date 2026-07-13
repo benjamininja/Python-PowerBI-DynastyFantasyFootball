@@ -72,17 +72,49 @@ described 2026-07-11: three versions —
 - Ties directly into the Minor League/draft-transition task below (drops are
   how a team moves a player to make Minor League room, or cuts for cap space).
 
-## [ ] Active — identify Minor League squad + draft-completion transition plan
-**New task, not yet started (added 2026-07-11).** Once the startup draft
-finishes for both divisions: identify which drafted players should move to
-each team's Minor League squad (100% cap-exempt bench slot until 20 NFL games
-played — the "Yo-Yo Rule", per league rules doc), and plan the transition
-mechanics — does moving a player to Minor League go through the ledger as its
-own event type, or is it a `dim_roster_asset`/`fact_fantasy_teams` status
-change? Needs a design pass (grill-me candidate) before building — touches the
-ledger event-type enum, `fact_fantasy_teams.status`, and probably the dead-money
-work above (a Minor League slot getting cut is a drop). Depends on Wilson
-finishing its draft.
+## [ ] Active — Yo-Yo Rule contract automation (Minor ↔ 1st) — read-side built
+**Design settled via grilling 2026-07-12; read-side BUILT same day**
+(branch `yo-yo-minor-contracts`, uncommitted). Settled rule: every player with
+career+current regular-season GP ≤ 19 holds a **Minor** contract league-wide
+(rostered or FA); the 20th game graduates them to **1st**, and the 3-year clock
+starts at the **graduation season** (Minor years don't burn contract years).
+Cap exemption follows **Minors-squad placement** (team choice — salary charged
+if kept active); the Minor *contract* grants squad eligibility + 0% drop
+penalty. **Fantrax computes eligibility itself** (league setting "Career+
+Current GP <=" — USER to fix site condition 20 → 19, both Offense + Individual
+Defense rows); we read its verdict, never re-derive it.
+- **Built — `notebooks/04v_minor_contracts.py`** (scraper cluster, imports 04a,
+  runs after 04a on the weekly schedule): pulls `getPlayerStats` with
+  `statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN` (site eligibility) +
+  `getTeamRosterInfo` × 28 teams (placement: row `statusId` 1=Active/2=Reserve/
+  9=Minors via `statusTotals`; contract = `Con` header) → writes
+  `fact_roster_placement` (grain **team × scorer × season × week** — duplicate-
+  player league, one copy per conference; replace-by-(season,week)) + worklist
+  `data/review/review_contract_actions.csv`. Verified on live pulls 2026-07-12:
+  991 placement rows (420 Active/469 Reserve/102 Minors), 5,513 eligible
+  (union of both filter buckets — TAKEN alone misses rostered FA-contract
+  copies), startup worklist = 357 rostered copies 1st→Minor + 5,341 FA→Minor.
+- **Pre-merge cap-ledger audit (2026-07-12) drove two fixes**: (1) contract is
+  **per roster copy**, not per player (verified live: 3 post-draft FA signings
+  hold 1st in one conference, FA in the other) → diff acts per (team, scorer);
+  (2) players who graduate while sitting in the FA pool vanish from both pulls
+  → new `fact_minor_eligibility` weekly snapshot + week-over-week vanish
+  detection (flagged needs_verification). Unit tests
+  `tests/test_04v_minor_contracts.py` (ADR-0008) pin both; `docs/sources.yml`
+  gained the `fantrax_minor_contracts` entry (lean-import blind spot noted).
+- **Next (in order)**: (1) `--apply` mode — replay the worklist through
+  Fantrax's commissioner contract-edit endpoint; **USER captures the request
+  shape** (one manual contract edit with DevTools recording — request bodies
+  survive the service-worker HAR gap). Opt-in flag, never unattended; explicit
+  scoped exception to the no-write-side rule per grill sign-off. (2) `02d`
+  ledger events `minor_assignment` (startup batch, dated at draft completion) +
+  `minor_graduation` (payload: new contract_id, salary, graduation season);
+  `02e` replay derives contract type, `contract_year` advancement keys off
+  graduation season. (3) capmath/PBI: charge Active+Reserve salaries, exempt
+  Minors placement (join `fact_roster_placement`). (4) `dim_nfl_players`
+  career-GP column (nflverse) as a cross-check monitor vs Fantrax's count,
+  reported early-season. Ties into the dead-money work above (a Minor drop is
+  penalty-free by contract rule).
 
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
