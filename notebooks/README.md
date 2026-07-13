@@ -67,9 +67,8 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 01f | `01f_dim_season_seed.ipynb` | `dim_season` (calendar spine, current+2; ADR-0004) |
 | 01g | `01g_dim_division_seed.ipynb` | `dim_division` (`(season_id, conference)` → division name; ADR-0005 read-side) |
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
-| 02b | `02b_fact_fantasy_teams_seed.ipynb` | `fact_fantasy_teams` (schema seed) |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
-| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `dim_draft_pick` (replay from 04w JSON) |
+| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `dim_draft_pick` (replay from 04w JSON). (`02b`, the old fact_fantasy_teams schema seed, is retired to `archive/` — superseded by 02e's ledger replay) |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster/contracts) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |

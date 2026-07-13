@@ -153,6 +153,22 @@ cleanup → E full PBI normalization → F docs. One PR per slice.
   over-cap warning. Tests: `test_capmath_minors_exempt` pins full-value +
   placement-only exemption + null-charges.
 
+- **Slice D BUILT 2026-07-13** (branch `model-cleanup-capcols`, stacked on C):
+  stored `dead_money` DROPPED from fact_fantasy_teams (parquet + TMDL +
+  cultures block) — computed by consumers instead (Cut + Guaranteed →
+  contract_value × cap_hit_pct; capmath/02e-summary/DAX all agree, pinned by
+  `test_capmath_dead_money_computed` incl. the X trap case). Dim_Season TMDL
+  desc fixed (was Dim_School copy-paste) + column descs; Dim_Division descs.
+  Conference→Dim_Division relationship re-keyed on hidden `DivisionKey`
+  calculated columns (current-season|conference) — survives dim_division
+  gaining future seasons. **Known limitation**: Dim_FantasyTeams has no
+  season grain, so DivisionKey always resolves to TODAY's anchor season —
+  a report sliced to a PAST season shows the current season's division
+  names. Acceptable until multi-season division renames actually exist.
+  02b retired to archive/ (02e supersedes); 01e verified writing its parquet
+  (explorer concern was false); retired fact_dynasty_rankings removed from
+  data/README.md.
+
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).

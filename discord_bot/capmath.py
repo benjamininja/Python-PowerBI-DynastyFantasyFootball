@@ -26,6 +26,7 @@ from github_fetch import fetch_parquet
 
 _TEAMS_PATH = "data/dim_fantasy_teams.parquet"
 _ROSTER_PATH = "data/fact_fantasy_teams.parquet"
+_CONTRACT_PATH = "data/dim_contract.parquet"
 
 
 def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
@@ -56,9 +57,13 @@ def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
 
 def teams_with_cap(cfg: Config) -> pd.DataFrame:
     """dim_fantasy_teams joined with live cap figures computed from
-    fact_fantasy_teams. remaining_cap_next_yr has no year-2 contract
-    tracking yet, so it's original_cap - active_roster_salary only (same
-    placeholder the retired ETL rollup used)."""
+    fact_fantasy_teams. Dead money is COMPUTED (fact_fantasy_teams no longer
+    stores a dead_money column, dropped 2026-07-13 like cap_hit before it):
+    only players actually Cut on a Guaranteed contract price in, at
+    ContractValue x Dim_Contract[CapHitPct] -- mirrors the DAX
+    'Dead Money - Active - Current Year'. remaining_cap_next_yr has no year-2
+    contract tracking yet, so it's original_cap - active_roster_salary only
+    (same placeholder the retired ETL rollup used)."""
     teams = fetch_parquet(_TEAMS_PATH, cfg)
     if teams.empty:
         return teams
@@ -67,6 +72,17 @@ def teams_with_cap(cfg: Config) -> pd.DataFrame:
     if roster.empty:
         roll = pd.DataFrame(columns=["team_key", "active_roster_salary", "dead_money"])
     else:
+        contracts = fetch_parquet(_CONTRACT_PATH, cfg)
+        pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
+        guaranteed = dict(zip(contracts["contract_id"], contracts["guaranteed"]))
+        roster = roster.copy()
+        is_dead = (roster["status"].eq("Cut")
+                   & roster["contract_id"].map(guaranteed).fillna(False).astype(bool))
+        roster["dead_money"] = 0.0
+        roster.loc[is_dead, "dead_money"] = (
+            roster.loc[is_dead, "contract_value"]
+            * roster.loc[is_dead, "contract_id"].map(pct)
+        )
         roll = (
             roster.groupby("team_key")
             .agg(active_roster_salary=("cap_hit", "sum"), dead_money=("dead_money", "sum"))

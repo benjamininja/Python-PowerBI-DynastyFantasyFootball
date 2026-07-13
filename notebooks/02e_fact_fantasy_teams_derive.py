@@ -18,7 +18,10 @@
 # logic is written general so `resign`/`fa_*`/`drop` slot in without change.
 #
 # **Output schema:** team_key, gsis_id, player_key, contract_id, contract_value,
-# contract_year, dead_money, status, acquired_method, roster_status, season.
+# contract_year, status, acquired_method, roster_status, season.
+# `dead_money` is NOT stored (dropped 2026-07-13): it's computed from
+# status/Dim_Contract (Cut + Guaranteed -> contract_value x cap_hit_pct)
+# wherever it's consumed, like cap_hit before it.
 # `roster_status` (added 2026-07-13) is OBSERVED state stamped from the latest
 # `fact_roster_placement` snapshot — Minors placement is cap-exempt downstream.
 # `conference` and
@@ -122,7 +125,6 @@ fact_fantasy_teams = pd.DataFrame({
     "contract_id":    active["contract_id"],
     "contract_value": active["contract_value"],
     "contract_year":  active["contract_year"],
-    "dead_money":     active["dead_money"],
     "status":         active["status"],
     "acquired_method": active["acquired_method"],
     "roster_status":  active["roster_status"],
@@ -145,6 +147,20 @@ fact_fantasy_teams["cap_hit"] = fact_fantasy_teams["contract_value"]
 # null roster_status charges — same rule as capmath / DAX.
 fact_fantasy_teams.loc[
     fact_fantasy_teams["roster_status"] == "Minors", "cap_hit"] = 0.0
+# dead_money is COMPUTED, not stored (column dropped 2026-07-13, same
+# stale-under-filter defect that killed the stored cap_hit): only players
+# actually Cut on a Guaranteed contract price in, at contract_value x
+# cap_hit_pct — mirrors DAX 'Dead Money - Active - Current Year' and
+# capmath.teams_with_cap.
+contracts = pd.read_parquet(DATA / "dim_contract.parquet")
+_pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
+_gtd = dict(zip(contracts["contract_id"], contracts["guaranteed"]))
+_is_dead = (fact_fantasy_teams["status"].eq("Cut")
+            & fact_fantasy_teams["contract_id"].map(_gtd).fillna(False).astype(bool))
+fact_fantasy_teams["dead_money"] = 0.0
+fact_fantasy_teams.loc[_is_dead, "dead_money"] = (
+    fact_fantasy_teams.loc[_is_dead, "contract_value"]
+    * fact_fantasy_teams.loc[_is_dead, "contract_id"].map(_pct))
 roll = (fact_fantasy_teams.groupby("team_key")
         .agg(active_roster_salary=("cap_hit", "sum"),
              dead_money=("dead_money", "sum"))

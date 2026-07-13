@@ -46,9 +46,9 @@ relationship 86b5f8ad-1d06-62a2-6aea-09b1545605cf
 	fromColumn: Dim_NFLPlayers.TeamAbbr
 	toColumn: Dim_NFLTeams.TeamAbbr
 
-relationship AutoDetected_96e4e900-a336-406a-9ec5-c9ba03d69c72
-	fromColumn: Dim_FantasyTeams.Conference
-	toColumn: Dim_Division.conference
+relationship Dim_FantasyTeams_to_Dim_Division_via_DivisionKey
+	fromColumn: Dim_FantasyTeams.DivisionKey
+	toColumn: Dim_Division.DivisionKey
 
 relationship 8248ec6d-0695-c387-ea23-62b48c196c5b
 	fromColumn: Fact_FantasyTeams.TeamKey
