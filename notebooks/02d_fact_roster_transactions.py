@@ -19,6 +19,9 @@
 #   Key `season_id + event_type + team_key + asset_id + event_seq`. Each pick →
 #   an **Initial** contract (yr 1): `contract_value` = the Fantrax `salary`
 #   as-of the capture; `cap_hit` = `dim_contract.cap_hit_pct` × value (0.50).
+#   PLUS the Yo-Yo Rule contract-state events `minor_assignment` /
+#   `minor_graduation`, derived from observed per-copy contract transitions in
+#   the weekly `fact_roster_placement` snapshots (04v) — see that section below.
 #
 # **Why a script (like 04w/05a, not a notebook):** re-run during the live draft
 # (after each 04w capture) to refresh the ledger → feeds the 05a availability
@@ -228,6 +231,97 @@ assert not fact.duplicated(key).any(), "duplicate ledger key — grain violated"
 total = load_replace_partition(fact, FACT_PATH, part_cols=("season_id", "event_type"))
 print(f"[ok] fact_roster_transactions: +{len(fact)} {EVENT_TYPE} rows "
       f"({total} total) -> {FACT_PATH.name}")
+
+
+# %%
+# ---- Yo-Yo Rule: minor_assignment / minor_graduation events -----------------
+# Derived from OBSERVED per-copy contract transitions across the weekly
+# fact_roster_placement snapshots (04v): the ledger records what the site
+# actually shows, dated at the capture where the new state first appears —
+# not the worklist's intent. Contract is per roster copy (team x scorer), so
+# events are per copy too. Rebuilt from the full snapshot history every run
+# and loaded replace-by-(season_id, event_type) -> idempotent.
+#
+# event_seq = MINOR_SEQ_BASE + snapshot ordinal. MINOR_SEQ_BASE (1000) clears
+# every startup overall_slot (max 490), so 02e's last-event-wins replay always
+# ranks a Minor flip after the copy's startup_draft acquisition.
+PLACEMENT_PATH = DATA / "fact_roster_placement.parquet"
+MINOR_ID       = "Minor"
+MINOR_SEQ_BASE = 1000
+MINOR_SOURCE   = "fact_roster_placement"
+
+
+def _week_ord(week) -> int:
+    """'PRE' -> 0, '01'..'18' -> 1..18 (snapshot order within a season)."""
+    return 0 if str(week) == "PRE" else int(week)
+
+
+def derive_minor_events(placement: pd.DataFrame, sid2aid: dict,
+                        cap_pct_by_contract: dict) -> pd.DataFrame:
+    """Walk each roster copy's snapshot history in capture order and emit:
+      - minor_assignment: contract becomes Minor (from anything else, or the
+        copy's first appearance already holding Minor)
+      - minor_graduation: contract leaves Minor (crossed 20 GP; typically 1st)
+    A copy vanishing from snapshots while Minor is a DROP — out of scope until
+    the drop event type exists (tracked in PLAN.md dead-money work)."""
+    p = placement.copy()
+    p["week_ord"] = p["week"].map(_week_ord)
+    p["snap_seq"] = (p["season"] - CFG.draft_year) * 100 + p["week_ord"]
+    events = []
+    for (team, sid), g in p.sort_values("snap_seq").groupby(["team_key", "scorer_id"]):
+        prev = None   # contract in the prior snapshot; None = copy absent
+        for r in g.itertuples():
+            evt = None
+            if r.contract == MINOR_ID and prev != MINOR_ID:
+                evt = ("minor_assignment", MINOR_ID)
+            elif prev == MINOR_ID and r.contract and r.contract != MINOR_ID:
+                evt = ("minor_graduation", r.contract)
+            if evt:
+                etype, cid = evt
+                val = float(r.salary) if pd.notna(r.salary) else pd.NA
+                pct = float(cap_pct_by_contract.get(cid, 0))
+                events.append({
+                    "season_id":      f"{r.season}-{r.season + 1}",
+                    "event_type":     etype,
+                    "team_key":       team,
+                    "asset_id":       sid2aid[sid],
+                    "event_seq":      MINOR_SEQ_BASE + int(r.snap_seq),
+                    "event_date":     pd.to_datetime(r.capture_date),
+                    "contract_id":    cid,
+                    "contract_year":  1,   # graduation starts the 3-yr clock; Minor is a 1-yr rolling term
+                    "contract_value": val,
+                    "cap_hit":        (val * pct) if pd.notna(val) else pd.NA,
+                    "dead_money":     0,
+                    "status":         STATUS,
+                    "scorer_id":      sid,
+                    "gsis_id":        r.gsis_id,
+                    "draft_round":    pd.NA,
+                    "pick_in_round":  pd.NA,
+                    "pick_overall":   pd.NA,
+                    "source":         MINOR_SOURCE,
+                })
+            prev = r.contract
+    return pd.DataFrame(events, columns=fact.columns)
+
+
+if PLACEMENT_PATH.exists():
+    placement = pd.read_parquet(PLACEMENT_PATH)
+    # Placement can carry copies the draft never saw (post-draft FA minors) —
+    # extend the asset bridge before deriving events.
+    dim_roster_asset, sid2aid = mint_assets(sorted(placement["scorer_id"].unique()))
+    dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+    cap_pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
+    minor_events = derive_minor_events(placement, sid2aid, cap_pct)
+    if len(minor_events):
+        assert not minor_events.duplicated(key).any(), "duplicate minor-event key"
+        total = load_replace_partition(minor_events, FACT_PATH,
+                                       part_cols=("season_id", "event_type"))
+        by_type = minor_events["event_type"].value_counts().to_dict()
+        print(f"[ok] minor events: +{len(minor_events)} {by_type} ({total} total ledger rows)")
+    else:
+        print("[info] no minor contract transitions observed in placement history yet")
+else:
+    print("[info] fact_roster_placement not built yet (run 04v) — skipping minor events")
 
 
 # %%
