@@ -24,6 +24,9 @@
 # - `data/fact_roster_placement.parquet` — weekly placement snapshot,
 #   replace-by-(season, week). Deliberately NOT ledger events: stash/activate
 #   churn is not an acquisition (ADR-0003 scope).
+# - `data/fact_minor_eligibility.parquet` — weekly eligibility snapshot; its
+#   week-over-week history detects players who graduate while sitting in the
+#   FA pool (absent from both current-week pulls).
 # - `data/review/review_contract_actions.csv` — the commissioner worklist:
 #   typed actions (set Minor / set 1st / set FA) with reasons. Structured so a
 #   future --apply mode can replay it through Fantrax's contract-edit endpoint.
@@ -85,6 +88,7 @@ GRADUATE_ROSTERED = "1st"
 GRADUATE_FA = "FA"
 
 PLACEMENT_FACT = "fact_roster_placement"
+ELIGIBILITY_FACT = "fact_minor_eligibility"
 WORKLIST_CSV = "review_contract_actions.csv"
 
 
@@ -306,58 +310,109 @@ def load_placement(df: pd.DataFrame, cfg) -> str:
 
 
 # %%
+# ---- Durable eligibility snapshot (fact_minor_eligibility) ---------------------
+def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str) -> str:
+    """Land the eligibility pull as a parquet fact (replace-by-(season, week)),
+    so the FA-eligible population has queryable week-over-week history — the
+    raw JSON alone can't answer 'who vanished from eligibility while FA'."""
+    df = df.assign(season=season, week=week, capture_date=date.today().isoformat())
+    path = f"{cfg.data_dir}/{ELIGIBILITY_FACT}.parquet"
+    if Path(path).exists():
+        old = pd.read_parquet(path)
+        keys = set(map(tuple, df[["season", "week"]].drop_duplicates().to_numpy()))
+        mask = old[["season", "week"]].apply(tuple, axis=1).isin(keys)
+        df = pd.concat([old[~mask], df], ignore_index=True)
+    df = df.drop_duplicates(subset=["scorer_id", "season", "week"], keep="last")
+    df.to_parquet(path, index=False)
+    return path
+
+
+def prev_eligibility(cfg, season: int, week: str) -> pd.DataFrame | None:
+    """Most recent eligibility snapshot BEFORE (season, week), or None on the
+    first ever run. Ordered by capture_date (week labels 'PRE'/'01'.. don't
+    sort lexically)."""
+    path = Path(cfg.data_dir) / f"{ELIGIBILITY_FACT}.parquet"
+    if not path.exists():
+        return None
+    df = pd.read_parquet(path)
+    df = df[(df["season"] != season) | (df["week"] != week)]
+    if df.empty:
+        return None
+    latest = df["capture_date"].max()
+    return df[df["capture_date"] == latest]
+
+
+# %%
 # ---- Diff: site eligibility vs contract types ----------------------------------
-def build_worklist(elig: pd.DataFrame, placement: pd.DataFrame) -> pd.DataFrame:
+def build_worklist(elig: pd.DataFrame, placement: pd.DataFrame,
+                   prev_elig: pd.DataFrame | None = None) -> pd.DataFrame:
     """The Yo-Yo diff. Site eligibility (the MINOR_FANTASY_* pulls) is the truth
     for who SHOULD hold a Minor contract; contract type is what Fantrax does NOT
-    auto-manage, so mismatches are the commissioner's worklist:
+    auto-manage, so mismatches are the commissioner's worklist.
 
-      - eligible & contract != Minor            -> set Minor
-      - rostered & contract == Minor & !eligible -> set 1st (graduation)
-      - FA       & contract == Minor & !eligible -> set FA  (graduation to pool)
+    Contract is PER ROSTER COPY, not per player (verified live 2026-07-12: a
+    post-draft FA signing gave 3 players '1st' in one conference and 'FA' in
+    the other), so rostered actions target one team's copy and FA actions the
+    pool copy:
 
-    Contract unknown (grid doesn't expose the column) -> action still emitted,
-    flagged needs_verification, so the worklist is useful from run one."""
+      - rostered copy, eligible, contract != Minor  -> set Minor (that team)
+      - rostered copy, !eligible, contract == Minor -> set 1st  (graduation)
+      - FA copy (AVAILABLE bucket), contract != Minor -> set Minor
+      - vanished: eligible last snapshot, now in NEITHER pull -> set FA
+        (graduated while in the pool — invisible to the current-week pulls,
+        so it needs the previous fact_minor_eligibility snapshot)
+
+    Contract unknown -> action still emitted, flagged needs_verification."""
     eligible_ids = set(elig["scorer_id"])
-    con_by_id, name_by_id, teams_by_id = {}, {}, {}
-    for df, has_team in ((placement, True), (elig, False)):
-        for r in df.itertuples():
-            if r.contract and r.scorer_id not in con_by_id:
-                con_by_id[r.scorer_id] = r.contract
-            name_by_id.setdefault(r.scorer_id, r.player_name)
-            if has_team and r.team_key:
-                # duplicate-player league: one owner per conference possible
-                teams_by_id.setdefault(r.scorer_id, []).append(r.team_key)
+    actions, seen = [], set()
 
-    rostered_ids = set(placement["scorer_id"])
-    actions = []
-
-    def add(sid, to_contract, reason):
-        current = con_by_id.get(sid)
-        if current == to_contract:
+    def add(sid, name, team_key, fa_status, current, to_contract, reason,
+            needs_verification=False):
+        if current == to_contract or (sid, team_key) in seen:
             return
+        seen.add((sid, team_key))
         actions.append({
             "scorer_id":          sid,
-            "player_name":        name_by_id.get(sid),
-            "team_key":           "+".join(sorted(set(teams_by_id.get(sid, [])))) or None,
-            "fa_status":          "taken" if sid in rostered_ids else "available",
+            "player_name":        name,
+            "team_key":           team_key,
+            "fa_status":          fa_status,
             "from_contract":      current,
             "to_contract":        to_contract,
             "reason":             reason,
-            "needs_verification": current is None,
+            "needs_verification": needs_verification or current is None,
         })
 
-    # Eligible players must hold Minor, rostered or not.
-    for sid in eligible_ids:
-        add(sid, MINOR_CONTRACT, "minors-eligible (site verdict) but not Minor")
+    # Rostered copies — contract from the roster pull, per (team, scorer).
+    for r in placement.itertuples():
+        if r.scorer_id in eligible_ids:
+            add(r.scorer_id, r.player_name, r.team_key, "taken", r.contract,
+                MINOR_CONTRACT, "minors-eligible (site verdict) but not Minor")
+        elif r.contract == MINOR_CONTRACT:
+            add(r.scorer_id, r.player_name, r.team_key, "taken", r.contract,
+                GRADUATE_ROSTERED, "crossed 20 GP — graduate off Minor")
 
-    # Non-eligible players still holding Minor have graduated.
-    for sid, con in con_by_id.items():
-        if con == MINOR_CONTRACT and sid not in eligible_ids:
-            target = GRADUATE_ROSTERED if sid in rostered_ids else GRADUATE_FA
-            add(sid, target, "crossed 20 GP — graduate off Minor")
+    # FA copies — the AVAILABLE bucket (covers players FA in one conference
+    # while rostered in the other; their rostered copy is handled above).
+    for r in elig[elig["fa_status"] == "available"].itertuples():
+        add(r.scorer_id, r.player_name, None, "available", r.contract,
+            MINOR_CONTRACT, "minors-eligible (site verdict) but not Minor")
 
-    return pd.DataFrame.from_records(actions)
+    # Vanished — eligible last snapshot, absent from BOTH pulls this week:
+    # graduated while sitting in the FA pool (or purged from Fantrax). Flagged
+    # for verification since it's inferred from history, not a live row.
+    if prev_elig is not None:
+        rostered_ids = set(placement["scorer_id"])
+        for r in prev_elig.itertuples():
+            if r.scorer_id not in eligible_ids and r.scorer_id not in rostered_ids:
+                add(r.scorer_id, r.player_name, None, "available", r.contract,
+                    GRADUATE_FA,
+                    "left eligibility while FA — graduated in the pool",
+                    needs_verification=True)
+
+    return pd.DataFrame.from_records(
+        actions,
+        columns=["scorer_id", "player_name", "team_key", "fa_status",
+                 "from_contract", "to_contract", "reason", "needs_verification"])
 
 
 # %%
@@ -401,7 +456,12 @@ def run() -> pd.DataFrame:
     n_av = (elig["fa_status"] == "available").sum() if len(elig) else 0
     print(f"[info] minors-eligible: {len(elig)} ({n_av} FA, {len(elig) - n_av} rostered)")
 
-    worklist = build_worklist(elig, placement)
+    # Vanish detection needs LAST week's snapshot — read it before landing this week's.
+    prev = prev_eligibility(CFG, season, week)
+    elig_fact_path = load_eligibility(elig, CFG, season, week)
+    print(f"[ok] eligibility snapshot -> {elig_fact_path}")
+
+    worklist = build_worklist(elig, placement, prev)
     review_dir = Path(CFG.data_dir) / "review"
     review_dir.mkdir(parents=True, exist_ok=True)
     out_csv = review_dir / WORKLIST_CSV

@@ -93,7 +93,15 @@ Defense rows); we read its verdict, never re-derive it.
   `data/review/review_contract_actions.csv`. Verified on live pulls 2026-07-12:
   991 placement rows (420 Active/469 Reserve/102 Minors), 5,513 eligible
   (union of both filter buckets — TAKEN alone misses rostered FA-contract
-  copies), startup worklist = 202 rostered 1st→Minor + 5,311 FA→Minor.
+  copies), startup worklist = 357 rostered copies 1st→Minor + 5,341 FA→Minor.
+- **Pre-merge cap-ledger audit (2026-07-12) drove two fixes**: (1) contract is
+  **per roster copy**, not per player (verified live: 3 post-draft FA signings
+  hold 1st in one conference, FA in the other) → diff acts per (team, scorer);
+  (2) players who graduate while sitting in the FA pool vanish from both pulls
+  → new `fact_minor_eligibility` weekly snapshot + week-over-week vanish
+  detection (flagged needs_verification). Unit tests
+  `tests/test_04v_minor_contracts.py` (ADR-0008) pin both; `docs/sources.yml`
+  gained the `fantrax_minor_contracts` entry (lean-import blind spot noted).
 - **Next (in order)**: (1) `--apply` mode — replay the worklist through
   Fantrax's commissioner contract-edit endpoint; **USER captures the request
   shape** (one manual contract edit with DevTools recording — request bodies
