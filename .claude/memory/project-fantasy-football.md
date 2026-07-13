@@ -127,7 +127,7 @@ Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied).
 | 01d | `01d_dim_nfl_teams_seed.ipynb` | `dim_nfl_teams` |
 | 01e | `01e_dim_nfl_players_seed.ipynb` | `dim_nfl_players` (central player registry) |
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` (all seasons) |
-| 02b | `02b_fact_fantasy_teams_seed.ipynb` | `fact_fantasy_teams` (schema seed) |
+| 02b | `archive/02b_fact_fantasy_teams_seed.ipynb` | RETIRED 2026-07-13 — 02e derives `fact_fantasy_teams` from the ledger |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed only) |
 | 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` (ledger, replay from `04w` draft-results JSON) + `dim_roster_asset` + `dim_draft_pick` |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster). Since 2026-07-11 this is the **only** location for contract/salary/cap-hit data — no longer rolls anything up into `dim_fantasy_teams` (see "Cap architecture" below) |

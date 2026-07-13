@@ -1,7 +1,8 @@
-/// School transformer: maps raw college names to a canonical school and conference. Join at ETL; add rows, never if/else.
+/// Season calendar spine (ADR-0004): one row per league year with fantasy/NFL start-end dates and a relative season number (0 = current). Anchors phase-aware measures.
 table Dim_Season
 	lineageTag: 2881e84e-ef71-4601-941a-692f773d088e
 
+	/// Season label, e.g. 2026-2027. Primary key.
 	column season_id
 		dataType: string
 		lineageTag: b5afea5a-b623-4a9e-8055-fefb07a54e81
@@ -10,6 +11,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Calendar year the season starts in.
 	column season_start_year
 		dataType: int64
 		formatString: 0
@@ -19,6 +21,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Calendar year the season ends in.
 	column season_end_year
 		dataType: int64
 		formatString: 0
@@ -28,6 +31,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// First day of the fantasy league year.
 	column season_fantasy_start_date
 		dataType: dateTime
 		formatString: General Date
@@ -42,6 +46,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Last day of the fantasy league year.
 	column season_fantasy_end_date
 		dataType: dateTime
 		formatString: General Date
@@ -56,6 +61,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// NFL regular-season start date.
 	column season_nfl_start_date
 		dataType: dateTime
 		formatString: General Date
@@ -70,6 +76,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// NFL regular-season end date.
 	column season_nfl_end_date
 		dataType: dateTime
 		formatString: General Date
@@ -84,6 +91,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// League theme for the season (annual naming gimmick).
 	column theme
 		dataType: string
 		lineageTag: 7cc9bbcb-6d30-434f-aa5a-4577734e41aa
@@ -92,6 +100,7 @@ table Dim_Season
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Seasons from today: 0 = current, negative = past, positive = future. Recomputed by 01f each run; measures filter on 0.
 	column relative_nfl_season_number
 		dataType: int64
 		formatString: 0
