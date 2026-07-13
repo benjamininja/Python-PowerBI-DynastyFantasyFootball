@@ -127,6 +127,32 @@ Defense rows); we read its verdict, never re-derive it.
   rule). **USER actions open**: fix site eligibility condition 20 → 19 (both
   rows); merge PR #22; capture the contract-edit request.
 
+## [ ] Active — pipeline orchestration + model normalization (approved plan, 6 slices)
+Grill/plan session 2026-07-13 (plan file: `~/.claude/plans/
+critically-review-our-graceful-nebula.md`). Slices: A apply pacing/FA CSV
+(PR #25) → B orchestrator (PR #26) → **C cap honesty (this branch)** → D model
+cleanup → E full PBI normalization → F docs. One PR per slice.
+- **Slice C BUILT 2026-07-13** (branch `roster-status-cap-honesty`):
+  `roster_status` (Active/Reserve/Minors) stamped by 02e from the latest
+  `fact_roster_placement` snapshot on (team_key, scorer_id); Minors PLACEMENT
+  = cap-exempt in capmath (cap_hit 0 + cap_exempt flag), 02e summary, and the
+  DAX 'Active Roster Salary' / 'Remaining Salary Cap' measures
+  (RosterStatus <> "Minors"; blank charges). New `Fact_FantasyTeams.
+  RosterStatus` TMDL column.
+- **Cap-ledger audit findings FIXED in the same slice**: (1) capmath/02e
+  multiplied kept-player charges by `cap_hit_pct` — but CapHitPct is
+  DEAD-MONEY-ONLY (the DAX measure's own comment); a kept player charges FULL
+  contract_value. Was a 2x understatement league-wide and silently
+  zero-charged Minor-CONTRACT players kept active (pct 0.0). Both now charge
+  full value; placement is the only exemption lever. (2) New 02e reverse
+  check surfaced **82 placement rows with no active ledger row** for that
+  (team, scorer) — on-site trades/FA moves the ledger has no event types for
+  yet; those copies' ledger rows stay null-status (charged, safe default).
+  Ledger trade/FA event types remain the open gap (ties into dead-money
+  drop-event work above). (3) Vacuous cap assert replaced with a real
+  over-cap warning. Tests: `test_capmath_minors_exempt` pins full-value +
+  placement-only exemption + null-charges.
+
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).
