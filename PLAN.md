@@ -128,14 +128,25 @@ Defense rows); we read its verdict, never re-derive it.
   FA-copy actions are skipped (no roster fieldMap) — they **self-correct on
   signing** (copy lands on a roster → next weekly diff flips it). Dry-run
   verified on A10: 15 changes, csId 0→8, no failures.
+- **Apply hardening (Slice A) BUILT 2026-07-13** (same branch): jittered
+  pacing — `PULL_DELAY_S` (0.5–1.5s between read pulls) and
+  `APPLY_TEAM_DELAY_S` (3–5s between teams during --apply; confirm/execute/
+  verify within a team stay back-to-back, matching the UI's own timing).
+  Startup apply = one sitting (~28 teams × 4 POSTs + delays, a few minutes).
+  FA copies: `--export-fa-csv` writes `data/review/fa_contract_import.csv`
+  (Player/Position/Team/Salary/Contract/FantraxID, 5,341 rows) for Fantrax's
+  commissioner CSV-import tool — exact expected headers TBD until the user
+  locates the tool in League Admin; iterate once against a real upload.
+  Automation of the FA import deferred until a few monitored manual sessions.
 - **Next**: (1) USER runs the startup apply (`.\run.ps1
   notebooks\04v_minor_contracts.py --apply` after eyeballing `--dry-run`;
   then re-run `04v → 02d → 02e` so the ledger picks up the observed flips).
   (2) capmath/PBI: charge Active+Reserve salaries, exempt Minors placement
-  (join `fact_roster_placement`; PBI half needs Desktop closed). (3)
-  `dim_nfl_players` career-GP column (nflverse) as a cross-check monitor vs
-  Fantrax's count. **USER actions open**: site eligibility condition 20 → 19
-  (pending co-commissioner confirmation); startup apply run.
+  (Slice C of the approved orchestration/model plan; PBI half needs Desktop
+  closed). (3) `dim_nfl_players` career-GP column (nflverse) as a cross-check
+  monitor vs Fantrax's count. **USER actions open**: site eligibility
+  condition 20 → 19 (pending co-commissioner confirmation); startup apply
+  run; locate the commissioner contract CSV-import tool + report its columns.
 
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated

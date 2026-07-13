@@ -28,8 +28,14 @@
 #   week-over-week history detects players who graduate while sitting in the
 #   FA pool (absent from both current-week pulls).
 # - `data/review/review_contract_actions.csv` — the commissioner worklist:
-#   typed actions (set Minor / set 1st / set FA) with reasons. Structured so a
-#   future --apply mode can replay it through Fantrax's contract-edit endpoint.
+#   typed actions (set Minor / set 1st / set FA) with reasons. `--apply` replays
+#   the rostered rows through Fantrax's contract-edit endpoint (opt-in, never
+#   scheduled); `--export-fa-csv` writes `data/review/fa_contract_import.csv`
+#   for the FA rows (commissioner CSV-import tool).
+#
+# **Apply pacing:** the startup apply is a ONE-SITTING session (~28 teams x 4
+# POSTs + jittered delays, a few minutes total); weekly steady-state is a
+# handful of graduations. Delay knobs: PULL_DELAY_S / APPLY_TEAM_DELAY_S.
 #
 # **Downstream (not here):** `02d` ingests the raw JSON and emits
 # `minor_assignment` / `minor_graduation` ledger events; `02e` replay derives
@@ -42,8 +48,10 @@
 # %%
 import importlib
 import json
+import random
 import re
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -90,6 +98,20 @@ GRADUATE_FA = "FA"
 PLACEMENT_FACT = "fact_roster_placement"
 ELIGIBILITY_FACT = "fact_minor_eligibility"
 WORKLIST_CSV = "review_contract_actions.csv"
+FA_IMPORT_CSV = "fa_contract_import.csv"
+
+# Pacing: jittered sleeps so the run reads like a human clicking through pages,
+# not a burst (there is no other rate limiting anywhere in the Fantrax path).
+# Startup apply ~= 28 teams x 4 POSTs + delays -> one sitting of a few minutes;
+# weekly steady-state is a handful of graduations. Module knobs, not CLI.
+PULL_DELAY_S = (0.5, 1.5)     # between read pulls (roster teams, filter pages)
+APPLY_TEAM_DELAY_S = (3, 5)   # between teams during --apply (confirm/execute/
+                              # verify within a team stay back-to-back — that
+                              # matches the UI's own timing)
+
+
+def _pause(bounds: tuple) -> None:
+    time.sleep(random.uniform(*bounds))
 
 
 # %%
@@ -134,9 +156,13 @@ def eligibility_payload(filter_value: str, page_no: int) -> dict:
 def fetch_eligibility(scraper, ctx, page) -> dict:
     """Paginate both MINOR_FANTASY_* filters. Returns {filter_value: [pages]}."""
     out = {}
+    first = True
     for filt in ELIGIBILITY_FILTERS:
         pages, page_no = [], 1
         while True:
+            if not first:
+                _pause(PULL_DELAY_S)
+            first = False
             raw = _post_healed(scraper, ctx, page,
                                eligibility_payload(filt, page_no), filt)
             pages.append(raw)
@@ -220,6 +246,8 @@ def fetch_rosters(scraper, ctx, page, teams: pd.DataFrame) -> dict:
     """One getTeamRosterInfo call per team. Returns {fantrax_team_id: raw}."""
     out = {}
     for t in teams.itertuples():
+        if out:
+            _pause(PULL_DELAY_S)
         raw = _post_healed(scraper, ctx, page,
                            roster_payload(t.fantrax_team_id), "getTeamRosterInfo")
         out[t.fantrax_team_id] = raw
@@ -535,10 +563,14 @@ def apply_worklist(dry_run: bool = True, team_keys: list[str] | None = None,
             CFG.user_data_dir, headless=CFG.headless)
         page = ctx.new_page()
         page.set_default_timeout(CFG.nav_timeout_ms)
+        first_team = True
         for team_key, g in grouped:
             team_id = id_by_key.get(team_key)
             if not team_id:
                 failures.append((team_key, "no fantrax_team_id")); continue
+            if not first_team:
+                _pause(PULL_DELAY_S if dry_run else APPLY_TEAM_DELAY_S)
+            first_team = False
             raw = _post_healed(scraper, ctx, page,
                                admin_roster_payload(team_id), "getTeamRosterInfo")
             d = raw["responses"][0]["data"]
@@ -600,6 +632,45 @@ def apply_worklist(dry_run: bool = True, team_keys: list[str] | None = None,
             print(f"  {t}: {msg}")
     else:
         print("\n[ok] apply complete, no failures")
+
+
+# %%
+# ---- FA path: commissioner CSV import ------------------------------------------
+# FA copies have no roster fieldMap, so --apply can't touch them. The chosen
+# route (grill sign-off 2026-07-13) is Fantrax's commissioner contract
+# CSV-import tool. Column shape below is a sensible default (player identity +
+# target contract + salary) pending discovery of the tool's exact expected
+# headers in League Admin — iterate once against a real upload.
+def export_fa_csv() -> Path:
+    """Write data/review/fa_contract_import.csv: the worklist's FA-copy actions
+    joined to the latest eligibility snapshot for salary/position/NFL team."""
+    review_dir = Path(CFG.data_dir) / "review"
+    wl = pd.read_csv(review_dir / WORKLIST_CSV)
+    fa = wl[wl["fa_status"] == "available"].copy()
+
+    elig_path = Path(CFG.data_dir) / f"{ELIGIBILITY_FACT}.parquet"
+    if elig_path.exists():
+        elig = pd.read_parquet(elig_path)
+        latest = elig[elig["capture_date"] == elig["capture_date"].max()]
+        fa = fa.merge(
+            latest[["scorer_id", "position_raw", "nfl_team", "salary"]],
+            on="scorer_id", how="left")
+    else:
+        fa[["position_raw", "nfl_team", "salary"]] = None
+    fa["salary"] = pd.to_numeric(fa["salary"], errors="coerce").astype("Int64")
+
+    out = fa.rename(columns={
+        "player_name":  "Player",
+        "position_raw": "Position",
+        "nfl_team":     "Team",
+        "salary":       "Salary",
+        "to_contract":  "Contract",
+        "scorer_id":    "FantraxID",
+    })[["Player", "Position", "Team", "Salary", "Contract", "FantraxID"]]
+    path = review_dir / FA_IMPORT_CSV
+    out.to_csv(path, index=False)
+    print(f"[ok] {len(out)} FA contract rows -> {path}")
+    return path
 
 
 # %%
@@ -674,8 +745,14 @@ if __name__ == "__main__":
     ap.add_argument("--teams", help="with --apply: comma-separated team_keys")
     ap.add_argument("--max-teams", type=int,
                     help="with --apply: stop after N teams (cautious first run)")
+    ap.add_argument("--export-fa-csv", action="store_true",
+                    help="write data/review/fa_contract_import.csv from the "
+                         "worklist's FA-copy actions (commissioner CSV-import "
+                         "tool; format iterating against a real upload)")
     args = ap.parse_args()
-    if args.apply or args.dry_run:
+    if args.export_fa_csv:
+        export_fa_csv()
+    elif args.apply or args.dry_run:
         apply_worklist(dry_run=args.dry_run,
                        team_keys=args.teams.split(",") if args.teams else None,
                        max_teams=args.max_teams)
