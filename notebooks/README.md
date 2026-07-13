@@ -69,6 +69,8 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
 | 02b | `02b_fact_fantasy_teams_seed.ipynb` | `fact_fantasy_teams` (schema seed) |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
+| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `dim_draft_pick` (replay from 04w JSON) |
+| 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster/contracts) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
 | 03c | `03c_ktc_rankings.ipynb` | KeepTradeCut consensus (scraped) |
@@ -79,10 +81,14 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
 | 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` (overall/positional rank folded in as metric_keys) + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
+| 04v | `04v_minor_contracts.py` | Yo-Yo Rule contract compliance — **scheduled script** (after 04a): Fantrax minors-eligibility + per-team roster placement → `fact_roster_placement` + `data/review/review_contract_actions.csv` worklist |
+| 04w | `04w_fantrax_draft_results.py` | Raw `getDraftResults` JSON per division (live startup-draft capture) — parsed downstream by `02d` |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
-`04a` is the one `.py` (a headless-browser scrape run by Windows Task Scheduler); everything else is `.ipynb`.
+The `.py` rows (`02d`, `02e`, `04a`, `04v`, `04w`) are the headless Fantrax
+scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
+`04a` and `04v` run on the weekly Task Scheduler cadence, in that order.
 
 ### Dynasty rankings (04) — single EAV fact
 
