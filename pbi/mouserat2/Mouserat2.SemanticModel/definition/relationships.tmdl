@@ -4,7 +4,6 @@ relationship 53e0ede5-c799-4f64-9cdd-c23f83ebe15f
 	toColumn: LocalDateTable_04c24871-8178-4798-9972-2dfd4d174e11.Date
 
 relationship Dim_RookieProspect_to_Dim_Position_via_Position
-	isActive: false
 	fromColumn: Dim_RookieProspect.PositionRaw
 	toColumn: Dim_Position.PositionRaw
 

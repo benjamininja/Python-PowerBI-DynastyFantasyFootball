@@ -54,60 +54,6 @@ table Dim_RookieProspect
 
 		annotation SynonymCollection = ["position","pos","role"]
 
-	/// Canonical detailed position.
-	column PositionDetail
-		dataType: string
-		lineageTag: 85e32990-9dbe-4d98-a138-797801f90832
-		summarizeBy: none
-		sourceColumn: position_detail
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = detailed position|position detail|pos detail
-
-		annotation SynonymCollection = ["detailed position","position detail","pos detail"]
-
-	/// Canonical position group.
-	column PositionGroup
-		dataType: string
-		lineageTag: 31c94d93-939d-4cac-9105-af78c7c6847e
-		summarizeBy: none
-		sourceColumn: position_group
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = position group|group|unit
-
-		annotation SynonymCollection = ["position group","group","unit"]
-
-	/// Offense, Defense, or Special Teams.
-	column SideOfBall
-		dataType: string
-		lineageTag: 4534e484-2128-4ce2-a6a4-2deab4d189b7
-		summarizeBy: none
-		sourceColumn: side_of_ball
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = side of ball|offense or defense|side
-
-		annotation SynonymCollection = ["side of ball","offense or defense","side"]
-
-	/// Whether the prospect's position is fantasy-startable.
-	column FantasyRelevant
-		dataType: boolean
-		formatString: """TRUE"";""TRUE"";""FALSE"""
-		lineageTag: c2de1cf4-6dc4-49ac-80ff-a23026f498d1
-		summarizeBy: none
-		sourceColumn: fantasy_relevant
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = fantasy relevant|startable|relevant
-
-		annotation SynonymCollection = ["fantasy relevant","startable","relevant"]
-
-	/// Raw college name; links to Dim_School.
 	column SchoolRaw
 		dataType: string
 		lineageTag: c91f93bb-011b-4252-ab55-5a355600ff86
@@ -120,33 +66,6 @@ table Dim_RookieProspect
 
 		annotation SynonymCollection = ["school","college","raw school"]
 
-	/// Canonical school name.
-	column SchoolCanonical
-		dataType: string
-		lineageTag: dc2a40a0-eabe-40cf-9f8f-86e7301de1ea
-		summarizeBy: none
-		sourceColumn: school_canonical
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = school|college|university
-
-		annotation SynonymCollection = ["school","college","university"]
-
-	/// College conference.
-	column Conference
-		dataType: string
-		lineageTag: 96e2be2d-c4fe-4722-8854-fe7c1cfa813d
-		summarizeBy: none
-		sourceColumn: conference
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = conference|college conference|conf
-
-		annotation SynonymCollection = ["conference","college conference","conf"]
-
-	/// Prospect height in inches.
 	column HeightInches
 		dataType: double
 		lineageTag: 4d7546af-3f42-4070-8f6c-d06b5569ca49

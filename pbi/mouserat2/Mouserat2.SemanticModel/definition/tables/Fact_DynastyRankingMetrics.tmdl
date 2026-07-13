@@ -114,8 +114,10 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["gsis id","player id","nfl id","gsis"]
 
+	/// ETL partition/load key (replace-by-source), kept on the fact by exception: source attribution for ANALYSIS lives on Dim_DynastyMetric.SourceName (one source per MetricKey). Hidden -- use Dim_DynastyMetric[SourceName] in visuals.
 	column source_name
 		dataType: string
+		isHidden
 		lineageTag: ff239fa3-2901-4590-9f76-f937f4f603e4
 		summarizeBy: none
 		sourceColumn: source_name

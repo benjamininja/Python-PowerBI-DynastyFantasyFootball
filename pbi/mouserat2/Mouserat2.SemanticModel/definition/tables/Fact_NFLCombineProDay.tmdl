@@ -59,46 +59,6 @@ table Fact_NFLCombineProDay
 
 		annotation SynonymCollection = ["draft pick","overall pick","draft number","ovr"]
 
-	/// Player display name.
-	column PlayerName
-		dataType: string
-		lineageTag: 6a37e4bd-08f0-458a-9f99-1a10b6f004f8
-		summarizeBy: none
-		sourceColumn: player_name
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = player|name|player name
-
-		annotation SynonymCollection = ["player","name","player name"]
-
-	/// Player position (raw); links to Dim_Position.
-	column Pos
-		dataType: string
-		lineageTag: 1e18062e-12d3-44a7-a66a-ac0b59c71816
-		summarizeBy: none
-		sourceColumn: pos
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = position|pos|role
-
-		annotation SynonymCollection = ["position","pos","role"]
-
-	/// College the player attended.
-	column School
-		dataType: string
-		lineageTag: 2c0f9f70-e96a-4c6e-b8ce-b36eb11c1811
-		summarizeBy: none
-		sourceColumn: school
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = school|college|university
-
-		annotation SynonymCollection = ["school","college","university"]
-
-	/// Broad jump distance (inches). Higher is better.
 	column BroadJump
 		dataType: double
 		lineageTag: 943a74a1-a47f-45cf-a8ba-2cf4e4b74bd1
@@ -181,22 +141,6 @@ table Fact_NFLCombineProDay
 
 		annotation SynonymCollection = ["metric source","combine or pro day","source"]
 
-	/// Height in inches.
-	column HeightInches
-		dataType: double
-		lineageTag: fee511b5-d30d-46d1-ac0b-7a7486909669
-		summarizeBy: none
-		sourceColumn: height_inches
-
-		annotation SummarizationSetBy = User
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
-
-		annotation Synonyms = height|inches tall|height inches
-
-		annotation SynonymCollection = ["height","inches tall","height inches"]
-
-	/// Weight in pounds.
 	column Weight
 		dataType: double
 		lineageTag: b3043ebf-a58b-4c6c-a787-cfdecf996176
