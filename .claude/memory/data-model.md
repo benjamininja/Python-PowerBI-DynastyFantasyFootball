@@ -58,8 +58,10 @@ Two-table player system bridged by `pfr_id`:
 | Table | Key | Notes |
 |---|---|---|
 | `fact_nfl_combine_pro_day_metrics` | `pfr_id + season` | All seasons; `is_current_season` flag; both FKs present (notebook 02a) |
-| `fact_fantasy_teams` | `team_key + gsis_id` | Current-roster state, **10-col schema** (`team_key`, `gsis_id`, `player_key`, `contract_id`, `contract_value`, `contract_year`, `dead_money`, `status`, `acquired_method`, `season` — trimmed from 12 cols 2026-07-11: `conference`/`cap_hit` removed, both 100% derivable via relationships, see below). **DERIVED** by `02e` (replay `fact_roster_transactions` → latest active contract per (team_key, asset_id), ADR-0003). `02e` no longer rolls cap up into `dim_fantasy_teams` either (changed 2026-07-11; see "dim_fantasy_teams Cap Columns" below). **BUILT 2026-06-14** (137 rows). |
-| `fact_roster_transactions` | `season_id + event_type + team_key + asset_id + event_seq` | Event-sourced acquisition ledger = SSOT (ADR-0003 key amended by ADR-0004). **BUILT 2026-06-14** by `02d` (live-loop), 137 `startup_draft` rows (Riddell). `event_type` enum = **startup_draft** (snake draft — corrected from the ADRs' misnamed `startup_auction`; real auctions = FA/re-sign next offseason) / rookie_draft / fa_auction / fa_pickup / resign(+drop) / pick_allocation / trade — last two **dormant v1**. Each pick → Initial contract yr1 (`contract_id`=1st, cap_hit 0.50×), `contract_value` = Fantrax `salary` (as-of capture, via `dim_fantrax_crosswalk` scorer_id→gsis→adp). 18 cols incl. `event_seq`=overall pick#, `event_date`, `scorer_id`/`gsis_id` audit, `draft_round`/`pick_in_round`/`pick_overall`. Source `getDraftResults` via `04w` (**SW-served → HAR can't carry body**; fetch through authed ctx). Idempotent replace-by `(season_id, event_type)` |
+| `fact_fantasy_teams` | `team_key + gsis_id` | Current-roster state, **9-col schema** (`team_key`, `gsis_id`, `player_key`, `contract_id`, `contract_value`, `contract_year`, `status`, `acquired_method`, `roster_status`, `season`). Trimmed twice: 2026-07-11 dropped `conference`/`cap_hit` (derivable via relationships); 2026-07-13 dropped stored `dead_money` (same reason — computed by consumers as `contract_value × cap_hit_pct` for Cut+Guaranteed rows only, mirrors DAX `'Dead Money - Active - Current Year'`) and added **`roster_status`** (Active/Reserve/Minors — observed squad placement stamped from the latest `fact_roster_placement` snapshot on `(team_key, scorer_id)`; null = not in latest snapshot, charged normally; `Minors` = cap-exempt in capmath + the `'Active Roster Salary'`/`'Remaining Salary Cap'` DAX measures). Note `roster_status` is a stamped **observed** attribute, not a derived rollup — consistent with the no-frozen-rollups rule, which targets cached math specifically. **DERIVED** by `02e` (replay `fact_roster_transactions` → latest active contract per (team_key, asset_id), ADR-0003). |
+| `fact_roster_transactions` | `season_id + event_type + team_key + asset_id + event_seq` | Event-sourced acquisition ledger = SSOT (ADR-0003 key amended by ADR-0004). **BUILT 2026-06-14** by `02d` (live-loop), 137 `startup_draft` rows (Riddell), grown to 935 (both divisions) by 2026-07-11. `event_type` enum = **startup_draft** (snake draft — corrected from the ADRs' misnamed `startup_auction`; real auctions = FA/re-sign next offseason) / rookie_draft / fa_auction / fa_pickup / resign(+drop) / pick_allocation / trade — dormant v1 / **minor_assignment** / **minor_graduation** (added 2026-07-12, derived from observed per-copy contract transitions across `fact_roster_placement` snapshot history; `event_seq = 1000 + snapshot ordinal` so they rank after startup-draft slots in last-event-wins replay). Each pick → Initial contract yr1 (`contract_id`=1st, cap_hit 0.50×), `contract_value` = Fantrax `salary` (as-of capture, via `dim_fantrax_crosswalk` scorer_id→gsis→adp). 18 cols incl. `event_seq`=overall pick#, `event_date`, `scorer_id`/`gsis_id` audit, `draft_round`/`pick_in_round`/`pick_overall`. Source `getDraftResults` via `04w` (**SW-served → HAR can't carry body**; fetch through authed ctx). Idempotent replace-by `(season_id, event_type)`. **ETL-only** — not surfaced directly in the PBI model; its value is producing `fact_fantasy_teams` via `02e`'s replay |
+| `fact_roster_placement` | `team_id + scorer_id + season + week` | Weekly Fantrax roster-slot snapshot (Active/Reserve/Minors), built by `04v` (Yo-Yo Rule), replace-by-(season, week). Grain is **(team, scorer)**, not scorer alone — duplicate-player league, one copy per conference. Feeds `fact_fantasy_teams.roster_status` (02e) and `02d`'s minor_assignment/minor_graduation event derivation. **ETL-only** — no PBI model value, it's an input to 02e/02d |
+| `fact_minor_eligibility` | `scorer_id + season + week` | Weekly Yo-Yo Rule eligibility snapshot (Fantrax's own minors-eligibility verdict — GP ≤ 19 career+current, both rostered and FA), built by `04v`. Durable history (unlike the raw JSON alone) enables detecting a player who graduates while sitting in the FA pool — invisible to a single week's pulls, caught by comparing against the previous snapshot. **ETL-only** — no PBI model value, it's an input to 04v's own worklist diff |
 | `fact_rookie_rankings` | `player_key + source + phase + draft_year` | Rookie-class expert ranks; pipeline 02c + 03a–03x |
 | `fact_fantrax_adp` | `scorer_id + season + week` | Fantrax projection board + season-actuals; notebook 04a |
 | `fact_dynasty_ranking_metrics` | `snapshot_date + source_name + source_player_id + format + metric_key` | **Single dynasty fact** (long/EAV): all source metrics + folded `*_overall/positional_rank` + `composite_adp`; carries `gsis_id`; notebooks 04b/04x/04y. `fact_dynasty_rankings` backbone **retired 2026-06-12**. |
@@ -348,10 +350,23 @@ ETL-frozen implementation of the same math already sitting live on
 `fact_fantasy_teams`, and it went stale under any Power BI report filter
 (fixed 2026-07-11). It's now computed on read, not cached: DAX measures in
 `pbi/mouserat2/.../_Measures.tmdl` (`'Active Roster Salary'`, `'Dead
-Money'`, `'Remaining Salary Cap'`) for Power BI, `discord_bot/capmath.py`
-for the bot. One formula (`original_cap - (active_roster_salary +
-dead_money + reinvestment_cap)`), implemented twice (DAX + pandas), not
-cached a third time in the parquet.
+Money - Active - Current Year'`, `'Remaining Salary Cap'`) for Power BI,
+`discord_bot/capmath.py` for the bot. One formula (`original_cap -
+(active_roster_salary + dead_money + reinvestment_cap)`), implemented
+twice (DAX + pandas), not cached a third time in the parquet.
+
+**Changed again 2026-07-13** (same reasoning, one column later): stored
+`dead_money` dropped from `fact_fantasy_teams` too. A kept player's cap
+charge is the FULL `contract_value` — `dim_contract.cap_hit_pct` is a
+DEAD-MONEY-ONLY number (what's owed if you CUT the player), never applied
+to a kept player's charge (an earlier bug in both capmath and the 02e
+summary multiplied by it, a 2x understatement caught by the
+`cap-ledger-auditor` gate). Dead money is now computed identically in all
+three places: `status == "Cut" AND dim_contract.guaranteed` →
+`contract_value × cap_hit_pct`, else 0. **Cap exemption is placement-based**
+(`fact_fantasy_teams.roster_status == "Minors"`), not contract-type-based —
+a Minor-*contract* player kept on the active roster is charged in full;
+only the Minors *squad slot* zeroes the charge.
 
 ## Transformer Tables
 

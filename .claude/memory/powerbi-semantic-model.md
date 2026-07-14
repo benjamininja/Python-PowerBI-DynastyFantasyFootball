@@ -125,13 +125,25 @@ derivable via a relationship (`CapHit` = `ContractValue x RELATED(Dim_Contract
 [CapHitPct])`, needed adding the missing `ContractID→Dim_Contract.ContractID`
 relationship first; `Conference` via the existing `TeamKey→Dim_FantasyTeams`
 relationship). Both removed from the TMDL and `02e`'s output schema. `DeadMoney`
-was deliberately left alone — no single-row formula exists yet, it needs real
-drop-event tracking (ledger `drop` event type doesn't exist). Its
-`dim_season.relative_nfl_season_number` dependency is now built (`01f`,
-2026-07-11) but `dim_season` isn't in this semantic model yet — needs a table
-+ relationship before the dead-money measures can reference it. Full 3-version
-design (current/next/total year) is in the project's `PLAN.md`, being built
-live by the user in `_Measures.tmdl`.
+was deliberately left alone at the time — no single-row formula existed yet.
+`dim_season.relative_nfl_season_number` landed the same day (`01f`) and
+`dim_season` was added to this model shortly after, unblocking the Dead
+Money current/next/total-year measures (all live in `_Measures.tmdl` now).
+
+**Follow-on, 2026-07-13**: `Fact_FantasyTeams.DeadMoney` dropped too, once
+the DAX Dead Money measures existed to derive it from — same anti-pattern,
+one column later. It's `status == "Cut" AND Dim_Contract[Guaranteed]` →
+`ContractValue × CapHitPct`, computed identically in the DAX measure,
+`02e`'s summary, and `discord_bot/capmath.py`. Caught in the same pass: a
+kept player's charge is the FULL `ContractValue` (CapHitPct is
+dead-money-only, never applied to an active player) — `capmath` and `02e`
+had been multiplying by it, a 2x understatement flagged by the
+`cap-ledger-auditor` gate before merge. Same session added
+`Fact_FantasyTeams.RosterStatus` (Active/Reserve/Minors, stamped by `02e`
+from the weekly `fact_roster_placement` snapshot) and gated `'Active Roster
+Salary'`/`'Remaining Salary Cap'` on `RosterStatus <> "Minors"` — cap
+exemption follows Minors **squad placement**, not the Minor **contract
+type**; the two are independent levers (see project-fantasy-football.md).
 
 **Gotcha hit while fixing this**: the user had Power BI Desktop open on the
 same `.pbip` and was independently fixing the same visuals/measures — file
@@ -139,6 +151,61 @@ mtimes changed on disk mid-session without any edit from me. Before large
 TMDL/PBIR edits, check `git status`/file mtimes for unexplained recent
 changes and ask whether Desktop is open before assuming the state you last
 read is still current — Desktop autosaves TMDL on every model change.
+
+## Full model normalization (2026-07-13)
+
+Same no-frozen-rollups spirit, applied to plain duplicate columns (not cap
+math): 17 columns dropped from the TMDL where a relationship already reaches
+the canonical value, model-side only (parquet + notebooks untouched — the
+bot still reads the underlying columns, so nothing downstream broke). Pattern
+per column: verify every report/DAX reference first (an Explore-agent pass
+over every `visual.json`/`bookmark.json`/`report.json` + a grep for
+`Table[Column]` DAX refs), only then drop from the table TMDL + prune the
+matching Q&A linguistic-metadata entry in `cultures/en-US.tmdl`.
+- `Dim_RookieProspect`: `PositionDetail`/`PositionGroup`/`SideOfBall`/
+  `FantasyRelevant` → `Dim_Position` (activated the previously-inactive
+  `Dim_RookieProspect_to_Dim_Position_via_Position` relationship);
+  `SchoolCanonical`/`Conference` → `Dim_School`.
+- `Dim_NFLPlayers`: `PositionGroup`, `CollegeConference`.
+- `Fact_NFLCombineProDay`: `PlayerName`/`Pos`/`School`/`HeightInches` (the one
+  report visual using this table already reads these via
+  `Dim_RookieProspect`/`Dim_School`). **Kept deliberately**: `DraftTeam`/
+  `DraftRound`/`DraftOvr`/`Weight` — used as Values/sort in that visual, and
+  `Dim_NFLPlayers` has no equivalent for pre-signing prospects (no `gsis_id`
+  yet).
+- `Fact_FantraxADP`: `PlayerName`/`PositionRaw`/`NFLTeam`/`Age`. **Kept**:
+  `IsRookie` — the `Rookie` measure depends on it.
+- `Fact_RookieRankings`: `DraftYear` → `Dim_RookieProspect`.
+- `Fact_DynastyRankingMetrics.source_name` kept but hidden (`isHidden`) with a
+  `///` exception note: it's the ETL partition/load key, not analysis
+  attribution — that lives on `Dim_DynastyMetric.SourceName` (one source per
+  `MetricKey`, the FD documented in data-model.md).
+
+**`cultures/en-US.tmdl` is UTF-16 LE with BOM**, not UTF-8 — a real trap hit
+mid-slice: a first pass processed it as UTF-8 text with a brace-counting
+heuristic and silently truncated it from 34,527 to 10,653 lines (lost ~24k
+lines of unrelated Q&A metadata, not just the targeted entries) before it was
+caught and redone correctly (`encoding="utf-16"`, real `json.loads`/`dumps`
+on the extracted linguistic-metadata blob, no manual brace counting). Verify
+any programmatic edit to this file with a byte-level encoding check
+(`open(path, "rb").read()[:2] == b"\xff\xfe"`) before trusting a text-mode
+diff.
+
+**Composite relationship keys** (new pattern, Slice D): `Dim_FantasyTeams` →
+`Dim_Division` used to join on `Conference` alone, which is cardinality-valid
+only while `dim_division` holds a single season's rows — `01g`'s documented
+intent is to append future seasons, which would make that join ambiguous the
+moment a second season lands. Fixed with a hidden **calculated column**
+`DivisionKey` on both sides (`Dim_FantasyTeams`: `LOOKUPVALUE(Dim_Season[
+season_id], Dim_Season[relative_nfl_season_number], 0) & "|" &
+[Conference]`; `Dim_Division`: `[season_id] & "|" & [conference]`), joined
+`Dim_FantasyTeams_to_Dim_Division_via_DivisionKey`. **Known limitation**:
+`Dim_FantasyTeams` has no season grain, so `DivisionKey` always resolves to
+whichever season is current (`relative_nfl_season_number = 0`) at data-refresh
+time — a report sliced to a past season will still show the *current*
+division names. Acceptable until a division actually gets renamed
+season-over-season; revisit then (likely needs `Dim_FantasyTeams` to carry a
+season dimension of its own, which it currently doesn't).
 
 ## Git hygiene (PBIP)
 - `.gitignore`: `**/.pbi/` + `*.abf` (local cache/settings). Commit `.platform`,
