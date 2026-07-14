@@ -258,6 +258,29 @@ cleanup → E full PBI normalization → F docs. One PR per slice.
   it). Zero report edits needed. Parquet-side column drops in the producing
   notebooks deliberately deferred (bot reads those columns).
 
+- **Slice F BUILT 2026-07-13** (branch `docs-completeness`, stacked on E) —
+  final slice, epic complete pending merges (PR chain A #25 → B #26 → C #27 →
+  D #28 → E #29 → F next): `data/README.md` gained the four previously
+  undocumented tables (`dim_season`, `dim_division`, `dim_draft_pick`,
+  `dim_roster_asset`, `fact_roster_transactions`, `fact_roster_placement`,
+  `fact_minor_eligibility`) with ETL-only bridges explicitly marked as such
+  (not model gaps — their value is in the ETL flow); `data-model.md` updated
+  for the current `fact_fantasy_teams` schema (roster_status, dropped
+  dead_money) + new fact rows; `powerbi-semantic-model.md` gained the Slice E
+  normalization record (17 dropped columns, the UTF-16 cultures-file trap,
+  the DivisionKey composite-key pattern + its known limitation). Allowlisted
+  data-commit exception already codified in CONTRIBUTING.md/CLAUDE.md
+  (Slice B).
+
+## Epic done — critical-review follow-through (2026-07-13)
+All 6 slices (A apply pacing/FA CSV, B orchestrator, C cap honesty, D model
+cap-column cleanup, E full normalization, F docs) built and stacked as PRs
+#25→#26→#27→#28→#29→(F). **User actions still open, unrelated to slice
+mechanics**: merge the chain in order; site eligibility condition 20→19
+(pending co-commissioner OK); locate the Fantrax commissioner CSV-import
+tool's exact columns; run the real startup `--apply` session; open PBI
+Desktop once per PBI-touching PR to eyeball the diff (D/E especially).
+
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).
