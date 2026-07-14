@@ -122,6 +122,19 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["acquired","how acquired","acquisition","acquired method"]
 
+	/// Observed squad placement from the latest weekly roster snapshot: Active, Reserve, or Minors. Minors placement is cap-exempt (salary excluded from Active Roster Salary). Blank = not in the latest snapshot, charged normally.
+	column RosterStatus
+		dataType: string
+		lineageTag: a3fc80c9-b244-4ac9-99c5-e17adcc8ea30
+		summarizeBy: none
+		sourceColumn: roster_status
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = squad placement|minors placement|placement|cap exempt status
+
+		annotation SynonymCollection = ["squad placement","minors placement","placement","cap exempt status"]
+
 	/// League season the roster row applies to.
 	column Season
 		dataType: string

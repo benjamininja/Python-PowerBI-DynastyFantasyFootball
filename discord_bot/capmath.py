@@ -9,8 +9,12 @@ DAX measures in _Measures.tmdl ('Active Roster Salary', 'Remaining Salary
 Cap') so there's exactly one definition of "remaining cap", not three.
 
 fact_fantasy_teams.parquet also no longer stores `cap_hit` (removed
-2026-07-11, same reasoning): it's ContractValue x dim_contract.CapHitPct via
-the contract_id relationship, not an independent fact.
+2026-07-11, same reasoning). A KEPT player's cap charge is the full
+ContractValue -- CapHitPct on dim_contract is a DEAD-MONEY-ONLY number (it
+prices what's still owed if you CUT the player); it has no bearing on what a
+kept player costs. That matches the DAX 'Active Roster Salary' comment in
+_Measures.tmdl verbatim (the 2026-07-13 cap-ledger audit caught this module
+still multiplying by CapHitPct -- a 2x understatement vs the report).
 """
 
 from __future__ import annotations
@@ -22,21 +26,31 @@ from github_fetch import fetch_parquet
 
 _TEAMS_PATH = "data/dim_fantasy_teams.parquet"
 _ROSTER_PATH = "data/fact_fantasy_teams.parquet"
-_CONTRACT_PATH = "data/dim_contract.parquet"
 
 
 def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
-    """fact_fantasy_teams with a computed cap_hit column (ContractValue x
-    dim_contract.cap_hit_pct via contract_id) -- mirrors the DAX 'Active
-    Roster Salary' measure. Use this instead of fetch_parquet(fact_fantasy_teams)
-    directly whenever per-player cap_hit is needed."""
+    """fact_fantasy_teams with a computed cap_hit column -- mirrors the DAX
+    'Active Roster Salary' measure: a kept player charges the FULL
+    ContractValue (CapHitPct is dead-money-only, never applied here). Use this
+    instead of fetch_parquet(fact_fantasy_teams) directly whenever per-player
+    cap_hit is needed.
+
+    Minors-squad placement is CAP-EXEMPT (roster_status == "Minors", stamped by
+    02e from the latest fact_roster_placement snapshot): those rows keep their
+    contract_value but get cap_hit 0 and cap_exempt True. Placement is the ONLY
+    exemption lever -- a Minor-CONTRACT player kept on the active roster is
+    charged in full. A null/absent roster_status charges normally — the safe
+    default."""
     roster = fetch_parquet(_ROSTER_PATH, cfg)
     if roster.empty:
         return roster
-    contracts = fetch_parquet(_CONTRACT_PATH, cfg)
-    pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
     roster = roster.copy()
-    roster["cap_hit"] = roster["contract_value"] * roster["contract_id"].map(pct)
+    roster["cap_hit"] = roster["contract_value"]
+    if "roster_status" in roster.columns:
+        roster["cap_exempt"] = roster["roster_status"].eq("Minors").fillna(False)
+    else:  # pre-2026-07-13 fact without the column
+        roster["cap_exempt"] = False
+    roster.loc[roster["cap_exempt"], "cap_hit"] = 0.0
     return roster
 
 

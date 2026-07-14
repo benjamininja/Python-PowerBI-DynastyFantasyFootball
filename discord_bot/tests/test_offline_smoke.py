@@ -105,3 +105,33 @@ def test_roster():
             "roster undrafted (empty-state)",
         )
     _expect_error(lambda: roster.build_roster_embeds(CFG, "zzzznoteam"), "roster not found")
+
+
+def test_capmath_minors_exempt():
+    """Cap rules (2026-07-13 audit): a kept player charges the FULL
+    contract_value (CapHitPct is dead-money-only, never applied); Minors
+    PLACEMENT (roster_status) is the only exemption — a Minor-CONTRACT player
+    kept Active is charged in full; null roster_status charges (safe default)."""
+    frames = {
+        "fact_fantasy_teams.parquet": pd.DataFrame({
+            "team_key":       ["A01", "A01", "A01", "A01"],
+            "contract_id":    ["1st", "1st", "Minor", "Minor"],
+            "contract_value": [10_000_000.0, 6_000_000.0, 2_000_000.0, 2_000_000.0],
+            "dead_money":     [0, 0, 0, 0],
+            "roster_status":  ["Active", None, "Minors", "Active"],
+        }),
+    }
+    orig = capmath.fetch_parquet
+    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
+    try:
+        r = capmath.roster_with_cap_hit(CFG)
+    finally:
+        capmath.fetch_parquet = orig
+    hits = r["cap_hit"].tolist()
+    assert hits[0] == 10_000_000.0   # kept player: FULL contract value, no pct
+    assert hits[1] == 6_000_000.0    # null roster_status charges (safe default)
+    assert hits[2] == 0.0            # Minors PLACEMENT: exempt
+    assert hits[3] == 2_000_000.0    # Minor CONTRACT kept Active: charged in full
+    assert r["cap_exempt"].tolist() == [False, False, True, False]
+    # contract_value untouched by the exemption
+    assert r["contract_value"].tolist()[2] == 2_000_000.0
