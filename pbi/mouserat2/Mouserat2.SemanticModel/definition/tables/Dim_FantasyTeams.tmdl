@@ -41,6 +41,16 @@ table Dim_FantasyTeams
 
 		annotation SynonymCollection = ["conference","division group","conf"]
 
+	/// Composite join key to Dim_Division: current season (Dim_Season relative 0) + conference. Exists because Dim_Division is keyed per (season, conference) and a conference-only join breaks once a second season lands. Hidden plumbing.
+	column DivisionKey = LOOKUPVALUE ( Dim_Season[season_id], Dim_Season[relative_nfl_season_number], 0 ) & "|" & Dim_FantasyTeams[Conference]
+		dataType: string
+		isHidden
+		isDataTypeInferred
+		lineageTag: e5f121e8-7c50-4285-b8c5-a17967c56516
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
 	/// Short fantasy team abbreviation.
 	column TeamAbbr
 		dataType: string

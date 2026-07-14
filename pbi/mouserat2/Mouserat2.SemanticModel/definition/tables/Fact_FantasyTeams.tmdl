@@ -1,4 +1,4 @@
-/// Roster fact: one row per team and player, with contract, dead money, and status. Dual-conference rosters supported. CapHit is derived via the Dim_Contract relationship (RELATED(Dim_Contract[CapHitPct]) x ContractValue), not stored -- see 'Active Roster Salary' in _Measures.tmdl.
+/// Roster fact: one row per team and player, with contract, status, and squad placement. Dual-conference rosters supported. CapHit and DeadMoney are NOT stored -- a kept player charges full ContractValue; dead money is computed from Status/Dim_Contract[CapHitPct]. See the Salary & Cap measures in _Measures.tmdl.
 table Fact_FantasyTeams
 	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
 
@@ -81,20 +81,6 @@ table Fact_FantasyTeams
 		annotation Synonyms = contract year|year of deal|deal year
 
 		annotation SynonymCollection = ["contract year","year of deal","deal year"]
-
-	/// Dead money owed if the player is dropped ($).
-	column DeadMoney
-		dataType: int64
-		formatString: 0
-		lineageTag: 3370126d-2c77-4d28-9145-e0b076e5b8c2
-		summarizeBy: none
-		sourceColumn: dead_money
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = dead money|dead cap|penalty
-
-		annotation SynonymCollection = ["dead money","dead cap","penalty"]
 
 	/// Roster status (e.g. Active, IR, Taxi, Cut).
 	column Status

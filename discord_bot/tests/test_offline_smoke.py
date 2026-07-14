@@ -117,7 +117,6 @@ def test_capmath_minors_exempt():
             "team_key":       ["A01", "A01", "A01", "A01"],
             "contract_id":    ["1st", "1st", "Minor", "Minor"],
             "contract_value": [10_000_000.0, 6_000_000.0, 2_000_000.0, 2_000_000.0],
-            "dead_money":     [0, 0, 0, 0],
             "roster_status":  ["Active", None, "Minors", "Active"],
         }),
     }
@@ -135,3 +134,42 @@ def test_capmath_minors_exempt():
     assert r["cap_exempt"].tolist() == [False, False, True, False]
     # contract_value untouched by the exemption
     assert r["contract_value"].tolist()[2] == 2_000_000.0
+
+
+def test_capmath_dead_money_computed():
+    """teams_with_cap computes dead money (stored column dropped 2026-07-13):
+    only Cut + Guaranteed prices in, at contract_value x cap_hit_pct. The trap
+    case is 'X' (cap_hit_pct 0.5 but guaranteed False) — must price 0."""
+    frames = {
+        "dim_fantasy_teams.parquet": pd.DataFrame({
+            "team_key":         ["A01"],
+            "original_cap":     [300_000_000.0],
+            "reinvestment_cap": [0.0],
+        }),
+        "fact_fantasy_teams.parquet": pd.DataFrame({
+            "team_key":       ["A01", "A01", "A01", "A01"],
+            "contract_id":    ["1st", "1st", "X", "3rd"],
+            "contract_value": [10_000_000.0, 8_000_000.0, 4_000_000.0, 6_000_000.0],
+            "status":         ["active", "Cut", "Cut", "Cut"],
+            "roster_status":  ["Active", None, None, None],
+        }),
+        "dim_contract.parquet": pd.DataFrame({
+            "contract_id": ["1st", "X", "3rd"],
+            "cap_hit_pct": [0.5, 0.5, 0.0],
+            "guaranteed":  [True, False, False],
+        }),
+    }
+    orig = capmath.fetch_parquet
+    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
+    try:
+        t = capmath.teams_with_cap(CFG)
+    finally:
+        capmath.fetch_parquet = orig
+    row = t.iloc[0]
+    # Cut+Guaranteed 1st: 8M x 0.5 = 4M. Cut X (not guaranteed) and Cut 3rd
+    # (guaranteed False, pct 0) price 0.
+    assert row["dead_money"] == 4_000_000.0
+    # active salary is full contract_value of every row (Cut exclusion is a
+    # known open item pending drop events — parity with the DAX measure).
+    assert row["active_roster_salary"] == 28_000_000.0
+    assert row["remaining_cap_current_yr"] == 300_000_000.0 - 28_000_000.0 - 4_000_000.0

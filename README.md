@@ -58,8 +58,7 @@ All ETL notebooks are `.ipynb` in `notebooks/`. All notebooks execute with CWD =
 | `01d_dim_nfl_teams_seed` | `dim_nfl_teams` | nflreadpy `load_teams()` |
 | `01e_dim_nfl_players_seed` | `dim_nfl_players` | nflreadpy `load_players()`; `_COLMAP` maps nflverse → canonical names |
 | `02a_fact_nfl_combine_pro_day_metrics` | `fact_nfl_combine_pro_day_metrics` | All seasons 2000–2026; `is_current_season` flag |
-| `02b_fact_fantasy_teams_seed` | `fact_fantasy_teams` | Schema seed; populated by draft notebook |
-| `02c_fact_rookie_rankings_seed` | `fact_rookie_rankings` | Schema seed only |
+| `02c_fact_rookie_rankings_seed` | `fact_rookie_rankings` | Schema seed only. (`02b`, the old fact_fantasy_teams seed, is retired to `archive/` — 02e derives the fact from the ledger) |
 | `03a_fantasypros_rankings` | `fact_rookie_rankings` ← FantasyPros PPR + Superflex | Scrapes embedded `ecrData` JSON |
 | `03b_walterfootball_rankings` | `fact_rookie_rankings` ← WalterFootball | Positional ranks only (no global rank) |
 | `03c_ktc_rankings` | `fact_rookie_rankings` ← KeepTradeCut | `KTC_Consensus` |
