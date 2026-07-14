@@ -41,21 +41,6 @@ table Fact_RookieRankings
 
 		annotation SynonymCollection = ["phase","cycle phase","stage","draft phase"]
 
-	/// Rookie draft class year.
-	column DraftYear
-		dataType: int64
-		formatString: 0
-		lineageTag: 4681b065-d4a5-47c5-98a1-1f5cea9c1ce6
-		summarizeBy: none
-		sourceColumn: draft_year
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = draft year|class year|rookie year
-
-		annotation SynonymCollection = ["draft year","class year","rookie year"]
-
-	/// Overall rank across the rookie class (1 = best).
 	column GlobalRank
 		dataType: int64
 		formatString: 0

@@ -240,6 +240,24 @@ cleanup → E full PBI normalization → F docs. One PR per slice.
   (explorer concern was false); retired fact_dynasty_rankings removed from
   data/README.md.
 
+- **Slice E BUILT 2026-07-13** (branch `pbi-normalization`, stacked on D):
+  17 derivable duplicate columns DROPPED from the model (TMDL only — parquet
+  untouched, bot unaffected): Dim_RookieProspect PositionDetail/PositionGroup/
+  SideOfBall/FantasyRelevant/SchoolCanonical/Conference (→ Dim_Position /
+  Dim_School via relationships); Dim_NFLPlayers PositionGroup/
+  CollegeConference; Fact_NFLCombineProDay PlayerName/Pos/School/HeightInches
+  (combine visual already reads these from Dim_RookieProspect/Dim_School);
+  Fact_FantraxADP PlayerName/PositionRaw/NFLTeam/Age; Fact_RookieRankings
+  DraftYear. Dim_RookieProspect→Dim_Position relationship ACTIVATED.
+  Fact_DynastyRankingMetrics.source_name kept+hidden (ETL partition key;
+  analysis attribution = Dim_DynastyMetric.SourceName) with /// exception
+  note. Cultures pruned + JSON validated. **Kept deliberately** (report-ref
+  audit): Fact_NFLCombineProDay DraftTeam/DraftRound/DraftOvr/Weight (used
+  by the combine visual; Dim_NFLPlayers substitutes would blank pre-signing
+  prospects) and Fact_FantraxADP IsRookie (the `Rookie` measure depends on
+  it). Zero report edits needed. Parquet-side column drops in the producing
+  notebooks deliberately deferred (bot reads those columns).
+
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).

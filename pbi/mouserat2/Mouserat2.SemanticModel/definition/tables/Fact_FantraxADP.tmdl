@@ -73,46 +73,6 @@ table Fact_FantraxADP
 
 		annotation SynonymCollection = ["capture date","date","scrape date"]
 
-	/// Player display name from Fantrax.
-	column PlayerName
-		dataType: string
-		lineageTag: 3ebbf6ce-907a-45fe-aabc-84a1d4ba13d3
-		summarizeBy: none
-		sourceColumn: player_name
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = player|name|player name
-
-		annotation SynonymCollection = ["player","name","player name"]
-
-	/// Player position as published by Fantrax (raw).
-	column PositionRaw
-		dataType: string
-		lineageTag: 78f9c9f6-acb8-495c-bd2f-122003d036a8
-		summarizeBy: none
-		sourceColumn: position_raw
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = position|pos|role
-
-		annotation SynonymCollection = ["position","pos","role"]
-
-	/// Player's NFL team abbreviation.
-	column NFLTeam
-		dataType: string
-		lineageTag: d3eca7c4-f995-49db-8a27-c0f25f991785
-		summarizeBy: none
-		sourceColumn: nfl_team
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = team|nfl team|club
-
-		annotation SynonymCollection = ["team","nfl team","club"]
-
-	/// Whether the player is a rookie.
 	column IsRookie
 		dataType: boolean
 		formatString: """TRUE"";""TRUE"";""FALSE"""
@@ -245,24 +205,6 @@ table Fact_FantraxADP
 
 		annotation SynonymCollection = ["points per game","fpts per game","ppg","fp/g"]
 
-	/// Player age (years).
-	column Age
-		dataType: int64
-		lineageTag: 072022ec-42ed-4487-9c98-0f4995b80b2b
-		summarizeBy: none
-		sourceColumn: age
-
-		changedProperty = DataType
-
-		annotation SummarizationSetBy = User
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
-
-		annotation Synonyms = age|years old|player age
-
-		annotation SynonymCollection = ["age","years old","player age"]
-
-	/// Games played (in-season actuals; from the Players grid).
 	column GamesPlayed
 		dataType: int64
 		lineageTag: ef88dfb6-9f55-4e6a-8fbc-ad2af097eec3
