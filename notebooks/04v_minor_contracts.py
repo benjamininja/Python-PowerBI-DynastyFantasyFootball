@@ -28,8 +28,14 @@
 #   week-over-week history detects players who graduate while sitting in the
 #   FA pool (absent from both current-week pulls).
 # - `data/review/review_contract_actions.csv` — the commissioner worklist:
-#   typed actions (set Minor / set 1st / set FA) with reasons. Structured so a
-#   future --apply mode can replay it through Fantrax's contract-edit endpoint.
+#   typed actions (set Minor / set 1st / set FA) with reasons. `--apply` replays
+#   the rostered rows through Fantrax's contract-edit endpoint (opt-in, never
+#   scheduled); `--export-fa-csv` writes `data/review/fa_contract_import.csv`
+#   for the FA rows (commissioner CSV-import tool).
+#
+# **Apply pacing:** the startup apply is a ONE-SITTING session (~28 teams x 4
+# POSTs + jittered delays, a few minutes total); weekly steady-state is a
+# handful of graduations. Delay knobs: PULL_DELAY_S / APPLY_TEAM_DELAY_S.
 #
 # **Downstream (not here):** `02d` ingests the raw JSON and emits
 # `minor_assignment` / `minor_graduation` ledger events; `02e` replay derives
@@ -42,8 +48,10 @@
 # %%
 import importlib
 import json
+import random
 import re
 import sys
+import time
 from datetime import date
 from pathlib import Path
 
@@ -90,6 +98,20 @@ GRADUATE_FA = "FA"
 PLACEMENT_FACT = "fact_roster_placement"
 ELIGIBILITY_FACT = "fact_minor_eligibility"
 WORKLIST_CSV = "review_contract_actions.csv"
+FA_IMPORT_CSV = "fa_contract_import.csv"
+
+# Pacing: jittered sleeps so the run reads like a human clicking through pages,
+# not a burst (there is no other rate limiting anywhere in the Fantrax path).
+# Startup apply ~= 28 teams x 4 POSTs + delays -> one sitting of a few minutes;
+# weekly steady-state is a handful of graduations. Module knobs, not CLI.
+PULL_DELAY_S = (0.5, 1.5)     # between read pulls (roster teams, filter pages)
+APPLY_TEAM_DELAY_S = (3, 5)   # between teams during --apply (confirm/execute/
+                              # verify within a team stay back-to-back — that
+                              # matches the UI's own timing)
+
+
+def _pause(bounds: tuple) -> None:
+    time.sleep(random.uniform(*bounds))
 
 
 # %%
@@ -134,9 +156,13 @@ def eligibility_payload(filter_value: str, page_no: int) -> dict:
 def fetch_eligibility(scraper, ctx, page) -> dict:
     """Paginate both MINOR_FANTASY_* filters. Returns {filter_value: [pages]}."""
     out = {}
+    first = True
     for filt in ELIGIBILITY_FILTERS:
         pages, page_no = [], 1
         while True:
+            if not first:
+                _pause(PULL_DELAY_S)
+            first = False
             raw = _post_healed(scraper, ctx, page,
                                eligibility_payload(filt, page_no), filt)
             pages.append(raw)
@@ -220,6 +246,8 @@ def fetch_rosters(scraper, ctx, page, teams: pd.DataFrame) -> dict:
     """One getTeamRosterInfo call per team. Returns {fantrax_team_id: raw}."""
     out = {}
     for t in teams.itertuples():
+        if out:
+            _pause(PULL_DELAY_S)
         raw = _post_healed(scraper, ctx, page,
                            roster_payload(t.fantrax_team_id), "getTeamRosterInfo")
         out[t.fantrax_team_id] = raw
@@ -416,6 +444,236 @@ def build_worklist(elig: pd.DataFrame, placement: pd.DataFrame,
 
 
 # %%
+# ---- Apply mode: replay the worklist through the commissioner edit endpoint ----
+# Captured 2026-07-13 (flip-and-revert on A10 with a network listener): the
+# roster page's edit = POST `confirmOrExecuteTeamRosterChanges`, TWO-PHASE
+# (first with confirm:true, then without), whose `fieldMap` carries the ENTIRE
+# team roster keyed by scorer_id: {posId, stId, sal, csId}. csId is the
+# contract's smallId from the response's own miscData.contractChoices enum
+# (1st=0 ... Minor=8, FA=9) — read live per team, never hardcoded. Because the
+# fieldMap is whole-roster, it MUST be rebuilt from a fresh adminMode
+# getTeamRosterInfo pull (the Con cell carries {'content','id'}) with only the
+# target csIds mutated — replaying stale salaries/statuses would overwrite
+# live roster state.
+#
+# Scope: rostered copies only. FA-copy actions have no fieldMap home; they
+# self-correct on signing (the copy lands on a roster -> next weekly diff
+# flips it). Opt-in via --apply, NEVER scheduled/unattended (grill sign-off:
+# scoped exception to the no-write-side rule). --dry-run prints the planned
+# csId mutations without POSTing.
+def admin_roster_payload(team_id: str) -> dict:
+    """getTeamRosterInfo with adminMode (carries contractChoices + Con cell ids)."""
+    return {
+        "msgs": [{"method": "getTeamRosterInfo",
+                  "data": {"leagueId": CFG.league_id, "teamId": team_id,
+                           "adminMode": True}}],
+        "uiv": CFG.ui_version,
+        "refUrl": f"https://www.fantrax.com/fantasy/league/{CFG.league_id}/team/roster",
+        "dt": 0, "at": 0, "tz": CFG.timezone, "v": CFG.api_version,
+    }
+
+
+def build_field_map(data: dict) -> dict:
+    """Whole-roster fieldMap verbatim from an adminMode roster response."""
+    fm = {}
+    for tbl in data.get("tables", []):
+        hdr = _header_index(tbl)
+        sal_i, con_i = hdr.get("Sal"), hdr.get("Con")
+        for r in tbl.get("rows", []):
+            sid = (r.get("scorer") or {}).get("scorerId")
+            if not sid or r.get("statusId") == EMPTY_SLOT_STATUS:
+                continue
+            cells = r.get("cells", [])
+            fm[sid] = {
+                "posId": str(r.get("posId")),
+                "stId":  str(r.get("statusId")),
+                "sal":   cells[sal_i].get("content") if sal_i is not None else None,
+                "csId":  cells[con_i].get("id") if con_i is not None else None,
+            }
+    return fm
+
+
+def edit_payload(team_id: str, period, field_map: dict, confirm: bool) -> dict:
+    data = {
+        "rosterLimitPeriod": period,
+        "fantasyTeamId": team_id,
+        "daily": False,
+        "adminMode": True,
+        "applyToFuturePeriods": True,
+        "fieldMap": field_map,
+    }
+    if confirm:
+        data["confirm"] = True
+    return {
+        "msgs": [{"method": "confirmOrExecuteTeamRosterChanges", "data": data}],
+        "uiv": CFG.ui_version,
+        "refUrl": f"https://www.fantrax.com/fantasy/league/{CFG.league_id}/team/roster",
+        "dt": 0, "at": 0, "tz": CFG.timezone, "v": CFG.api_version,
+    }
+
+
+def _resp_errors(raw) -> list:
+    """Collect error-looking codes anywhere in an fxpa response (HTTP 200 is
+    not success — repo standing rule)."""
+    errs = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            code = str(n.get("code", ""))
+            if "ERROR" in code.upper() and code != "WARNING_NOT_LOGGED_IN":
+                errs.append(n)
+            for v in n.values():
+                walk(v)
+        elif isinstance(n, list):
+            for x in n:
+                walk(x)
+
+    walk(raw)
+    return errs
+
+
+def apply_worklist(dry_run: bool = True, team_keys: list[str] | None = None,
+                   max_teams: int | None = None) -> None:
+    """Apply the current review_contract_actions.csv to Fantrax, one team at a
+    time: fresh adminMode roster pull -> mutate target csIds -> confirm ->
+    execute -> re-pull and verify. Rostered, verified actions only."""
+    from playwright.sync_api import sync_playwright
+
+    wl_path = Path(CFG.data_dir) / "review" / WORKLIST_CSV
+    wl = pd.read_csv(wl_path)
+    wl = wl[(wl["fa_status"] == "taken") & wl["team_key"].notna()
+            & (~wl["needs_verification"].astype(bool))]
+    skipped_fa = (pd.read_csv(wl_path)["fa_status"] == "available").sum()
+    if team_keys:
+        wl = wl[wl["team_key"].isin(team_keys)]
+    teams = _team_ids(CFG)
+    id_by_key = dict(zip(teams["team_key"], teams["fantrax_team_id"]))
+    grouped = list(wl.groupby("team_key"))
+    if max_teams:
+        grouped = grouped[:max_teams]
+    print(f"[info] applying {sum(len(g) for _, g in grouped)} actions across "
+          f"{len(grouped)} team(s); {skipped_fa} FA-copy actions skipped "
+          f"(no roster fieldMap; self-correct on signing)"
+          f"{' [DRY RUN]' if dry_run else ''}")
+
+    scraper = fx.FantraxScraper(CFG)
+    failures = []
+    with sync_playwright() as p:
+        ctx = p.chromium.launch_persistent_context(
+            CFG.user_data_dir, headless=CFG.headless)
+        page = ctx.new_page()
+        page.set_default_timeout(CFG.nav_timeout_ms)
+        first_team = True
+        for team_key, g in grouped:
+            team_id = id_by_key.get(team_key)
+            if not team_id:
+                failures.append((team_key, "no fantrax_team_id")); continue
+            if not first_team:
+                _pause(PULL_DELAY_S if dry_run else APPLY_TEAM_DELAY_S)
+            first_team = False
+            raw = _post_healed(scraper, ctx, page,
+                               admin_roster_payload(team_id), "getTeamRosterInfo")
+            d = raw["responses"][0]["data"]
+            cs_by_name = {c["name"]: c["smallId"]
+                          for c in d.get("miscData", {}).get("contractChoices", [])}
+            period = d.get("displayedSelections", {}).get("displayedPeriod", 1)
+            fm = build_field_map(d)
+
+            changes = []
+            for a in g.itertuples():
+                target_cs = cs_by_name.get(a.to_contract)
+                cur = fm.get(a.scorer_id)
+                if target_cs is None or cur is None:
+                    failures.append((team_key, f"{a.player_name}: "
+                                     f"{'unknown contract ' + a.to_contract if target_cs is None else 'not on roster pull'}"))
+                    continue
+                if cur["csId"] == target_cs:
+                    continue     # already compliant on-site
+                changes.append((a.scorer_id, a.player_name, cur["csId"], target_cs))
+
+            if not changes:
+                print(f"[skip] {team_key}: nothing to change"); continue
+            print(f"[team] {team_key}: {len(changes)} change(s)")
+            for sid, name, frm, to in changes:
+                print(f"    {name} ({sid}): csId {frm} -> {to}")
+            if dry_run:
+                continue
+
+            for sid, _, _, to in changes:
+                fm[sid]["csId"] = to
+            confirm = _post_healed(scraper, ctx, page,
+                                   edit_payload(team_id, period, fm, True),
+                                   "confirm roster changes")
+            errs = _resp_errors(confirm)
+            if errs:
+                failures.append((team_key, f"confirm errors: {errs[:2]}")); continue
+            execute = _post_healed(scraper, ctx, page,
+                                   edit_payload(team_id, period, fm, False),
+                                   "execute roster changes")
+            errs = _resp_errors(execute)
+            if errs:
+                failures.append((team_key, f"execute errors: {errs[:2]}")); continue
+
+            # verify: re-pull and compare the targets' Con ids.
+            chk = _post_healed(scraper, ctx, page,
+                               admin_roster_payload(team_id), "verify roster")
+            fm_after = build_field_map(chk["responses"][0]["data"])
+            bad = [(sid, name) for sid, name, _, to in changes
+                   if fm_after.get(sid, {}).get("csId") != to]
+            if bad:
+                failures.append((team_key, f"verify mismatch: {bad}"))
+            else:
+                print(f"[ok] {team_key}: {len(changes)} contract(s) updated + verified")
+        ctx.close()
+
+    if failures:
+        print(f"\n[warn] {len(failures)} failure(s):")
+        for t, msg in failures:
+            print(f"  {t}: {msg}")
+    else:
+        print("\n[ok] apply complete, no failures")
+
+
+# %%
+# ---- FA path: commissioner CSV import ------------------------------------------
+# FA copies have no roster fieldMap, so --apply can't touch them. The chosen
+# route (grill sign-off 2026-07-13) is Fantrax's commissioner contract
+# CSV-import tool. Column shape below is a sensible default (player identity +
+# target contract + salary) pending discovery of the tool's exact expected
+# headers in League Admin — iterate once against a real upload.
+def export_fa_csv() -> Path:
+    """Write data/review/fa_contract_import.csv: the worklist's FA-copy actions
+    joined to the latest eligibility snapshot for salary/position/NFL team."""
+    review_dir = Path(CFG.data_dir) / "review"
+    wl = pd.read_csv(review_dir / WORKLIST_CSV)
+    fa = wl[wl["fa_status"] == "available"].copy()
+
+    elig_path = Path(CFG.data_dir) / f"{ELIGIBILITY_FACT}.parquet"
+    if elig_path.exists():
+        elig = pd.read_parquet(elig_path)
+        latest = elig[elig["capture_date"] == elig["capture_date"].max()]
+        fa = fa.merge(
+            latest[["scorer_id", "position_raw", "nfl_team", "salary"]],
+            on="scorer_id", how="left")
+    else:
+        fa[["position_raw", "nfl_team", "salary"]] = None
+    fa["salary"] = pd.to_numeric(fa["salary"], errors="coerce").astype("Int64")
+
+    out = fa.rename(columns={
+        "player_name":  "Player",
+        "position_raw": "Position",
+        "nfl_team":     "Team",
+        "salary":       "Salary",
+        "to_contract":  "Contract",
+        "scorer_id":    "FantraxID",
+    })[["Player", "Position", "Team", "Salary", "Contract", "FantraxID"]]
+    path = review_dir / FA_IMPORT_CSV
+    out.to_csv(path, index=False)
+    print(f"[ok] {len(out)} FA contract rows -> {path}")
+    return path
+
+
+# %%
 # ---- Main -----------------------------------------------------------------------
 def run() -> pd.DataFrame:
     from playwright.sync_api import sync_playwright
@@ -477,4 +735,26 @@ def run() -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    run()
+    import argparse
+    ap = argparse.ArgumentParser(description="Yo-Yo Rule contract compliance")
+    ap.add_argument("--apply", action="store_true",
+                    help="apply the current worklist to Fantrax (write-side; "
+                         "opt-in, never scheduled)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="with --apply: print planned changes, POST nothing")
+    ap.add_argument("--teams", help="with --apply: comma-separated team_keys")
+    ap.add_argument("--max-teams", type=int,
+                    help="with --apply: stop after N teams (cautious first run)")
+    ap.add_argument("--export-fa-csv", action="store_true",
+                    help="write data/review/fa_contract_import.csv from the "
+                         "worklist's FA-copy actions (commissioner CSV-import "
+                         "tool; format iterating against a real upload)")
+    args = ap.parse_args()
+    if args.export_fa_csv:
+        export_fa_csv()
+    elif args.apply or args.dry_run:
+        apply_worklist(dry_run=args.dry_run,
+                       team_keys=args.teams.split(",") if args.teams else None,
+                       max_teams=args.max_teams)
+    else:
+        run()
