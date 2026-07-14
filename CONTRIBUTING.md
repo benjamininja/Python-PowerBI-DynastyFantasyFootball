@@ -3,9 +3,19 @@
 ## Branch structure
 
 ```
-main   ← production / stable. Never commit directly.
+main   ← production / stable. Never commit directly (one exception below).
 dev    ← active development. All session work lands here.
 ```
+
+**Allowlisted data-commit exception (2026-07-13):** the scheduled pipeline
+(`scripts/run_pipeline.py`, via `run_weekly.ps1`) commits **machine-generated
+`data/*.parquet` refreshes directly to `main`**. This is deliberate and
+narrowly scoped: the orchestrator stages only the `data/*.parquet` pathspec,
+verifies every staged path matches it (aborts otherwise), skips the commit
+entirely when nothing changed, and rebases on `origin/main` before pushing.
+Code, notebooks, PBI, and docs still always go feature branch → PR.
+Watchpoint: parquet history growth — revisit (LFS/releases) only if repo size
+becomes a problem.
 
 PRs flow `dev → main`. Claude Code sessions work on `dev` (or a short-lived
 `feature/*` branch off `dev` for isolated tasks).

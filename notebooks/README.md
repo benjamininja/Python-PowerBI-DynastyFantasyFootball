@@ -88,7 +88,29 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 
 The `.py` rows (`02d`, `02e`, `04a`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
-`04a` and `04v` run on the weekly Task Scheduler cadence, in that order.
+
+## Scheduled pipeline (orchestrator)
+
+The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
+orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
+label + the season calendar). It runs, in dependency order:
+`01f → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02e
+→ (04b, offseason)`, surfaces review-queue row counts, commits refreshed
+`data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
+notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
+
+- Entry point: `.\run_weekly.ps1` (console log →
+  `data\outputs\pipeline_runs\`); register the Windows scheduled task
+  reproducibly with `.\scripts\register_scheduled_task.ps1` (default
+  Thursday 06:00; `-Unregister` to remove).
+- Testing: `.\run.ps1 scripts\run_pipeline.py --dry-run [--phase X]
+  [--steps a,b] [--no-commit] [--no-push]`.
+- `--profile dynasty` appends `04b → 04c → 04y` (run after refreshing the
+  04x manual Excel).
+- **Never scheduled**: the live-draft chain (`04w → 02d → 02e → 05a`), the
+  03-group rookie chain (manual Excel gates), review applies (`03z`,
+  `apply_fantrax_crosswalk_review`), and `04v --apply` (write-side, attended
+  opt-in only).
 
 ### Dynasty rankings (04) — single EAV fact
 

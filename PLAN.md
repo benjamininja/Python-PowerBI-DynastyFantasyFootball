@@ -148,6 +148,30 @@ Defense rows); we read its verdict, never re-derive it.
   condition 20 → 19 (pending co-commissioner confirmation); startup apply
   run; locate the commissioner contract CSV-import tool + report its columns.
 
+## [ ] Active — pipeline orchestration + model normalization (approved plan, 6 slices)
+Grill/plan session 2026-07-13 (plan file: `~/.claude/plans/
+critically-review-our-graceful-nebula.md`). Slices: **A** apply pacing + FA
+CSV export (landed on PR #25) → **B** orchestrator → **C** roster_status cap
+honesty (02e → capmath → PBI, auditor gate) → **D** model cleanup (DeadMoney
+drop, Dim_Season desc, Conference relationship, auditor gate) → **E** full PBI
+normalization → **F** docs. One PR per slice.
+- **Slice B BUILT 2026-07-13** (branch `pipeline-orchestrator`):
+  `scripts/run_pipeline.py` — phase-aware (INSEASON/PRESEASON/OFFSEASON from
+  04a week label + season calendar; February clamp edge fixed), dependency-
+  ordered subprocess steps (`01f → 01e → 04a → 04z → backfill-gp (in-season)
+  → 04v → 02d → 02e → 04b (offseason)`), review-queue surfacing, allowlisted
+  `data/*.parquet` direct-to-main commit (pathspec-verified, change-detected,
+  autostash rebase, main-branch-only guard), Discord webhook notify
+  (`DISCORD_WEBHOOK_URL`, optional). `run_weekly.ps1` (Task Scheduler entry,
+  console logs to `data/outputs/pipeline_runs/`),
+  `scripts/register_scheduled_task.ps1` (reproducible task registration,
+  Thu 06:00 default; daily reconciliation later = one-line trigger change).
+  04a gained argparse `--backfill-gp` + `--season N` (always lands week="YTD" —
+  a numeric week would clobber the board partition in load_fact). Exception
+  codified in CONTRIBUTING.md + CLAUDE.md. NOT scheduled: 04w draft chain,
+  03-group, review applies, `04v --apply`. Phase-2 guarded auto-apply
+  designed, not built (state file + anomaly halt; see plan file).
+
 ## ➡ NEXT
 Immediately-buildable queue is **drained** — remaining work is externally gated
 (Wilson draft finishing, ADR-0006 captures, Sheets-API; see Active/gated).

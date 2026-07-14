@@ -12,8 +12,10 @@
 # from creds in a gitignored `.env`. The authenticated `context.request.post`
 # carries the session cookies, so we call the JSON API directly — no DOM scrape.
 #
-# **Schedule:** Windows Task Scheduler, Thursday ~06:00 CT. The run date maps to
-# the just-completed NFL week (override with CFG.snapshot_week if needed).
+# **Schedule:** runs as a step of `scripts/run_pipeline.py` (Task Scheduler via
+# `run_weekly.ps1`, Thursday ~06:00 CT). The run date maps to the just-completed
+# NFL week (override with CFG.snapshot_week if needed). `--backfill-gp` pulls
+# getPlayerStats YTD actuals (incl. GP) into the season's "YTD" partition.
 #
 # **Outputs:**
 # - `data/raw/fantrax_draftranks_{season}_wk{NN}.json` — verbatim API response (audit/replay)
@@ -653,7 +655,8 @@ def load_fact(df: pd.DataFrame, cfg: LeagueConfig = CFG) -> str:
 
 # %%
 # ---- Main -------------------------------------------------------------------
-if __name__ == "__main__":
+def main_scrape() -> None:
+    """Default action: weekly draft-ranking board snapshot."""
     raw = FantraxScraper(CFG).fetch()
     print("\n=== RESPONSE SCHEMA ===")
     summarize_schema(raw)
@@ -671,3 +674,26 @@ if __name__ == "__main__":
     fact_path = load_fact(df)
     total_fact = len(pd.read_parquet(fact_path))
     print(f"[ok] snapshot {len(df)} rows -> {fact_path} ({total_fact} total in fact)")
+
+
+if __name__ == "__main__":
+    import argparse
+    ap = argparse.ArgumentParser(description="Fantrax weekly scrape")
+    ap.add_argument("--backfill-gp", action="store_true",
+                    help="pull getPlayerStats YTD actuals (incl. GP) instead of "
+                         "the draft board; in-season GP monitoring")
+    ap.add_argument("--season", type=int, default=CFG.snapshot_season,
+                    help="with --backfill-gp: season to backfill "
+                         "(default: current snapshot season, live YTD)")
+    args = ap.parse_args()
+    if args.backfill_gp:
+        # Current season uses the live YTD code; completed seasons come from
+        # YTD_SEASON_CODES (extend that map when Fantrax mints a new code).
+        # week stays "YTD" for every season: a single rolling partition,
+        # replaced each run — NEVER a numeric week label, which would clobber
+        # the draft-board snapshot for that (season, week) in load_fact.
+        code = CFG.ytd_code if args.season == CFG.snapshot_season \
+            else YTD_SEASON_CODES[args.season]
+        backfill_player_stats(CFG, args.season, week="YTD", season_code=code)
+    else:
+        main_scrape()
