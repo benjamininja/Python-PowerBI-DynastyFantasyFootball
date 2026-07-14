@@ -2,20 +2,6 @@
 table Dim_NFLPlayers
 	lineageTag: 0311adcc-3e37-4573-bf03-9fc74dbd963e
 
-	/// Canonical position group from nflverse (e.g. RB, WR, DB).
-	column PositionGroup
-		dataType: string
-		lineageTag: 9356eb7a-78f9-4be2-8f45-23e29667a759
-		summarizeBy: none
-		sourceColumn: position_group
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = position group|group|unit|pos group
-
-		annotation SynonymCollection = ["position group","group","unit","pos group"]
-
-	/// Player weight in pounds.
 	column Weight
 		dataType: double
 		lineageTag: 443f216d-cd89-4530-b8e1-83242a516d92
@@ -182,20 +168,6 @@ table Dim_NFLPlayers
 
 		annotation SynonymCollection = ["college","school","university"]
 
-	/// College athletic conference.
-	column CollegeConference
-		dataType: string
-		lineageTag: a9cf0e3a-1c0d-40c7-845b-933bae24d83d
-		summarizeBy: none
-		sourceColumn: college_conference
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = college conference|conference|conf
-
-		annotation SynonymCollection = ["college conference","conference","conf"]
-
-	/// Season the player entered the NFL.
 	column EntryYear
 		dataType: int64
 		formatString: 0
