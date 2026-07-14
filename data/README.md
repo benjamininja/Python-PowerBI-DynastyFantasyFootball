@@ -26,10 +26,9 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 |---|---|---|---|
 | `fact_rookie_rankings.parquet` | `player_key + source_name + phase + draft_year` | 02c, 03a–03x | Expert rankings, 10 sources, phase cascade |
 | `fact_fantrax_adp.parquet` | `scorer_id + season + week` | 04a, 04z | Fantrax projection board + season-actuals backfill (incl. GP) |
-| `fact_dynasty_rankings.parquet` | `snapshot_date + source_name + source_player_id + format` | 04b, 04x | Dynasty ranking backbone (overall_rank + positional_rank + identity + FKs) |
-| `fact_dynasty_ranking_metrics.parquet` | `… + metric_key` | 04b, 04x | Long companion: source-specific metrics (`metric_num`/`metric_text`) |
+| `fact_dynasty_ranking_metrics.parquet` | `snapshot_date + source_name + source_player_id + format + metric_key` | 04b, 04x | **The** dynasty fact — long EAV; ranks fold in as source-prefixed metric_keys (the separate `fact_dynasty_rankings` backbone is retired, ADR-0002) |
 | `fact_nfl_combine_pro_day_metrics.parquet` | `pfr_id + season` | 02a | Combine/pro-day metrics, all seasons |
-| `fact_fantasy_teams.parquet` | `team_key + gsis_id` | 02b | Active rosters, salaries, dead cap (schema seed) |
+| `fact_fantasy_teams.parquet` | `team_key + gsis_id` | 02e | Current rosters — ledger replay projection (ADR-0003), incl. `roster_status` (Minors placement = cap-exempt). `cap_hit`/`dead_money` are computed by consumers, not stored |
 
 ## Inputs (manual extractions, in `raw/`)
 

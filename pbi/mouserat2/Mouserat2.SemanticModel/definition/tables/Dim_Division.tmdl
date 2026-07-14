@@ -1,6 +1,8 @@
+/// Division names per (season, conference) - Riddell/Wilson branding for the two conferences (ADR-0005 read-side). One row per season x conference.
 table Dim_Division
 	lineageTag: 2015d377-c91b-43b0-a69c-35136316163e
 
+	/// Season label the division naming applies to; matches Dim_Season.
 	column season_id
 		dataType: string
 		lineageTag: 183622a0-1f15-4f49-91ab-fe0cb4a15a4e
@@ -9,6 +11,7 @@ table Dim_Division
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Conference key (A/B side); joins from Dim_FantasyTeams[Conference].
 	column conference
 		dataType: string
 		lineageTag: 476c7654-d383-46fb-b0e9-885e1000fe15
@@ -17,11 +20,22 @@ table Dim_Division
 
 		annotation SummarizationSetBy = Automatic
 
+	/// Display name of the division (e.g. Riddell, Wilson).
 	column division_name
 		dataType: string
 		lineageTag: 61903277-869f-449a-9edc-4734469daae4
 		summarizeBy: none
 		sourceColumn: division_name
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Composite key (season_id|conference) -- unique across seasons, the "one" side of the Dim_FantasyTeams join. Hidden plumbing.
+	column DivisionKey = Dim_Division[season_id] & "|" & Dim_Division[conference]
+		dataType: string
+		isHidden
+		isDataTypeInferred
+		lineageTag: c60fd98a-ec4a-4f4c-8cfe-797cec8e6603
+		summarizeBy: none
 
 		annotation SummarizationSetBy = Automatic
 
