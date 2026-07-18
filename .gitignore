@@ -41,6 +41,7 @@ desktop.ini
 .vscode/settings.json
 # Claude Code per-developer local settings (permissions allowlist etc.) — not shared.
 .claude/settings.local.json
+.claude/learnings.db
 
 # ── Power BI project (PBIP) local artifacts ───────────────────────────────────
 **/.pbi/
