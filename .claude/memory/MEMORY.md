@@ -12,6 +12,7 @@
 - [Source manifest](../../docs/SOURCES.md) — `docs/sources.yml` is **SSOT** (ADR-0007, BUILT 2026-06-14); `docs/SOURCES.md` tables **generated** from it via `scripts/check_sources.py` (`validate`/`--render`/`--check`): schema + notebook-exists + token-match (live, hard-fail) + reverse-drift (WARN, `ignore_hosts` valve). External-input boundary (Fantrax, Google Sheet, nflverse, KTC/FantasyPros/WalterFootball/DraftSharks/DynastySharks, manual Excel). `match` token ≠ `locator` (notebook-resident fingerprint; e.g. Sheet uses `team_sheet_csv_url`). Internal lineage stays in data-model `Source` col + README.
 - [Power BI Semantic Model](powerbi-semantic-model.md) — PBIP/TMDL model + PBIR report at pbi/mouserat2/; Fact_/Dim_ PascalCase (sourceColumn stays snake); rename-cascade; dynasty measures (latest-snapshot/avg) + 2026-06-12 single-EAV refactor; Prep-for-AI gates
 - [Startup draft board 05a](startup-draft-board-05a.md) — `notebooks/05a_startup_draft_board.py`; composite weights, Offense/Defense split, judgment-overlay CSV, Yo-Yo runway (games-played) semantics, IDP/crosswalk quirks
+- [mouserat_trade-bud](mouserat-trade-bud.md) — trade-diagnostic subproject, plan approved 2026-07-17 (pointer to full plan at `~/.claude/plans/critically-review-our-graceful-nebula.md`); all 3 slices built, pending browser verification
 
 ## Decisions (ADRs)
 

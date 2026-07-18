@@ -309,6 +309,17 @@ had grown into (`gsis_id` players · `player_key` prospects · nothing for picks
 - **Valuation deferred:** KTC RDP pick values are a time-varying market estimate
   (≈0 in offseason, firms up weekly) → model later as snapshot-dated metric on
   the pick *class*, NOT a fixed `dim_draft_pick` attribute. v1 = inventory only.
+- **`dim_pick_value_curve`** (notebook `04d`, **BUILT 2026-07-17**) — the
+  "later" from the line above, landed for the `mouserat_trade-bud` project.
+  Grain `(snapshot_date, source_name, draft_year, round, tier)`; KTC RDP
+  gives 3 tiers/round (Early/Mid/Late), DraftSharks (dynasty TE-premium
+  superflex) gives 1 flat value/round (`tier="All"`, no split, 12-team grid).
+  Deliberately **not** part of `fact_dynasty_ranking_metrics` — neither
+  source can resolve to a specific `dim_draft_pick` row, so this is its own
+  small transformer-style table (like `dim_position`/`dim_school`), not the
+  player-identity EAV. Resolving a real pick to a curve value + interpolating
+  our 28-pick rounds onto the 12-team grid is `mouserat_trade-bud`'s backend,
+  not this table.
 - **Migration posture:** new facts only; existing `gsis_id`/`player_key`/
   `draft_year` FKs unchanged until a deliberate migration.
 
