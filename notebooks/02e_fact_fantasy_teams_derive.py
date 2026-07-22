@@ -53,7 +53,7 @@ FFT_PATH       = DATA / "fact_fantasy_teams.parquet"
 TEAMS_PATH     = DATA / "dim_fantasy_teams.parquet"
 PLACEMENT_PATH = DATA / "fact_roster_placement.parquet"
 
-TERMINAL = {"drop"}   # event_types that REMOVE a player from the active roster
+TERMINAL = {"drop", "trade_away"}   # event_types that REMOVE a player from the active roster
 
 # %%
 # ---- Replay the ledger -> latest contract per (team_key, asset_id) ---------

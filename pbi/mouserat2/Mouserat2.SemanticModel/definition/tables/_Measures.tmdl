@@ -623,7 +623,7 @@ table _Measures
 
 	/// This year's cap charge for a rostered (kept) player: the full ContractValue, no percentage applied. CapHitPct on Dim_Contract is a dead-money-only number -- it only prices what's still owed if you CUT the player (see the Dead Money measures below); it has no bearing on what a kept player costs. Minors-squad placement (RosterStatus = "Minors") is cap-exempt and excluded; blank RosterStatus charges normally. Same value as 'Contract Value', just season- and placement-filtered.
 	measure 'Active Roster Salary' =
-
+			
 			CALCULATE(
 			    SUM(Fact_FantasyTeams[ContractValue]),
 			    Dim_Season[relative_nfl_season_number] = 0,

@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>mouserat trade-bud</title>
+<style>
+  :root {
+    --bg: #14161c; --panel: #1c1f28; --panel2: #242835; --border: #333846;
+    --text: #e6e8ee; --muted: #8a90a2; --accent: #5b8cff; --good: #3ecf8e;
+    --bad: #ff5c7a; --neutral: #c9a13b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    margin: 0; padding: 24px; line-height: 1.4;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 12px; color: var(--text); }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 300px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+  select, input[type=text] {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    padding: 7px 8px; border-radius: 6px; font-size: 13px; margin-bottom: 10px;
+  }
+  .chip-row { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+  .chip {
+    background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+    padding: 5px 12px; border-radius: 16px; font-size: 12px; cursor: pointer;
+  }
+  .chip.selected { background: var(--accent); color: white; border-color: var(--accent); }
+  .signal-line { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .signal-line b { color: var(--text); }
+  .helper-panel {
+    margin-top: 10px; padding: 10px; background: rgba(201,161,59,0.08);
+    border: 1px solid rgba(201,161,59,0.35); border-radius: 8px; font-size: 12px;
+  }
+  .helper-panel .title { color: var(--neutral); font-weight: 600; margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; }
+  .tag { padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+  .tag.surplus { background: rgba(62,207,142,0.15); color: var(--good); }
+  .tag.need { background: rgba(255,92,122,0.15); color: var(--bad); }
+  .tag.neutral { background: rgba(255,255,255,0.08); color: var(--muted); }
+  .asset-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .asset-item {
+    display: flex; justify-content: space-between; padding: 6px 10px; font-size: 12px;
+    border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .asset-item:hover { background: var(--panel2); }
+  .asset-item.picked { background: rgba(91,140,255,0.12); }
+  .asset-item .val { color: var(--muted); }
+  .basket { min-height: 40px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px; }
+  .basket-item {
+    display: flex; justify-content: space-between; padding: 3px 0; color: var(--text);
+  }
+  .basket-item .x { color: var(--bad); cursor: pointer; }
+  .bar-wrap { margin: 14px 0; }
+  .bar-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .bar-track { height: 14px; background: var(--panel2); border-radius: 7px; overflow: hidden; display: flex; }
+  .bar-give { background: var(--bad); height: 100%; }
+  .bar-receive { background: var(--good); height: 100%; }
+  .diagnostic { font-size: 14px; margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--panel2); }
+  button.primary {
+    background: var(--accent); color: white; border: none; padding: 8px 18px;
+    border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .config { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .config input { display: inline-block; width: 260px; }
+  .tabnav { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>mouserat trade-bud</h1>
+<div class="subtitle">Dynasty trade diagnostic — positional need/surplus + Pareto-asymmetry check, players and picks together.</div>
+
+<div class="config">
+  Backend: <input type="text" id="apiBase" value="http://127.0.0.1:8420">
+  <button onclick="init()" style="margin-left:6px; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;">⟳ Reconnect</button>
+  <span id="apiStatus" style="margin-left:8px;"></span>
+</div>
+
+<div class="panel">
+  <h2>Teams</h2>
+  <div class="row">
+    <div class="col">
+      <label>My Team</label>
+      <select id="myTeam" onchange="onTeamChange('my')"></select>
+    </div>
+    <div class="col">
+      <label>Counterparty (same conference)</label>
+      <select id="cpTeam" onchange="onTeamChange('counterparty')"></select>
+    </div>
+  </div>
+</div>
+
+<div class="tabnav">
+  <div class="tab-btn active" id="navBtn-overview" onclick="showTab('overview')">Positional Overview</div>
+  <div class="tab-btn" id="navBtn-analysis" onclick="showTab('analysis')">Trade Analysis</div>
+</div>
+
+<!-- TAB 1: league-wide overview -->
+<div id="tab-overview" class="tabpage">
+  <div class="panel">
+    <h2>Positional Overview (league-wide, rank of 28)</h2>
+    <div id="overviewWrap" style="overflow-x:auto;"><table id="overviewTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- TAB 2: profiles + two-team overview + build-a-trade -->
+<div id="tab-analysis" class="tabpage" style="display:none;">
+
+<div class="row">
+  <div class="col panel" id="profileCard-my">
+    <h2>My Profile</h2>
+    <div id="myProfileBody"></div>
+  </div>
+  <div class="col panel" id="profileCard-counterparty">
+    <h2>Counterparty</h2>
+    <div id="cpProfileBody"></div>
+  </div>
+</div>
+
+<div id="analysisSection">
+  <div class="panel">
+    <h2>Positional Overview (this matchup, rank of 28)</h2>
+    <div class="row">
+      <div class="col">
+        <div class="signal-line" id="posLabel-my"></div>
+        <table id="posTable-my"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="col">
+        <div class="signal-line" id="posLabel-cp"></div>
+        <table id="posTable-cp"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Build a Trade</h2>
+    <div class="row">
+      <div class="col">
+        <label id="giveLabel">My team gives</label>
+        <div class="asset-list" id="giveAssets"></div>
+        <label id="giveBasketLabel" style="margin-top:10px;">Give basket</label>
+        <div class="basket" id="giveBasket"></div>
+      </div>
+      <div class="col">
+        <label id="receiveLabel">My team receives (from counterparty)</label>
+        <div class="asset-list" id="receiveAssets"></div>
+        <label id="receiveBasketLabel" style="margin-top:10px;">Receive basket</label>
+        <div class="basket" id="receiveBasket"></div>
+      </div>
+    </div>
+
+    <div class="bar-wrap">
+      <div class="bar-label"><span>Give: <span id="giveTotal">0</span></span><span>Receive: <span id="receiveTotal">0</span></span></div>
+      <div class="bar-track">
+        <div class="bar-give" id="barGive" style="width:50%"></div>
+        <div class="bar-receive" id="barReceive" style="width:50%"></div>
+      </div>
+    </div>
+    <div class="diagnostic" id="diagnostic">Add assets to both sides to see the trade diagnostic.</div>
+  </div>
+</div>
+
+</div>
+
+<script>
+let apiBase = document.getElementById('apiBase').value;
+document.getElementById('apiBase').addEventListener('change', e => { apiBase = e.target.value; init(); });
+
+let state = {
+  teams: [],
+  myTeam: null, cpTeam: null,
+  myProfile: null, cpProfile: null,
+  myAssets: {players: [], picks: []},
+  cpAssets: {players: [], picks: []},
+  give: [],   // assets from myTeam going to cpTeam
+  receive: [], // assets from cpTeam coming to myTeam
+  overviewRows: []
+};
+
+function showTab(name) {
+  document.getElementById('tab-overview').style.display = name === 'overview' ? '' : 'none';
+  document.getElementById('tab-analysis').style.display = name === 'analysis' ? '' : 'none';
+  document.getElementById('navBtn-overview').classList.toggle('active', name === 'overview');
+  document.getElementById('navBtn-analysis').classList.toggle('active', name === 'analysis');
+}
+
+async function api(path, opts) {
+  const res = await fetch(apiBase + path, opts);
+  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
+  return res.json();
+}
+
+async function init() {
+  const statusEl = document.getElementById('apiStatus');
+  try {
+    await api('/health');
+    statusEl.textContent = '● connected';
+    statusEl.style.color = '#3ecf8e';
+  } catch (e) {
+    statusEl.textContent = '● cannot reach backend (run uvicorn main:app --port 8420)';
+    statusEl.style.color = '#ff5c7a';
+    return;
+  }
+  state.teams = await api('/teams');
+  const myTeamSel = document.getElementById('myTeam');
+  const opts = teams => teams.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  myTeamSel.innerHTML = '<option value="">-- select --</option>' + opts(state.teams);
+  refreshCpOptions();
+  loadOverview();
+}
+
+// Counterparty picker only offers teams sharing myTeam's conference (Phase A #4's
+// rule is enforced server-side in /trade/evaluate; this is just the matching UI).
+function refreshCpOptions() {
+  const cpTeamSel = document.getElementById('cpTeam');
+  const prev = cpTeamSel.value;
+  const myTeamObj = state.teams.find(t => t.team_key === state.myTeam);
+  // Same conference as myTeam, and never myTeam itself (a team can't trade with itself).
+  const candidates = myTeamObj
+    ? state.teams.filter(t => t.conference === myTeamObj.conference && t.team_key !== myTeamObj.team_key)
+    : state.teams;
+  const opts = candidates.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  cpTeamSel.innerHTML = '<option value="">-- select --</option>' + opts;
+  if (candidates.some(t => t.team_key === prev)) {
+    cpTeamSel.value = prev;
+  } else if (prev) {
+    state.cpTeam = null;
+    state.cpProfile = null;
+    document.getElementById('cpProfileBody').innerHTML = '';
+  }
+}
+
+function onTeamChange(mode) {
+  const teamKey = mode === 'my' ? document.getElementById('myTeam').value : document.getElementById('cpTeam').value;
+  if (mode === 'my') {
+    state.myTeam = teamKey || null;
+    refreshCpOptions();
+  } else {
+    state.cpTeam = teamKey || null;
+  }
+  if (teamKey) loadProfile(mode);
+  if (mode === 'my' && teamKey) showTab('analysis');
+  renderTwoTeamOverview();
+  if (state.myTeam && state.cpTeam) loadAnalysis();
+}
+
+async function loadOverview() {
+  state.overviewRows = await api('/positional-strength/league');
+  renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
+}
+
+// Shared renderer: league-wide table uses every team_key; the two-team matchup
+// view (renderTwoTeamOverview) reuses the same cached rows/markup, just
+// restricted to [myTeam, cpTeam] -- same rank-of-28/tag styling either way.
+function renderOverviewTable(tableId, rows, teamKeys) {
+  const teamName = tk => (state.teams.find(t => t.team_key === tk) || {}).team_name || tk;
+  const positions = [...new Set(rows.map(r => r.position_group))];
+  const byTeam = {};
+  rows.forEach(r => {
+    byTeam[r.team_key] = byTeam[r.team_key] || {};
+    byTeam[r.team_key][r.position_group] = r;
+  });
+  const thead = document.querySelector(`#${tableId} thead`);
+  thead.innerHTML = `<tr><th>Team</th>${positions.map(p => `<th>${p}</th>`).join('')}</tr>`;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = teamKeys
+    .slice()
+    .sort((a, b) => teamName(a).localeCompare(teamName(b)))
+    .map(tk => {
+      const cells = positions.map(p => {
+        const r = (byTeam[tk] || {})[p];
+        return r ? `<td><span class="tag ${r.label}">${r.rank}</span></td>` : '<td>-</td>';
+      }).join('');
+      return `<tr><td>${teamName(tk)}</td>${cells}</tr>`;
+    }).join('');
+}
+
+// Restored from the pre-tab-restructure "Positional Strength" panel: two
+// side-by-side per-team tables with explicit rank/28 + the surplus/need/
+// neutral word label -- the merged wide table (used for the league-wide tab)
+// only carried a bare colored rank number and lost that signal.
+function renderPositional(tableId, labelId, rows, teamName) {
+  document.getElementById(labelId).textContent = teamName;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = rows.map(r => `
+    <tr><td>${r.position_group}</td><td>${r.rank} / ${r.n_teams}</td>
+    <td><span class="tag ${r.label}">${r.label}</span></td></tr>
+  `).join('');
+}
+
+function renderTwoTeamOverview() {
+  const myTeam = state.teams.find(t => t.team_key === state.myTeam);
+  const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
+  if (!myTeam || state.overviewRows.length === 0) return;
+  const rowsFor = tk => state.overviewRows
+    .filter(r => r.team_key === tk)
+    .sort((a, b) => a.position_group.localeCompare(b.position_group));
+  renderPositional('posTable-my', 'posLabel-my', rowsFor(state.myTeam), myTeam.team_name);
+  if (cpTeam) {
+    renderPositional('posTable-cp', 'posLabel-cp', rowsFor(state.cpTeam), cpTeam.team_name);
+  } else {
+    document.getElementById('posLabel-cp').textContent = '';
+    document.querySelector('#posTable-cp tbody').innerHTML = '';
+  }
+}
+
+const STANCES = ['Contending', 'Balanced', 'Future-Focused'];
+
+function renderProfile(mode, profile) {
+  const bodyId = mode === 'my' ? 'myProfileBody' : 'cpProfileBody';
+  const body = document.getElementById(bodyId);
+  const chips = STANCES.map(s =>
+    `<div class="chip ${s === profile.stance ? 'selected' : ''}" onclick="setStance('${mode}','${s}')">${s}</div>`
+  ).join('');
+  const badge = c => `<span class="tag ${c === 'high' ? 'surplus' : c === 'low' ? 'need' : 'neutral'}">${c}</span>`;
+  let html = `
+    <label>Stance (auto-inferred, click to override)</label>
+    <div class="chip-row">${chips}</div>
+    <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b> confidence: ${badge(profile.stance_confidence)}</div>
+    <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'} confidence: ${badge(profile.risk_confidence)}</div>
+    <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season confidence: ${badge(profile.trade_activity_confidence)}</div>
+  `;
+  if (profile.low_confidence_fields && profile.low_confidence_fields.length) {
+    html += `<div class="helper-panel">
+      <div class="title">No reliable data signal this team — ask the owner directly:</div>
+      ${profile.low_confidence_fields.map(f => `<div>• ${f.replace(/_/g, ' ')}</div>`).join('')}
+    </div>`;
+  }
+  body.innerHTML = html;
+}
+
+function setStance(mode, stance) {
+  const p = mode === 'my' ? state.myProfile : state.cpProfile;
+  p.stance = stance;
+  renderProfile(mode, p);
+}
+
+async function loadProfile(mode) {
+  const teamKey = mode === 'my' ? state.myTeam : state.cpTeam;
+  if (!teamKey) return;
+  const profile = await api(`/teams/${teamKey}/profile?mode=${mode}`);
+  if (mode === 'my') state.myProfile = profile; else state.cpProfile = profile;
+  renderProfile(mode, profile);
+}
+
+function assetItemHtml(a, basketKey) {
+  const name = a.asset_type === 'player'
+    ? `${a.name} (${a.position}, age ${a.age != null ? a.age.toFixed(1) : 'n/a'})`
+    : `${a.draft_season} R${a.round}${a.is_slotted ? '' : ' (future)'}`;
+  return `<div class="asset-item" onclick="toggleAsset('${basketKey}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
+    <span>${name}</span><span class="val">${a.value.toFixed(1)}</span>
+  </div>`;
+}
+
+function renderAssetLists() {
+  document.getElementById('giveAssets').innerHTML =
+    [...state.myAssets.players, ...state.myAssets.picks].map(a => assetItemHtml(a, 'give')).join('');
+  document.getElementById('receiveAssets').innerHTML =
+    [...state.cpAssets.players, ...state.cpAssets.picks].map(a => assetItemHtml(a, 'receive')).join('');
+}
+
+function toggleAsset(basketKey, asset) {
+  const list = basketKey === 'give' ? state.give : state.receive;
+  const idx = list.findIndex(a => a.asset_id === asset.asset_id);
+  if (idx >= 0) list.splice(idx, 1); else list.push(asset);
+  renderBaskets();
+  evaluateTrade();
+}
+
+function renderBaskets() {
+  const render = (basketId, list) => {
+    document.getElementById(basketId).innerHTML = list.length
+      ? list.map(a => {
+          const name = a.asset_type === 'player'
+            ? `${a.name}${a.age != null ? ' (age ' + a.age.toFixed(1) + ')' : ''}`
+            : `${a.draft_season} R${a.round}`;
+          return `<div class="basket-item"><span>${name} (${a.value.toFixed(1)})</span>
+            <span class="x" onclick="removeAsset('${basketId === 'giveBasket' ? 'give' : 'receive'}','${a.asset_id}')">✕</span></div>`;
+        }).join('')
+      : '<span style="color:var(--muted)">empty</span>';
+  };
+  render('giveBasket', state.give);
+  render('receiveBasket', state.receive);
+}
+
+function removeAsset(basketKey, assetId) {
+  const list = basketKey === 'give' ? state.give : state.receive;
+  const idx = list.findIndex(a => a.asset_id === assetId);
+  if (idx >= 0) list.splice(idx, 1);
+  renderBaskets();
+  evaluateTrade();
+}
+
+async function evaluateTrade() {
+  if (state.give.length === 0 && state.receive.length === 0) {
+    document.getElementById('diagnostic').textContent = 'Add assets to both sides to see the trade diagnostic.';
+    return;
+  }
+  const payload = {
+    my_team: state.myTeam,
+    counterparty_team: state.cpTeam,
+    give: state.give.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
+    receive: state.receive.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
+  };
+  const result = await api('/trade/evaluate', {
+    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+  });
+  document.getElementById('giveTotal').textContent = result.give_total.toFixed(1);
+  document.getElementById('receiveTotal').textContent = result.receive_total.toFixed(1);
+  const total = Math.max(result.give_total + result.receive_total, 1);
+  document.getElementById('barGive').style.width = (result.give_total / total * 100) + '%';
+  document.getElementById('barReceive').style.width = (result.receive_total / total * 100) + '%';
+
+  const favorsText = result.favors === 'even' ? 'This trade is even.'
+    : result.favors === 'receiving_side' ? `This trade favors <b>my team</b> by ${result.asymmetry_pct.toFixed(1)}%.`
+    : `This trade favors the <b>counterparty</b> by ${result.asymmetry_pct.toFixed(1)}%.`;
+  document.getElementById('diagnostic').innerHTML = favorsText;
+}
+
+async function loadAnalysis() {
+  const myTeam = state.teams.find(t => t.team_key === state.myTeam);
+  const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
+
+  const [myAssets, cpAssets] = await Promise.all([
+    api(`/teams/${state.myTeam}/assets`),
+    api(`/teams/${state.cpTeam}/assets`),
+  ]);
+
+  renderTwoTeamOverview();
+
+  document.getElementById('giveLabel').textContent = `${myTeam.team_name} gives`;
+  document.getElementById('receiveLabel').textContent = `${myTeam.team_name} receives (from ${cpTeam.team_name})`;
+  document.getElementById('giveBasketLabel').textContent = `${myTeam.team_name} trades away:`;
+  document.getElementById('receiveBasketLabel').textContent = `${cpTeam.team_name} trades away:`;
+
+  state.myAssets = myAssets;
+  state.cpAssets = cpAssets;
+  renderAssetLists();
+  renderBaskets();
+}
+
+init();
+</script>
+
+</body>
+</html>

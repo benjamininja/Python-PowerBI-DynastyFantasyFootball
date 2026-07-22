@@ -45,10 +45,6 @@ relationship 86b5f8ad-1d06-62a2-6aea-09b1545605cf
 	fromColumn: Dim_NFLPlayers.TeamAbbr
 	toColumn: Dim_NFLTeams.TeamAbbr
 
-relationship Dim_FantasyTeams_to_Dim_Division_via_DivisionKey
-	fromColumn: Dim_FantasyTeams.DivisionKey
-	toColumn: Dim_Division.DivisionKey
-
 relationship 8248ec6d-0695-c387-ea23-62b48c196c5b
 	fromColumn: Fact_FantasyTeams.TeamKey
 	toColumn: Dim_FantasyTeams.TeamKey
@@ -97,4 +93,25 @@ relationship AutoDetected_ceee0073-3387-4d16-acb6-c377f9a6c383
 relationship b4f92857-7fe4-1586-5251-c7a02a0db21a
 	fromColumn: Fact_FantraxADP.Season
 	toColumn: Dim_Season.season_id
+
+relationship Dim_FantasyTeams_to_Dim_Division_via_DivisionKey
+	fromColumn: Dim_FantasyTeams.DivisionKey
+	toColumn: Dim_Division.DivisionKey
+
+relationship AutoDetected_c8130fff-8ae1-41dc-b6bd-0a8c618c0704
+	isActive: false
+	fromColumn: Fact_FantraxADP.position_raw
+	toColumn: Dim_Position.PositionRaw
+
+relationship Fact_DraftPick_to_Dim_FantasyTeams_via_CurrentOwner
+	fromColumn: Fact_DraftPick.CurrentOwner
+	toColumn: Dim_FantasyTeams.TeamKey
+
+relationship Fact_DraftPick_to_Dim_Season_via_DraftSeason
+	fromColumn: Fact_DraftPick.DraftSeason
+	toColumn: Dim_Season.season_id
+
+relationship Fact_DraftPick_to_Dim_Contract_via_ContractID
+	fromColumn: Fact_DraftPick.ContractID
+	toColumn: Dim_Contract.ContractID
 

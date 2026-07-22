@@ -35,22 +35,6 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "Dim_NFLPlayers"
-                    }
-                  },
-                  "Property": "DisplayName"
-                }
-              },
-              "queryRef": "Dim_NFLPlayers.DisplayName",
-              "nativeQueryRef": "Player",
-              "active": true,
-              "displayName": "Player"
-            },
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
                       "Entity": "Dim_Position"
                     }
                   },
@@ -67,21 +51,41 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "Dim_Contract"
+                      "Entity": "Dim_NFLPlayers"
                     }
                   },
-                  "Property": "ContractID"
+                  "Property": "DisplayName"
                 }
               },
-              "queryRef": "Dim_Contract.ContractID",
-              "nativeQueryRef": "Contract",
+              "queryRef": "Dim_NFLPlayers.DisplayName",
+              "nativeQueryRef": "Player",
               "active": true,
-              "displayName": "Contract"
+              "displayName": "Player"
             }
           ]
         },
         "Values": {
           "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Dim_Contract"
+                        }
+                      },
+                      "Property": "ContractID"
+                    }
+                  },
+                  "Function": 3
+                }
+              },
+              "queryRef": "Min(Dim_Contract.ContractID)",
+              "nativeQueryRef": "Contract",
+              "displayName": "Contract"
+            },
             {
               "field": {
                 "Aggregation": {
@@ -207,24 +211,6 @@
           },
           {
             "queryRefs": [
-              "Dim_NFLPlayers.DisplayName"
-            ],
-            "identityKeys": [
-              {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "Dim_NFLPlayers"
-                    }
-                  },
-                  "Property": "DisplayName"
-                }
-              }
-            ],
-            "isPinned": true
-          },
-          {
-            "queryRefs": [
               "Dim_Position.PositionGroup"
             ],
             "identityKeys": [
@@ -243,7 +229,20 @@
           },
           {
             "queryRefs": [
-              "Dim_Contract.ContractID"
+              "Dim_NFLPlayers.DisplayName"
+            ],
+            "isCollapsed": true,
+            "identityKeys": [
+              {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Dim_NFLPlayers"
+                    }
+                  },
+                  "Property": "DisplayName"
+                }
+              }
             ],
             "isPinned": true
           }
@@ -308,7 +307,7 @@
             "levelSubtotalLabel": {
               "expr": {
                 "Literal": {
-                  "Value": "'Team Total'"
+                  "Value": "'Position Total'"
                 }
               }
             }
@@ -343,7 +342,14 @@
             "levelSubtotalEnabled": {
               "expr": {
                 "Literal": {
-                  "Value": "false"
+                  "Value": "true"
+                }
+              }
+            },
+            "levelSubtotalLabel": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Team Total'"
                 }
               }
             }
@@ -605,6 +611,128 @@
             }
           ]
         }
+      },
+      {
+        "name": "31c466f9f023ad5bc8ab",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_FantasyTeams"
+              }
+            },
+            "Property": "TeamName"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "e03c394f507b91df6c88",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_NFLPlayers"
+              }
+            },
+            "Property": "DisplayName"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "afb31e2b83890c2980e8",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Dim_NFLPlayers"
+                  }
+                },
+                "Property": "Age"
+              }
+            },
+            "Function": 4
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "f1449294b192aee23364",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Dead Money - Speculative - Current Year"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "4a1c04191c753d65aaf7",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "Dead Money - Speculative - Total"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "e4ba63d6f4a4551ad2ef",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "_Measures"
+              }
+            },
+            "Property": "ADP"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "131856211b37d24e8959",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "Dim_Position"
+              }
+            },
+            "Property": "PositionGroup"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "013914eedb973f3e0400",
+        "field": {
+          "Aggregation": {
+            "Expression": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "Dim_Contract"
+                  }
+                },
+                "Property": "ContractID"
+              }
+            },
+            "Function": 3
+          }
+        },
+        "type": "Advanced"
       }
     ]
   }

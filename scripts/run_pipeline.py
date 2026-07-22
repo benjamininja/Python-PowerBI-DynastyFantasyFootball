@@ -98,51 +98,68 @@ def _nbconvert(p: str) -> list[str]:
             "--execute", "--inplace", str(NB / p)]
 
 
-# Step table: name -> (cmd, phases it runs in, upstream deps that must succeed).
+# Step table: name -> (cmd, phases it runs in, upstream deps, "group").
+# "phases" (calendar timing) and "group" (domain area) are orthogonal — e.g.
+# the rookie chain below isn't phase-gated at all (runs in every phase) but
+# is its own group, so --phase and --group filter independently.
 # Order matters (sequential execution).
 def build_steps(profile: str | None) -> list[dict]:
     steps = [
         {"name": "01f_dim_season", "cmd": _nbconvert("01f_dim_season_seed.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": []},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "pre_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": []},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": []},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "regular_season"},
         {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"]},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"], "group": "regular_season"},
         {"name": "04a_backfill_gp", "cmd": _script("04a_fantrax_weekly_scrape.py", "--backfill-gp"),
-         "phases": {"INSEASON"}, "needs": ["04a_scrape"]},
+         "phases": {"INSEASON"}, "needs": ["04a_scrape"], "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"]},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"]},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "group": "regular_season"},
         {"name": "02e_derive", "cmd": _script("02e_fact_fantasy_teams_derive.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"]},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"], "group": "regular_season"},
         {"name": "04b_ktc_dynasty", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-         "phases": {"OFFSEASON"}, "needs": []},
+         "phases": {"OFFSEASON"}, "needs": [], "group": "pre_season"},
+        # Rookie chain (auto-safe scrapes only): 03a-03d ingest expert sources
+        # directly. Deliberately stops here — 03x (manual Excel), 03y/03z
+        # (fuzzy-review + apply) need a human in the loop, per
+        # notebooks/README.md, and are never added to this orchestrator.
+        {"name": "03a_fantasypros", "cmd": _nbconvert("03a_fantasypros_rankings.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "rookie"},
+        {"name": "03b_walterfootball", "cmd": _nbconvert("03b_walterfootball_rankings.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "rookie"},
+        {"name": "03c_ktc_rookie", "cmd": _nbconvert("03c_ktc_rankings.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "rookie"},
+        {"name": "03d_draftsharks_rookie", "cmd": _nbconvert("03d_draftsharks_rankings.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "rookie"},
     ]
     if profile == "dynasty":
         # After the user refreshes the 04x manual Excel. 04b re-runs even if
         # the phase already included it (idempotent).
         steps += [
             {"name": "04b_ktc_dynasty_p", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": []},
+             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "group": "pre_season"},
             {"name": "04c_dim_dynasty_metric", "cmd": _nbconvert("04c_dim_dynasty_metric.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04b_ktc_dynasty_p"]},
+             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04b_ktc_dynasty_p"], "group": "pre_season"},
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"]},
+             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "group": "pre_season"},
         ]
     return steps
 
 
 def run_steps(steps: list[dict], phase: str, only: set[str] | None,
-              dry_run: bool) -> list[dict]:
+              dry_run: bool, groups: set[str] | None = None) -> list[dict]:
     results = []
     status = {}   # name -> ok|failed|skipped
     env = {**os.environ, "PYTHONUTF8": "1"}
     for s in steps:
         name = s["name"]
         if phase not in s["phases"] or (only and name not in only):
+            continue
+        if groups and s.get("group") not in groups:
             continue
         bad_dep = next((d for d in s["needs"] if status.get(d) in ("failed", "skipped")), None)
         if bad_dep:
@@ -269,12 +286,18 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
 
 def main() -> int:
     # Console may be cp1252 (bare python.exe outside run_weekly.ps1's
-    # PYTHONUTF8): keep the summary's emoji from crashing the print.
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    # PYTHONUTF8): keep the summary's emoji from crashing the print. Guarded
+    # because a Jupyter kernel's stdout (00_fantasy_etl_flow.ipynb calling
+    # main() directly) is an OutStream, not a real file object.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description="Phase-aware weekly ETL pipeline")
     ap.add_argument("--phase", choices=["INSEASON", "PRESEASON", "OFFSEASON"],
                     help="override phase derivation (testing)")
     ap.add_argument("--steps", help="comma-separated step names to run (subset)")
+    ap.add_argument("--group", help="comma-separated groups to run "
+                    "(pre_season,rookie,regular_season,injury) — orthogonal "
+                    "to --phase, combines with AND")
     ap.add_argument("--profile", choices=["dynasty"],
                     help="extra chain: dynasty = 04b -> 04c -> 04y "
                          "(run after refreshing the 04x manual Excel)")
@@ -291,7 +314,8 @@ def main() -> int:
 
     steps = build_steps(args.profile)
     only = set(args.steps.split(",")) if args.steps else None
-    results = run_steps(steps, phase, only, args.dry_run)
+    groups = set(args.group.split(",")) if args.group else None
+    results = run_steps(steps, phase, only, args.dry_run, groups)
 
     reviews = review_counts()
     if args.dry_run or args.no_commit:

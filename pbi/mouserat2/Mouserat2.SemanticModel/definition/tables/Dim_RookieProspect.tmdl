@@ -135,6 +135,55 @@ table Dim_RookieProspect
 
 		annotation SynonymCollection = ["added date","date added","created"]
 
+	column position_detail
+		dataType: string
+		lineageTag: b64ef7b2-4992-4917-9006-1b47ab035f49
+		summarizeBy: none
+		sourceColumn: position_detail
+
+		annotation SummarizationSetBy = Automatic
+
+	column position_group
+		dataType: string
+		lineageTag: 9316ab20-bfe6-4e96-91dd-fd758d3508e2
+		summarizeBy: none
+		sourceColumn: position_group
+
+		annotation SummarizationSetBy = Automatic
+
+	column side_of_ball
+		dataType: string
+		lineageTag: 87b6a10c-2827-4a9e-ad02-4e9d1625f362
+		summarizeBy: none
+		sourceColumn: side_of_ball
+
+		annotation SummarizationSetBy = Automatic
+
+	column fantasy_relevant
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 88064439-1e76-41a3-8d98-63ca3b986f29
+		summarizeBy: none
+		sourceColumn: fantasy_relevant
+
+		annotation SummarizationSetBy = Automatic
+
+	column school_canonical
+		dataType: string
+		lineageTag: c9906b0d-93c3-4960-83c1-7bf3d52a12eb
+		summarizeBy: none
+		sourceColumn: school_canonical
+
+		annotation SummarizationSetBy = Automatic
+
+	column conference
+		dataType: string
+		lineageTag: 70be458d-e51e-4638-96a2-f298c812f86b
+		summarizeBy: none
+		sourceColumn: conference
+
+		annotation SummarizationSetBy = Automatic
+
 	partition Dim_RookieProspect = m
 		mode: import
 		queryGroup: 'Dimension Tables'

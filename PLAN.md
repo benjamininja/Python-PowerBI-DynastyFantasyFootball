@@ -6,7 +6,7 @@ data-model. Blow-by-blow does NOT live here.
 
 > **Runtime token-gating** (see [ADR-0001](docs/adr/0001-token-gated-grill-execute-loop.md)):
 > loop is `grill/plan → (Phase 0 consolidate) → compact → execute stage →
-> compact → … ↺`. Compact at **~35% window (Opus)**. PLAN.md = heartbeat;
+> compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
 ## Working state (2026-07-12)

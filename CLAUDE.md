@@ -69,7 +69,7 @@ the parquet alone.
   code — don't present a fait accompli.
 - **Execution loop**: long agentic builds follow the token-gated
   `grill/plan → consolidate → compact → execute → compact ↺` loop (compact at
-  ~35% Opus window) — see
+  ~125K–150K tokens) — see
   [ADR-0001](docs/adr/0001-token-gated-grill-execute-loop.md). `PLAN.md` is the
   heartbeat, updated every seam; ADR/CONTEXT/memory crystallize on real signal.
 - **Git**: feature branch → `main` via PR, squash-merge,

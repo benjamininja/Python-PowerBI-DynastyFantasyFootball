@@ -135,6 +135,15 @@ table Fact_RookieRankings
 
 		annotation SynonymCollection = ["rank date","published date","date"]
 
+	column draft_year
+		dataType: int64
+		formatString: 0
+		lineageTag: a36542ec-5910-42c5-932d-90b17e8083f8
+		summarizeBy: sum
+		sourceColumn: draft_year
+
+		annotation SummarizationSetBy = Automatic
+
 	partition Fact_RookieRankings = m
 		mode: import
 		queryGroup: 'Fact Tables'

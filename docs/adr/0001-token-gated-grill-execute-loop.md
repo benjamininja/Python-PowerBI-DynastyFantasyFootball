@@ -2,17 +2,21 @@
 
 We run long agentic builds as a repeating loop —
 `grill/plan → (Phase 0: consolidate) → compact → execute stage → compact → … → grill/plan` —
-because Opus context quality degrades and unplanned compaction risk rises well
-before the window fills, so we proactively compact at a model-relative budget
+because context quality degrades and unplanned compaction risk rises well
+before the window fills, so we proactively compact at a fixed token budget
 rather than coasting to the limit. PLAN.md is the durable thread anchor that
 survives every compaction; cost buckets and stage boundaries on it tell us where
 each compact falls.
 
 ## Key parameters
 
-- **Compact budget**: target **~35% of context window on Opus** (lived signal:
-  it's a slog past ~40%). Model-relative — re-tune for Sonnet 4.6 / Fable; the
-  threshold is a model-keyed value, not a constant.
+- **Compact budget**: **~125K–150K tokens**, as an absolute range — supersedes
+  the earlier "~35% of context window on Opus" framing (updated 2026-07-18 to
+  match root `token-gating-loop.md`; that framing was model-specific and never
+  actually re-tuned per model in practice). The original "slog past ~40%"
+  lived signal doesn't have a clean direct token-count analog, so it's
+  dropped rather than guessed at — re-add an equivalent empirical note here
+  if a lived signal at the new range emerges.
 - **Step cost buckets** (coarse, not exact counts — mid-run token use is
   unmeasurable and false precision is its own waste): `cheap` <2K · `med`
   2–10K · `heavy` 10K+ (whole-notebook JSON read, `/code-review`,
