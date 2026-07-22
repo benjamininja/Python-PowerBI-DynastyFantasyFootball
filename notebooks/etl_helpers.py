@@ -591,6 +591,35 @@ def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name"))
     return len(df)
 
 
+def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
+    """Per write-batch draft_type ("Startup" vs "Rookie"): a startup draft runs
+    many more rounds than an annual rookie draft (this league: 35 vs 5), so the
+    batch's own max round count is a reliable, season-literal-free signal — also
+    covers future one-off "abandoned team" re-startup drafts without a maintained
+    exception list."""
+    label = "Startup" if rounds.max() > threshold else "Rookie"
+    return pd.Series(label, index=rounds.index)
+
+
+def expand_snake_draft_order(round1_order: pd.DataFrame, total_rounds: int) -> pd.DataFrame:
+    """round1_order: (divisionId, pick_in_round, team_key), one row per round-1
+    slot -- taken as the draft order by definition. Returns one row per
+    (divisionId, round, pick_in_round) -> team_key, alternating direction each
+    round (snake)."""
+    frames = []
+    for rnd in range(1, total_rounds + 1):
+        block = round1_order.copy()
+        block["round"] = rnd
+        block["pick_in_round"] = (
+            block["pick_in_round"] if rnd % 2 == 1
+            else (block["pick_in_round"].max() + 1 - block["pick_in_round"])
+        )
+        frames.append(block)
+    return pd.concat(frames, ignore_index=True)[
+        ["divisionId", "round", "pick_in_round", "team_key"]
+    ]
+
+
 def upsert_dynasty_crosswalk(new_rows, path):
     """Replace the source(s) present in `new_rows` within dim_dynasty_crosswalk,
     keep all other sources, write, and return the full crosswalk DataFrame."""

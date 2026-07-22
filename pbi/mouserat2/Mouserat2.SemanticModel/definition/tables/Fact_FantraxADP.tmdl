@@ -219,6 +219,40 @@ table Fact_FantraxADP
 
 		annotation SynonymCollection = ["games played","gp","games"]
 
+	column player_name
+		dataType: string
+		lineageTag: 07f0b038-de6b-448b-a2bb-9c205d148dd6
+		summarizeBy: none
+		sourceColumn: player_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column position_raw
+		dataType: string
+		lineageTag: 4eb869a2-f5e8-4443-8fd1-000dbbb5f878
+		summarizeBy: none
+		sourceColumn: position_raw
+
+		annotation SummarizationSetBy = Automatic
+
+	column nfl_team
+		dataType: string
+		lineageTag: 65dfc346-62bd-4406-8c5a-99fd71ff2774
+		summarizeBy: none
+		sourceColumn: nfl_team
+
+		annotation SummarizationSetBy = Automatic
+
+	column age
+		dataType: double
+		lineageTag: 6014eb1d-eb84-4ee5-83aa-236115dba681
+		summarizeBy: sum
+		sourceColumn: age
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	partition Fact_FantraxADP = m
 		mode: import
 		queryGroup: 'Fact Tables'

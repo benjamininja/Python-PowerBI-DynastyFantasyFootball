@@ -31,9 +31,7 @@ table Dim_Division
 
 	/// Composite key (season_id|conference) -- unique across seasons, the "one" side of the Dim_FantasyTeams join. Hidden plumbing.
 	column DivisionKey = Dim_Division[season_id] & "|" & Dim_Division[conference]
-		dataType: string
 		isHidden
-		isDataTypeInferred
 		lineageTag: c60fd98a-ec4a-4f4c-8cfe-797cec8e6603
 		summarizeBy: none
 

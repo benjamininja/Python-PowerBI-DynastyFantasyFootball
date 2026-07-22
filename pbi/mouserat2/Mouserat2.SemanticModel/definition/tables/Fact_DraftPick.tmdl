@@ -1,0 +1,172 @@
+/// Draft pick inventory: one row per pick, real (completed 2026 startup draft, slotted) union future (2027-2028 rounds 1-5, unslotted). CurrentOwner reflects real pick-for-pick trades. Pick valuation ($) is not modeled here -- see mouserat_trade-bud/backend/pick_value.py for the procedural blended-curve math.
+table Fact_DraftPick
+	lineageTag: 8f3c1a2d-6e4b-4f9a-9c7d-2b5e8a1f3d6c
+
+	/// Natural key for the pick.
+	column PickRef
+		dataType: string
+		lineageTag: 1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d
+		summarizeBy: none
+		sourceColumn: pick_ref
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = pick ref|pick reference|pick id
+
+		annotation SynonymCollection = ["pick ref","pick reference","pick id"]
+
+	/// Draft season the pick belongs to; links to Dim_Season.
+	column DraftSeason
+		dataType: string
+		lineageTag: 2b3c4d5e-6f7a-4b2c-9d3e-4f5a6b7c8d9e
+		summarizeBy: none
+		sourceColumn: draft_season
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft season|draft year|pick season
+
+		annotation SynonymCollection = ["draft season","draft year","pick season"]
+
+	/// Draft round.
+	column Round
+		dataType: int64
+		formatString: 0
+		lineageTag: 3c4d5e6f-7a8b-4c3d-8e4f-5a6b7c8d9e0f
+		summarizeBy: none
+		sourceColumn: round
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = round|draft round
+
+		annotation SynonymCollection = ["round","draft round"]
+
+	/// Slot within the round. Blank for unslotted future picks.
+	column PickInRound
+		dataType: int64
+		formatString: 0
+		lineageTag: 4d5e6f7a-8b9c-4d4e-9f5a-6b7c8d9e0f1a
+		summarizeBy: none
+		sourceColumn: pick_in_round
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = pick in round|slot in round
+
+		annotation SynonymCollection = ["pick in round","slot in round"]
+
+	/// Overall draft slot across all rounds. Blank for unslotted future picks.
+	column OverallSlot
+		dataType: int64
+		formatString: 0
+		lineageTag: 5e6f7a8b-9c0d-4e5f-8a6b-7c8d9e0f1a2b
+		summarizeBy: none
+		sourceColumn: overall_slot
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = overall slot|overall pick
+
+		annotation SynonymCollection = ["overall slot","overall pick"]
+
+	/// Team that originally held the pick, inferred from round 1's own slot assignment (snake-expanded); populated for all completed-draft rows.
+	column OriginalOwner
+		dataType: string
+		lineageTag: 6f7a8b9c-0d1e-4f6a-9b7c-8d9e0f1a2b3c
+		summarizeBy: none
+		sourceColumn: original_owner
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = original owner|original team
+
+		annotation SynonymCollection = ["original owner","original team"]
+
+	/// Team that currently owns the pick; links to Dim_FantasyTeams.
+	column CurrentOwner
+		dataType: string
+		lineageTag: 7a8b9c0d-1e2f-4a7b-8c9d-0e1f2a3b4c5d
+		summarizeBy: none
+		sourceColumn: current_owner
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = current owner|team|owner|holds pick
+
+		annotation SynonymCollection = ["current owner","team","owner","holds pick"]
+
+	/// Whether the pick has actually been made (drafted) yet.
+	column IsMade
+		dataType: boolean
+		lineageTag: 8b9c0d1e-2f3a-4b8c-9d0e-1f2a3b4c5d6e
+		summarizeBy: none
+		sourceColumn: is_made
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = is made|drafted|pick made
+
+		annotation SynonymCollection = ["is made","drafted","pick made"]
+
+	/// Whether the pick is slotted to a specific round position (true for the completed 2026 draft, false for unslotted future picks).
+	column IsSlotted
+		dataType: boolean
+		lineageTag: 9c0d1e2f-3a4b-4c9d-8e1f-2a3b4c5d6e7f
+		summarizeBy: none
+		sourceColumn: is_slotted
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = is slotted|slotted pick
+
+		annotation SynonymCollection = ["is slotted","slotted pick"]
+
+	/// Startup vs. Rookie draft, derived per write-batch from the batch's max round count (>5 = Startup).
+	column DraftType
+		dataType: string
+		lineageTag: ad1e2f3a-4b5c-4d6e-8f7a-9b0c1d2e3f4a
+		summarizeBy: none
+		sourceColumn: draft_type
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = draft type|startup or rookie
+
+		annotation SynonymCollection = ["draft type","startup or rookie"]
+
+	/// Constant "Pick" contract-type FK; links to Dim_Contract. Prep for a future players+picks union table.
+	column ContractID
+		dataType: string
+		lineageTag: be2f3a4b-5c6d-4e7f-9a8b-0c1d2e3f4a5b
+		summarizeBy: none
+		sourceColumn: contract_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract id|contract|deal
+
+		annotation SynonymCollection = ["contract id","contract","deal"]
+
+	partition Fact_DraftPick = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Real = Table.AddColumn(
+				        Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				        "is_slotted", each true, type logical),
+				    Future = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick_future.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Combined = Table.Combine({Real, Future}),
+				    RemovedDivision = Table.RemoveColumns(Combined, {"divisionId"}),
+				    AddedContractID = Table.AddColumn(RemovedDivision, "contract_id", each "Pick", type text)
+				in
+				    AddedContractID
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Draft Picks|Picks|Pick Inventory|Draft Assets
+
+	annotation SynonymCollection = ["Draft Picks","Picks","Pick Inventory","Draft Assets"]

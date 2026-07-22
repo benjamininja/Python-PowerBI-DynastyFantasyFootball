@@ -26,6 +26,22 @@
 - **Local testing**: can't run a slash command from an editor — monkeypatch `rankings.fetch_parquet` to read the local parquet, build embeds, assert Discord limits, exercise error paths; one live authenticated fetch confirms the network path. Live command test = `python bot.py` + type `/rankings` in the Discord client.
 - **Hosting**: Railway worker (deploy from GitHub, `rootDirectory: discord_bot`, secrets as service variables). The `use-railway` plugin/skill drives the Railway ops. Bot config lives in gitignored `discord_bot/.env` locally (Discord bot token + least-priv GitHub PAT, Contents read-only). **Not yet deployed to Railway** (running locally only as of 2026-06-08).
 
+## GitHub security posture (2026-07-17)
+
+- Repo is **public**. `/security-review` run against the just-merged 6-PR chain
+  (Yo-Yo apply automation, pipeline orchestrator, cap honesty, model cleanup)
+  found no high-confidence vulnerabilities — subprocess calls use list-form
+  args (no shell injection), the run_pipeline.py data-commit allowlist is
+  regex-reverified against actually-staged paths, no secrets logged.
+- **Dependabot alerts, security updates, malware alerts, grouped security
+  updates: all enabled** (user, via repo Settings → Code security). Version
+  updates deliberately **left off** — `requirements.txt` is hand-curated/
+  loosely-pinned per CLAUDE.md convention, so routine version-bump PRs aren't
+  worth the churn; CVE-driven alerts cover the actual risk.
+- **Code scanning (CodeQL): not configured.** Not yet decided whether to add —
+  revisit if the repo takes on more externally-exposed surface (currently just
+  local ETL + a Discord bot pulling from GitHub Contents API).
+
 ## Secret hygiene (remediated 2026-06-08)
 
 - `notebooks/.env` had been **tracked since 66b79d8** (`*.env` only ignores *untracked* files). Untracked via `git rm --cached` (PR #8); local copy kept. `.gitignore` hardened so every `.env` variant is ignored (`.env`, `*.env`, `.env.*`) while `.env.example` stays tracked (`!**/.env.example`).
