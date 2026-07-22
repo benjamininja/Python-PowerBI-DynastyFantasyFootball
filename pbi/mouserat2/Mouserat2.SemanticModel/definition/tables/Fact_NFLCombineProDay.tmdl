@@ -275,6 +275,40 @@ table Fact_NFLCombineProDay
 
 		annotation SynonymCollection = ["wingspan","wing span","reach"]
 
+	column player_name
+		dataType: string
+		lineageTag: 09ce607e-9aef-45d5-8867-9f50dd34f4bc
+		summarizeBy: none
+		sourceColumn: player_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column pos
+		dataType: string
+		lineageTag: e243d13a-bf26-4dcf-80dd-f9b2b2930e4f
+		summarizeBy: none
+		sourceColumn: pos
+
+		annotation SummarizationSetBy = Automatic
+
+	column school
+		dataType: string
+		lineageTag: 9c0b1c8b-4c37-46b7-aa29-6bf039ed6984
+		summarizeBy: none
+		sourceColumn: school
+
+		annotation SummarizationSetBy = Automatic
+
+	column height_inches
+		dataType: double
+		lineageTag: ab1488b7-d90a-4ceb-91d7-639ec7f3eaa0
+		summarizeBy: sum
+		sourceColumn: height_inches
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
 	partition Fact_NFLCombineProDay = m
 		mode: import
 		queryGroup: 'Fact Tables'

@@ -95,48 +95,20 @@ def player_blended_values(fmt: str) -> pd.DataFrame:
     return blended
 
 
-_FUTURE_YEARS = (2027, 2028)
-_FUTURE_ROUNDS = range(1, 6)  # curve coverage (04d) tops out around here
-
-
 def draft_pick_inventory() -> pd.DataFrame:
-    """Real dim_draft_pick rows + a synthesized future-pick baseline.
-
-    dim_draft_pick currently only has the completed 2026-2027 draft (no
-    forward-looking pick ledger exists -- fact_roster_transactions has
-    exactly one event_type, startup_draft; confirmed 2026-07-17, no
-    pick-for-pick trade feed has been ETL'd yet even though Fantrax's live
-    draft-pick trading may already be active on-platform). Until that ETL
-    exists, 2027/2028 rounds 1-5 are synthesized as one pick per team per
-    division-round with original_owner == current_owner (no trades
-    reflected). is_synthetic flags these so callers never confuse them with
-    real trade history.
+    """Real fact_draft_pick (completed 2026 startup draft, slotted) + real
+    fact_draft_pick_future (2027-2028 rounds 1-5, unslotted -- pre-draft picks
+    have no pick_in_round/overall_slot yet). Both are real Fantrax data as of
+    2026-07-18 (notebooks/04u_fantrax_public_api.py, getDraftPicks): the
+    future table's `current_owner` already reflects any pick-for-pick trades
+    executed on-platform. `is_slotted` replaces the old `is_synthetic` flag
+    now that nothing here is synthesized.
     """
-    real = read_parquet("dim_draft_pick").copy()
-    real["is_synthetic"] = False
+    real = read_parquet("fact_draft_pick").copy()
+    real["is_slotted"] = True
 
-    div_teams = real.groupby("divisionId")["current_owner"].unique().to_dict()
-    rows = []
-    for div_id, teams in div_teams.items():
-        n_teams = len(teams)
-        for year in _FUTURE_YEARS:
-            for rnd in _FUTURE_ROUNDS:
-                for slot, team in enumerate(sorted(teams), start=1):
-                    rows.append(
-                        {
-                            "pick_ref": f"{year}|{div_id}|synthetic-R{rnd}-{team}",
-                            "draft_season": f"{year}-{year + 1}",
-                            "round": rnd,
-                            "pick_in_round": slot,
-                            "overall_slot": (rnd - 1) * n_teams + slot,
-                            "original_owner": team,
-                            "divisionId": div_id,
-                            "current_owner": team,
-                            "is_made": False,
-                            "is_synthetic": True,
-                        }
-                    )
-    future = pd.DataFrame(rows)
+    future = read_parquet("fact_draft_pick_future").copy()
+
     return pd.concat([real, future], ignore_index=True)
 
 

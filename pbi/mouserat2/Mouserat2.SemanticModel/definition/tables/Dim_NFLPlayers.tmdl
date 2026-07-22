@@ -388,6 +388,22 @@ table Dim_NFLPlayers
 
 		annotation SynonymCollection = ["age","years old","player age","how old"]
 
+	column position_group
+		dataType: string
+		lineageTag: bab07bec-5c5a-4d47-879c-42669293927c
+		summarizeBy: none
+		sourceColumn: position_group
+
+		annotation SummarizationSetBy = Automatic
+
+	column college_conference
+		dataType: string
+		lineageTag: ee44e7f3-3266-4bdc-8ad3-4fbac5ea5798
+		summarizeBy: none
+		sourceColumn: college_conference
+
+		annotation SummarizationSetBy = Automatic
+
 	partition Dim_NFLPlayers = m
 		mode: import
 		queryGroup: 'Dimension Tables'

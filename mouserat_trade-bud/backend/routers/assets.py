@@ -22,7 +22,7 @@ def team_assets(team_key: str) -> dict:
     roster = da.read_parquet("fact_fantasy_teams")
     roster = roster[roster["team_key"] == team_key]
     players_dim = da.read_parquet("dim_nfl_players")[
-        ["gsis_id", "display_name", "position", "position_group", "team_abbr"]
+        ["gsis_id", "display_name", "position", "position_group", "team_abbr", "birth_date"]
     ]
     roster = roster.merge(players_dim, on="gsis_id", how="left")
 
@@ -37,13 +37,14 @@ def team_assets(team_key: str) -> dict:
                 "nfl_team": r.get("team_abbr"),
                 "contract_value": r.get("contract_value"),
                 "roster_status": r.get("roster_status"),
+                "age": da.player_age(r["gsis_id"], players=players_dim),
                 "value": pareto.asset_value("player", r["gsis_id"]),
             }
         )
 
     inv = da.draft_pick_inventory()
     tradeable_picks = inv[
-        (inv["current_owner"] == team_key) & ((~inv["is_made"]) | inv["is_synthetic"])
+        (inv["current_owner"] == team_key) & ((~inv["is_made"]) | (~inv["is_slotted"]))
     ]
     picks_out = []
     for _, r in tradeable_picks.iterrows():
@@ -53,7 +54,7 @@ def team_assets(team_key: str) -> dict:
                 "asset_id": r["pick_ref"],
                 "draft_season": r["draft_season"],
                 "round": int(r["round"]),
-                "is_synthetic": bool(r["is_synthetic"]),
+                "is_slotted": bool(r["is_slotted"]),
                 "value": pv.value_for_pick_row(r, inv),
             }
         )

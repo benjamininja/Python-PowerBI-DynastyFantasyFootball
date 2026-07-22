@@ -17,12 +17,6 @@
   }
   h1 { font-size: 20px; margin: 0 0 4px; }
   .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
-  .steps { display: flex; gap: 8px; margin-bottom: 20px; }
-  .step-btn {
-    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
-    padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
-  }
-  .step-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
   .panel {
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
     padding: 18px; margin-bottom: 16px;
@@ -81,6 +75,12 @@
   button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
   .config { font-size: 11px; color: var(--muted); margin-bottom: 16px; }
   .config input { display: inline-block; width: 260px; }
+  .tabnav { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -90,44 +90,61 @@
 
 <div class="config">
   Backend: <input type="text" id="apiBase" value="http://127.0.0.1:8420">
+  <button onclick="init()" style="margin-left:6px; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;">⟳ Reconnect</button>
   <span id="apiStatus" style="margin-left:8px;"></span>
 </div>
 
-<div class="steps">
-  <div class="step-btn active" id="stepBtn-profiles" onclick="showStep('profiles')">1. Owner Profiles</div>
-  <div class="step-btn" id="stepBtn-analysis" onclick="showStep('analysis')">2. Analysis</div>
-</div>
-
-<!-- STEP 1: PROFILES -->
-<div id="step-profiles">
+<div class="panel">
+  <h2>Teams</h2>
   <div class="row">
-    <div class="col panel" id="profileCard-my">
-      <h2>My Profile</h2>
-      <label>Team</label>
-      <select id="myTeam" onchange="loadProfile('my')"></select>
-      <div id="myProfileBody"></div>
+    <div class="col">
+      <label>My Team</label>
+      <select id="myTeam" onchange="onTeamChange('my')"></select>
     </div>
-    <div class="col panel" id="profileCard-counterparty">
-      <h2>Counterparty</h2>
-      <label>Team</label>
-      <select id="cpTeam" onchange="loadProfile('counterparty')"></select>
-      <div id="cpProfileBody"></div>
+    <div class="col">
+      <label>Counterparty (same conference)</label>
+      <select id="cpTeam" onchange="onTeamChange('counterparty')"></select>
     </div>
   </div>
-  <button class="primary" id="toAnalysisBtn" disabled onclick="showStep('analysis')">Continue to Analysis →</button>
 </div>
 
-<!-- STEP 2: ANALYSIS -->
-<div id="step-analysis" style="display:none;">
+<div class="tabnav">
+  <div class="tab-btn active" id="navBtn-overview" onclick="showTab('overview')">Positional Overview</div>
+  <div class="tab-btn" id="navBtn-analysis" onclick="showTab('analysis')">Trade Analysis</div>
+</div>
+
+<!-- TAB 1: league-wide overview -->
+<div id="tab-overview" class="tabpage">
   <div class="panel">
-    <h2>Positional Strength (rank of 28, 1 = strongest)</h2>
+    <h2>Positional Overview (league-wide, rank of 28)</h2>
+    <div id="overviewWrap" style="overflow-x:auto;"><table id="overviewTable"><thead></thead><tbody></tbody></table></div>
+  </div>
+</div>
+
+<!-- TAB 2: profiles + two-team overview + build-a-trade -->
+<div id="tab-analysis" class="tabpage" style="display:none;">
+
+<div class="row">
+  <div class="col panel" id="profileCard-my">
+    <h2>My Profile</h2>
+    <div id="myProfileBody"></div>
+  </div>
+  <div class="col panel" id="profileCard-counterparty">
+    <h2>Counterparty</h2>
+    <div id="cpProfileBody"></div>
+  </div>
+</div>
+
+<div id="analysisSection">
+  <div class="panel">
+    <h2>Positional Overview (this matchup, rank of 28)</h2>
     <div class="row">
       <div class="col">
-        <div class="signal-line" id="posStrengthLabel-my"></div>
+        <div class="signal-line" id="posLabel-my"></div>
         <table id="posTable-my"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
       </div>
       <div class="col">
-        <div class="signal-line" id="posStrengthLabel-cp"></div>
+        <div class="signal-line" id="posLabel-cp"></div>
         <table id="posTable-cp"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
       </div>
     </div>
@@ -139,13 +156,13 @@
       <div class="col">
         <label id="giveLabel">My team gives</label>
         <div class="asset-list" id="giveAssets"></div>
-        <label style="margin-top:10px;">Give basket</label>
+        <label id="giveBasketLabel" style="margin-top:10px;">Give basket</label>
         <div class="basket" id="giveBasket"></div>
       </div>
       <div class="col">
         <label id="receiveLabel">My team receives (from counterparty)</label>
         <div class="asset-list" id="receiveAssets"></div>
-        <label style="margin-top:10px;">Receive basket</label>
+        <label id="receiveBasketLabel" style="margin-top:10px;">Receive basket</label>
         <div class="basket" id="receiveBasket"></div>
       </div>
     </div>
@@ -161,6 +178,8 @@
   </div>
 </div>
 
+</div>
+
 <script>
 let apiBase = document.getElementById('apiBase').value;
 document.getElementById('apiBase').addEventListener('change', e => { apiBase = e.target.value; init(); });
@@ -172,21 +191,21 @@ let state = {
   myAssets: {players: [], picks: []},
   cpAssets: {players: [], picks: []},
   give: [],   // assets from myTeam going to cpTeam
-  receive: [] // assets from cpTeam coming to myTeam
+  receive: [], // assets from cpTeam coming to myTeam
+  overviewRows: []
 };
+
+function showTab(name) {
+  document.getElementById('tab-overview').style.display = name === 'overview' ? '' : 'none';
+  document.getElementById('tab-analysis').style.display = name === 'analysis' ? '' : 'none';
+  document.getElementById('navBtn-overview').classList.toggle('active', name === 'overview');
+  document.getElementById('navBtn-analysis').classList.toggle('active', name === 'analysis');
+}
 
 async function api(path, opts) {
   const res = await fetch(apiBase + path, opts);
   if (!res.ok) throw new Error(`${path} -> ${res.status}`);
   return res.json();
-}
-
-function showStep(name) {
-  document.getElementById('step-profiles').style.display = name === 'profiles' ? '' : 'none';
-  document.getElementById('step-analysis').style.display = name === 'analysis' ? '' : 'none';
-  document.getElementById('stepBtn-profiles').classList.toggle('active', name === 'profiles');
-  document.getElementById('stepBtn-analysis').classList.toggle('active', name === 'analysis');
-  if (name === 'analysis') loadAnalysis();
 }
 
 async function init() {
@@ -201,11 +220,106 @@ async function init() {
     return;
   }
   state.teams = await api('/teams');
-  const opts = t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`;
   const myTeamSel = document.getElementById('myTeam');
+  const opts = teams => teams.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  myTeamSel.innerHTML = '<option value="">-- select --</option>' + opts(state.teams);
+  refreshCpOptions();
+  loadOverview();
+}
+
+// Counterparty picker only offers teams sharing myTeam's conference (Phase A #4's
+// rule is enforced server-side in /trade/evaluate; this is just the matching UI).
+function refreshCpOptions() {
   const cpTeamSel = document.getElementById('cpTeam');
-  myTeamSel.innerHTML = '<option value="">-- select --</option>' + state.teams.map(opts).join('');
-  cpTeamSel.innerHTML = '<option value="">-- select --</option>' + state.teams.map(opts).join('');
+  const prev = cpTeamSel.value;
+  const myTeamObj = state.teams.find(t => t.team_key === state.myTeam);
+  // Same conference as myTeam, and never myTeam itself (a team can't trade with itself).
+  const candidates = myTeamObj
+    ? state.teams.filter(t => t.conference === myTeamObj.conference && t.team_key !== myTeamObj.team_key)
+    : state.teams;
+  const opts = candidates.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  cpTeamSel.innerHTML = '<option value="">-- select --</option>' + opts;
+  if (candidates.some(t => t.team_key === prev)) {
+    cpTeamSel.value = prev;
+  } else if (prev) {
+    state.cpTeam = null;
+    state.cpProfile = null;
+    document.getElementById('cpProfileBody').innerHTML = '';
+  }
+}
+
+function onTeamChange(mode) {
+  const teamKey = mode === 'my' ? document.getElementById('myTeam').value : document.getElementById('cpTeam').value;
+  if (mode === 'my') {
+    state.myTeam = teamKey || null;
+    refreshCpOptions();
+  } else {
+    state.cpTeam = teamKey || null;
+  }
+  if (teamKey) loadProfile(mode);
+  if (mode === 'my' && teamKey) showTab('analysis');
+  renderTwoTeamOverview();
+  if (state.myTeam && state.cpTeam) loadAnalysis();
+}
+
+async function loadOverview() {
+  state.overviewRows = await api('/positional-strength/league');
+  renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
+}
+
+// Shared renderer: league-wide table uses every team_key; the two-team matchup
+// view (renderTwoTeamOverview) reuses the same cached rows/markup, just
+// restricted to [myTeam, cpTeam] -- same rank-of-28/tag styling either way.
+function renderOverviewTable(tableId, rows, teamKeys) {
+  const teamName = tk => (state.teams.find(t => t.team_key === tk) || {}).team_name || tk;
+  const positions = [...new Set(rows.map(r => r.position_group))];
+  const byTeam = {};
+  rows.forEach(r => {
+    byTeam[r.team_key] = byTeam[r.team_key] || {};
+    byTeam[r.team_key][r.position_group] = r;
+  });
+  const thead = document.querySelector(`#${tableId} thead`);
+  thead.innerHTML = `<tr><th>Team</th>${positions.map(p => `<th>${p}</th>`).join('')}</tr>`;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = teamKeys
+    .slice()
+    .sort((a, b) => teamName(a).localeCompare(teamName(b)))
+    .map(tk => {
+      const cells = positions.map(p => {
+        const r = (byTeam[tk] || {})[p];
+        return r ? `<td><span class="tag ${r.label}">${r.rank}</span></td>` : '<td>-</td>';
+      }).join('');
+      return `<tr><td>${teamName(tk)}</td>${cells}</tr>`;
+    }).join('');
+}
+
+// Restored from the pre-tab-restructure "Positional Strength" panel: two
+// side-by-side per-team tables with explicit rank/28 + the surplus/need/
+// neutral word label -- the merged wide table (used for the league-wide tab)
+// only carried a bare colored rank number and lost that signal.
+function renderPositional(tableId, labelId, rows, teamName) {
+  document.getElementById(labelId).textContent = teamName;
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  tbody.innerHTML = rows.map(r => `
+    <tr><td>${r.position_group}</td><td>${r.rank} / ${r.n_teams}</td>
+    <td><span class="tag ${r.label}">${r.label}</span></td></tr>
+  `).join('');
+}
+
+function renderTwoTeamOverview() {
+  const myTeam = state.teams.find(t => t.team_key === state.myTeam);
+  const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
+  if (!myTeam || state.overviewRows.length === 0) return;
+  const rowsFor = tk => state.overviewRows
+    .filter(r => r.team_key === tk)
+    .sort((a, b) => a.position_group.localeCompare(b.position_group));
+  renderPositional('posTable-my', 'posLabel-my', rowsFor(state.myTeam), myTeam.team_name);
+  if (cpTeam) {
+    renderPositional('posTable-cp', 'posLabel-cp', rowsFor(state.cpTeam), cpTeam.team_name);
+  } else {
+    document.getElementById('posLabel-cp').textContent = '';
+    document.querySelector('#posTable-cp tbody').innerHTML = '';
+  }
 }
 
 const STANCES = ['Contending', 'Balanced', 'Future-Focused'];
@@ -216,15 +330,17 @@ function renderProfile(mode, profile) {
   const chips = STANCES.map(s =>
     `<div class="chip ${s === profile.stance ? 'selected' : ''}" onclick="setStance('${mode}','${s}')">${s}</div>`
   ).join('');
+  const badge = c => `<span class="tag ${c === 'high' ? 'surplus' : c === 'low' ? 'need' : 'neutral'}">${c}</span>`;
   let html = `
     <label>Stance (auto-inferred, click to override)</label>
     <div class="chip-row">${chips}</div>
-    <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b> (confidence: ${profile.stance_confidence})</div>
-    <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'} (confidence: ${profile.risk_confidence})</div>
+    <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b> confidence: ${badge(profile.stance_confidence)}</div>
+    <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'} confidence: ${badge(profile.risk_confidence)}</div>
+    <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season confidence: ${badge(profile.trade_activity_confidence)}</div>
   `;
-  if (profile.low_confidence_fields) {
+  if (profile.low_confidence_fields && profile.low_confidence_fields.length) {
     html += `<div class="helper-panel">
-      <div class="title">No data signal for these — ask the owner directly:</div>
+      <div class="title">No reliable data signal this team — ask the owner directly:</div>
       ${profile.low_confidence_fields.map(f => `<div>• ${f.replace(/_/g, ' ')}</div>`).join('')}
     </div>`;
   }
@@ -238,26 +354,17 @@ function setStance(mode, stance) {
 }
 
 async function loadProfile(mode) {
-  const teamKey = mode === 'my' ? document.getElementById('myTeam').value : document.getElementById('cpTeam').value;
+  const teamKey = mode === 'my' ? state.myTeam : state.cpTeam;
   if (!teamKey) return;
-  if (mode === 'my') state.myTeam = teamKey; else state.cpTeam = teamKey;
   const profile = await api(`/teams/${teamKey}/profile?mode=${mode}`);
   if (mode === 'my') state.myProfile = profile; else state.cpProfile = profile;
   renderProfile(mode, profile);
-  document.getElementById('toAnalysisBtn').disabled = !(state.myTeam && state.cpTeam);
-}
-
-function renderPositional(tableId, labelId, rows, teamName) {
-  document.getElementById(labelId).textContent = teamName;
-  const tbody = document.querySelector(`#${tableId} tbody`);
-  tbody.innerHTML = rows.map(r => `
-    <tr><td>${r.position_group}</td><td>${r.rank} / ${r.n_teams}</td>
-    <td><span class="tag ${r.label}">${r.label}</span></td></tr>
-  `).join('');
 }
 
 function assetItemHtml(a, basketKey) {
-  const name = a.asset_type === 'player' ? `${a.name} (${a.position})` : `${a.draft_season} R${a.round}${a.is_synthetic ? ' *' : ''}`;
+  const name = a.asset_type === 'player'
+    ? `${a.name} (${a.position}, age ${a.age != null ? a.age.toFixed(1) : 'n/a'})`
+    : `${a.draft_season} R${a.round}${a.is_slotted ? '' : ' (future)'}`;
   return `<div class="asset-item" onclick="toggleAsset('${basketKey}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
     <span>${name}</span><span class="val">${a.value.toFixed(1)}</span>
   </div>`;
@@ -282,7 +389,9 @@ function renderBaskets() {
   const render = (basketId, list) => {
     document.getElementById(basketId).innerHTML = list.length
       ? list.map(a => {
-          const name = a.asset_type === 'player' ? a.name : `${a.draft_season} R${a.round}`;
+          const name = a.asset_type === 'player'
+            ? `${a.name}${a.age != null ? ' (age ' + a.age.toFixed(1) + ')' : ''}`
+            : `${a.draft_season} R${a.round}`;
           return `<div class="basket-item"><span>${name} (${a.value.toFixed(1)})</span>
             <span class="x" onclick="removeAsset('${basketId === 'giveBasket' ? 'give' : 'receive'}','${a.asset_id}')">✕</span></div>`;
         }).join('')
@@ -306,6 +415,8 @@ async function evaluateTrade() {
     return;
   }
   const payload = {
+    my_team: state.myTeam,
+    counterparty_team: state.cpTeam,
     give: state.give.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
     receive: state.receive.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
   };
@@ -328,18 +439,17 @@ async function loadAnalysis() {
   const myTeam = state.teams.find(t => t.team_key === state.myTeam);
   const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
 
-  const [myPos, cpPos, myAssets, cpAssets] = await Promise.all([
-    api(`/teams/${state.myTeam}/positional-strength`),
-    api(`/teams/${state.cpTeam}/positional-strength`),
+  const [myAssets, cpAssets] = await Promise.all([
     api(`/teams/${state.myTeam}/assets`),
     api(`/teams/${state.cpTeam}/assets`),
   ]);
 
-  renderPositional('posTable-my', 'posStrengthLabel-my', myPos, myTeam.team_name);
-  renderPositional('posTable-cp', 'posStrengthLabel-cp', cpPos, cpTeam.team_name);
+  renderTwoTeamOverview();
 
   document.getElementById('giveLabel').textContent = `${myTeam.team_name} gives`;
   document.getElementById('receiveLabel').textContent = `${myTeam.team_name} receives (from ${cpTeam.team_name})`;
+  document.getElementById('giveBasketLabel').textContent = `${myTeam.team_name} trades away:`;
+  document.getElementById('receiveBasketLabel').textContent = `${cpTeam.team_name} trades away:`;
 
   state.myAssets = myAssets;
   state.cpAssets = cpAssets;

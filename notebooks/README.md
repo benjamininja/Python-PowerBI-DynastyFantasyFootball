@@ -68,7 +68,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 01g | `01g_dim_division_seed.ipynb` | `dim_division` (`(season_id, conference)` → division name; ADR-0005 read-side) |
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
-| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `dim_draft_pick` (replay from 04w JSON). (`02b`, the old fact_fantasy_teams schema seed, is retired to `archive/` — superseded by 02e's ledger replay) |
+| 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `fact_draft_pick` (replay from 04w JSON). (`02b`, the old fact_fantasy_teams schema seed, is retired to `archive/` — superseded by 02e's ledger replay) |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster/contracts) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
@@ -80,7 +80,9 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
 | 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` (overall/positional rank folded in as metric_keys) + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
-| 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — KTC RDP (Early/Mid/Late tercile) + DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `dim_draft_pick` rows in that project's backend |
+| 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — KTC RDP (Early/Mid/Late tercile) + DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `fact_draft_pick` rows in that project's backend |
+| 04t | `04t_fantrax_transaction_history.py` | Internal `fxpa/req` RPC `getTransactionDetailsHistory` (`team="ALL"`, all pages): raw trade-history capture `data/raw/fantrax_txn_history_{season}.json` — parsed downstream by `02d` into `fact_roster_transactions` `trade`/`trade_away` events (player assets) + `fact_trade_log` (all traded assets, incl. picks; trade-activity signal for mouserat_trade-bud) |
+| 04u | `04u_fantrax_public_api.py` | Fantrax's public no-auth `fxea/general` REST API: `getDraftPicks` → `fact_draft_pick_future` (real 2027-2028 pick ownership, incl. pick-for-pick trades); `getTeamRosters` → reconciliation check only (print, not written — `fact_fantasy_teams` stays ledger-replay-only per ADR-0003) |
 | 04v | `04v_minor_contracts.py` | Yo-Yo Rule contract compliance — **scheduled script** (after 04a): Fantrax minors-eligibility + per-team roster placement → `fact_roster_placement` + `data/review/review_contract_actions.csv` worklist |
 | 04w | `04w_fantrax_draft_results.py` | Raw `getDraftResults` JSON per division (live startup-draft capture) — parsed downstream by `02d` |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |

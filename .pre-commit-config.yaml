@@ -7,6 +7,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(docs/sources\.yml|docs/SOURCES\.md|notebooks/.*)$
+      - id: check-data-model
+        name: validate docs/data_model.yml manifest
+        entry: ./.venv/Scripts/python.exe scripts/check_data_model.py
+        language: system
+        pass_filenames: false
+        files: ^(docs/data_model\.yml|docs/DATA_MODEL\.md|data/.*\.parquet)$
   - repo: https://github.com/benjamininja/project-memory-template
     rev: 389879e52426d30027e64b130e4350e468e0bbbf
     hooks:

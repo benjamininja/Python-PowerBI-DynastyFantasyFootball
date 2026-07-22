@@ -29,6 +29,7 @@ def _team_position_strength(fmt: str, positions: list[str]) -> pd.DataFrame:
     roster = da.read_parquet("fact_fantasy_teams")
     players = da.read_parquet("dim_nfl_players")[["gsis_id", "position_group"]]
     values = da.player_blended_values(fmt)
+    all_team_keys = da.read_parquet("dim_fantasy_teams")["team_key"].unique()
 
     r = roster.merge(players, on="gsis_id", how="left").merge(
         values, on="gsis_id", how="left"
@@ -42,6 +43,19 @@ def _team_position_strength(fmt: str, positions: list[str]) -> pd.DataFrame:
         .rename("avg_value")
         .reset_index()
     )
+    # A team with zero rostered players at a position produces no group
+    # above and would otherwise vanish from that position's table entirely
+    # (the DL-shows-26/28-teams bug) instead of correctly ranking last as
+    # the clearest possible "need" signal -- reindex the full team x
+    # position cross before ranking so every position group always covers
+    # every team in the league.
+    full_index = pd.MultiIndex.from_product(
+        [all_team_keys, positions], names=["team_key", "position_group"]
+    )
+    agg = agg.set_index(["team_key", "position_group"]).reindex(
+        full_index, fill_value=0
+    ).reset_index()
+
     agg["rank"] = agg.groupby("position_group")["avg_value"].rank(
         ascending=False, method="min"
     ).astype(int)

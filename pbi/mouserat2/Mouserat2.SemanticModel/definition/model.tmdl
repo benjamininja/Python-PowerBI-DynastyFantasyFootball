@@ -16,7 +16,7 @@ queryGroup 'Fact Tables'
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 
-annotation PBI_QueryOrder = ["Dim_Contract","Dim_Division","Dim_DynastyMetric","Dim_FantasyTeams","Dim_NFLPlayers","Dim_NFLTeams","Dim_Position","Dim_RookieProspect","Dim_School","Fact_DynastyRankingMetrics","Fact_FantasyTeams","Fact_FantraxADP","Fact_NFLCombineProDay","Fact_RookieRankings","_Measures","Dim_Season"]
+annotation PBI_QueryOrder = ["Dim_Contract","Dim_Division","Dim_DynastyMetric","Dim_FantasyTeams","Dim_NFLPlayers","Dim_NFLTeams","Dim_Position","Dim_RookieProspect","Dim_School","Fact_DynastyRankingMetrics","Fact_FantasyTeams","Fact_FantraxADP","Fact_NFLCombineProDay","Fact_RookieRankings","_Measures","Dim_Season","Fact_DraftPick"]
 
 annotation PBI_ProTooling = ["DevMode"]
 
@@ -43,6 +43,7 @@ ref table LocalDateTable_f8921f97-398a-4500-8e21-4c5a3cfd145d
 ref table LocalDateTable_e4bc78bd-6d06-4e5a-88bb-b61d1cfd07b5
 ref table LocalDateTable_99583f14-18bb-4a00-804e-9335e869d589
 ref table LocalDateTable_7e57fca2-d3c0-4672-9810-026fbedf8275
+ref table Fact_DraftPick
 
 ref cultureInfo en-US
 

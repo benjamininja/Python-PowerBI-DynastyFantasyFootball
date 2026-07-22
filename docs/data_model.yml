@@ -1,0 +1,514 @@
+# data_model.yml — machine-readable logical-model manifest (SSOT).
+#
+# Mirrors docs/sources.yml's pattern: this file is the single source of truth
+# for the star-schema graph. docs/DATA_MODEL.md renders a Mermaid flowchart
+# FROM this file — do not hand-edit the generated region; edit here and run:
+#     .\run.ps1 scripts/check_data_model.py --render
+#
+# Validation (see scripts/check_data_model.py):
+#   - schema check (all tables)       : required fields, unique name, valid type
+#   - column-drift check (all tables) : declared columns must match the real
+#                                       data/{name}.parquet schema (name+dtype)
+#   - edge-target check               : every edge.to / edge.via must resolve
+#                                       to a table declared in this file
+#
+# Field notes:
+#   name    : table name, PK (== data/{name}.parquet stem)
+#   type    : dim | fact | resolver
+#             resolver = a bridge/crosswalk table whose whole job is routing
+#             identity between other tables (dim_fantrax_crosswalk,
+#             dim_dynasty_crosswalk, dim_player_alias, dim_roster_asset) —
+#             per .claude/memory/data-model.md, dim_roster_asset explicitly
+#             "generalizes the crosswalks one level up".
+#   grain   : the natural key (informational — matches the memory doc's
+#             documented key, not re-derived from the parquet)
+#   columns : list of {name, dtype} — dtype is pandas' dtype string, checked
+#             against the real parquet schema by `validate`
+#   edges   : outbound relationships: {to: <table>, via: direct|<resolver
+#             table name>, on: <join column(s)>}. `via: direct` = joins
+#             straight to the target's key. `via: <resolver>` = the real
+#             route is through that resolver table, not a direct FK.
+
+tables:
+  # --------------------------------------------------------------- dims
+  - name: dim_nfl_players
+    type: dim
+    grain: gsis_id
+    columns:
+      - { name: gsis_id, dtype: str }
+      - { name: display_name, dtype: str }
+      - { name: first_name, dtype: str }
+      - { name: last_name, dtype: str }
+      - { name: birth_date, dtype: str }
+      - { name: status, dtype: str }
+      - { name: team_abbr, dtype: str }
+      - { name: position, dtype: str }
+      - { name: position_group, dtype: str }
+      - { name: jersey_number, dtype: str }
+      - { name: years_of_experience, dtype: int32 }
+      - { name: college_name, dtype: str }
+      - { name: college_conference, dtype: str }
+      - { name: entry_year, dtype: int32 }
+      - { name: last_season, dtype: int32 }
+      - { name: draft_year, dtype: float64 }
+      - { name: draft_club, dtype: str }
+      - { name: draft_round, dtype: float64 }
+      - { name: draft_number, dtype: float64 }
+      - { name: height, dtype: float64 }
+      - { name: weight, dtype: float64 }
+      - { name: pfr_id, dtype: str }
+      - { name: pff_id, dtype: str }
+      - { name: espn_id, dtype: str }
+      - { name: esb_id, dtype: str }
+      - { name: nfl_id, dtype: str }
+      - { name: otc_id, dtype: str }
+      - { name: smart_id, dtype: str }
+    edges:
+      - { to: dim_nfl_teams, via: direct, on: team_abbr }
+
+  - name: dim_rookie_prospect
+    type: dim
+    grain: player_key
+    columns:
+      - { name: player_key, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: player_name_clean, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: position_detail, dtype: str }
+      - { name: position_group, dtype: str }
+      - { name: side_of_ball, dtype: str }
+      - { name: fantasy_relevant, dtype: bool }
+      - { name: school_raw, dtype: str }
+      - { name: school_canonical, dtype: str }
+      - { name: conference, dtype: str }
+      - { name: height_inches, dtype: float64 }
+      - { name: weight, dtype: float64 }
+      - { name: pfr_id, dtype: str }
+      - { name: cfb_id, dtype: str }
+      - { name: gsis_id, dtype: object }
+      - { name: draft_year, dtype: int64 }
+      - { name: source, dtype: str }
+      - { name: added_date, dtype: str }
+    edges:
+      - { to: dim_school, via: direct, on: school_raw }
+      - { to: dim_position, via: direct, on: position_raw }
+
+  - name: dim_position
+    type: dim
+    grain: position_raw
+    columns:
+      - { name: position_raw, dtype: str }
+      - { name: position_detail, dtype: str }
+      - { name: position_group, dtype: str }
+      - { name: position_sort_order, dtype: int64 }
+      - { name: side_of_ball, dtype: str }
+      - { name: side_of_ball_sort_order, dtype: int64 }
+      - { name: fantasy_relevant, dtype: bool }
+    edges: []
+
+  - name: dim_school
+    type: dim
+    grain: school_raw
+    columns:
+      - { name: school_raw, dtype: str }
+      - { name: school_canonical, dtype: str }
+      - { name: school_abbr, dtype: str }
+      - { name: conference, dtype: str }
+    edges: []
+
+  - name: dim_contract
+    type: dim
+    grain: contract_id
+    columns:
+      - { name: contract_id, dtype: str }
+      - { name: contract_type, dtype: str }
+      - { name: contract_label, dtype: str }
+      - { name: salary_type, dtype: str }
+      - { name: contract_year, dtype: int64 }
+      - { name: total_years, dtype: int64 }
+      - { name: cap_hit_pct, dtype: float64 }
+      - { name: guaranteed, dtype: bool }
+      - { name: cap_exempt, dtype: bool }
+      - { name: min_salary, dtype: float64 }
+      - { name: notes, dtype: str }
+    edges: []
+
+  - name: dim_fantasy_teams
+    type: dim
+    grain: team_key
+    columns:
+      - { name: team_key, dtype: str }
+      - { name: team_name, dtype: str }
+      - { name: team_abbr, dtype: str }
+      - { name: fantrax_team_id, dtype: str }
+      - { name: conference, dtype: str }
+      - { name: division, dtype: str }
+      - { name: original_cap, dtype: int64 }
+      - { name: reinvestment_cap, dtype: int64 }
+    edges:
+      - { to: dim_division, via: direct, on: conference }
+
+  - name: dim_nfl_teams
+    type: dim
+    grain: team_abbr
+    columns:
+      - { name: team_abbr, dtype: str }
+      - { name: team_name, dtype: str }
+      - { name: team_id_pfr, dtype: object }
+      - { name: team_conf, dtype: str }
+      - { name: team_division, dtype: str }
+      - { name: team_color, dtype: str }
+      - { name: team_color2, dtype: str }
+      - { name: team_logo_wikipedia, dtype: str }
+      - { name: team_logo_espn, dtype: str }
+      - { name: team_wordmark, dtype: str }
+      - { name: team_stadium, dtype: object }
+    edges: []
+
+  - name: dim_dynasty_metric
+    type: dim
+    grain: metric_key
+    columns:
+      - { name: metric_key, dtype: str }
+      - { name: metric_label, dtype: str }
+      - { name: metric_group, dtype: str }
+      - { name: metric_order, dtype: int64 }
+      - { name: value_type, dtype: str }
+      - { name: direction, dtype: str }
+      - { name: source_name, dtype: str }
+    edges: []
+
+  - name: dim_pick_value_curve
+    type: dim
+    grain: "(snapshot_date, source_name, draft_year, round, tier)"
+    columns:
+      - { name: snapshot_date, dtype: "datetime64[us]" }
+      - { name: source_name, dtype: str }
+      - { name: draft_year, dtype: int64 }
+      - { name: round, dtype: int64 }
+      - { name: tier, dtype: str }
+      - { name: value, dtype: float64 }
+    edges: []
+
+  - name: fact_draft_pick
+    type: fact
+    grain: pick_ref
+    columns:
+      - { name: pick_ref, dtype: str }
+      - { name: draft_season, dtype: str }
+      - { name: round, dtype: int64 }
+      - { name: pick_in_round, dtype: int64 }
+      - { name: overall_slot, dtype: int64 }
+      - { name: original_owner, dtype: str }
+      - { name: divisionId, dtype: str }
+      - { name: current_owner, dtype: str }
+      - { name: is_made, dtype: bool }
+      - { name: draft_type, dtype: str }
+    edges:
+      - { to: dim_season, via: direct, on: "draft_season -> season_id" }
+      - { to: dim_fantasy_teams, via: direct, on: "current_owner -> team_key" }
+    notes: >
+      original_owner is inferred (not sourced from Fantrax -- no such field
+      exists in getDraftResults): round 1's own slot assignment is taken as
+      the draft order, expanded to later rounds via the snake rule.
+
+  - name: fact_draft_pick_future
+    type: fact
+    grain: pick_ref
+    columns:
+      - { name: pick_ref, dtype: str }
+      - { name: draft_season, dtype: str }
+      - { name: round, dtype: int64 }
+      - { name: pick_in_round, dtype: object }
+      - { name: overall_slot, dtype: object }
+      - { name: original_owner, dtype: str }
+      - { name: divisionId, dtype: str }
+      - { name: current_owner, dtype: str }
+      - { name: is_made, dtype: bool }
+      - { name: is_slotted, dtype: bool }
+      - { name: draft_type, dtype: str }
+    edges:
+      - { to: dim_season, via: direct, on: "draft_season -> season_id" }
+      - { to: dim_fantasy_teams, via: direct, on: "current_owner -> team_key" }
+
+  - name: dim_season
+    type: dim
+    grain: season_id
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: season_start_year, dtype: int64 }
+      - { name: season_end_year, dtype: int64 }
+      - { name: season_fantasy_start_date, dtype: "datetime64[ms]" }
+      - { name: season_fantasy_end_date, dtype: "datetime64[ms]" }
+      - { name: season_nfl_start_date, dtype: "datetime64[ms]" }
+      - { name: season_nfl_end_date, dtype: "datetime64[ms]" }
+      - { name: theme, dtype: str }
+      - { name: relative_nfl_season_number, dtype: int64 }
+    edges: []
+
+  - name: dim_division
+    type: dim
+    grain: "(season_id, conference)"
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: conference, dtype: str }
+      - { name: division_name, dtype: str }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+
+  # ----------------------------------------------------------- resolvers
+  - name: dim_fantrax_crosswalk
+    type: resolver
+    grain: scorer_id
+    columns:
+      - { name: scorer_id, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: nfl_team, dtype: str }
+      - { name: is_rookie, dtype: bool }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: match_method, dtype: str }
+      - { name: match_score, dtype: int64 }
+      - { name: resolved_date, dtype: str }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+
+  - name: dim_dynasty_crosswalk
+    type: resolver
+    grain: source_uid
+    columns:
+      - { name: source, dtype: str }
+      - { name: source_player_id, dtype: str }
+      - { name: source_player_name, dtype: str }
+      - { name: source_position, dtype: str }
+      - { name: source_team, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: match_method, dtype: str }
+      - { name: match_score, dtype: int64 }
+      - { name: resolved_date, dtype: str }
+      - { name: source_uid, dtype: str }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+
+  - name: dim_player_alias
+    type: resolver
+    grain: "(name_clean, position_raw)"
+    columns:
+      - { name: name_clean, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: decision, dtype: str }
+      - { name: source_example, dtype: str }
+      - { name: decided_date, dtype: str }
+    edges:
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+
+  - name: dim_roster_asset
+    type: resolver
+    grain: asset_id
+    columns:
+      - { name: asset_id, dtype: int64 }
+      - { name: asset_type, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: pick_ref, dtype: object }
+    edges:
+      - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+      - { to: fact_draft_pick, via: direct, on: pick_ref }
+
+  # --------------------------------------------------------------- facts
+  - name: fact_nfl_combine_pro_day_metrics
+    type: fact
+    grain: "(pfr_id, season)"
+    columns:
+      - { name: pfr_id, dtype: str }
+      - { name: season, dtype: int32 }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: is_current_season, dtype: bool }
+      - { name: cfb_id, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: pos, dtype: str }
+      - { name: school, dtype: str }
+      - { name: draft_team, dtype: str }
+      - { name: draft_round, dtype: float64 }
+      - { name: draft_ovr, dtype: float64 }
+      - { name: metric_source, dtype: str }
+      - { name: height_inches, dtype: float64 }
+      - { name: weight, dtype: float64 }
+      - { name: forty_yard, dtype: float64 }
+      - { name: ten_split, dtype: object }
+      - { name: bench_press, dtype: float64 }
+      - { name: vertical_jump, dtype: float64 }
+      - { name: broad_jump, dtype: float64 }
+      - { name: three_cone, dtype: float64 }
+      - { name: shuttle, dtype: float64 }
+      - { name: hand_size, dtype: object }
+      - { name: arm_length, dtype: object }
+      - { name: wingspan, dtype: object }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+
+  - name: fact_fantasy_teams
+    type: fact
+    grain: "(team_key, gsis_id)"
+    columns:
+      - { name: team_key, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: contract_id, dtype: str }
+      - { name: contract_value, dtype: float64 }
+      - { name: contract_year, dtype: float64 }
+      - { name: status, dtype: str }
+      - { name: acquired_method, dtype: str }
+      - { name: roster_status, dtype: str }
+      - { name: season, dtype: str }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+      - { to: dim_contract, via: direct, on: contract_id }
+
+  - name: fact_roster_transactions
+    type: fact
+    grain: "(season_id, event_type, team_key, asset_id, event_seq)"
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: event_type, dtype: str }
+      - { name: team_key, dtype: str }
+      - { name: asset_id, dtype: int64 }
+      - { name: event_seq, dtype: int64 }
+      - { name: event_date, dtype: "datetime64[us]" }
+      - { name: contract_id, dtype: str }
+      - { name: contract_year, dtype: float64 }
+      - { name: contract_value, dtype: float64 }
+      - { name: cap_hit, dtype: float64 }
+      - { name: dead_money, dtype: int64 }
+      - { name: status, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: draft_round, dtype: float64 }
+      - { name: pick_in_round, dtype: float64 }
+      - { name: pick_overall, dtype: float64 }
+      - { name: source, dtype: str }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_roster_asset, via: direct, on: asset_id }
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_contract, via: direct, on: contract_id }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+
+  - name: fact_roster_placement
+    type: fact
+    grain: "(team_id, scorer_id, season, week)"
+    columns:
+      - { name: season, dtype: int64 }
+      - { name: week, dtype: str }
+      - { name: capture_date, dtype: str }
+      - { name: team_id, dtype: str }
+      - { name: team_key, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: roster_section, dtype: str }
+      - { name: salary, dtype: float64 }
+      - { name: contract, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+      - { name: status_id, dtype: str }
+      - { name: minors_eligible, dtype: bool }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
+
+  - name: fact_minor_eligibility
+    type: fact
+    grain: "(scorer_id, season, week)"
+    columns:
+      - { name: scorer_id, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: nfl_team, dtype: str }
+      - { name: fa_status, dtype: str }
+      - { name: salary, dtype: float64 }
+      - { name: contract, dtype: str }
+      - { name: games_played, dtype: object }
+      - { name: season, dtype: int64 }
+      - { name: week, dtype: str }
+      - { name: capture_date, dtype: str }
+    edges:
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+
+  - name: fact_rookie_rankings
+    type: fact
+    grain: "(player_key, source_name, phase, draft_year)"
+    columns:
+      - { name: player_key, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: source_name, dtype: str }
+      - { name: source_site, dtype: str }
+      - { name: phase, dtype: str }
+      - { name: draft_year, dtype: Int64 }
+      - { name: global_rank, dtype: Int64 }
+      - { name: positional_rank, dtype: Int64 }
+      - { name: grade, dtype: float64 }
+      - { name: capture_date, dtype: str }
+      - { name: rank_date, dtype: str }
+    edges:
+      - { to: dim_rookie_prospect, via: direct, on: player_key }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+
+  - name: fact_fantrax_adp
+    type: fact
+    grain: "(scorer_id, season, week)"
+    columns:
+      - { name: scorer_id, dtype: str }
+      - { name: season, dtype: int64 }
+      - { name: week, dtype: str }
+      - { name: capture_date, dtype: str }
+      - { name: player_name, dtype: str }
+      - { name: position_raw, dtype: str }
+      - { name: nfl_team, dtype: str }
+      - { name: is_rookie, dtype: bool }
+      - { name: overall_rank, dtype: float64 }
+      - { name: adp, dtype: float64 }
+      - { name: salary, dtype: float64 }
+      - { name: percent_drafted, dtype: float64 }
+      - { name: fpts, dtype: float64 }
+      - { name: fpts_per_game, dtype: float64 }
+      - { name: games_played, dtype: object }
+      - { name: age, dtype: float64 }
+      - { name: gsis_id, dtype: str }
+      - { name: player_key, dtype: str }
+    edges:
+      - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
+
+  - name: fact_dynasty_ranking_metrics
+    type: fact
+    grain: "(snapshot_date, source_name, source_player_id, format, metric_key)"
+    columns:
+      - { name: snapshot_date, dtype: "datetime64[us]" }
+      - { name: source_name, dtype: str }
+      - { name: source_player_id, dtype: str }
+      - { name: format, dtype: str }
+      - { name: source_uid, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: metric_key, dtype: str }
+      - { name: metric_num, dtype: float64 }
+      - { name: metric_text, dtype: str }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_rookie_prospect, via: dim_dynasty_crosswalk, on: source_uid }
+      - { to: dim_dynasty_metric, via: direct, on: metric_key }

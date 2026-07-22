@@ -71,8 +71,18 @@ def resolve_pick_value(draft_year: int, round_num: int, pick_in_round: int, n_te
 
 
 def value_for_pick_row(row: pd.Series, inventory: pd.DataFrame) -> float:
-    """Convenience wrapper for a dim_draft_pick-shaped row (real or
-    synthetic, as returned by data_access.draft_pick_inventory)."""
+    """Convenience wrapper for a fact_draft_pick-shaped row (slotted or
+    unslotted future pick, as returned by data_access.draft_pick_inventory).
+
+    Unslotted future picks (is_slotted=False) have no real pick_in_round yet
+    (the draft hasn't happened) -- fall back to the division's middle slot,
+    which resolves to the "Mid" tier via _tier_for_slot. A neutral estimate,
+    not a real slot -- refined once the pick is actually made/traded to a slot.
+    """
     n_teams = inventory[inventory["divisionId"] == row["divisionId"]]["current_owner"].nunique()
     draft_year = int(str(row["draft_season"]).split("-")[0])
-    return resolve_pick_value(draft_year, int(row["round"]), int(row["pick_in_round"]), int(n_teams))
+    if row.get("is_slotted", True) and pd.notna(row.get("pick_in_round")):
+        pick_in_round = int(row["pick_in_round"])
+    else:
+        pick_in_round = (n_teams + 1) // 2
+    return resolve_pick_value(draft_year, int(row["round"]), pick_in_round, int(n_teams))

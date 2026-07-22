@@ -297,25 +297,35 @@ had grown into (`gsis_id` players · `player_key` prospects · nothing for picks
   **dormant v1** (fresh startup, snapshot has no trade history). Pick horizon =
   current + ≥1 future `season_id` (current+2 during rookie-draft window = future
   confirm). `fact_fantasy_teams` derives pick inventory by replaying these.
-- **`dim_draft_pick`** = pick commodity dim, parallel to `dim_nfl_players`.
-  `pick_ref = (draft_season, round, original_owner)`, stable under trade;
-  `overall_slot` nullable/late-resolving. `draft_season → season_id`.
+- **`fact_draft_pick`** (renamed from `dim_draft_pick`, Round 4 2026-07-21) =
+  team-asset table, same shape as `fact_fantasy_teams` (FKs out, no
+  descriptive attributes of its own) — not a slowly-changing dimension.
+  `pick_ref = (draft_season, divisionId, overall_slot)`; `current_owner` +
+  `original_owner` both populated (`original_owner` is **inferred**, not
+  Fantrax-sourced — no such field exists in `getDraftResults` — from round
+  1's own slot assignment expanded via the snake rule). `draft_type`
+  ("Startup"/"Rookie") is explicit in parquet, derived per write-batch from
+  the max round count (>5 → Startup). `contract_id="Pick"` FK to
+  `dim_contract` (flat, all rows) preps a future union with
+  `fact_fantasy_teams` into one players+picks asset table (not built yet).
+  `fact_draft_pick_future.parquet` (04u) is the sibling table for unslotted
+  future-year picks, same `draft_type`/`contract_id` treatment.
 - **`dim_season`** = calendar spine, PK `season_id` `"2026-2027"`; fantasy yr
   Mar 1 → before Mar 1; NFL dates from public schedule (nullable). New facts use
-  `season_id`; `dim_draft_pick.draft_season` too.
+  `season_id`; `fact_draft_pick.draft_season` too.
 - **Team identity:** resolve Fantrax `teamId → team_key` via a new
   `fantrax_team_id` column on `dim_fantasy_teams` (front-runs the owner-manifest
   task). Fact keys stay in league `team_key` space (A01–A14/B01–B14).
 - **Valuation deferred:** KTC RDP pick values are a time-varying market estimate
   (≈0 in offseason, firms up weekly) → model later as snapshot-dated metric on
-  the pick *class*, NOT a fixed `dim_draft_pick` attribute. v1 = inventory only.
+  the pick *class*, NOT a fixed `fact_draft_pick` attribute. v1 = inventory only.
 - **`dim_pick_value_curve`** (notebook `04d`, **BUILT 2026-07-17**) — the
   "later" from the line above, landed for the `mouserat_trade-bud` project.
   Grain `(snapshot_date, source_name, draft_year, round, tier)`; KTC RDP
   gives 3 tiers/round (Early/Mid/Late), DraftSharks (dynasty TE-premium
   superflex) gives 1 flat value/round (`tier="All"`, no split, 12-team grid).
   Deliberately **not** part of `fact_dynasty_ranking_metrics` — neither
-  source can resolve to a specific `dim_draft_pick` row, so this is its own
+  source can resolve to a specific `fact_draft_pick` row, so this is its own
   small transformer-style table (like `dim_position`/`dim_school`), not the
   player-identity EAV. Resolving a real pick to a curve value + interpolating
   our 28-pick rounds onto the 12-team grid is `mouserat_trade-bud`'s backend,

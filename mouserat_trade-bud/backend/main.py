@@ -28,6 +28,7 @@ app.add_middleware(
 
 app.include_router(teams.router)
 app.include_router(positional.router)
+app.include_router(positional.league_router)
 app.include_router(assets.router)
 app.include_router(trade.router)
 
