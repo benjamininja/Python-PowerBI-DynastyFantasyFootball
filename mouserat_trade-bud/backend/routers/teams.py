@@ -10,8 +10,8 @@ router = APIRouter(prefix="/teams", tags=["teams"])
 
 @router.get("")
 def list_teams() -> list[dict]:
-    teams = da.read_parquet("dim_fantasy_teams")
-    cols = ["team_key", "team_name", "team_abbr", "conference", "division"]
+    teams = da.teams_with_cap()
+    cols = ["team_key", "team_name", "team_abbr", "conference", "division", "remaining_cap_current_yr"]
     return teams[cols].to_dict(orient="records")
 
 

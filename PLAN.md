@@ -72,15 +72,35 @@ described 2026-07-11: three versions —
 - Ties directly into the Minor League/draft-transition task below (drops are
   how a team moves a player to make Minor League room, or cuts for cap space).
 
-## [ ] Active — Yo-Yo Rule contract automation (Minor ↔ 1st) — read-side built
+## [x] CLOSED — Yo-Yo Rule / Minors — read-side built, contract automation RETIRED
 **Design settled via grilling 2026-07-12; read-side BUILT same day**
-(branch `yo-yo-minor-contracts`, uncommitted). Settled rule: every player with
-career+current regular-season GP ≤ 19 holds a **Minor** contract league-wide
-(rostered or FA); the 20th game graduates them to **1st**, and the 3-year clock
-starts at the **graduation season** (Minor years don't burn contract years).
+(branch `yo-yo-minor-contracts`, uncommitted).
+
+> **RETIRED 2026-07-26** ([ADR-0011](docs/adr/0011-minors-is-placement-not-contract.md),
+> supersedes ADR-0010). **There is no Minor contract type** — the "contract
+> automation (Minor ↔ 1st)" premise of this whole section is void. Minors is
+> exactly two things: **eligibility** (GP ≤ 19, Fantrax-computed, league-wide,
+> rostered or FA) and **placement** (which squad section a copy occupies — the
+> team's lever, and the sole cap exemption). A minors-eligible player holds an
+> ordinary contract, generally `1st`, and placing them in or out of the Minors
+> squad changes nothing about it. Confirmed in data: all 125 Minors-placed
+> copies hold `1st`; zero `Minor` contracts exist.
+>
+> Consequently `04v` is now **read-only** — its eligibility-vs-contract diff,
+> its commissioner worklist, and its write-side `--apply` path (the repo's only
+> Fantrax write path) are deleted, along with the stale 5,698-row
+> `review_contract_actions.csv`. What remains below is accurate for the *pull*
+> half only, which is load-bearing: 04v is the sole writer of
+> `fact_roster_placement`, and the cap exemption depends on it.
+>
+> ADR-0010's stash-durability rule and `02d`'s `derive_minor_events` are dead
+> letters — inert, never emitted a row, left for a separate cleanup pass.
+
+Original settled rule (superseded above): career+current regular-season GP ≤ 19
+makes a player minors-**eligible** league-wide (rostered or FA); the 20th game
+graduates them off eligibility.
 Cap exemption follows **Minors-squad placement** (team choice — salary charged
-if kept active); the Minor *contract* grants squad eligibility + 0% drop
-penalty. **Fantrax computes eligibility itself** (league setting "Career+
+if kept active). **Fantrax computes eligibility itself** (league setting "Career+
 Current GP <=" — USER to fix site condition 20 → 19, both Offense + Individual
 Defense rows); we read its verdict, never re-derive it.
 - **Built — `notebooks/04v_minor_contracts.py`** (scraper cluster, imports 04a,
@@ -89,11 +109,13 @@ Defense rows); we read its verdict, never re-derive it.
   `getTeamRosterInfo` × 28 teams (placement: row `statusId` 1=Active/2=Reserve/
   9=Minors via `statusTotals`; contract = `Con` header) → writes
   `fact_roster_placement` (grain **team × scorer × season × week** — duplicate-
-  player league, one copy per conference; replace-by-(season,week)) + worklist
-  `data/review/review_contract_actions.csv`. Verified on live pulls 2026-07-12:
+  player league, one copy per conference; replace-by-(season,week)) +
+  `fact_minor_eligibility`. Verified on live pulls 2026-07-12:
   991 placement rows (420 Active/469 Reserve/102 Minors), 5,513 eligible
   (union of both filter buckets — TAKEN alone misses rostered FA-contract
-  copies), startup worklist = 357 rostered copies 1st→Minor + 5,341 FA→Minor.
+  copies). *(The worklist this originally also wrote — 357 rostered copies
+  1st→Minor + 5,341 FA→Minor — is deleted per ADR-0011; it was reconciling
+  against a contract type that doesn't exist.)*
 - **Pre-merge cap-ledger audit (2026-07-12) drove two fixes**: (1) contract is
   **per roster copy**, not per player (verified live: 3 post-draft FA signings
   hold 1st in one conference, FA in the other) → diff acts per (team, scorer);

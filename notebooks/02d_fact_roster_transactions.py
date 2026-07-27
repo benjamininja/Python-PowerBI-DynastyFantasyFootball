@@ -22,12 +22,11 @@
 #   Key `season_id + event_type + team_key + asset_id + event_seq`. Each pick →
 #   an **Initial** contract (yr 1): `contract_value` = the Fantrax `salary`
 #   as-of the capture; `cap_hit` = `dim_contract.cap_hit_pct` × value (0.50).
-#   PLUS the Yo-Yo Rule contract-state events `minor_assignment` /
-#   `minor_graduation`, derived from observed per-copy contract transitions in
-#   the weekly `fact_roster_placement` snapshots (04v) — see that section below.
-#   PLUS player-asset `trade` events (a `trade_away` TERMINAL row on the old
-#   team + a `trade` row on the new team), parsed from 04t's captured
-#   transaction history — see that section below.
+#   PLUS the free-agency/trade events parsed from 04t's captured transaction
+#   history — `trade_away` (TERMINAL) + `trade` for a traded player, and
+#   `claim` / `drop` (TERMINAL) for FA churn. All four share one chronological
+#   `event_seq` and resolve contract terms by walking the stream forward — see
+#   that section below.
 # - **`fact_trade_log.parquet`** — one row per traded ASSET (players AND draft
 #   picks), grouped by `transaction_id` (Fantrax's `txSetId`) so a multi-asset
 #   trade's legs stay linked. Deliberately kept OUT of the polymorphic
@@ -265,124 +264,89 @@ print(f"[ok] fact_roster_transactions: +{len(fact)} {EVENT_TYPE} rows "
 
 
 # %%
-# ---- Yo-Yo Rule: minor_assignment / minor_graduation events -----------------
-# Derived from OBSERVED per-copy contract transitions across the weekly
-# fact_roster_placement snapshots (04v): the ledger records what the site
-# actually shows, dated at the capture where the new state first appears —
-# not the worklist's intent. Contract is per roster copy (team x scorer), so
-# events are per copy too. Rebuilt from the full snapshot history every run
-# and loaded replace-by-(season_id, event_type) -> idempotent.
+# ---- Asset bridge extension from roster placement --------------------------
+# Placement (04v) can carry roster copies the startup draft never saw — a
+# player added off free agency after the draft still shows up in a weekly
+# snapshot. Mint asset_ids for them so the bridge covers every scorer the
+# ledger might later reference (a trade/claim leg for an unminted scorer would
+# KeyError downstream).
 #
-# event_seq = MINOR_SEQ_BASE + snapshot ordinal. MINOR_SEQ_BASE (1000) clears
-# every startup overall_slot (max 490), so 02e's last-event-wins replay always
-# ranks a Minor flip after the copy's startup_draft acquisition.
+# This block used to ALSO derive `minor_assignment`/`minor_graduation` events
+# from per-copy contract transitions. That was removed (ADR-0011): there is no
+# Minor contract type, so the transition it watched for could never occur — the
+# function emitted zero rows for its entire life. Minors is placement +
+# eligibility; placement reaches the cap via 02e's `roster_status` stamp, not
+# via ledger events. Do not reintroduce this without a contract type to hang it
+# on.
 PLACEMENT_PATH = DATA / "fact_roster_placement.parquet"
-MINOR_ID       = "Minor"
-MINOR_SEQ_BASE = 1000
-MINOR_SOURCE   = "fact_roster_placement"
-
-
-def _week_ord(week) -> int:
-    """'PRE' -> 0, '01'..'18' -> 1..18 (snapshot order within a season)."""
-    return 0 if str(week) == "PRE" else int(week)
-
-
-def derive_minor_events(placement: pd.DataFrame, sid2aid: dict,
-                        cap_pct_by_contract: dict) -> pd.DataFrame:
-    """Walk each roster copy's snapshot history in capture order and emit:
-      - minor_assignment: contract becomes Minor (from anything else, or the
-        copy's first appearance already holding Minor)
-      - minor_graduation: contract leaves Minor (crossed 20 GP; typically 1st)
-    A copy vanishing from snapshots while Minor is a DROP — out of scope until
-    the drop event type exists (tracked in PLAN.md dead-money work)."""
-    p = placement.copy()
-    p["week_ord"] = p["week"].map(_week_ord)
-    p["snap_seq"] = (p["season"] - CFG.draft_year) * 100 + p["week_ord"]
-    events = []
-    for (team, sid), g in p.sort_values("snap_seq").groupby(["team_key", "scorer_id"]):
-        prev = None   # contract in the prior snapshot; None = copy absent
-        for r in g.itertuples():
-            evt = None
-            if r.contract == MINOR_ID and prev != MINOR_ID:
-                evt = ("minor_assignment", MINOR_ID)
-            elif prev == MINOR_ID and r.contract and r.contract != MINOR_ID:
-                evt = ("minor_graduation", r.contract)
-            if evt:
-                etype, cid = evt
-                val = float(r.salary) if pd.notna(r.salary) else pd.NA
-                pct = float(cap_pct_by_contract.get(cid, 0))
-                events.append({
-                    "season_id":      f"{r.season}-{r.season + 1}",
-                    "event_type":     etype,
-                    "team_key":       team,
-                    "asset_id":       sid2aid[sid],
-                    "event_seq":      MINOR_SEQ_BASE + int(r.snap_seq),
-                    "event_date":     pd.to_datetime(r.capture_date),
-                    "contract_id":    cid,
-                    "contract_year":  1,   # graduation starts the 3-yr clock; Minor is a 1-yr rolling term
-                    "contract_value": val,
-                    "cap_hit":        (val * pct) if pd.notna(val) else pd.NA,
-                    "dead_money":     0,
-                    "status":         STATUS,
-                    "scorer_id":      sid,
-                    "gsis_id":        r.gsis_id,
-                    "draft_round":    pd.NA,
-                    "pick_in_round":  pd.NA,
-                    "pick_overall":   pd.NA,
-                    "source":         MINOR_SOURCE,
-                })
-            prev = r.contract
-    return pd.DataFrame(events, columns=fact.columns)
-
 
 if PLACEMENT_PATH.exists():
     placement = pd.read_parquet(PLACEMENT_PATH)
-    # Placement can carry copies the draft never saw (post-draft FA minors) —
-    # extend the asset bridge before deriving events.
     dim_roster_asset, sid2aid = mint_assets(sorted(placement["scorer_id"].unique()))
     dim_roster_asset.to_parquet(ASSET_PATH, index=False)
-    cap_pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
-    minor_events = derive_minor_events(placement, sid2aid, cap_pct)
-    if len(minor_events):
-        assert not minor_events.duplicated(key).any(), "duplicate minor-event key"
-        total = load_replace_partition(minor_events, FACT_PATH,
-                                       part_cols=("season_id", "event_type"))
-        by_type = minor_events["event_type"].value_counts().to_dict()
-        print(f"[ok] minor events: +{len(minor_events)} {by_type} ({total} total ledger rows)")
-    else:
-        print("[info] no minor contract transitions observed in placement history yet")
+    print(f"[ok] asset bridge extended from placement: {len(dim_roster_asset)} assets "
+          f"-> {ASSET_PATH.name}")
 else:
-    print("[info] fact_roster_placement not built yet (run 04v) — skipping minor events")
+    print("[info] fact_roster_placement not built yet (run 04v) — asset bridge "
+          "covers drafted copies only")
 
 
 # %%
-# ---- Trade events from 04t capture (event_type="trade") --------------------
-# Player-asset legs only feed fact_roster_transactions (dim_roster_asset's
-# asset_id system + 02e's replay) -- pick assets have no stable identity yet
-# and land in the separate fact_trade_log instead (see module docstring for
-# why). "trade_away" is TERMINAL (drops the asset from the OLD team's active
-# roster in 02e); "trade" lands it on the NEW team, INHERITING the player's
-# most recent contract terms from the existing ledger (a trade moves an
-# existing contract, it doesn't reset one to year 1).
+# ---- Transaction events from 04t capture (trade / claim / drop) ------------
+# 04t captures BOTH views of Fantrax's transaction history into one file:
+# `transactionCode` is null on a trade leg and "CLAIM"/"DROP" on free-agency
+# churn. Player-asset legs of all three types feed fact_roster_transactions
+# (dim_roster_asset's asset_id system + 02e's replay); pick assets (trade-only)
+# have no stable identity yet and land in the separate fact_trade_log instead
+# (see module docstring for why).
+#
+# "trade_away" and "drop" are TERMINAL in 02e (they remove the copy from the
+# active roster); "trade" lands the asset on the new team and "claim" lands it
+# on the claiming team.
+#
+# **One shared chronological event_seq** (TXN_SEQ_BASE + i, ordered by each
+# row's real parsed datetime) across all three types: trades and FA churn
+# interleave in real time, so per-type seq bases would let 02e's
+# last-event-wins replay rank an older claim after a newer trade.
+#
+# **Contract terms are never invented.** A trade moves the copy's existing
+# contract (it doesn't reset one to year 1). A CLAIM re-signs the player to
+# whatever contract they last held THIS SEASON IN THIS CONFERENCE -- a released
+# player "retains salary and contract for the season" -- and only a player with
+# no such history gets dim_contract's league-minimum "FA" row. Conference
+# scoping matters: this is a duplicate-player league (one copy per conference),
+# so an unrelated copy on the other side must not donate its contract. A DROP
+# carries the copy's last-known terms forward for auditing.
 TXN_GLOB       = str(DATA / "raw" / "fantrax_txn_history_*.json")
 TRADE_LOG_PATH = DATA / "fact_trade_log.parquet"
 TRADE_SOURCE   = "getTransactionDetailsHistory"
-TRADE_SEQ_BASE = 100_000
+TXN_SEQ_BASE   = 100_000
 TRADE_AWAY     = "trade_away"
 TRADE_IN       = "trade"
+CLAIM_EVENT    = "claim"
+DROP_EVENT     = "drop"
+TXN_EVENT_TYPES = (TRADE_AWAY, TRADE_IN, CLAIM_EVENT, DROP_EVENT)
+FA_CONTRACT_ID = "FA"
 
 _HTML_TAG   = re.compile(r"<[^>]+>")
 _PICK_OWNER = re.compile(r"\((.*)\)\s*$")
+
+conf_lut = dict(zip(teams_dim["team_key"], teams_dim["conference"]))
+
+season_dim    = pd.read_parquet(DATA / "dim_season.parquet")
+_SEASON_SPANS = [(pd.Timestamp(r.season_fantasy_start_date),
+                  pd.Timestamp(r.season_fantasy_end_date), r.season_id)
+                 for r in season_dim.itertuples()]
 
 
 def _strip_html(s: str) -> str:
     return _HTML_TAG.sub("", s or "").strip()
 
 
-def load_trade_rows() -> list[dict]:
+def load_txn_rows() -> list[dict]:
     files = sorted(glob.glob(TXN_GLOB), key=lambda f: Path(f).stat().st_mtime)
     if not files:
-        print("[info] no transaction-history capture found (run 04t) -- skipping trade events")
+        print("[info] no transaction-history capture found (run 04t) -- skipping txn events")
         return []
     rows = []
     for f in files:
@@ -391,20 +355,34 @@ def load_trade_rows() -> list[dict]:
     return rows
 
 
-def _trade_season_id(dt):
-    """Calendar date -> league season_id (season starts ~August)."""
+def _season_id_for(dt):
+    """Event datetime -> league season_id, read straight off dim_season's own
+    fantasy-year span (2026-03-01..2027-02-28). Replaces an earlier month>=8
+    heuristic that mis-filed the June/July startup-era trades under
+    "2025-2026" -- a season that doesn't exist in dim_season at all."""
     if pd.isna(dt):
         return pd.NA
-    return f"{dt.year}-{dt.year + 1}" if dt.month >= 8 else f"{dt.year - 1}-{dt.year}"
+    d = pd.Timestamp(dt).normalize()
+    for start, end, sid in _SEASON_SPANS:
+        if start <= d <= end:
+            return sid
+    return pd.NA
 
 
-raw_trade_rows = load_trade_rows()
+raw_txn_rows = load_txn_rows()
+trade_rows   = [r for r in raw_txn_rows if r.get("transactionCode") is None]
+cd_rows      = [r for r in raw_txn_rows if r.get("transactionCode") in ("CLAIM", "DROP")]
+if raw_txn_rows:
+    print(f"[info] captured txn rows: {len(trade_rows)} trade leg(s), "
+          f"{len(cd_rows)} claim/drop row(s)")
 
-if raw_trade_rows:
+legs = []   # one entry per player-asset transaction leg, resolved chronologically below
+
+if trade_rows:
     last_date = {}   # date is only stamped on the first row of each txSetId
                      # group (HTML rowspan) -- carry it forward within the group.
-    trade_log_rows, player_legs = [], []
-    for r in raw_trade_rows:
+    trade_log_rows = []
+    for r in trade_rows:
         txset = r["txSetId"]
         team_key_from = team_lut.get(next(c["teamId"] for c in r["cells"] if c["key"] == "from"))
         team_key_to   = team_lut.get(next(c["teamId"] for c in r["cells"] if c["key"] == "to"))
@@ -448,7 +426,8 @@ if raw_trade_rows:
             "source":         TRADE_SOURCE,
         })
         if asset_kind == "player" and pd.notna(team_key_from) and pd.notna(team_key_to):
-            player_legs.append((txset, team_key_from, team_key_to, sid, event_dt))
+            legs.append({"kind": TRADE_IN, "scorer_id": sid, "team_from": team_key_from,
+                         "team_to": team_key_to, "event_dt": event_dt})
 
     trade_log = pd.DataFrame(trade_log_rows)
     n_unmapped = int((trade_log["team_key_from"].isna() | trade_log["team_key_to"].isna()).sum())
@@ -459,51 +438,175 @@ if raw_trade_rows:
     print(f"[ok] fact_trade_log: {len(trade_log)} asset row(s) across "
           f"{trade_log['transaction_id'].nunique()} trade(s) -> {TRADE_LOG_PATH.name}")
 
-    if player_legs:
-        dim_roster_asset, sid2aid = mint_assets(sorted({sid for *_, sid, _ in player_legs}))
-        dim_roster_asset.to_parquet(ASSET_PATH, index=False)
 
-        full_ledger = pd.read_parquet(FACT_PATH)   # includes this run's startup_draft + minor rows
-        full_ledger = full_ledger.sort_values("event_seq")
-        trade_fact_rows, missing_source = [], []
-        for i, (txset, team_from, team_to, sid, event_dt) in enumerate(player_legs):
-            aid = sid2aid[sid]
-            src = full_ledger[(full_ledger["team_key"] == team_from) & (full_ledger["asset_id"] == aid)]
-            if src.empty:
-                missing_source.append((team_from, sid))
-                contract_id, contract_year, contract_value, cap_hit, status = (
-                    pd.NA, pd.NA, pd.NA, pd.NA, "active")
+# %%
+# ---- Claim / Drop legs -----------------------------------------------------
+# Same HTML-rowspan shape as trades: only the FIRST row of a txSetId group
+# carries the `team`/`date` cells, and a paired DROP inherits both from the
+# CLAIM above it. Rows with no `scorer` block (or an unmapped team) can't be
+# posted to an asset-keyed ledger, so they're counted and skipped.
+if cd_rows:
+    last_cd_team, last_cd_date = {}, {}
+    n_no_player = n_no_team = 0
+    for r in cd_rows:
+        txset = r["txSetId"]
+        tcell = next((c for c in r["cells"] if c["key"] == "team"), None)
+        if tcell and tcell.get("teamId"):
+            last_cd_team[txset] = tcell["teamId"]
+        dcell = next((c["content"] for c in r["cells"] if c["key"] == "date"), None)
+        if dcell:
+            last_cd_date[txset] = dcell
+
+        sid = (r.get("scorer") or {}).get("scorerId")
+        if not sid:
+            n_no_player += 1
+            continue
+        team_key = team_lut.get(last_cd_team.get(txset))
+        if not team_key:
+            n_no_team += 1
+            continue
+        legs.append({
+            "kind":      CLAIM_EVENT if r["transactionCode"] == "CLAIM" else DROP_EVENT,
+            "scorer_id": sid,
+            "team_from": pd.NA,
+            "team_to":   team_key,
+            "event_dt":  pd.to_datetime(last_cd_date.get(txset), errors="coerce"),
+        })
+    if n_no_player or n_no_team:
+        print(f"[warn] skipped {n_no_player} claim/drop row(s) with no scorer and "
+              f"{n_no_team} with an unmapped team")
+
+
+# %%
+# ---- Resolve every transaction leg chronologically -> ledger rows ----------
+if legs:
+    # Same-timestamp tiebreak: a drop frees the roster spot the paired claim
+    # fills, and a trade_away precedes the claim of anyone it displaced.
+    _KIND_ORDER = {DROP_EVENT: 0, TRADE_IN: 1, CLAIM_EVENT: 2}
+    legs.sort(key=lambda l: (pd.Timestamp.min if pd.isna(l["event_dt"]) else l["event_dt"],
+                             _KIND_ORDER[l["kind"]]))
+
+    dim_roster_asset, sid2aid = mint_assets(sorted({l["scorer_id"] for l in legs}))
+    dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+
+    # League-minimum FA fallback, straight off dim_contract's own "FA" row.
+    # cap_hit mirrors contract_value: dim_contract.cap_hit_pct prices a CUT
+    # (dead money), it is NOT a discount on a kept player's charge.
+    #
+    # Known gap, deliberately NOT patched: a claim whose player was dropped
+    # BEFORE 04t's capture window (04t only starts 2026-07-19) has no ledger
+    # history, so it lands here and gets the league minimum even if the player
+    # actually carried a real contract. The proposed backstop was Fantrax's
+    # public `getTeamRosters?leagueId=...&period=N`, which the developer docs
+    # describe as serving historical per-period roster state.
+    #
+    # PROBED LIVE 2026-07-26 -- it does not. Across period=1/2/5/17/99 the only
+    # field that changes is the echoed `period` itself: identical roster
+    # membership, contract, salary and status every time (1031 items, zero
+    # diffs), and period 17 == 99, so it clamps rather than erroring. It serves
+    # CURRENT state regardless of the parameter.
+    #
+    # Wiring it would be strictly worse than this fallback, not just useless:
+    # for the exact case it is meant to serve -- a claim with no ledger history
+    # -- the player's current contract IS the one that claim produced, so the
+    # lookup would circularly hand back its own answer and write a confidently
+    # wrong contract instead of an honestly conservative minimum.
+    #
+    # Re-probe once real in-season periods exist (the league is still entirely
+    # inside preseason period 1, so there is no historical state for Fantrax to
+    # serve yet). If period ever returns genuinely distinct rosters, this
+    # becomes viable; until then the league minimum is the correct answer.
+    _fa       = contracts.loc[contracts["contract_id"] == FA_CONTRACT_ID].iloc[0]
+    _fa_value = float(_fa["min_salary"])
+    FA_TERMS  = dict(contract_id=FA_CONTRACT_ID, contract_year=1,
+                     contract_value=_fa_value, cap_hit=_fa_value, status="active")
+
+    # Seed contract state from the NON-transaction ledger (startup_draft rows),
+    # then walk the transaction stream forward, updating state as
+    # we go -- so a chained trade, or a drop-then-reclaim on the same day,
+    # resolves against what was actually true at that moment.
+    _TERM_COLS = ["contract_id", "contract_year", "contract_value", "cap_hit", "status"]
+    base = pd.read_parquet(FACT_PATH)
+    base = base[~base["event_type"].isin(TXN_EVENT_TYPES)].sort_values("event_seq")
+    copy_terms, conf_terms = {}, {}      # (team_key, asset_id) / (conference, asset_id)
+    for r in base.itertuples():
+        t = {c: getattr(r, c) for c in _TERM_COLS}
+        copy_terms[(r.team_key, r.asset_id)] = t
+        conf_terms[(conf_lut.get(r.team_key), r.asset_id)] = (t, r.season_id)
+
+    txn_fact_rows, missing_source, fa_fallback = [], [], []
+    for i, l in enumerate(legs):
+        aid, kind = sid2aid[l["scorer_id"]], l["kind"]
+        team, season = l["team_to"], _season_id_for(l["event_dt"])
+        conf = conf_lut.get(team)
+        prior = conf_terms.get((conf, aid))
+
+        if kind == TRADE_IN:
+            terms = copy_terms.get((l["team_from"], aid)) or (prior[0] if prior else None)
+            if terms is None:
+                missing_source.append((l["team_from"], l["scorer_id"]))
+                terms = dict(contract_id=pd.NA, contract_year=pd.NA, contract_value=pd.NA,
+                             cap_hit=pd.NA, status="active")
+        else:
+            # Only a contract held THIS season carries over ("retain salary and
+            # contract for the season"); anything older resets to league minimum.
+            terms = prior[0] if (prior and prior[1] == season) else None
+            if terms is None and kind == DROP_EVENT:
+                terms = copy_terms.get((team, aid))
+            if terms is None:
+                terms = FA_TERMS
+                if kind == CLAIM_EVENT:
+                    fa_fallback.append(l["scorer_id"])
+
+        seq = TXN_SEQ_BASE + i
+        common = dict(season_id=season, **terms, dead_money=0, scorer_id=l["scorer_id"],
+                      gsis_id=gsis_lut.get(l["scorer_id"]), draft_round=pd.NA,
+                      pick_in_round=pd.NA, pick_overall=pd.NA, source=TRADE_SOURCE)
+        if kind == TRADE_IN:
+            txn_fact_rows.append({**common, "event_type": TRADE_AWAY, "team_key": l["team_from"],
+                                  "asset_id": aid, "event_seq": seq, "event_date": l["event_dt"]})
+            txn_fact_rows.append({**common, "event_type": TRADE_IN, "team_key": team,
+                                  "asset_id": aid, "event_seq": seq, "event_date": l["event_dt"]})
+            copy_terms.pop((l["team_from"], aid), None)
+            copy_terms[(team, aid)] = terms
+        else:
+            txn_fact_rows.append({**common, "event_type": kind, "team_key": team,
+                                  "asset_id": aid, "event_seq": seq, "event_date": l["event_dt"]})
+            if kind == CLAIM_EVENT:
+                copy_terms[(team, aid)] = terms
             else:
-                latest_src = src.iloc[-1]
-                contract_id, contract_year, contract_value, cap_hit, status = (
-                    latest_src["contract_id"], latest_src["contract_year"],
-                    latest_src["contract_value"], latest_src["cap_hit"], latest_src["status"])
-            seq = TRADE_SEQ_BASE + i
-            common = dict(
-                season_id=_trade_season_id(event_dt), contract_id=contract_id,
-                contract_year=contract_year, contract_value=contract_value, cap_hit=cap_hit,
-                dead_money=0, status=status, scorer_id=sid, gsis_id=gsis_lut.get(sid),
-                draft_round=pd.NA, pick_in_round=pd.NA, pick_overall=pd.NA, source=TRADE_SOURCE)
-            trade_fact_rows.append({**common, "event_type": TRADE_AWAY, "team_key": team_from,
-                                     "asset_id": aid, "event_seq": seq, "event_date": event_dt})
-            trade_fact_rows.append({**common, "event_type": TRADE_IN, "team_key": team_to,
-                                     "asset_id": aid, "event_seq": seq, "event_date": event_dt})
+                copy_terms.pop((team, aid), None)
+        conf_terms[(conf, aid)] = (terms, season)
 
-        if missing_source:
-            print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
-                  f"their 'from' team -- contract fields left NA for those legs: "
-                  f"{missing_source[:5]}{'...' if len(missing_source) > 5 else ''}")
+    if missing_source:
+        print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
+              f"their 'from' team -- contract fields left NA for those legs: "
+              f"{missing_source[:5]}{'...' if len(missing_source) > 5 else ''}")
+    if fa_fallback:
+        print(f"[info] {len(fa_fallback)} claim(s) had no in-season contract history -- "
+              f"assigned the league-minimum '{FA_CONTRACT_ID}' contract "
+              f"(${_fa_value:,.0f})")
 
-        trade_fact = pd.DataFrame(trade_fact_rows)
-        trade_fact["event_date"] = pd.to_datetime(trade_fact["event_date"])
-        assert not trade_fact.duplicated(key).any(), "duplicate trade-event ledger key"
-        total = load_replace_partition(trade_fact, FACT_PATH, part_cols=("season_id", "event_type"))
-        by_type = trade_fact["event_type"].value_counts().to_dict()
-        print(f"[ok] trade events: +{len(trade_fact)} {by_type} ({total} total ledger rows)")
-    else:
-        print("[info] no player-asset trade legs to add (pick-only trades, or all unmapped)")
+    txn_fact = pd.DataFrame(txn_fact_rows)[fact.columns]
+    txn_fact["event_date"] = pd.to_datetime(txn_fact["event_date"])
+    assert txn_fact["season_id"].notna().all(), "event_date outside every dim_season span"
+    assert not txn_fact.duplicated(key).any(), "duplicate transaction-event ledger key"
+
+    # Replace by EVENT_TYPE, not (season_id, event_type): these types are rebuilt
+    # in full from the 04t capture on every run, so a corrected season_id would
+    # otherwise strand the previous run's partition behind as orphan rows.
+    _led    = pd.read_parquet(FACT_PATH)
+    _stale  = int(_led["event_type"].isin(TXN_EVENT_TYPES).sum())
+    out     = pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],
+                        ignore_index=True)
+    out.to_parquet(FACT_PATH, index=False)
+    by_type = txn_fact["event_type"].value_counts().to_dict()
+    print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
+          f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")
+elif raw_txn_rows:
+    print("[info] no player-asset transaction legs to add (pick-only trades, or all unmapped)")
 else:
-    print("[info] no captured transaction history -- skipping trade events entirely")
+    print("[info] no captured transaction history -- skipping transaction events entirely")
 
 
 # %%

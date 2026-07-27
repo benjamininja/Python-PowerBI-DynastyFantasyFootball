@@ -15,16 +15,24 @@
 # duplicated login code.
 #
 # **Request:** POST `fxpa/req?leagueId=...`, `msgs=[{method:
-# getTransactionDetailsHistory, data: {leagueId, team, pageNumber}}]`. The page's
-# own default omits `team`/`pageNumber` and the server defaults to the viewer's
-# own division + page 1 -- `team: "ALL"` (confirmed live against
-# `displayedLists.teams`) returns every division, and `pageNumber` pages past
-# the `maxResultsPerPage` (20) cap. This script loops team="ALL" across every
-# page up to `totalNumPages`.
+# getTransactionDetailsHistory, data: {leagueId, team, view, maxResultsPerPage,
+# pageNumber}}]`. `team: "ALL"` (confirmed live) returns every division in one
+# call. **`view` is a required filter, not a default-everything param** --
+# confirmed 2026-07-25 via a user-captured HAR of the real UI (Claim/Drop |
+# Trade | Lineup tabs each send a different `view` value: `"TRADE"` or
+# `"CLAIM_DROP"`). Earlier runs of this script omitted `view` entirely and got
+# whatever the account's server-side UI state happened to default to -- one
+# run returned only trade rows, a later run only claim/drop rows -- which
+# briefly looked like a rolling-window data-loss bug but wasn't: nothing was
+# ever windowed out, the query was just scoped to one view at a time. Fix:
+# loop both views explicitly. Also adopted from the HAR: `maxResultsPerPage:
+# "500"` (string) instead of the unset default (20), to minimize page-loop
+# calls; `pageNumber` still pages past whatever cap actually applies, so the
+# loop stays correct even if a view's row count exceeds 500 someday.
 #
 # **Output:** `data/raw/fantrax_txn_history_{season}.json` -- list of verbatim
-# per-page API responses (audit/replay; parsed downstream by 02d into
-# `fact_roster_transactions` `event_type="trade"` rows).
+# per-page API responses across both views (audit/replay; parsed downstream
+# by 02d into `fact_roster_transactions` trade/claim/drop events).
 #
 # **Run:** python notebooks/04t_fantrax_transaction_history.py
 
@@ -46,10 +54,15 @@ OUT_PATH = Path(CFG.raw_dir) / f"fantrax_txn_history_{CFG.snapshot_season}.json"
 
 
 # %%
-def txn_payload(page_number: int) -> dict:
+VIEWS = ("TRADE", "CLAIM_DROP")
+
+
+def txn_payload(page_number: int, view: str) -> dict:
     return {
         "msgs": [{"method": "getTransactionDetailsHistory",
-                  "data": {"leagueId": CFG.league_id, "team": "ALL", "pageNumber": page_number}}],
+                  "data": {"leagueId": CFG.league_id, "team": "ALL", "view": view,
+                            "maxResultsPerPage": "500", "includeDeleted": False,
+                            "pageNumber": page_number}}],
         "uiv": CFG.ui_version,
         "refUrl": TXN_REF_URL,
         "dt": 1, "at": 0,
@@ -60,19 +73,22 @@ def txn_payload(page_number: int) -> dict:
 
 # %%
 def capture() -> list[dict]:
-    """POST getTransactionDetailsHistory for team=ALL, page 1..totalNumPages.
-    Self-heals auth like every other scraper in this cluster. Returns the list
-    of raw per-page responses (`responses[0]["data"]` carries `table.rows` +
-    `paginatedResultSet`)."""
+    """POST getTransactionDetailsHistory for team=ALL, once per view in VIEWS,
+    page 1..totalNumPages within each view. Self-heals auth like every other
+    scraper in this cluster. Returns the flat list of raw per-page responses
+    across both views (`responses[0]["data"]` carries `table.rows` +
+    `paginatedResultSet`) -- each row's own `transactionCode` field
+    (TRADE/CLAIM/DROP) is what downstream parsing branches on, not which
+    view fetched it."""
     from playwright.sync_api import sync_playwright
 
     scraper = fx.FantraxScraper(CFG)
 
-    def _post(ctx, page, page_number, what):
-        raw = scraper._post_json(ctx, txn_payload(page_number), what)
+    def _post(ctx, page, page_number, view, what):
+        raw = scraper._post_json(ctx, txn_payload(page_number, view), what)
         if scraper._session_dead(raw):
             scraper._login(page)
-            raw = scraper._post_json(ctx, txn_payload(page_number), what)
+            raw = scraper._post_json(ctx, txn_payload(page_number, view), what)
             if scraper._session_dead(raw):
                 ctx.close()
                 raise RuntimeError(
@@ -90,13 +106,14 @@ def capture() -> list[dict]:
         page = ctx.new_page()
         page.set_default_timeout(CFG.nav_timeout_ms)
 
-        raw = _post(ctx, page, 1, "getTransactionDetailsHistory p1")
-        pages.append(raw)
-        total_pages = raw["responses"][0]["data"]["paginatedResultSet"]["totalNumPages"]
-        print(f"[info] totalNumPages={total_pages}")
+        for view in VIEWS:
+            raw = _post(ctx, page, 1, view, f"getTransactionDetailsHistory {view} p1")
+            pages.append(raw)
+            total_pages = raw["responses"][0]["data"]["paginatedResultSet"]["totalNumPages"]
+            print(f"[info] view={view} totalNumPages={total_pages}")
 
-        for pn in range(2, total_pages + 1):
-            pages.append(_post(ctx, page, pn, f"getTransactionDetailsHistory p{pn}"))
+            for pn in range(2, total_pages + 1):
+                pages.append(_post(ctx, page, pn, view, f"getTransactionDetailsHistory {view} p{pn}"))
 
         ctx.close()
 
@@ -110,4 +127,10 @@ if __name__ == "__main__":
     n_rows = sum(len(pg["responses"][0]["data"].get("table", {}).get("rows", [])) for pg in pages)
     n_sets = len({row.get("txSetId") for pg in pages
                   for row in pg["responses"][0]["data"].get("table", {}).get("rows", [])})
-    print(f"[ok] captured {len(pages)} page(s), {n_rows} row(s), {n_sets} trade set(s) -> {OUT_PATH}")
+    codes = {}
+    for pg in pages:
+        for row in pg["responses"][0]["data"].get("table", {}).get("rows", []):
+            c = row.get("transactionCode")
+            codes[c] = codes.get(c, 0) + 1
+    print(f"[ok] captured {len(pages)} page(s), {n_rows} row(s), {n_sets} tx set(s), "
+          f"by transactionCode={codes} -> {OUT_PATH}")
