@@ -1169,3 +1169,241 @@ wants to tackle it: the 6 pre-existing dtype drift FAILs noted above
 (unrelated to this round, found as a side effect of running
 `check_data_model.py`), or the actual Power BI Desktop visual open/verify
 step.
+
+## Checkpoint 11 (2026-07-25) — 04t `view` fix + FA claim/drop ledger events
+
+**04t data-loss scare: resolved, was never a windowing bug.** A user-captured
+browser HAR of the real Fantrax transactions UI showed
+`getTransactionDetailsHistory` takes a **required `view` filter**
+(`"TRADE"` vs `"CLAIM_DROP"` are two separate filtered result sets, matching
+the page's own tabs). `04t` never set it, so each run silently returned
+whichever view the account's server-side UI state happened to default to —
+one run all trades, the next all claim/drop. Nothing was ever evicted
+server-side. Fix: `04t` now loops `VIEWS = ("TRADE", "CLAIM_DROP")`, paging
+each to completion, with `maxResultsPerPage="500"` (also from the HAR; the
+unset default is 20). Verified live: 180 rows / 80 tx sets,
+`transactionCode={None: 125, 'CLAIM': 53, 'DROP': 2}`. **Trade legs carry
+`transactionCode: null`, not `"TRADE"`** — that's what `02d` branches on.
+
+**`02d`'s trade section rewritten into a unified transaction section**
+(trade + claim + drop). Verified: `02d` → `{'claim': 53, 'trade_away': 32,
+'trade': 32, 'drop': 2}`, 1094 ledger rows; `02e` → 1027 active roster rows,
+no team over cap, and `TERMINAL`'s `"drop"` branch firing for the first time
+since it was written.
+
+Three things changed beyond the pre-agreed design, all forced by real
+problems found during implementation:
+
+1. **One shared chronological `event_seq` (`TXN_SEQ_BASE = 100_000`)** across
+   trade/claim/drop, ordered by each row's real parsed datetime (tiebreak:
+   drop → trade → claim). The originally-planned separate
+   `CLAIM_DROP_SEQ_BASE = 200_000` only holds while every claim postdates
+   every trade — it breaks the first capture containing a trade newer than an
+   earlier claim, because 02e's last-event-wins ranks purely on `event_seq`.
+2. **`_trade_season_id`'s `month >= 8` heuristic was wrong** — it filed all 26
+   real (June/July 2026) trades under `season_id="2025-2026"`, a season absent
+   from `dim_season` entirely. Replaced by `_season_id_for(dt)`, which reads
+   `dim_season`'s own `season_fantasy_start_date`/`end_date` spans
+   (2026-03-01..2027-02-28). **This lookup is the primitive the Minors
+   season-boundary rule needs next.**
+3. **Txn types now replace-by-`event_type`**, not `(season_id, event_type)` —
+   forced by #2, since correcting the season would strand the old partition as
+   orphans. Safe: rebuilt in full from the 04t capture every run.
+
+**Contract-on-claim rule (user-locked)**: *"if they were already a FA contract
+then they have a league minimum of 2 million. if they were rostered and
+released then they retain salary and contract for the season."* Implemented as
+a forward walk over the txn stream with running `copy_terms[(team_key,
+asset_id)]` + `conf_terms[(conference, asset_id)]` state seeded from the
+non-txn ledger. A claim inherits only a contract held **this season in this
+conference** — conference scoping is load-bearing (duplicate-player league,
+one copy per conference; the other side's copy must not donate its contract) —
+else falls back to `dim_contract`'s existing `FA` row ($2,000,000, cap-exempt,
+no new seed needed). Side benefit: this also fixed chained trades, which
+previously resolved against stale prior-run rows still sitting on disk.
+
+**Spot-checks**: asset 562 (`05jel`) claimed by B05 07-23 at FA/$2M then
+dropped by B05 07-24 — clean pair, terms carried onto the drop. Asset 75
+(`06anf`) dropped by B09 mid-startup-draft, inheriting `1st`/$19.2M via
+conference history; B06's own copy stays active, since last-event-wins is per
+`(team_key, asset_id)` and a drop by a team that never rostered the copy is
+inert. All 53 claims hit the FA fallback — expected, genuine undrafted-FA adds
+with no prior ledger history.
+
+**Deferred, confirmed viable**: `getTeamRosters?leagueId=...&period=N`
+(public no-auth `fxea/general` API) genuinely time-travels — per Fantrax's own
+developer docs, *"retrieved for the upcoming/current period... or you can
+specify any period"* — and returns real `contract.name`/`salary` per roster
+item (live-tested at `period=1`). This is the right backstop for a future
+claim whose player has no ledger history because their drop predates our
+capture window (04t/02d only start ~2026-07-19). Not wired in: the league is
+still entirely inside period 1 (preseason), so `period` can't disambiguate
+finer than the ledger's own datetime ordering already does, and no player in
+today's data needs it.
+
+## Checkpoint 12 (2026-07-25) — Thread B closed + Minors-stash rule shipped (ADR-0010)
+
+**Thread B closed.** Booted the backend and swept all 28 teams via
+`/teams/{k}/assets`: exactly **5** startup (2026-2027) picks tradeable
+league-wide — A03 overall 385/428/441, A08 430/458 — matching the Fantrax CSV
+ground truth exactly. The 40 stale B-conference rows are gone. `routers/
+assets.py`'s `(~is_made) | (~is_slotted)` filter was never wrong; the bug was
+purely stale `fact_draft_pick.parquet`. Backend left running on port 8420.
+
+**Thread A shipped** — the Yo-Yo "(rostered or FA)" durability rule, corrected.
+Full rationale in **`docs/adr/0010-minors-stash-season-boundary.md`** (read that
+first; this is the working context around it).
+
+Two findings reshaped the round before any code was written, both confirmed by
+direct inspection — **these are the load-bearing facts to not lose**:
+
+1. **No player holds a `Minor` contract.** `fact_roster_placement` is 987 `1st`
+   + 5 `FA`, zero `Minor` — even though 125 players sit in the Minors *squad
+   section*. So `derive_minor_events()` has never emitted a single event and the
+   ledger has zero `minor_assignment`/`minor_graduation` rows. Squad placement
+   and contract type are completely decoupled in the live data.
+2. **The clock the rule pauses doesn't tick.** `contract_year` is written as the
+   literal `1` at every writer in the repo (`02d` lines 246/324/563, inherited
+   elsewhere); nothing advances it across a season.
+
+Consequence, and the user's explicit scope choice (offered 4 options via
+AskUserQuestion, picked "codify rule + fix docs"): the rule is **prospectively
+correct, presently inert**. Not a bug — recorded as such in ADR-0010's
+Consequences so nobody later "fixes" logic that has correctly never fired.
+
+**The bug in code form**: `derive_minor_events()` carried `prev` across a copy's
+absence from placement snapshots, so a stash silently continued through an FA
+gap of any length or timing. Fix: build the global snapshot grid from
+`p["snap_seq"].unique()` (placement only holds rows where a copy was *present*,
+so absence is only answerable against the full captured set) and reset
+`prev = None` when a skipped period coincides with a season change. Fresh
+`minor_assignment` fires naturally on reappearance = the locked "fresh
+independent stash". **No new event type** — a `minor_stash_break` would have
+carried no rows and forced changes to `02e`'s replay/`TERMINAL` and the PBI
+model for nothing.
+
+**Deviation worth remembering**: season identity comes from the placement row's
+own `season` field, NOT `_season_id_for(capture_date)`. Fantrax labels each
+snapshot with its own season, which is authoritative; `_season_id_for` would be
+subtly wrong when a new season's `PRE` snapshot is captured before the prior
+fantasy year's `season_fantasy_end_date`.
+
+**Verification pattern worth reusing when data can't exercise a rule**: (a)
+synthetic replay — lift the function out of the script via `exec` of a source
+slice (02d runs top-to-bottom on import, so a plain import would re-run the
+whole ETL) and assert event counts over a hand-built frame; all four cases
+passed, boundary gap correctly produced 2 assignments with distinct keys. (b)
+Real-data regression asserting **byte-identical** output (md5 over
+`hash_pandas_object`) — with zero Minor contracts, a correct change *must* be a
+no-op, so the no-op is the real test. Both held; 1094 ledger rows / 1027 active
+roster rows unchanged. Scratch script deleted after use per the `workspace/`
+rule.
+
+**Also corrected**: `.claude/memory/data-model.md:64` now explicitly separates
+GP **eligibility** (genuinely durable through FA) from contract **protection**
+(stash-based, breaks at a season boundary) — conflating them in one sentence is
+exactly how the rule drifted. Same split applied to `PLAN.md:77` and
+`04v_minor_contracts.py`'s header. `04v`'s actual logic is untouched — it only
+diffs eligibility vs contract type and never needed the distinction.
+
+**Next**: the `contract_year` season-rollover clock (what makes ADR-0010
+actually bite — deferred to its own round), and separately worth investigating
+whether Fantrax genuinely doesn't use the Minor contract label or whether `04v`
+fails to capture it for those 125 Minors-placed players. `getTeamRosters?
+period=N` backstop still deferred. Nothing committed.
+
+## Checkpoint 13 (2026-07-26) — Minor contract type RETIRED; ADR-0010 superseded by ADR-0011
+
+**The premise of Checkpoint 12 was wrong.** Resumed by investigating the open
+"why do no Minor contracts exist" question. The answer was not a capture bug —
+the commissioner corrected it directly: *"there are no minor league contracts.
+i believe this was an earlier assumption that has since updated to our current
+process. minor eligible for 20 games with a standard contract - generally a
+first, barring injuries. there was a previous thought to generate a contract
+style but we are moving away from that."*
+
+**Minors is exactly two independent things, and no third:**
+- **Eligibility** — GP ≤ 19 career+current, Fantrax-computed, league-wide,
+  rostered or FA.
+- **Placement** — which squad section a copy occupies (Active/Reserve/Minors).
+  The team's own lever, and the **sole** cap exemption.
+
+Eligibility *permits* placement, doesn't compel it, and never touches the
+contract. Data confirms: `fact_roster_placement` = 987 `1st` + 5 `FA`, zero
+`Minor`; all 125 Minors-placed copies hold `1st`; 357 rostered copies are
+eligible but only 125 are placed.
+
+**Load-bearing discovery that reframed the "is 04v still needed?" question**
+(user asked it directly, suspecting redundancy with `Fact_FantasyTeams`):
+`04v` is the **sole writer** of `fact_roster_placement`. `02e:88-94` stamps
+`roster_status` onto `fact_fantasy_teams` from its latest snapshot, and
+`capmath.py:51` + the DAX `Active Roster Salary` exempt
+`roster_status == "Minors"`. Kill 04v → `roster_status` goes null league-wide →
+all 125 Minors-placed players start charging full salary. `04u` only reads it
+for a reconciliation warning. **Read-only does not mean optional** — that
+sentence is now in the ADR, the README, and data-model.md, because the natural
+reading of "we stripped 04v down to pulls" is that it became skippable.
+
+**Live hazard found and neutralized**: `04v`'s `build_worklist` had generated
+`data/review/review_contract_actions.csv` = **5,698 rows, every one "set
+contract → Minor"** (5,341 FA + 357 rostered), and `--apply` POSTs those to
+Fantrax. Opt-in and never scheduled, so it never fired, but it was a loaded gun
+regenerating on every run against a retired model. Deleted, with
+`fa_contract_import.csv`. Both untracked.
+
+**Shipped** (user approved scope "neutralize hazard + supersede docs", then
+separately confirmed deleting the write-side outright: *"yes, this is accurate
+- they no longer have value when stripped of purpose"*):
+- `04v` 765 → ~390 lines, **read-only**. Deleted `build_worklist`,
+  `apply_worklist`, `export_fa_csv`, `prev_eligibility`,
+  `admin_roster_payload`/`build_field_map`/`edit_payload`, and all five CLI
+  flags. **The repo now has no write path to Fantrax at all** — that
+  grill-approved exception to the no-write-side rule is retired with the thing
+  it existed for.
+- `docs/adr/0011-minors-is-placement-not-contract.md` (new); ADR-0010 banner-
+  marked SUPERSEDED.
+- Corrected at source: `data-model.md` (both the placement and eligibility
+  rows), `PLAN.md:75` (section retitled + closed — its "contract automation
+  (Minor ↔ 1st)" premise is void), `notebooks/README.md`, `data/README.md`,
+  `sources.yml` (+ re-rendered `SOURCES.md`), `run_pipeline.py`, and a stale
+  executed-output cell in `00_fantasy_etl_flow.ipynb` that still printed the
+  5,698-row worklist line.
+- `tests/test_04v_minor_contracts.py`: dropped `TestBuildWorklist` (8 tests),
+  added two that pin what matters now — Minors placement keeps an ordinary
+  `1st` contract, and an unknown `statusId` passes through raw (this is how IR
+  will surface). 27/27 pass; both `check_sources`/`check_data_model --check`
+  clean.
+
+**IR cap treatment — CLOSED 2026-07-26, no code change.** Commissioner decided
+IR-placed players charge full salary (IR is a lineup convenience here, not cap
+relief). The existing rule already charges anything whose `roster_status` isn't
+the literal `"Minors"`, so an IR section appearing mid-season is handled
+correctly on arrival. **Do not reopen this as a bug** — the `<> "Minors"`
+literal is the decision, not a TODO.
+
+Found while checking this: that literal lives in **four** places, not the two
+recorded earlier — `capmath.py`, `02e`, and *both* PBI measures (`Active Roster
+Salary`, `Remaining Salary Cap`). If which sections are exempt ever does change,
+all four must change together or the bot and the report will disagree about who
+is over the cap. Null `roster_status` charges too (35 rows today), by design.
+
+**Left inert for a separate cleanup pass** (all zero-row, no callers, no effect
+on the cap path): `dim_contract`'s orphan `Minor` row, `derive_minor_events` +
+the `minor_assignment`/`minor_graduation` event types in `02d`, and the `Minor`
+references in PBI `_Measures.tmdl`/`Fact_FantasyTeams.tmdl`.
+
+**Process learning worth keeping.** ADR-0010 was written the *previous day* and
+was wrong at the **premise** level, not the detail level — it correctly codified
+a rule for an entity that doesn't exist. Its verification passed honestly
+(synthetic replay + byte-identical no-op regression) and proved only internal
+consistency; a no-op on nonexistent data cannot tell you the entity shouldn't
+exist. Its "presently inert" note was the right observation for the wrong
+reason. No amount of code-side verification would have caught this — only
+domain confirmation would. **When a rule's subject has zero rows in production,
+that is a signal to go ask whether the subject is real, not merely a note to
+record about test coverage.**
+
+**Next**: the `contract_year` season-rollover clock is now **moot in its Minors
+framing** (nothing was ever pausing); if it's still wanted it's a plain
+contract-aging question. The IR cap decision above is the live one. Nothing
+committed.

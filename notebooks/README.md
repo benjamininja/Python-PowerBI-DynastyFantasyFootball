@@ -83,7 +83,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — KTC RDP (Early/Mid/Late tercile) + DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `fact_draft_pick` rows in that project's backend |
 | 04t | `04t_fantrax_transaction_history.py` | Internal `fxpa/req` RPC `getTransactionDetailsHistory` (`team="ALL"`, all pages): raw trade-history capture `data/raw/fantrax_txn_history_{season}.json` — parsed downstream by `02d` into `fact_roster_transactions` `trade`/`trade_away` events (player assets) + `fact_trade_log` (all traded assets, incl. picks; trade-activity signal for mouserat_trade-bud) |
 | 04u | `04u_fantrax_public_api.py` | Fantrax's public no-auth `fxea/general` REST API: `getDraftPicks` → `fact_draft_pick_future` (real 2027-2028 pick ownership, incl. pick-for-pick trades); `getTeamRosters` → reconciliation check only (print, not written — `fact_fantasy_teams` stays ledger-replay-only per ADR-0003) |
-| 04v | `04v_minor_contracts.py` | Yo-Yo Rule contract compliance — **scheduled script** (after 04a): Fantrax minors-eligibility + per-team roster placement → `fact_roster_placement` + `data/review/review_contract_actions.csv` worklist |
+| 04v | `04v_minor_contracts.py` | Minors eligibility + roster placement — **scheduled script** (after 04a), read-only: Fantrax minors-eligibility verdict + per-team squad placement → `fact_roster_placement` + `fact_minor_eligibility`. **Sole writer of `fact_roster_placement`**, which `02e` turns into `roster_status` and the cap exemption follows. Minors is placement + eligibility, not a contract type (ADR-0011) |
 | 04w | `04w_fantrax_draft_results.py` | Raw `getDraftResults` JSON per division (live startup-draft capture) — parsed downstream by `02d` |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
@@ -110,9 +110,10 @@ notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
 - `--profile dynasty` appends `04b → 04c → 04y` (run after refreshing the
   04x manual Excel).
 - **Never scheduled**: the live-draft chain (`04w → 02d → 02e → 05a`), the
-  03-group rookie chain (manual Excel gates), review applies (`03z`,
-  `apply_fantrax_crosswalk_review`), and `04v --apply` (write-side, attended
-  opt-in only).
+  03-group rookie chain (manual Excel gates), and review applies (`03z`,
+  `apply_fantrax_crosswalk_review`). No step writes to Fantrax — the one
+  write-side path (`04v --apply`) was removed with the Minor contract type
+  (ADR-0011).
 
 ### Dynasty rankings (04) — single EAV fact
 

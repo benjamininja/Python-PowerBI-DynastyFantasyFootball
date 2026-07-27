@@ -1,13 +1,27 @@
 # %% [markdown]
-# # 04v_minor_contracts  (Playwright, weekly — Yo-Yo Rule contract compliance)
+# # 04v_minor_contracts  (Playwright, weekly — Minors eligibility + roster placement)
 #
-# **Purpose:** Weekly contract-compliance pass for the Yo-Yo Rule: every player
-# with career+current regular-season GP <= 19 holds a **Minor** contract
-# (league-wide, rostered or FA); playing the 20th game graduates them to **1st**
-# (3-year clock starts at the graduation season). Fantrax computes eligibility
-# itself (league setting: "Career+Current regular season total GP <= 19", both
-# Offense and Individual Defense) — this script READS the site's verdict and
-# diffs it against contract types; it does not re-derive eligibility.
+# **Purpose:** Weekly read-only snapshot of the two things the Minors system is
+# actually made of (ADR-0011): **eligibility** and **placement**.
+#
+# - *Eligibility* — career+current regular-season GP <= 19, computed by Fantrax
+#   itself (league setting: "Career+Current regular season total GP <= 19", both
+#   Offense and Individual Defense). This script READS the site's verdict; it
+#   does not re-derive it.
+# - *Placement* — which squad section each roster copy sits in this week
+#   (Active / Reserve / Minors). Placement is the team's own lever and is what
+#   the cap exemption follows.
+#
+# **There is no Minor contract type.** Minors-eligible players carry ordinary
+# contracts (generally `1st`); eligibility permits a team to *place* a player in
+# the Minors squad, and nothing about the contract changes. An earlier design
+# modelled Minors as a contract with its own protection/stash rules — that was
+# retired (ADR-0011 supersedes ADR-0010), and with it this script's
+# eligibility-vs-contract diff, its commissioner worklist, and its write-side
+# `--apply` path. Ineligible players simply cannot be placed in Minors; Fantrax
+# enforces that at the source, so there is nothing left to reconcile.
+#
+# This script is therefore READ-ONLY and makes no write-side calls to Fantrax.
 #
 # **Three pulls per run (all via 04a's authenticated scraper):**
 # 1. Eligibility — `getPlayerStats` with `statusOrTeamFilter=
@@ -24,23 +38,14 @@
 # - `data/fact_roster_placement.parquet` — weekly placement snapshot,
 #   replace-by-(season, week). Deliberately NOT ledger events: stash/activate
 #   churn is not an acquisition (ADR-0003 scope).
-# - `data/fact_minor_eligibility.parquet` — weekly eligibility snapshot; its
-#   week-over-week history detects players who graduate while sitting in the
-#   FA pool (absent from both current-week pulls).
-# - `data/review/review_contract_actions.csv` — the commissioner worklist:
-#   typed actions (set Minor / set 1st / set FA) with reasons. `--apply` replays
-#   the rostered rows through Fantrax's contract-edit endpoint (opt-in, never
-#   scheduled); `--export-fa-csv` writes `data/review/fa_contract_import.csv`
-#   for the FA rows (commissioner CSV-import tool).
+# - `data/fact_minor_eligibility.parquet` — weekly eligibility snapshot, for
+#   week-over-week history of the eligible population.
 #
-# **Apply pacing:** the startup apply is a ONE-SITTING session (~28 teams x 4
-# POSTs + jittered delays, a few minutes total); weekly steady-state is a
-# handful of graduations. Delay knobs: PULL_DELAY_S / APPLY_TEAM_DELAY_S.
-#
-# **Downstream (not here):** `02d` ingests the raw JSON and emits
-# `minor_assignment` / `minor_graduation` ledger events; `02e` replay derives
-# current contract type; capmath/PBI charge active-roster salaries and exempt
-# Minors-squad placements.
+# **Load-bearing:** this script is the SOLE writer of `fact_roster_placement`.
+# `02e` stamps `roster_status` onto `fact_fantasy_teams` from its latest
+# snapshot, and capmath/the PBI measures exempt `roster_status == "Minors"`
+# from the cap charge. If 04v stops running, `roster_status` goes null
+# league-wide and every Minors-placed player starts charging salary.
 #
 # **Run:**  .\run.ps1 notebooks\04v_minor_contracts.py
 # Scheduled right after 04a (same Task Scheduler cadence).
@@ -90,24 +95,12 @@ CONTRACT_HEADER_CANDIDATES = ("Con", "Contract", "Ctr", "Ct")
 STATUS_TO_SECTION_FALLBACK = {"1": "Active", "2": "Reserve", "9": "Minors"}
 EMPTY_SLOT_STATUS = "3"   # placeholder rows, scorerId null
 
-# Contract targets for the diff (contract_id values in dim_contract).
-MINOR_CONTRACT = "Minor"
-GRADUATE_ROSTERED = "1st"
-GRADUATE_FA = "FA"
-
 PLACEMENT_FACT = "fact_roster_placement"
 ELIGIBILITY_FACT = "fact_minor_eligibility"
-WORKLIST_CSV = "review_contract_actions.csv"
-FA_IMPORT_CSV = "fa_contract_import.csv"
 
 # Pacing: jittered sleeps so the run reads like a human clicking through pages,
 # not a burst (there is no other rate limiting anywhere in the Fantrax path).
-# Startup apply ~= 28 teams x 4 POSTs + delays -> one sitting of a few minutes;
-# weekly steady-state is a handful of graduations. Module knobs, not CLI.
 PULL_DELAY_S = (0.5, 1.5)     # between read pulls (roster teams, filter pages)
-APPLY_TEAM_DELAY_S = (3, 5)   # between teams during --apply (confirm/execute/
-                              # verify within a team stay back-to-back — that
-                              # matches the UI's own timing)
 
 
 def _pause(bounds: tuple) -> None:
@@ -341,8 +334,8 @@ def load_placement(df: pd.DataFrame, cfg) -> str:
 # ---- Durable eligibility snapshot (fact_minor_eligibility) ---------------------
 def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str) -> str:
     """Land the eligibility pull as a parquet fact (replace-by-(season, week)),
-    so the FA-eligible population has queryable week-over-week history — the
-    raw JSON alone can't answer 'who vanished from eligibility while FA'."""
+    so the eligible population has queryable week-over-week history — the raw
+    JSON alone can't answer 'when did this player cross 20 GP'."""
     df = df.assign(season=season, week=week, capture_date=date.today().isoformat())
     path = f"{cfg.data_dir}/{ELIGIBILITY_FACT}.parquet"
     if Path(path).exists():
@@ -355,327 +348,9 @@ def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str) -> str:
     return path
 
 
-def prev_eligibility(cfg, season: int, week: str) -> pd.DataFrame | None:
-    """Most recent eligibility snapshot BEFORE (season, week), or None on the
-    first ever run. Ordered by capture_date (week labels 'PRE'/'01'.. don't
-    sort lexically)."""
-    path = Path(cfg.data_dir) / f"{ELIGIBILITY_FACT}.parquet"
-    if not path.exists():
-        return None
-    df = pd.read_parquet(path)
-    df = df[(df["season"] != season) | (df["week"] != week)]
-    if df.empty:
-        return None
-    latest = df["capture_date"].max()
-    return df[df["capture_date"] == latest]
-
-
-# %%
-# ---- Diff: site eligibility vs contract types ----------------------------------
-def build_worklist(elig: pd.DataFrame, placement: pd.DataFrame,
-                   prev_elig: pd.DataFrame | None = None) -> pd.DataFrame:
-    """The Yo-Yo diff. Site eligibility (the MINOR_FANTASY_* pulls) is the truth
-    for who SHOULD hold a Minor contract; contract type is what Fantrax does NOT
-    auto-manage, so mismatches are the commissioner's worklist.
-
-    Contract is PER ROSTER COPY, not per player (verified live 2026-07-12: a
-    post-draft FA signing gave 3 players '1st' in one conference and 'FA' in
-    the other), so rostered actions target one team's copy and FA actions the
-    pool copy:
-
-      - rostered copy, eligible, contract != Minor  -> set Minor (that team)
-      - rostered copy, !eligible, contract == Minor -> set 1st  (graduation)
-      - FA copy (AVAILABLE bucket), contract != Minor -> set Minor
-      - vanished: eligible last snapshot, now in NEITHER pull -> set FA
-        (graduated while in the pool — invisible to the current-week pulls,
-        so it needs the previous fact_minor_eligibility snapshot)
-
-    Contract unknown -> action still emitted, flagged needs_verification."""
-    eligible_ids = set(elig["scorer_id"])
-    actions, seen = [], set()
-
-    def add(sid, name, team_key, fa_status, current, to_contract, reason,
-            needs_verification=False):
-        if current == to_contract or (sid, team_key) in seen:
-            return
-        seen.add((sid, team_key))
-        actions.append({
-            "scorer_id":          sid,
-            "player_name":        name,
-            "team_key":           team_key,
-            "fa_status":          fa_status,
-            "from_contract":      current,
-            "to_contract":        to_contract,
-            "reason":             reason,
-            "needs_verification": needs_verification or current is None,
-        })
-
-    # Rostered copies — contract from the roster pull, per (team, scorer).
-    for r in placement.itertuples():
-        if r.scorer_id in eligible_ids:
-            add(r.scorer_id, r.player_name, r.team_key, "taken", r.contract,
-                MINOR_CONTRACT, "minors-eligible (site verdict) but not Minor")
-        elif r.contract == MINOR_CONTRACT:
-            add(r.scorer_id, r.player_name, r.team_key, "taken", r.contract,
-                GRADUATE_ROSTERED, "crossed 20 GP — graduate off Minor")
-
-    # FA copies — the AVAILABLE bucket (covers players FA in one conference
-    # while rostered in the other; their rostered copy is handled above).
-    for r in elig[elig["fa_status"] == "available"].itertuples():
-        add(r.scorer_id, r.player_name, None, "available", r.contract,
-            MINOR_CONTRACT, "minors-eligible (site verdict) but not Minor")
-
-    # Vanished — eligible last snapshot, absent from BOTH pulls this week:
-    # graduated while sitting in the FA pool (or purged from Fantrax). Flagged
-    # for verification since it's inferred from history, not a live row.
-    if prev_elig is not None:
-        rostered_ids = set(placement["scorer_id"])
-        for r in prev_elig.itertuples():
-            if r.scorer_id not in eligible_ids and r.scorer_id not in rostered_ids:
-                add(r.scorer_id, r.player_name, None, "available", r.contract,
-                    GRADUATE_FA,
-                    "left eligibility while FA — graduated in the pool",
-                    needs_verification=True)
-
-    return pd.DataFrame.from_records(
-        actions,
-        columns=["scorer_id", "player_name", "team_key", "fa_status",
-                 "from_contract", "to_contract", "reason", "needs_verification"])
-
-
-# %%
-# ---- Apply mode: replay the worklist through the commissioner edit endpoint ----
-# Captured 2026-07-13 (flip-and-revert on A10 with a network listener): the
-# roster page's edit = POST `confirmOrExecuteTeamRosterChanges`, TWO-PHASE
-# (first with confirm:true, then without), whose `fieldMap` carries the ENTIRE
-# team roster keyed by scorer_id: {posId, stId, sal, csId}. csId is the
-# contract's smallId from the response's own miscData.contractChoices enum
-# (1st=0 ... Minor=8, FA=9) — read live per team, never hardcoded. Because the
-# fieldMap is whole-roster, it MUST be rebuilt from a fresh adminMode
-# getTeamRosterInfo pull (the Con cell carries {'content','id'}) with only the
-# target csIds mutated — replaying stale salaries/statuses would overwrite
-# live roster state.
-#
-# Scope: rostered copies only. FA-copy actions have no fieldMap home; they
-# self-correct on signing (the copy lands on a roster -> next weekly diff
-# flips it). Opt-in via --apply, NEVER scheduled/unattended (grill sign-off:
-# scoped exception to the no-write-side rule). --dry-run prints the planned
-# csId mutations without POSTing.
-def admin_roster_payload(team_id: str) -> dict:
-    """getTeamRosterInfo with adminMode (carries contractChoices + Con cell ids)."""
-    return {
-        "msgs": [{"method": "getTeamRosterInfo",
-                  "data": {"leagueId": CFG.league_id, "teamId": team_id,
-                           "adminMode": True}}],
-        "uiv": CFG.ui_version,
-        "refUrl": f"https://www.fantrax.com/fantasy/league/{CFG.league_id}/team/roster",
-        "dt": 0, "at": 0, "tz": CFG.timezone, "v": CFG.api_version,
-    }
-
-
-def build_field_map(data: dict) -> dict:
-    """Whole-roster fieldMap verbatim from an adminMode roster response."""
-    fm = {}
-    for tbl in data.get("tables", []):
-        hdr = _header_index(tbl)
-        sal_i, con_i = hdr.get("Sal"), hdr.get("Con")
-        for r in tbl.get("rows", []):
-            sid = (r.get("scorer") or {}).get("scorerId")
-            if not sid or r.get("statusId") == EMPTY_SLOT_STATUS:
-                continue
-            cells = r.get("cells", [])
-            fm[sid] = {
-                "posId": str(r.get("posId")),
-                "stId":  str(r.get("statusId")),
-                "sal":   cells[sal_i].get("content") if sal_i is not None else None,
-                "csId":  cells[con_i].get("id") if con_i is not None else None,
-            }
-    return fm
-
-
-def edit_payload(team_id: str, period, field_map: dict, confirm: bool) -> dict:
-    data = {
-        "rosterLimitPeriod": period,
-        "fantasyTeamId": team_id,
-        "daily": False,
-        "adminMode": True,
-        "applyToFuturePeriods": True,
-        "fieldMap": field_map,
-    }
-    if confirm:
-        data["confirm"] = True
-    return {
-        "msgs": [{"method": "confirmOrExecuteTeamRosterChanges", "data": data}],
-        "uiv": CFG.ui_version,
-        "refUrl": f"https://www.fantrax.com/fantasy/league/{CFG.league_id}/team/roster",
-        "dt": 0, "at": 0, "tz": CFG.timezone, "v": CFG.api_version,
-    }
-
-
-def _resp_errors(raw) -> list:
-    """Collect error-looking codes anywhere in an fxpa response (HTTP 200 is
-    not success — repo standing rule)."""
-    errs = []
-
-    def walk(n):
-        if isinstance(n, dict):
-            code = str(n.get("code", ""))
-            if "ERROR" in code.upper() and code != "WARNING_NOT_LOGGED_IN":
-                errs.append(n)
-            for v in n.values():
-                walk(v)
-        elif isinstance(n, list):
-            for x in n:
-                walk(x)
-
-    walk(raw)
-    return errs
-
-
-def apply_worklist(dry_run: bool = True, team_keys: list[str] | None = None,
-                   max_teams: int | None = None) -> None:
-    """Apply the current review_contract_actions.csv to Fantrax, one team at a
-    time: fresh adminMode roster pull -> mutate target csIds -> confirm ->
-    execute -> re-pull and verify. Rostered, verified actions only."""
-    from playwright.sync_api import sync_playwright
-
-    wl_path = Path(CFG.data_dir) / "review" / WORKLIST_CSV
-    wl = pd.read_csv(wl_path)
-    wl = wl[(wl["fa_status"] == "taken") & wl["team_key"].notna()
-            & (~wl["needs_verification"].astype(bool))]
-    skipped_fa = (pd.read_csv(wl_path)["fa_status"] == "available").sum()
-    if team_keys:
-        wl = wl[wl["team_key"].isin(team_keys)]
-    teams = _team_ids(CFG)
-    id_by_key = dict(zip(teams["team_key"], teams["fantrax_team_id"]))
-    grouped = list(wl.groupby("team_key"))
-    if max_teams:
-        grouped = grouped[:max_teams]
-    print(f"[info] applying {sum(len(g) for _, g in grouped)} actions across "
-          f"{len(grouped)} team(s); {skipped_fa} FA-copy actions skipped "
-          f"(no roster fieldMap; self-correct on signing)"
-          f"{' [DRY RUN]' if dry_run else ''}")
-
-    scraper = fx.FantraxScraper(CFG)
-    failures = []
-    with sync_playwright() as p:
-        ctx = p.chromium.launch_persistent_context(
-            CFG.user_data_dir, headless=CFG.headless)
-        page = ctx.new_page()
-        page.set_default_timeout(CFG.nav_timeout_ms)
-        first_team = True
-        for team_key, g in grouped:
-            team_id = id_by_key.get(team_key)
-            if not team_id:
-                failures.append((team_key, "no fantrax_team_id")); continue
-            if not first_team:
-                _pause(PULL_DELAY_S if dry_run else APPLY_TEAM_DELAY_S)
-            first_team = False
-            raw = _post_healed(scraper, ctx, page,
-                               admin_roster_payload(team_id), "getTeamRosterInfo")
-            d = raw["responses"][0]["data"]
-            cs_by_name = {c["name"]: c["smallId"]
-                          for c in d.get("miscData", {}).get("contractChoices", [])}
-            period = d.get("displayedSelections", {}).get("displayedPeriod", 1)
-            fm = build_field_map(d)
-
-            changes = []
-            for a in g.itertuples():
-                target_cs = cs_by_name.get(a.to_contract)
-                cur = fm.get(a.scorer_id)
-                if target_cs is None or cur is None:
-                    failures.append((team_key, f"{a.player_name}: "
-                                     f"{'unknown contract ' + a.to_contract if target_cs is None else 'not on roster pull'}"))
-                    continue
-                if cur["csId"] == target_cs:
-                    continue     # already compliant on-site
-                changes.append((a.scorer_id, a.player_name, cur["csId"], target_cs))
-
-            if not changes:
-                print(f"[skip] {team_key}: nothing to change"); continue
-            print(f"[team] {team_key}: {len(changes)} change(s)")
-            for sid, name, frm, to in changes:
-                print(f"    {name} ({sid}): csId {frm} -> {to}")
-            if dry_run:
-                continue
-
-            for sid, _, _, to in changes:
-                fm[sid]["csId"] = to
-            confirm = _post_healed(scraper, ctx, page,
-                                   edit_payload(team_id, period, fm, True),
-                                   "confirm roster changes")
-            errs = _resp_errors(confirm)
-            if errs:
-                failures.append((team_key, f"confirm errors: {errs[:2]}")); continue
-            execute = _post_healed(scraper, ctx, page,
-                                   edit_payload(team_id, period, fm, False),
-                                   "execute roster changes")
-            errs = _resp_errors(execute)
-            if errs:
-                failures.append((team_key, f"execute errors: {errs[:2]}")); continue
-
-            # verify: re-pull and compare the targets' Con ids.
-            chk = _post_healed(scraper, ctx, page,
-                               admin_roster_payload(team_id), "verify roster")
-            fm_after = build_field_map(chk["responses"][0]["data"])
-            bad = [(sid, name) for sid, name, _, to in changes
-                   if fm_after.get(sid, {}).get("csId") != to]
-            if bad:
-                failures.append((team_key, f"verify mismatch: {bad}"))
-            else:
-                print(f"[ok] {team_key}: {len(changes)} contract(s) updated + verified")
-        ctx.close()
-
-    if failures:
-        print(f"\n[warn] {len(failures)} failure(s):")
-        for t, msg in failures:
-            print(f"  {t}: {msg}")
-    else:
-        print("\n[ok] apply complete, no failures")
-
-
-# %%
-# ---- FA path: commissioner CSV import ------------------------------------------
-# FA copies have no roster fieldMap, so --apply can't touch them. The chosen
-# route (grill sign-off 2026-07-13) is Fantrax's commissioner contract
-# CSV-import tool. Column shape below is a sensible default (player identity +
-# target contract + salary) pending discovery of the tool's exact expected
-# headers in League Admin — iterate once against a real upload.
-def export_fa_csv() -> Path:
-    """Write data/review/fa_contract_import.csv: the worklist's FA-copy actions
-    joined to the latest eligibility snapshot for salary/position/NFL team."""
-    review_dir = Path(CFG.data_dir) / "review"
-    wl = pd.read_csv(review_dir / WORKLIST_CSV)
-    fa = wl[wl["fa_status"] == "available"].copy()
-
-    elig_path = Path(CFG.data_dir) / f"{ELIGIBILITY_FACT}.parquet"
-    if elig_path.exists():
-        elig = pd.read_parquet(elig_path)
-        latest = elig[elig["capture_date"] == elig["capture_date"].max()]
-        fa = fa.merge(
-            latest[["scorer_id", "position_raw", "nfl_team", "salary"]],
-            on="scorer_id", how="left")
-    else:
-        fa[["position_raw", "nfl_team", "salary"]] = None
-    fa["salary"] = pd.to_numeric(fa["salary"], errors="coerce").astype("Int64")
-
-    out = fa.rename(columns={
-        "player_name":  "Player",
-        "position_raw": "Position",
-        "nfl_team":     "Team",
-        "salary":       "Salary",
-        "to_contract":  "Contract",
-        "scorer_id":    "FantraxID",
-    })[["Player", "Position", "Team", "Salary", "Contract", "FantraxID"]]
-    path = review_dir / FA_IMPORT_CSV
-    out.to_csv(path, index=False)
-    print(f"[ok] {len(out)} FA contract rows -> {path}")
-    return path
-
-
-# %%
 # ---- Main -----------------------------------------------------------------------
 def run() -> pd.DataFrame:
+    """Pull eligibility + per-team placement, land both facts. Read-only."""
     from playwright.sync_api import sync_playwright
 
     week = fx.derive_week_label(CFG)
@@ -714,47 +389,10 @@ def run() -> pd.DataFrame:
     n_av = (elig["fa_status"] == "available").sum() if len(elig) else 0
     print(f"[info] minors-eligible: {len(elig)} ({n_av} FA, {len(elig) - n_av} rostered)")
 
-    # Vanish detection needs LAST week's snapshot — read it before landing this week's.
-    prev = prev_eligibility(CFG, season, week)
     elig_fact_path = load_eligibility(elig, CFG, season, week)
     print(f"[ok] eligibility snapshot -> {elig_fact_path}")
-
-    worklist = build_worklist(elig, placement, prev)
-    review_dir = Path(CFG.data_dir) / "review"
-    review_dir.mkdir(parents=True, exist_ok=True)
-    out_csv = review_dir / WORKLIST_CSV
-    worklist.to_csv(out_csv, index=False)
-    print(f"\n[ok] {len(worklist)} contract actions -> {out_csv}")
-    if len(worklist):
-        print(worklist.groupby(["to_contract", "reason"]).size().to_string())
-        if worklist["needs_verification"].any():
-            print("[warn] some actions have unknown current contract (grid didn't "
-                  "expose a contract column) — verify against the Fantrax UI; "
-                  "schema-discovery below shows available headers.")
-    return worklist
+    return placement
 
 
 if __name__ == "__main__":
-    import argparse
-    ap = argparse.ArgumentParser(description="Yo-Yo Rule contract compliance")
-    ap.add_argument("--apply", action="store_true",
-                    help="apply the current worklist to Fantrax (write-side; "
-                         "opt-in, never scheduled)")
-    ap.add_argument("--dry-run", action="store_true",
-                    help="with --apply: print planned changes, POST nothing")
-    ap.add_argument("--teams", help="with --apply: comma-separated team_keys")
-    ap.add_argument("--max-teams", type=int,
-                    help="with --apply: stop after N teams (cautious first run)")
-    ap.add_argument("--export-fa-csv", action="store_true",
-                    help="write data/review/fa_contract_import.csv from the "
-                         "worklist's FA-copy actions (commissioner CSV-import "
-                         "tool; format iterating against a real upload)")
-    args = ap.parse_args()
-    if args.export_fa_csv:
-        export_fa_csv()
-    elif args.apply or args.dry_run:
-        apply_worklist(dry_run=args.dry_run,
-                       team_keys=args.teams.split(",") if args.teams else None,
-                       max_teams=args.max_teams)
-    else:
-        run()
+    run()
