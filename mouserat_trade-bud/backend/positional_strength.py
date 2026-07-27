@@ -25,6 +25,44 @@ _OFFENSE_FORMAT = "SF"
 _IDP_FORMAT = "IDP"
 
 
+def _position_sort_order() -> pd.DataFrame:
+    """One row per position_group with its side_of_ball_sort_order +
+    position_sort_order, per dim_position (the transformer table -- the
+    data-model's own display order, not alphabetical). Side of ball is the
+    primary sort key, position within a side is secondary -- offense before
+    defense before special teams/picks, matching dim_position's own grain."""
+    dp = da.read_parquet("dim_position")[
+        ["position_group", "side_of_ball_sort_order", "position_sort_order"]
+    ]
+    return dp.drop_duplicates("position_group")
+
+
+def _multi_position_counts(positions: list[str]) -> pd.DataFrame:
+    """One row per (team_key, position_group) with a headcount that credits
+    dual-eligible players to every position they qualify for, not just their
+    single canonical position_group. Source: dim_fantrax_crosswalk's
+    position_raw (comma-separated for dual-eligible players, e.g. "DL,LB"),
+    exploded and mapped through dim_position -- every raw token found there
+    already resolves to a position_group in `positions`, confirmed directly
+    against the data (no unmapped tokens)."""
+    roster = da.read_parquet("fact_fantasy_teams")[["team_key", "gsis_id"]]
+    crosswalk = da.read_parquet("dim_fantrax_crosswalk")[["gsis_id", "position_raw"]]
+    dp_map = da.read_parquet("dim_position")[["position_raw", "position_group"]].drop_duplicates("position_raw")
+
+    r = roster.merge(crosswalk, on="gsis_id", how="left")
+    r = r.assign(position_raw=r["position_raw"].fillna("").str.split(",")).explode("position_raw")
+    r["position_raw"] = r["position_raw"].str.strip()
+    r = r.merge(dp_map, on="position_raw", how="left")
+    r = r[r["position_group"].isin(positions)]
+
+    return (
+        r.groupby(["team_key", "position_group"])["gsis_id"]
+        .nunique()
+        .rename("position_count")
+        .reset_index()
+    )
+
+
 def _team_position_strength(fmt: str, positions: list[str]) -> pd.DataFrame:
     roster = da.read_parquet("fact_fantasy_teams")
     players = da.read_parquet("dim_nfl_players")[["gsis_id", "position_group"]]
@@ -60,6 +98,14 @@ def _team_position_strength(fmt: str, positions: list[str]) -> pd.DataFrame:
         ascending=False, method="min"
     ).astype(int)
     agg["n_teams"] = agg.groupby("position_group")["team_key"].transform("nunique")
+
+    counts = _multi_position_counts(positions)
+    agg = agg.merge(counts, on=["team_key", "position_group"], how="left")
+    agg["position_count"] = agg["position_count"].fillna(0).astype(int)
+
+    agg = agg.merge(_position_sort_order(), on="position_group", how="left")
+    agg["side_of_ball_sort_order"] = agg["side_of_ball_sort_order"].fillna(999).astype(int)
+    agg["position_sort_order"] = agg["position_sort_order"].fillna(999).astype(int)
     return agg
 
 
@@ -85,5 +131,7 @@ def league_positional_strength() -> pd.DataFrame:
 
 def positional_strength(team_key: str) -> list[dict]:
     combined = league_positional_strength()
-    mine = combined[combined["team_key"] == team_key].sort_values("position_group")
+    mine = combined[combined["team_key"] == team_key].sort_values(
+        ["side_of_ball_sort_order", "position_sort_order"]
+    )
     return mine.to_dict(orient="records")

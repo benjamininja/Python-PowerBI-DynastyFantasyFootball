@@ -12,8 +12,10 @@ Phase model (derived from 04a's week label + the season calendar):
              derive_week_label alone would keep saying 18 forever)
 
 NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
-03-group rookie chain (manual Excel gates), review applies (03z,
-apply_fantrax_crosswalk_review), and `04v --apply` (write-side; opt-in only).
+03-group rookie chain (manual Excel gates), and review applies (03z,
+apply_fantrax_crosswalk_review). Nothing here writes to Fantrax: the one
+write-side path (`04v --apply`) was removed with the Minor contract type
+(ADR-0011).
 
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
@@ -42,7 +44,6 @@ REVIEW_QUEUES = {
     "review_fuzzy_matches.csv": "run 03z_apply_fuzzy_review",
     "review_fantrax_crosswalk.csv": "run scripts/apply_fantrax_crosswalk_review.py",
     "review_dynasty_crosswalk.csv": "manual (no apply script exists yet)",
-    "review_contract_actions.csv": "run 04v --dry-run then --apply (attended)",
 }
 
 

@@ -696,7 +696,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
-	/// NEXT YEAR = looks up the CapHitPct of (ContractType, TotalYears, ContractYear+1) in Dim_Contract -- e.g. a player on '1st' (initial, year 1) prices the '2nd' row's pct. Single-year contract types (Tag/X/Minor/FA) have no year+1 row, so this is 0 for them. ACTIVE = real: only Cut players on a Guaranteed contract. See 'Dead Money - Active - Current Year' for the full ACTIVE/SPECULATIVE explanation.
+	/// NEXT YEAR = looks up the CapHitPct of (ContractType, TotalYears, ContractYear+1) in Dim_Contract -- e.g. a player on '1st' (initial, year 1) prices the '2nd' row's pct. Single-year contract types (Tag/X/FA) have no year+1 row, so this is 0 for them. ACTIVE = real: only Cut players on a Guaranteed contract. See 'Dead Money - Active - Current Year' for the full ACTIVE/SPECULATIVE explanation.
 	measure 'Dead Money - Active - Next Year' =
 			
 			CALCULATE(

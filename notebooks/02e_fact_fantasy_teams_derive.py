@@ -63,7 +63,7 @@ teams  = pd.read_parquet(TEAMS_PATH)
 print(f"[info] ledger: {len(ledger)} events, {ledger['event_type'].nunique()} type(s)")
 
 # last event wins per player+team (event_seq = canonical order: startup slots
-# 1..490, then minor_assignment/minor_graduation at 1000+snapshot ordinal).
+# 1..490, then trade/claim/drop legs from 100_000 in chronological order).
 latest = (ledger.sort_values("event_seq")
           .drop_duplicates(["team_key", "asset_id"], keep="last"))
 active = latest[~latest["event_type"].isin(TERMINAL)].copy()
