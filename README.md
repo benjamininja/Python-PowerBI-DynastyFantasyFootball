@@ -149,6 +149,24 @@ playwright install chromium
 
 ---
 
+## Trade tool (`mouserat_trade-bud/`)
+
+Dynasty trade-diagnostic web app — positional surplus/need, mixed player+pick
+baskets, Pareto asymmetry, live cap impact. Published at
+**<https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/>**.
+
+It ships as **fully static JSON with no backend**: every endpoint is a pure
+function of the committed parquet, so `export_static.py` precomputes them all
+by calling the FastAPI router functions directly, and GitHub Pages serves the
+result. The site rebuilds whenever `data/*.parquet` lands on `main` — which the
+scheduled pipeline already does, so it refreshes on that cadence for free.
+
+See [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md) to run it
+locally and [ADR-0012](docs/adr/0012-static-export-for-trade-bud.md) for why
+static beat hosting a server.
+
+---
+
 ## Tech stack
 
 | Layer | Tools |
@@ -159,4 +177,5 @@ playwright install chromium
 | Player matching | thefuzz (RapidFuzz) |
 | Storage | Parquet (local → potential Fabric migration path) |
 | Reporting | Power BI Desktop |
+| Trade tool | FastAPI (local dev) · static HTML/JS · GitHub Pages + Actions |
 | Version control | Git · GitHub · GitHub CLI |
