@@ -50,13 +50,15 @@
   .tag.need { background: rgba(255,92,122,0.15); color: var(--bad); }
   .tag.neutral { background: rgba(255,255,255,0.08); color: var(--muted); }
   .asset-list { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
-  .asset-item {
-    display: flex; justify-content: space-between; padding: 6px 10px; font-size: 12px;
-    border-bottom: 1px solid var(--border); cursor: pointer;
-  }
-  .asset-item:hover { background: var(--panel2); }
-  .asset-item.picked { background: rgba(91,140,255,0.12); }
-  .asset-item .val { color: var(--muted); }
+  .asset-list table { font-size: 12px; }
+  .asset-list thead th { position: sticky; top: 0; background: var(--panel); cursor: pointer; }
+  .asset-list tbody tr { cursor: pointer; }
+  .asset-list tbody tr:hover { background: var(--panel2); }
+  .asset-list tbody tr.picked { background: rgba(91,140,255,0.12); }
+  .cap-line { font-size: 12px; margin: 2px 0; }
+  .cap-line b { color: var(--text); }
+  .cap-line .down { color: var(--bad); }
+  .cap-line .up { color: var(--good); }
   .basket { min-height: 40px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px; }
   .basket-item {
     display: flex; justify-content: space-between; padding: 3px 0; color: var(--text);
@@ -90,7 +92,7 @@
 
 <div class="config">
   Backend: <input type="text" id="apiBase" value="http://127.0.0.1:8420">
-  <button onclick="init()" style="margin-left:6px; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;">⟳ Reconnect</button>
+  <button onclick="apiBase = document.getElementById('apiBase').value; init()" style="margin-left:6px; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;">⟳ Reconnect</button>
   <span id="apiStatus" style="margin-left:8px;"></span>
 </div>
 
@@ -117,6 +119,7 @@
 <div id="tab-overview" class="tabpage">
   <div class="panel">
     <h2>Positional Overview (league-wide, rank of 28)</h2>
+    <div class="chip-row" id="overviewFilterChips"></div>
     <div id="overviewWrap" style="overflow-x:auto;"><table id="overviewTable"><thead></thead><tbody></tbody></table></div>
   </div>
 </div>
@@ -141,11 +144,11 @@
     <div class="row">
       <div class="col">
         <div class="signal-line" id="posLabel-my"></div>
-        <table id="posTable-my"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
+        <table id="posTable-my"><thead></thead><tbody></tbody></table>
       </div>
       <div class="col">
         <div class="signal-line" id="posLabel-cp"></div>
-        <table id="posTable-cp"><thead><tr><th>Pos</th><th>Rank</th><th>Signal</th></tr></thead><tbody></tbody></table>
+        <table id="posTable-cp"><thead></thead><tbody></tbody></table>
       </div>
     </div>
   </div>
@@ -155,16 +158,21 @@
     <div class="row">
       <div class="col">
         <label id="giveLabel">My team gives</label>
-        <div class="asset-list" id="giveAssets"></div>
+        <div class="asset-list"><table id="giveAssetsTable"><thead></thead><tbody id="giveAssets"></tbody></table></div>
         <label id="giveBasketLabel" style="margin-top:10px;">Give basket</label>
         <div class="basket" id="giveBasket"></div>
       </div>
       <div class="col">
         <label id="receiveLabel">My team receives (from counterparty)</label>
-        <div class="asset-list" id="receiveAssets"></div>
+        <div class="asset-list"><table id="receiveAssetsTable"><thead></thead><tbody id="receiveAssets"></tbody></table></div>
         <label id="receiveBasketLabel" style="margin-top:10px;">Receive basket</label>
         <div class="basket" id="receiveBasket"></div>
       </div>
+    </div>
+
+    <div class="row" style="margin-top:14px;">
+      <div class="col" id="capCard-my"></div>
+      <div class="col" id="capCard-cp"></div>
     </div>
 
     <div class="bar-wrap">
@@ -192,7 +200,8 @@ let state = {
   cpAssets: {players: [], picks: []},
   give: [],   // assets from myTeam going to cpTeam
   receive: [], // assets from cpTeam coming to myTeam
-  overviewRows: []
+  overviewRows: [],
+  overviewFilter: { type: 'all', value: null } // 'all' | 'division' | 'team'
 };
 
 function showTab(name) {
@@ -256,40 +265,104 @@ function onTeamChange(mode) {
   } else {
     state.cpTeam = teamKey || null;
   }
+  const division = teamKey ? (state.teams.find(t => t.team_key === teamKey) || {}).division : null;
+  setOverviewFilter(division ? 'division' : 'all', division || null);
   if (teamKey) loadProfile(mode);
-  if (mode === 'my' && teamKey) showTab('analysis');
   renderTwoTeamOverview();
   if (state.myTeam && state.cpTeam) loadAnalysis();
 }
 
+// Filter chips above the league-wide Positional Overview table: All Teams,
+// one per division, plus (when set) whichever team was picked via the "My
+// Team" selector on the Analysis tab -- selecting a team elsewhere filters
+// this table down to that one team, keeping both views in sync.
+function renderOverviewFilterChips() {
+  const f = state.overviewFilter;
+  const divisions = [...new Set(state.teams.map(t => t.division))].sort();
+  const chips = [`<div class="chip ${f.type === 'all' ? 'selected' : ''}" onclick="setOverviewFilter('all')">All Teams</div>`];
+  divisions.forEach(d => {
+    chips.push(`<div class="chip ${f.type === 'division' && f.value === d ? 'selected' : ''}" onclick="setOverviewFilter('division','${d}')">${d}</div>`);
+  });
+  if (f.type === 'team' && f.value) {
+    const t = state.teams.find(t => t.team_key === f.value);
+    if (t) chips.push(`<div class="chip selected">${t.team_name}</div>`);
+  }
+  document.getElementById('overviewFilterChips').innerHTML = chips.join('');
+}
+
+function setOverviewFilter(type, value) {
+  state.overviewFilter = { type, value: value || null };
+  renderOverviewFilterChips();
+  renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
+}
+
 async function loadOverview() {
   state.overviewRows = await api('/positional-strength/league');
+  renderOverviewFilterChips();
   renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
 }
 
 // Shared renderer: league-wide table uses every team_key; the two-team matchup
 // view (renderTwoTeamOverview) reuses the same cached rows/markup, just
 // restricted to [myTeam, cpTeam] -- same rank-of-28/tag styling either way.
+let overviewSort = { col: 'Team', dir: 1 };
+
+function setOverviewSort(tableId, col) {
+  if (overviewSort.col === col) overviewSort.dir *= -1;
+  else { overviewSort.col = col; overviewSort.dir = 1; }
+  renderOverviewTable(tableId, state.overviewRows, state.teams.map(t => t.team_key));
+}
+
+const CAP_COL = 'Cap $ Remaining';
+
 function renderOverviewTable(tableId, rows, teamKeys) {
   const teamName = tk => (state.teams.find(t => t.team_key === tk) || {}).team_name || tk;
-  const positions = [...new Set(rows.map(r => r.position_group))];
+  const capFor = tk => {
+    const t = state.teams.find(t => t.team_key === tk);
+    return t && t.remaining_cap_current_yr != null ? t.remaining_cap_current_yr : null;
+  };
+  const fmtCap = v => v == null ? '-' : '$' + Math.round(v).toLocaleString();
+  const sortOrderFor = {};
+  rows.forEach(r => { sortOrderFor[r.position_group] = [r.side_of_ball_sort_order, r.position_sort_order]; });
+  const positions = [...new Set(rows.map(r => r.position_group))]
+    .sort((a, b) => sortOrderFor[a][0] - sortOrderFor[b][0] || sortOrderFor[a][1] - sortOrderFor[b][1]);
   const byTeam = {};
   rows.forEach(r => {
     byTeam[r.team_key] = byTeam[r.team_key] || {};
     byTeam[r.team_key][r.position_group] = r;
   });
+  const rankFor = (tk, p) => { const r = (byTeam[tk] || {})[p]; return r ? r.rank : Infinity; };
+
+  const f = state.overviewFilter || { type: 'all' };
+  const filteredKeys = teamKeys.filter(tk => {
+    if (f.type === 'division') return (state.teams.find(t => t.team_key === tk) || {}).division === f.value;
+    if (f.type === 'team') return tk === f.value;
+    return true;
+  });
+
   const thead = document.querySelector(`#${tableId} thead`);
-  thead.innerHTML = `<tr><th>Team</th>${positions.map(p => `<th>${p}</th>`).join('')}</tr>`;
+  const cols = ['Team', CAP_COL, ...positions];
+  thead.innerHTML = `<tr>${cols.map(c => {
+    const arrow = overviewSort.col === c ? (overviewSort.dir === 1 ? ' ▲' : ' ▼') : '';
+    return `<th style="cursor:pointer;" onclick="setOverviewSort('${tableId}','${c}')">${c}${arrow}</th>`;
+  }).join('')}</tr>`;
+
   const tbody = document.querySelector(`#${tableId} tbody`);
-  tbody.innerHTML = teamKeys
+  tbody.innerHTML = filteredKeys
     .slice()
-    .sort((a, b) => teamName(a).localeCompare(teamName(b)))
+    .sort((a, b) => {
+      let cmp;
+      if (overviewSort.col === 'Team') cmp = teamName(a).localeCompare(teamName(b));
+      else if (overviewSort.col === CAP_COL) cmp = (capFor(a) ?? -Infinity) - (capFor(b) ?? -Infinity);
+      else cmp = rankFor(a, overviewSort.col) - rankFor(b, overviewSort.col);
+      return cmp * overviewSort.dir;
+    })
     .map(tk => {
       const cells = positions.map(p => {
         const r = (byTeam[tk] || {})[p];
         return r ? `<td><span class="tag ${r.label}">${r.rank}</span></td>` : '<td>-</td>';
       }).join('');
-      return `<tr><td>${teamName(tk)}</td>${cells}</tr>`;
+      return `<tr><td>${teamName(tk)}</td><td>${fmtCap(capFor(tk))}</td>${cells}</tr>`;
     }).join('');
 }
 
@@ -297,12 +370,43 @@ function renderOverviewTable(tableId, rows, teamKeys) {
 // side-by-side per-team tables with explicit rank/28 + the surplus/need/
 // neutral word label -- the merged wide table (used for the league-wide tab)
 // only carried a bare colored rank number and lost that signal.
-function renderPositional(tableId, labelId, rows, teamName) {
-  document.getElementById(labelId).textContent = teamName;
-  const tbody = document.querySelector(`#${tableId} tbody`);
-  tbody.innerHTML = rows.map(r => `
-    <tr><td>${r.position_group}</td><td>${r.rank} / ${r.n_teams}</td>
-    <td><span class="tag ${r.label}">${r.label}</span></td></tr>
+//
+// Sortable (mirrors overviewSort/assetSort), with an independent sort state
+// per side (my/cp), same shape as assetSort's give/receive split. Position
+// defaults to the data model's own display order (dim_position.position_sort_order),
+// not alphabetical. Count is the multi-position-aware headcount: a
+// dual-eligible player (e.g. DL,LB per dim_fantrax_crosswalk.position_raw)
+// is counted at every position they qualify for, not just one.
+const POS_COLS = [
+  { key: 'Pos', get: r => r.position_group, sort: (a, b) => a.side_of_ball_sort_order - b.side_of_ball_sort_order || a.position_sort_order - b.position_sort_order },
+  { key: 'Rank', get: r => `${r.rank} / ${r.n_teams}`, sort: (a, b) => a.rank - b.rank },
+  { key: 'Count', get: r => r.position_count, sort: (a, b) => a.position_count - b.position_count },
+  { key: 'Signal', get: r => `<span class="tag ${r.label}">${r.label}</span>`, sort: (a, b) => a.label.localeCompare(b.label) },
+];
+
+let posSort = { my: { col: 'Pos', dir: 1 }, cp: { col: 'Pos', dir: 1 } };
+
+function setPosSort(side, col) {
+  const s = posSort[side];
+  if (s.col === col) s.dir *= -1; else { s.col = col; s.dir = 1; }
+  renderTwoTeamOverview();
+}
+
+function renderPositional(side, rows, teamName) {
+  const tableId = side === 'my' ? 'posTable-my' : 'posTable-cp';
+  document.getElementById(`posLabel-${side}`).textContent = teamName;
+  const s = posSort[side];
+
+  const thead = document.querySelector(`#${tableId} thead`);
+  thead.innerHTML = `<tr>${POS_COLS.map(c => {
+    const arrow = s.col === c.key ? (s.dir === 1 ? ' ▲' : ' ▼') : '';
+    return `<th style="cursor:pointer;" onclick="setPosSort('${side}','${c.key}')">${c.key}${arrow}</th>`;
+  }).join('')}</tr>`;
+
+  const col = POS_COLS.find(c => c.key === s.col);
+  const sorted = rows.slice().sort((a, b) => col.sort(a, b) * s.dir);
+  document.querySelector(`#${tableId} tbody`).innerHTML = sorted.map(r => `
+    <tr>${POS_COLS.map(c => `<td>${c.get(r)}</td>`).join('')}</tr>
   `).join('');
 }
 
@@ -310,12 +414,10 @@ function renderTwoTeamOverview() {
   const myTeam = state.teams.find(t => t.team_key === state.myTeam);
   const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
   if (!myTeam || state.overviewRows.length === 0) return;
-  const rowsFor = tk => state.overviewRows
-    .filter(r => r.team_key === tk)
-    .sort((a, b) => a.position_group.localeCompare(b.position_group));
-  renderPositional('posTable-my', 'posLabel-my', rowsFor(state.myTeam), myTeam.team_name);
+  const rowsFor = tk => state.overviewRows.filter(r => r.team_key === tk);
+  renderPositional('my', rowsFor(state.myTeam), myTeam.team_name);
   if (cpTeam) {
-    renderPositional('posTable-cp', 'posLabel-cp', rowsFor(state.cpTeam), cpTeam.team_name);
+    renderPositional('cp', rowsFor(state.cpTeam), cpTeam.team_name);
   } else {
     document.getElementById('posLabel-cp').textContent = '';
     document.querySelector('#posTable-cp tbody').innerHTML = '';
@@ -361,27 +463,65 @@ async function loadProfile(mode) {
   renderProfile(mode, profile);
 }
 
-function assetItemHtml(a, basketKey) {
-  const name = a.asset_type === 'player'
-    ? `${a.name} (${a.position}, age ${a.age != null ? a.age.toFixed(1) : 'n/a'})`
-    : `${a.draft_season} R${a.round}${a.is_slotted ? '' : ' (future)'}`;
-  return `<div class="asset-item" onclick="toggleAsset('${basketKey}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
-    <span>${name}</span><span class="val">${a.value.toFixed(1)}</span>
-  </div>`;
+const fmtSalary = v => v == null ? '-' : '$' + Math.round(v).toLocaleString();
+
+function assetName(a) {
+  return a.asset_type === 'player' ? a.name : `${a.draft_season} R${a.round}${a.is_slotted ? '' : ' (future)'}`;
+}
+function assetPosition(a) {
+  return a.asset_type === 'player' ? a.position : 'Pick';
+}
+
+const ASSET_COLS = [
+  { key: 'Name', get: a => assetName(a), sort: (a, b) => assetName(a).localeCompare(assetName(b)) },
+  { key: 'Pos', get: a => assetPosition(a), sort: (a, b) => a.side_of_ball_sort_order - b.side_of_ball_sort_order || a.position_sort_order - b.position_sort_order },
+  { key: 'Age', get: a => a.age != null ? a.age.toFixed(1) : '-', sort: (a, b) => (a.age ?? Infinity) - (b.age ?? Infinity) },
+  { key: 'Salary', get: a => fmtSalary(a.cap_hit), sort: (a, b) => (a.cap_hit ?? 0) - (b.cap_hit ?? 0) },
+  { key: 'Value', get: a => a.value.toFixed(1), sort: (a, b) => a.value - b.value },
+];
+
+let assetSort = { give: { col: 'Value', dir: -1 }, receive: { col: 'Value', dir: -1 } };
+
+function setAssetSort(basketKey, col) {
+  const s = assetSort[basketKey];
+  if (s.col === col) s.dir *= -1; else { s.col = col; s.dir = 1; }
+  renderAssetLists();
+}
+
+function renderAssetTable(basketKey, assets) {
+  const tableId = basketKey === 'give' ? 'giveAssetsTable' : 'receiveAssetsTable';
+  const bodyId = basketKey === 'give' ? 'giveAssets' : 'receiveAssets';
+  const basket = basketKey === 'give' ? state.give : state.receive;
+  const pickedIds = new Set(basket.map(a => a.asset_id));
+  const s = assetSort[basketKey];
+
+  const thead = document.querySelector(`#${tableId} thead`);
+  thead.innerHTML = `<tr>${ASSET_COLS.map(c => {
+    const arrow = s.col === c.key ? (s.dir === 1 ? ' ▲' : ' ▼') : '';
+    return `<th onclick="setAssetSort('${basketKey}','${c.key}')">${c.key}${arrow}</th>`;
+  }).join('')}</tr>`;
+
+  const col = ASSET_COLS.find(c => c.key === s.col);
+  const sorted = assets.slice().sort((a, b) => col.sort(a, b) * s.dir);
+  document.getElementById(bodyId).innerHTML = sorted.map(a => `
+    <tr class="${pickedIds.has(a.asset_id) ? 'picked' : ''}" onclick="toggleAsset('${basketKey}', ${JSON.stringify(a).replace(/"/g, '&quot;')})">
+      ${ASSET_COLS.map(c => `<td>${c.get(a)}</td>`).join('')}
+    </tr>
+  `).join('');
 }
 
 function renderAssetLists() {
-  document.getElementById('giveAssets').innerHTML =
-    [...state.myAssets.players, ...state.myAssets.picks].map(a => assetItemHtml(a, 'give')).join('');
-  document.getElementById('receiveAssets').innerHTML =
-    [...state.cpAssets.players, ...state.cpAssets.picks].map(a => assetItemHtml(a, 'receive')).join('');
+  renderAssetTable('give', [...state.myAssets.players, ...state.myAssets.picks]);
+  renderAssetTable('receive', [...state.cpAssets.players, ...state.cpAssets.picks]);
 }
 
 function toggleAsset(basketKey, asset) {
   const list = basketKey === 'give' ? state.give : state.receive;
   const idx = list.findIndex(a => a.asset_id === asset.asset_id);
   if (idx >= 0) list.splice(idx, 1); else list.push(asset);
+  renderAssetLists();
   renderBaskets();
+  renderCapCards();
   evaluateTrade();
 }
 
@@ -392,7 +532,7 @@ function renderBaskets() {
           const name = a.asset_type === 'player'
             ? `${a.name}${a.age != null ? ' (age ' + a.age.toFixed(1) + ')' : ''}`
             : `${a.draft_season} R${a.round}`;
-          return `<div class="basket-item"><span>${name} (${a.value.toFixed(1)})</span>
+          return `<div class="basket-item"><span>${name} — ${fmtSalary(a.cap_hit)} (${a.value.toFixed(1)})</span>
             <span class="x" onclick="removeAsset('${basketId === 'giveBasket' ? 'give' : 'receive'}','${a.asset_id}')">✕</span></div>`;
         }).join('')
       : '<span style="color:var(--muted)">empty</span>';
@@ -405,8 +545,42 @@ function removeAsset(basketKey, assetId) {
   const list = basketKey === 'give' ? state.give : state.receive;
   const idx = list.findIndex(a => a.asset_id === assetId);
   if (idx >= 0) list.splice(idx, 1);
+  renderAssetLists();
   renderBaskets();
+  renderCapCards();
   evaluateTrade();
+}
+
+// True Cap = today's remaining_cap_current_yr, unaffected by the in-progress
+// basket. Trade Result Cap = True Cap adjusted by the cap_hit swap: a team
+// sheds the cap_hit of everything it gives away and absorbs the cap_hit of
+// everything it receives.
+function capCardHtml(team, trueCap, resultCap) {
+  if (!team) return '';
+  const delta = resultCap - trueCap;
+  const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
+  const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
+  return `
+    <div class="panel" style="margin-bottom:0;">
+      <div class="signal-line"><b>${team.team_name}</b></div>
+      <div class="cap-line">True Cap: <b>${fmtSalary(trueCap)}</b></div>
+      <div class="cap-line">Trade Result Cap: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>
+    </div>`;
+}
+
+function renderCapCards() {
+  const myTeam = state.teams.find(t => t.team_key === state.myTeam);
+  const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
+  const sumCap = list => list.reduce((s, a) => s + (a.cap_hit ?? 0), 0);
+  const giveSum = sumCap(state.give);
+  const receiveSum = sumCap(state.receive);
+
+  document.getElementById('capCard-my').innerHTML = myTeam
+    ? capCardHtml(myTeam, myTeam.remaining_cap_current_yr, myTeam.remaining_cap_current_yr + giveSum - receiveSum)
+    : '';
+  document.getElementById('capCard-cp').innerHTML = cpTeam
+    ? capCardHtml(cpTeam, cpTeam.remaining_cap_current_yr, cpTeam.remaining_cap_current_yr - giveSum + receiveSum)
+    : '';
 }
 
 async function evaluateTrade() {
@@ -455,6 +629,7 @@ async function loadAnalysis() {
   state.cpAssets = cpAssets;
   renderAssetLists();
   renderBaskets();
+  renderCapCards();
 }
 
 init();
