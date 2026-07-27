@@ -492,13 +492,37 @@ if legs:
     # League-minimum FA fallback, straight off dim_contract's own "FA" row.
     # cap_hit mirrors contract_value: dim_contract.cap_hit_pct prices a CUT
     # (dead money), it is NOT a discount on a kept player's charge.
+    #
+    # Known gap, deliberately NOT patched: a claim whose player was dropped
+    # BEFORE 04t's capture window (04t only starts 2026-07-19) has no ledger
+    # history, so it lands here and gets the league minimum even if the player
+    # actually carried a real contract. The proposed backstop was Fantrax's
+    # public `getTeamRosters?leagueId=...&period=N`, which the developer docs
+    # describe as serving historical per-period roster state.
+    #
+    # PROBED LIVE 2026-07-26 -- it does not. Across period=1/2/5/17/99 the only
+    # field that changes is the echoed `period` itself: identical roster
+    # membership, contract, salary and status every time (1031 items, zero
+    # diffs), and period 17 == 99, so it clamps rather than erroring. It serves
+    # CURRENT state regardless of the parameter.
+    #
+    # Wiring it would be strictly worse than this fallback, not just useless:
+    # for the exact case it is meant to serve -- a claim with no ledger history
+    # -- the player's current contract IS the one that claim produced, so the
+    # lookup would circularly hand back its own answer and write a confidently
+    # wrong contract instead of an honestly conservative minimum.
+    #
+    # Re-probe once real in-season periods exist (the league is still entirely
+    # inside preseason period 1, so there is no historical state for Fantrax to
+    # serve yet). If period ever returns genuinely distinct rosters, this
+    # becomes viable; until then the league minimum is the correct answer.
     _fa       = contracts.loc[contracts["contract_id"] == FA_CONTRACT_ID].iloc[0]
     _fa_value = float(_fa["min_salary"])
     FA_TERMS  = dict(contract_id=FA_CONTRACT_ID, contract_year=1,
                      contract_value=_fa_value, cap_hit=_fa_value, status="active")
 
-    # Seed contract state from the NON-transaction ledger (startup_draft +
-    # minor_* rows), then walk the transaction stream forward, updating state as
+    # Seed contract state from the NON-transaction ledger (startup_draft rows),
+    # then walk the transaction stream forward, updating state as
     # we go -- so a chained trade, or a drop-then-reclaim on the same day,
     # resolves against what was actually true at that moment.
     _TERM_COLS = ["contract_id", "contract_year", "contract_value", "cap_hit", "status"]

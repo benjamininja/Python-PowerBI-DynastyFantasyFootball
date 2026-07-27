@@ -1387,10 +1387,26 @@ Salary`, `Remaining Salary Cap`). If which sections are exempt ever does change,
 all four must change together or the bot and the report will disagree about who
 is over the cap. Null `roster_status` charges too (35 rows today), by design.
 
-**Left inert for a separate cleanup pass** (all zero-row, no callers, no effect
-on the cap path): `dim_contract`'s orphan `Minor` row, `derive_minor_events` +
-the `minor_assignment`/`minor_graduation` event types in `02d`, and the `Minor`
-references in PBI `_Measures.tmdl`/`Fact_FantasyTeams.tmdl`.
+**Inert cleanup — DONE 2026-07-26.** `dim_contract`'s orphan `Minor` row removed
+(11 → 10, `01b` rerun), `derive_minor_events` + the `minor_assignment`/
+`minor_graduation` event types deleted from `02d`, PBI row-count and contract-list
+descriptions corrected. Verified a true no-op: `02d` → `02e` rerun byte-identical
+(1094 / 1027 / 567, md5 per table).
+
+**The one trap in that cleanup, worth remembering**: `derive_minor_events` shared
+its block with a `mint_assets()` call that extends `dim_roster_asset` with copies
+the startup draft never saw (post-draft FA adds). Deleting the block wholesale —
+the obvious move — would have silently shrunk the asset bridge. Dead code sharing
+a block with live code is not dead; check what else the block does before cutting.
+
+**`getTeamRosters?period=N` backstop — CLOSED, will not build.** Probed live:
+the endpoint does **not** serve historical state. `period=1/2/5/17/99` all return
+identical rosters/contracts/salaries/status (only the echoed `period` differs;
+17 == 99, so it clamps). Building it would be *worse* than the current FA
+fallback — for a claim with no ledger history the player's current contract is
+the one that claim created, so the lookup returns its own answer circularly and
+writes a confidently wrong contract instead of an honest league minimum. Full
+reasoning + re-probe condition is a comment at the fallback site in `02d`.
 
 **Process learning worth keeping.** ADR-0010 was written the *previous day* and
 was wrong at the **premise** level, not the detail level — it correctly codified
