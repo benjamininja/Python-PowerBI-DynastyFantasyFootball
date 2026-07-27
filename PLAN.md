@@ -9,6 +9,22 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
+## Working state (2026-07-27)
+
+- **`mouserat_trade-bud` is published** to GitHub Pages as a fully static
+  site — `export_static.py` precomputes every endpoint from committed parquet,
+  no server/database/secrets. Rationale, rejected alternatives, and the
+  invalid-NaN-JSON bug the parity check caught:
+  [ADR-0012](docs/adr/0012-static-export-for-trade-bud.md). How to run it:
+  [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md).
+  URL: <https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/>
+- Open, carried: the trade-tool UI has **never been browser-verified** (API
+  shape is curl-verified; no JS runtime on the dev machine, so
+  `evaluateTradeLocal()` and every DOM path are untested code). Oldest
+  outstanding item on the project.
+- Open, unrelated: 6 pre-existing dtype-drift FAILs in bare
+  `check_data_model.py` validate mode.
+
 ## Working state (2026-07-12)
 
 - The 2026-07-11 uncommitted slate below **landed on `main`** as PR #17

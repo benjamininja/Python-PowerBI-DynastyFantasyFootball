@@ -43,6 +43,11 @@ desktop.ini
 .claude/settings.local.json
 .claude/learnings.db
 
+# ── mouserat_trade-bud static site build output ───────────────────────────────
+# Regenerated from committed parquet by export_static.py (and by the Pages
+# workflow on every deploy) — never committed, so it cannot drift from data/.
+mouserat_trade-bud/_site/
+
 # ── Power BI project (PBIP) local artifacts ───────────────────────────────────
 **/.pbi/
 *.abf

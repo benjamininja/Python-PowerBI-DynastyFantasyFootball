@@ -194,6 +194,37 @@ architecture change here.
   override `railway.json`). Bounded restarts (`ON_FAILURE`,
   `restartPolicyMaxRetries: 5`).
 
+## `mouserat_trade-bud/` — trade tool standards
+
+Dynasty trade-diagnostic app, published to GitHub Pages as **fully static
+JSON with no backend** ([ADR-0012](docs/adr/0012-static-export-for-trade-bud.md),
+[subfolder README](mouserat_trade-bud/README.md)). The FastAPI app under
+`backend/` is a **local dev server only** — production has no server, no
+database, no secrets.
+
+- **One source of truth**: `export_static.py` precomputes every GET endpoint by
+  **calling the router functions directly**. Never reimplement endpoint logic
+  in the exporter or in JS — `positional_strength.py`, `profiles.py`,
+  `pick_value.py`, `pareto.py` and `routers/*.py` own every number. The lone
+  deliberate exception is `evaluateTradeLocal()`, ~6 lines mirroring
+  `pareto.evaluate_trade`'s summation, because it takes live user input;
+  valuation stays in Python.
+- **Generated JSON must be browser-valid**: sanitize non-finite floats to
+  `null` and dump with `allow_nan=False`. `json.dumps` writes a bare `NaN`
+  literal that `JSON.parse` rejects *wholesale*, and Python's `json.load`
+  accepts it — so validate the way the real consumer parses, not with a
+  load sweep.
+- **The exporter's `lru_cache` memoization stays in the exporter.** Moving it
+  into `data_access.py` would make the long-lived dev server serve stale data
+  after a pipeline run.
+- **Frontend is one dependency-free `index.html`** — no framework, no build
+  step, and its entire network layer is the single `api(path)` function. Keep
+  both properties.
+- **Build output `_site/` is gitignored, never committed** — the site rebuilds
+  from parquet on every deploy so it cannot drift from `data/`.
+- Serve locally over HTTP (`python -m http.server --directory ... 8500`);
+  `file://` breaks the relative `data/` fetches.
+
 ## `workspace/`, `skills/`, `archive/`
 
 - `workspace/` is scratch space (VS Code workspace file, ad-hoc probe

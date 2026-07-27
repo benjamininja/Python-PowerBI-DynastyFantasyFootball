@@ -1,0 +1,64 @@
+# Publishes mouserat_trade-bud to GitHub Pages as a fully static site.
+#
+# The app has no backend in production: export_static.py precomputes every GET
+# endpoint to JSON by calling the FastAPI router functions directly, so the
+# committed parquet in data/ is the only input. No secrets, no database, no
+# scraping -- a plain checkout is a complete build environment.
+#
+# Nothing generated is committed. The site is rebuilt from parquet on every
+# deploy, so it cannot drift from the data the way a checked-in artifact could.
+#
+# Requires Pages to be enabled on the repo with build type "GitHub Actions"
+# (Settings -> Pages); this workflow cannot enable it itself.
+name: Deploy mouserat_trade-bud to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/**.parquet'          # scheduled pipeline commits refresh the site for free
+      - 'mouserat_trade-bud/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it; queued runs collapse.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: mouserat_trade-bud/backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r mouserat_trade-bud/backend/requirements.txt
+
+      - name: Build static site
+        run: python mouserat_trade-bud/export_static.py --out _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

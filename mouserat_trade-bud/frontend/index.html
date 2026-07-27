@@ -2,6 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Shareable by link, kept out of search results. The repo is already public,
+     so this is about discoverability, not secrecy -- delete to index it. -->
+<meta name="robots" content="noindex">
 <title>mouserat trade-bud</title>
 <style>
   :root {
@@ -91,9 +95,7 @@
 <div class="subtitle">Dynasty trade diagnostic — positional need/surplus + Pareto-asymmetry check, players and picks together.</div>
 
 <div class="config">
-  Backend: <input type="text" id="apiBase" value="http://127.0.0.1:8420">
-  <button onclick="apiBase = document.getElementById('apiBase').value; init()" style="margin-left:6px; background:var(--panel2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 10px; font-size:11px; cursor:pointer;">⟳ Reconnect</button>
-  <span id="apiStatus" style="margin-left:8px;"></span>
+  <span id="dataStatus"></span>
 </div>
 
 <div class="panel">
@@ -189,9 +191,6 @@
 </div>
 
 <script>
-let apiBase = document.getElementById('apiBase').value;
-document.getElementById('apiBase').addEventListener('change', e => { apiBase = e.target.value; init(); });
-
 let state = {
   teams: [],
   myTeam: null, cpTeam: null,
@@ -211,23 +210,54 @@ function showTab(name) {
   document.getElementById('navBtn-analysis').classList.toggle('active', name === 'analysis');
 }
 
-async function api(path, opts) {
-  const res = await fetch(apiBase + path, opts);
-  if (!res.ok) throw new Error(`${path} -> ${res.status}`);
-  return res.json();
+// Cache by file, not by call: profiles.json holds all 56 profiles, so the
+// second mode of a team is already in hand. Promises (not results) are cached
+// so two concurrent callers share one request rather than racing.
+const _fileCache = {};
+function fetchJson(rel) {
+  if (!(rel in _fileCache)) {
+    _fileCache[rel] = fetch(`data/${rel}`).then(res => {
+      if (!res.ok) throw new Error(`${rel} -> ${res.status}`);
+      return res.json();
+    });
+  }
+  return _fileCache[rel];
+}
+
+// This app is served as static JSON precomputed from the repo's committed
+// parquet by mouserat_trade-bud/export_static.py -- there is no backend.
+// api() keeps the original endpoint paths as its calling convention so every
+// call site below is unchanged; it just resolves them to files.
+async function api(path) {
+  const [route, query] = path.split('?');
+  if (route === '/teams') return fetchJson('teams.json');
+  if (route === '/positional-strength/league') return fetchJson('positional-league.json');
+
+  const m = route.match(/^\/teams\/([^/]+)\/(profile|assets)$/);
+  if (m) {
+    const [, teamKey, kind] = m;
+    if (kind === 'assets') return fetchJson(`assets/${encodeURIComponent(teamKey)}.json`);
+    const mode = new URLSearchParams(query || '').get('mode') || 'my';
+    const profile = (await fetchJson('profiles.json'))[teamKey];
+    if (!profile || !profile[mode]) throw new Error(`no profile for ${teamKey}/${mode}`);
+    return profile[mode];
+  }
+  throw new Error(`no static payload for ${path}`);
 }
 
 async function init() {
-  const statusEl = document.getElementById('apiStatus');
+  const statusEl = document.getElementById('dataStatus');
+  let meta;
   try {
-    await api('/health');
-    statusEl.textContent = '● connected';
-    statusEl.style.color = '#3ecf8e';
+    meta = await fetchJson('meta.json');
   } catch (e) {
-    statusEl.textContent = '● cannot reach backend (run uvicorn main:app --port 8420)';
+    statusEl.textContent = '● could not load data files';
     statusEl.style.color = '#ff5c7a';
     return;
   }
+  const when = new Date(meta.generated_at);
+  statusEl.textContent = '● Data as of ' + (isNaN(when) ? meta.generated_at : when.toLocaleString());
+  statusEl.style.color = '#8a90a2';
   state.teams = await api('/teams');
   const myTeamSel = document.getElementById('myTeam');
   const opts = teams => teams.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
@@ -237,7 +267,7 @@ async function init() {
 }
 
 // Counterparty picker only offers teams sharing myTeam's conference (Phase A #4's
-// rule is enforced server-side in /trade/evaluate; this is just the matching UI).
+// rule is also re-checked in evaluateTradeLocal(); this is the matching UI).
 function refreshCpOptions() {
   const cpTeamSel = document.getElementById('cpTeam');
   const prev = cpTeamSel.value;
@@ -583,20 +613,42 @@ function renderCapCards() {
     : '';
 }
 
+// Mirrors pareto.evaluate_trade() -- the summation half only. Every asset's
+// `value` was computed in Python by pareto.asset_value() and shipped in the
+// assets payload, so this duplicates no valuation logic; it adds the same
+// numbers the endpoint added. Keep in step with backend/pareto.py:45-70.
+function evaluateTradeLocal() {
+  const myTeam = state.teams.find(t => t.team_key === state.myTeam);
+  const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
+  // The league's same-conference rule. There is no server left to enforce it,
+  // and none is needed -- this is a read-only calculator over public data, so
+  // the check exists to keep the rule visible and the UI honest, not to defend
+  // a trust boundary.
+  if (myTeam && cpTeam && myTeam.conference !== cpTeam.conference) {
+    return { error: 'Trades are only allowed within a conference.' };
+  }
+  const sum = assets => assets.reduce((acc, a) => acc + (a.value || 0), 0);
+  const give_total = sum(state.give);
+  const receive_total = sum(state.receive);
+  const delta = receive_total - give_total;
+  const denom = Math.max(give_total, receive_total, 1e-9);
+  return {
+    give_total, receive_total, delta,
+    asymmetry_pct: Math.abs(delta) / denom * 100,
+    favors: delta > 0 ? 'receiving_side' : (delta < 0 ? 'giving_side' : 'even'),
+  };
+}
+
 async function evaluateTrade() {
   if (state.give.length === 0 && state.receive.length === 0) {
     document.getElementById('diagnostic').textContent = 'Add assets to both sides to see the trade diagnostic.';
     return;
   }
-  const payload = {
-    my_team: state.myTeam,
-    counterparty_team: state.cpTeam,
-    give: state.give.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
-    receive: state.receive.map(a => ({asset_type: a.asset_type, asset_id: a.asset_id})),
-  };
-  const result = await api('/trade/evaluate', {
-    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
-  });
+  const result = evaluateTradeLocal();
+  if (result.error) {
+    document.getElementById('diagnostic').textContent = result.error;
+    return;
+  }
   document.getElementById('giveTotal').textContent = result.give_total.toFixed(1);
   document.getElementById('receiveTotal').textContent = result.receive_total.toFixed(1);
   const total = Math.max(result.give_total + result.receive_total, 1);

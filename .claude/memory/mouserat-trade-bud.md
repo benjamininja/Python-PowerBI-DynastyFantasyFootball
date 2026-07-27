@@ -1423,3 +1423,276 @@ record about test coverage.**
 framing** (nothing was ever pausing); if it's still wanted it's a plain
 contract-aging question. The IR cap decision above is the live one. Nothing
 committed.
+
+## Checkpoint 14 (2026-07-26/27) — ADR-0011 epic SHIPPED and MERGED (PR #33)
+
+**Everything from Checkpoints 12-13 is now merged to `main`** as squash commit
+`b5cfd15` (PR #33, 7 commits, 32 files, +1329/-882). Branch
+`minors-adr0011-cleanup` deleted both ends. Main is green: 27/27 tests,
+`check_sources --check` and `check_data_model --check` both clean. This closes
+the whole Minors arc — nothing from it is left open.
+
+### The three items completed this session, in order
+
+**1. Inert cleanup — DONE, verified no-op.** `dim_contract` back to 10 rows
+(orphan `Minor` row removed, `01b` rerun), `derive_minor_events` +
+`minor_assignment`/`minor_graduation` deleted from `02d`, PBI row-count and
+single-year-contract-list descriptions corrected, `data/README.md`'s ledger
+event-type list fixed (it still said `minor_*`; the real types are
+`startup_draft`, `trade`/`trade_away`, `claim`/`drop`). Proven by rerunning
+`02d` → `02e` and md5-comparing per table: **byte-identical**
+(`fact_roster_transactions` 1094, `fact_fantasy_teams` 1027,
+`dim_roster_asset` 567).
+
+**THE TRAP, worth remembering beyond this repo**: `derive_minor_events` shared
+its `if PLACEMENT_PATH.exists():` block with a `mint_assets()` call that extends
+`dim_roster_asset` with roster copies the startup draft never saw (post-draft FA
+adds). Deleting the block wholesale — the obvious move when removing a dead
+function — would have silently shrunk the asset bridge and surfaced much later
+as a `KeyError` on some future trade/claim leg for an unminted scorer. The
+`dim_roster_asset` count holding at 567 is what proves the mint survived.
+**Dead code sharing a block with live code is not dead; read what else the block
+does before cutting.**
+
+**2. `getTeamRosters?period=N` backstop — CLOSED, deliberately NOT built.**
+Probed the live endpoint *before* writing any code. Fantrax's developer docs
+say it serves historical per-period roster state. **It does not.** Across
+`period=1/2/5/17/99`: identical roster membership, contract, salary and status
+(1031 items, zero diffs on every field that matters); the *only* thing that
+changes is the echoed `period` value in the response, and `17 == 99` so it
+clamps rather than erroring.
+
+Not building it is the correct outcome, not a blocked one — **wiring it would
+have been strictly worse than the fallback it was meant to improve.** The case
+it exists to serve is a claim whose player has no ledger history; for exactly
+that player, the contract Fantrax returns today *is* the one that claim
+produced. The lookup would circularly hand back its own answer and write a
+confidently wrong contract where the current code writes an honestly
+conservative league minimum ($2M FA). Full reasoning + the re-probe condition
+(revisit if `period` ever returns genuinely distinct rosters once real in-season
+periods exist) is a comment at the fallback site in `02d`, deliberately placed
+where someone asking "shouldn't this be smarter?" will hit it.
+
+**3. Commits/PR — merged.** Grouped into 7 logical commits rather than one
+blob: ADR-0011 correction / inert cleanup / backstop closure / `04t` two-view
+capture / `dim_position` sort order / trade-bud cap panel / parquet refresh.
+
+### Still true and still load-bearing (do not regress)
+
+`04v` is read-only but **not optional** — sole writer of
+`fact_roster_placement`, which `02e` stamps as `roster_status`, which capmath +
+both DAX measures use for the cap exemption. Stop running it → `roster_status`
+null league-wide → all 125 Minors-placed players charge full salary.
+
+`roster_status == "Minors"` is hardcoded in **four** places, not two:
+`discord_bot/capmath.py`, `notebooks/02e_fact_fantasy_teams_derive.py`, and
+*both* PBI measures (`Active Roster Salary`, `Remaining Salary Cap`). Any future
+change to which sections are cap-exempt must hit all four together or the
+Discord bot and the Power BI report will disagree about who is over the cap.
+
+### Decisions that produced no code (record, don't re-litigate)
+
+- **IR charges full salary** (commissioner, 2026-07-26). No change needed — the
+  existing rule already charges anything not literally `"Minors"`, so IR is
+  handled correctly the day that section appears via `statusTotals`
+  pass-through. The `<> "Minors"` literal is the decision, **not a TODO**.
+- **`getTeamRosters?period=N`** — see item 2. Closed, not deferred.
+
+### Open after this session
+
+Nothing from the Minors arc. Remaining, unrelated and unstarted:
+- `mouserat_trade-bud` UI has never been eyeballed in a browser — curl-verified
+  for API shape only. Oldest outstanding item on this project.
+- `contract_year` season-rollover clock — moot in its Minors framing; if still
+  wanted it is a plain contract-aging question with no Minors dimension.
+- 6 pre-existing dtype-drift FAILs in bare `check_data_model.py` validate mode
+  (`contract_year`, `event_date`, `draft_round`, `pick_in_round`,
+  `pick_overall`) — known logged gap, untouched, unrelated.
+- Three untracked local files deliberately never committed: `Propmts.txt`
+  (stray scratch note), `.claude/settings.json` (contains an absolute
+  session-scratchpad path, machine-specific), `pbi/.claude/learnings.db`
+  (binary). Worth gitignoring the latter two.
+
+### Process learning from this session (distinct from Checkpoint 13's)
+
+**Probe an external API's actual behaviour before building on its documented
+behaviour** — and then ask the second question: would the naive implementation
+be *worse* than doing nothing? Here both answers mattered. The docs were wrong
+(no historical state), and even granting the docs, the design was circular for
+its own use case. Either finding alone would have justified stopping; finding
+them cost one throwaway probe script against ~an hour of building something
+actively harmful. **"Deferred item" does not mean "item to build when you get
+around to it" — re-validate the premise first, exactly like ADR-0010 taught.**
+
+---
+
+## Checkpoint 15 (2026-07-27) — GitHub Pages port: static-JSON design locked, exporter shipped
+
+**Ask**: host the app from GitHub so a URL can be shared with the league. Ben
+supplied his brother's already-hosted reference app as prior art —
+[hod-decision-engine](https://github.com/Spunkylysis/hod-decision-engine) plus
+its ETL, [fantasy-baseball-etl](https://github.com/Spunkylysis/fantasy-baseball-etl).
+
+### Reference-app facts (inspected directly — expensive to re-derive)
+
+- **Pages, legacy branch build, branch `pybaseball`, path `/`** →
+  `spunkylysis.github.io/hod-decision-engine/`. That branch holds **exactly
+  one file**, `index.html` (176KB). No build step, no Actions for the site.
+- Data = **Supabase**, queried client-side; project URL + anon JWT hardcoded
+  as `<input value="…">` defaults in the HTML.
+- ETL repo: weekly cron `0 11 * * 1`, scrapes Fantrax, emits `batches/*.sql`,
+  `load_supabase_actions.py` TRUNCATE-reloads Supabase via
+  `secrets.SUPABASE_PASSWORD`.
+
+**The insight that decided the design**: the two frontends are
+architecturally the same. The *only* real difference is **where compute
+lives** — his is SQL views inside the database (so a static page can reach
+it), ours is Python/pandas in FastAPI (which Pages cannot run).
+
+### Decision (AskUserQuestion): precompute to static JSON, serve from Pages
+
+Rejected mirroring Supabase — its value is a live queryable DB with auth, and
+we need neither half (no writes, no auth, no per-user state, inputs change
+only when the ETL runs). Rejected FastAPI-on-Railway (Round 2's original
+guess): a live server recomputing constants that dies and takes the app with
+it.
+
+**Facts that make static sound** (established, not assumed):
+- Every GET is a pure function of committed parquet over ~1300 rows.
+- **All 11 required parquet are git-tracked** (incl. `fact_trade_log`, the one
+  that went missing at Checkpoint 8) → CI builds from a plain checkout, no
+  scrape, **no secrets**.
+- The frontend's whole network layer is **one function**, `api(path, opts)` at
+  `frontend/index.html:214`, 6 call sites → retarget is a one-function change.
+- **`/trade/evaluate` moving to JS duplicates no valuation logic.**
+  `routers/assets.py:70` sets each player's `"value"` by calling
+  `pareto.asset_value("player", …)` — the *same function* `/trade/evaluate`
+  sums — and picks use `pv.value_for_pick_row(r, inv)`, exactly what
+  `pareto._pick_value` resolves to. The values the client already holds are
+  the values the endpoint sums. Only the ~6-line summation moves.
+
+### Perf finding (measured)
+
+`data_access.read_parquet` has **no caching**, and `pareto.asset_value`
+re-reads `dim_nfl_players` (25k rows) + re-aggregates the 26k-row dynasty EAV
+**per player**. Fine per API request (~45 assets), wasteful across a
+1027-asset export: **1.04s → 0.23s per team (~29s → ~6s)** with `lru_cache` on
+three readers, payloads **byte-identical**. Memoization lives in
+`export_static.py` only — putting it in `data_access.py` would make the
+long-lived dev server serve stale data after a pipeline run until restarted.
+
+### Shipped
+
+`mouserat_trade-bud/export_static.py` (new, ~150 lines) — calls the router
+functions directly, no logic reimplemented. Ran clean: 28 teams, 196
+positional rows, 56 profiles, 28 asset files, **411 KB total but only ~12 KB
+per team** (UI loads two at a time). Also `.gitignore` entry for
+`mouserat_trade-bud/_site/` so generated JSON can never be committed and
+drift from `data/`.
+
+### Privacy — settled
+
+**The repo is already public**, so every number the app shows is already
+published as parquet. A Pages site changes **discoverability, not exposure**.
+Plan adds `<meta name="robots" content="noindex">` (shareable by link, not
+search-indexed); one line, trivially removable.
+
+### Next (steps 2-5, plan approved)
+
+Parity check written but **NOT RUN — result unknown, do not assume it
+passes**; rerun first, needs uvicorn on 8420. Then frontend retarget, Pareto
+parity + the browser click-through (which finally closes the oldest item on
+the project), then `.github/workflows/pages.yml` — **this repo's first
+GitHub Action**; no `.github/` exists today.
+
+**Requires Ben**: Pages is not enabled at all (API 404). Needs enabling with
+build type **"GitHub Actions"** — a repo settings change, not to be done
+unprompted. URL will be
+`https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`.
+
+### Environment gotcha
+
+`Set-Location` **persists across PowerShell tool calls**. After launching
+uvicorn from `backend/`, a later `.venv\Scripts\python.exe` failed with "The
+module '.venv' could not be loaded". Set-Location back to the repo root
+explicitly, or use absolute paths.
+
+---
+
+## Checkpoint 16 (2026-07-27) — static port steps 2-5 shipped and verified
+
+Steps 2-5 of the Round 10 plan are done. Only two items remain, both Ben's:
+the browser click-through and enabling Pages.
+
+### The parity check caught a real, silent, site-breaking bug
+
+First run: **27 of 86 checks failed.** Not a checker artifact — the payloads
+carry genuine NaNs (a player with no contract value, an unnamed roster copy).
+The live API renders them `null`; `json.dumps` writes a bare `NaN` literal,
+which **is not valid JSON**. `JSON.parse` rejects the *entire file*, so one
+missing contract value would have blanked a whole team — 27 of 28 teams.
+
+The export ran clean and looked fine. Only diffing against the live API
+surfaced it. **This is the justification for the verify-against-the-original
+step, in concrete form** — a precompute port's failure mode is silent.
+
+Fixed in `export_static.py`: `_nulls_for_nan()` (recursive non-finite →
+`None`) + `allow_nan=False` on the dump, so a future miss is a hard error, not
+silent invalid JSON. Re-ran: **86 checks, 0 failures.**
+
+**Trap worth remembering**: Python's `json.load` *accepts* `NaN` by default, so
+a plain load-every-file sweep passes on this bug. Browser-strict validation
+needs `parse_constant=` raising. All 32 emitted files pass that check.
+
+### Second bug: OneDrive holds directory handles
+
+`shutil.rmtree` failed `WinError 5` on `_site/data/assets` — files delete, then
+`rmdir` fails, repeatably. Now `ignore_errors=True` + `exist_ok=True` on the
+mkdir. Stale *files* (what would actually corrupt a build) still always go; a
+surviving empty dir is harmless. CI on Linux unaffected. **Applies to any
+generated directory under this repo — it lives in OneDrive.**
+
+### Frontend retarget (step 3)
+
+`api(path)` is now a static-path resolver; **all 6 call sites unchanged**,
+including the `?mode=` query string. Per-file promise cache — `profiles.json`
+holds all 56 profiles, so a team's second mode costs nothing. `/trade/evaluate`
+POST replaced by `evaluateTradeLocal()`, mirroring `pareto.evaluate_trade`'s
+summation over `value` fields already in the payload (comment there points at
+`backend/pareto.py:45-70` to keep them in step). Backend/Reconnect controls →
+"Data as of …" from `meta.json`. Added `noindex` + viewport.
+
+### Pareto parity: exact — with one honest gap
+
+Real mixed basket (A09→A01, 3 give / 3 receive, players and picks both sides):
+`give_total`, `receive_total`, `delta`, `asymmetry_pct`, `favors` all match
+`/trade/evaluate` **to full float precision**.
+
+**There is no JS runtime on this machine** (no node/deno/bun — checked). So the
+arithmetic was verified by transcription against the exported values. That
+covers the actual risk (do the shipped values sum to what the endpoint
+summed?), but **the JS itself is only exercised by the browser click-through.**
+
+### Step 5
+
+`.github/workflows/pages.yml` — repo's first Action. Push to `main` touching
+`data/**.parquet` / `mouserat_trade-bud/**` / the workflow, plus
+`workflow_dispatch`; checkout → setup-python 3.11 (pip cache) → install backend
+requirements → export → upload-pages-artifact → deploy-pages. `concurrency:
+pages` with `cancel-in-progress: false`. No secrets. `.gitignore` already had
+`_site/`.
+
+### Serving note
+
+The site **must be served over HTTP** — relative `data/` fetches fail under
+`file://`. `python -m http.server --directory mouserat_trade-bud/_site 8500`.
+
+### Still open
+
+1. **Browser click-through** — also closes the oldest item on the project (UI
+   never browser-verified, carried since Round 5).
+2. **Pages not enabled** (API 404) — needs build type "GitHub Actions", a repo
+   settings change, not to be done unprompted. URL will be
+   `https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`.
+
+All uncommitted per the standing rule.
