@@ -220,6 +220,11 @@ database, no secrets.
 - **Frontend is one dependency-free `index.html`** — no framework, no build
   step, and its entire network layer is the single `api(path)` function. Keep
   both properties.
+- **`backend/requirements.txt` is what CI installs** — it must cover the whole
+  import chain, including everything `data_access.py` pulls in from
+  `discord_bot/` (`httpx`, `python-dotenv`). The local `.venv` also has the
+  root `requirements.txt`, so a gap here runs fine locally and fails only in
+  CI. Test dependency changes in a clean venv, not against `.venv`.
 - **Build output `_site/` is gitignored, never committed** — the site rebuilds
   from parquet on every deploy so it cannot drift from `data/`.
 - Serve locally over HTTP (`python -m http.server --directory ... 8500`);

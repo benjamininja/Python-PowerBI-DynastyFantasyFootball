@@ -1763,3 +1763,46 @@ time in three separate sessions.
 2. **Browser click-through** — still the oldest outstanding item on the
    project. No JS runtime on this machine, so `evaluateTradeLocal()` and every
    DOM path remain unexecuted code; merging does not close this.
+
+### The first real deploy failed — missing transitive dependency
+
+PR #34 merged, the workflow fired automatically as designed, and **the build
+failed in 20s**:
+
+```
+File "mouserat_trade-bud/backend/data_access.py", line 28
+    import capmath
+File "discord_bot/capmath.py", line 24
+    from config import Config
+File "discord_bot/config.py", line 16
+    from dotenv import load_dotenv
+ModuleNotFoundError: No module named 'dotenv'
+```
+
+`data_access.py` imports `discord_bot/capmath.py` (deliberately — cap logic is
+not reimplemented), which imports `config.py`, which needs `python-dotenv`.
+`mouserat_trade-bud/backend/requirements.txt` never listed it.
+
+**Why it passed every local check**: the repo `.venv` installs the *root*
+`requirements.txt` as well, which has `python-dotenv`. Every local run of the
+exporter — including the full parity sweep — had it available. CI installs
+**only** `backend/requirements.txt`, so the merge was the first time the import
+chain ran in a clean environment.
+
+The file had already anticipated exactly this class of problem for one module
+(`httpx>=0.27  # transitively required by discord_bot/github_fetch.py at
+import time`) and simply missed the second one.
+
+**Fix**: added `python-dotenv>=1.0` with the same style of comment, plus a note
+in the file that it must cover the whole import chain because CI installs it
+alone.
+
+**Verified the way CI does, not the way that hid the bug**: built a throwaway
+venv from *only* `backend/requirements.txt` and ran the exporter against it —
+clean build, 411 KB, same counts. That proves the dependency set is complete,
+not merely that the first missing module is fixed.
+
+**Generalizable, and the second instance of the same shape this round** (the
+first being `json.load` accepting `NaN`): *the environment that hides a bug is
+the one you habitually test in.* A subsystem requirements file that is a subset
+of the dev environment cannot be validated from inside that environment.
