@@ -1696,3 +1696,70 @@ The site **must be served over HTTP** — relative `data/` fetches fail under
    `https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`.
 
 All uncommitted per the standing rule.
+
+---
+
+## Checkpoint 17 (2026-07-28) — Pages enabled, PR #34 open, docs written
+
+Round 10 is delivered end to end. Nothing is in flight; the only open items
+are Ben's.
+
+### Pages is live-configured
+
+Enabled by request via
+`gh api --method POST repos/benjamininja/Python-PowerBI-DynastyFantasyFootball/pages -f build_type=workflow`
+-> `build_type: workflow`, `https_enforced: true`, `public: true`,
+`status: null` (= enabled, nothing deployed yet). URL:
+`https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`
+**404s until the first successful workflow run.**
+
+### PR #34 — `trade-bud-static-pages` -> `main`, 4 commits
+
+`86f6aa3` exporter + gitignore `_site/` · `c9f33bc` frontend retarget +
+client-side Pareto · `1126702` Pages workflow (repo's first Action) ·
+`e91c790` docs.
+
+Green before commit: 27/27 tests, `check_data_model.py --check` and
+`check_sources.py --check` both clean.
+
+**The deploy fires automatically on merge** — the workflow triggers on
+`mouserat_trade-bud/**`, which the PR touches. No manual dispatch needed.
+
+### Documentation — the gap was wider than this round's changes
+
+`mouserat_trade-bud/` had **no documentation at all**: no README, no ADR, no
+`CLAUDE.md` section. Four files, not an amendment:
+
+- **`docs/adr/0012-static-export-for-trade-bud.md`** — decision, both rejected
+  alternatives (Supabase mirror, Railway FastAPI), and the consequences worth
+  not rediscovering. Also records the NaN bug + the transferable verification
+  lesson.
+- **`mouserat_trade-bud/README.md`** (new) — two run modes and why one codebase
+  serves both, layout, commands, gotchas.
+- **`CLAUDE.md`** — new subfolder section, so the rules survive into future
+  sessions instead of living only in an ADR someone has to think to open.
+- **`README.md`** (trade-tool section + URL), **`PLAN.md`** (2026-07-28 working
+  state, detail collapsed into the ADR per its own convention).
+
+### Pre-existing drift found, deliberately not fixed
+
+`CONTRIBUTING.md` documents a `main`/`dev` branch structure with PRs flowing
+`dev -> main`. **There is no `dev` branch**, locally or on origin, and the last
+five PRs all went feature-branch -> `main`. Followed actual practice; flagged
+in the PR body rather than fixed, to keep this PR one logical change.
+
+### Environment: PowerShell here-strings, third strike
+
+`git commit -m @'...'@` failed twice — the message split at an inner quote and
+git received fragments as pathspecs. Chaining `; git add ...` after the closing
+`'@` makes it worse. **Fixed the pattern, not the instance**: write the message
+to a scratchpad file and use `git commit -F` / `gh pr create --body-file`. Now
+recorded in root `preferences.md` as a standing rule, since this has now cost
+time in three separate sessions.
+
+### Still Ben's, unchanged
+
+1. **Merge PR #34** (deploy fires on merge).
+2. **Browser click-through** — still the oldest outstanding item on the
+   project. No JS runtime on this machine, so `evaluateTradeLocal()` and every
+   DOM path remain unexecuted code; merging does not close this.
