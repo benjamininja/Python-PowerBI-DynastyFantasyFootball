@@ -9,11 +9,13 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
-## Working state (2026-07-27)
+## Working state (2026-07-28)
 
-- **`mouserat_trade-bud` is published** to GitHub Pages as a fully static
-  site — `export_static.py` precomputes every endpoint from committed parquet,
-  no server/database/secrets. Rationale, rejected alternatives, and the
+- **`mouserat_trade-bud` ships to GitHub Pages as a fully static site** —
+  `export_static.py` precomputes every endpoint from committed parquet, no
+  server/database/secrets. Pages is enabled (build type "GitHub Actions");
+  **PR #34** carries the change and the deploy fires automatically on merge.
+  Rationale, rejected alternatives, and the
   invalid-NaN-JSON bug the parity check caught:
   [ADR-0012](docs/adr/0012-static-export-for-trade-bud.md). How to run it:
   [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md).

@@ -1696,3 +1696,113 @@ The site **must be served over HTTP** — relative `data/` fetches fail under
    `https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`.
 
 All uncommitted per the standing rule.
+
+---
+
+## Checkpoint 17 (2026-07-28) — Pages enabled, PR #34 open, docs written
+
+Round 10 is delivered end to end. Nothing is in flight; the only open items
+are Ben's.
+
+### Pages is live-configured
+
+Enabled by request via
+`gh api --method POST repos/benjamininja/Python-PowerBI-DynastyFantasyFootball/pages -f build_type=workflow`
+-> `build_type: workflow`, `https_enforced: true`, `public: true`,
+`status: null` (= enabled, nothing deployed yet). URL:
+`https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`
+**404s until the first successful workflow run.**
+
+### PR #34 — `trade-bud-static-pages` -> `main`, 4 commits
+
+`86f6aa3` exporter + gitignore `_site/` · `c9f33bc` frontend retarget +
+client-side Pareto · `1126702` Pages workflow (repo's first Action) ·
+`e91c790` docs.
+
+Green before commit: 27/27 tests, `check_data_model.py --check` and
+`check_sources.py --check` both clean.
+
+**The deploy fires automatically on merge** — the workflow triggers on
+`mouserat_trade-bud/**`, which the PR touches. No manual dispatch needed.
+
+### Documentation — the gap was wider than this round's changes
+
+`mouserat_trade-bud/` had **no documentation at all**: no README, no ADR, no
+`CLAUDE.md` section. Four files, not an amendment:
+
+- **`docs/adr/0012-static-export-for-trade-bud.md`** — decision, both rejected
+  alternatives (Supabase mirror, Railway FastAPI), and the consequences worth
+  not rediscovering. Also records the NaN bug + the transferable verification
+  lesson.
+- **`mouserat_trade-bud/README.md`** (new) — two run modes and why one codebase
+  serves both, layout, commands, gotchas.
+- **`CLAUDE.md`** — new subfolder section, so the rules survive into future
+  sessions instead of living only in an ADR someone has to think to open.
+- **`README.md`** (trade-tool section + URL), **`PLAN.md`** (2026-07-28 working
+  state, detail collapsed into the ADR per its own convention).
+
+### Pre-existing drift found, deliberately not fixed
+
+`CONTRIBUTING.md` documents a `main`/`dev` branch structure with PRs flowing
+`dev -> main`. **There is no `dev` branch**, locally or on origin, and the last
+five PRs all went feature-branch -> `main`. Followed actual practice; flagged
+in the PR body rather than fixed, to keep this PR one logical change.
+
+### Environment: PowerShell here-strings, third strike
+
+`git commit -m @'...'@` failed twice — the message split at an inner quote and
+git received fragments as pathspecs. Chaining `; git add ...` after the closing
+`'@` makes it worse. **Fixed the pattern, not the instance**: write the message
+to a scratchpad file and use `git commit -F` / `gh pr create --body-file`. Now
+recorded in root `preferences.md` as a standing rule, since this has now cost
+time in three separate sessions.
+
+### Still Ben's, unchanged
+
+1. **Merge PR #34** (deploy fires on merge).
+2. **Browser click-through** — still the oldest outstanding item on the
+   project. No JS runtime on this machine, so `evaluateTradeLocal()` and every
+   DOM path remain unexecuted code; merging does not close this.
+
+### The first real deploy failed — missing transitive dependency
+
+PR #34 merged, the workflow fired automatically as designed, and **the build
+failed in 20s**:
+
+```
+File "mouserat_trade-bud/backend/data_access.py", line 28
+    import capmath
+File "discord_bot/capmath.py", line 24
+    from config import Config
+File "discord_bot/config.py", line 16
+    from dotenv import load_dotenv
+ModuleNotFoundError: No module named 'dotenv'
+```
+
+`data_access.py` imports `discord_bot/capmath.py` (deliberately — cap logic is
+not reimplemented), which imports `config.py`, which needs `python-dotenv`.
+`mouserat_trade-bud/backend/requirements.txt` never listed it.
+
+**Why it passed every local check**: the repo `.venv` installs the *root*
+`requirements.txt` as well, which has `python-dotenv`. Every local run of the
+exporter — including the full parity sweep — had it available. CI installs
+**only** `backend/requirements.txt`, so the merge was the first time the import
+chain ran in a clean environment.
+
+The file had already anticipated exactly this class of problem for one module
+(`httpx>=0.27  # transitively required by discord_bot/github_fetch.py at
+import time`) and simply missed the second one.
+
+**Fix**: added `python-dotenv>=1.0` with the same style of comment, plus a note
+in the file that it must cover the whole import chain because CI installs it
+alone.
+
+**Verified the way CI does, not the way that hid the bug**: built a throwaway
+venv from *only* `backend/requirements.txt` and ran the exporter against it —
+clean build, 411 KB, same counts. That proves the dependency set is complete,
+not merely that the first missing module is fixed.
+
+**Generalizable, and the second instance of the same shape this round** (the
+first being `json.load` accepting `NaN`): *the environment that hides a bug is
+the one you habitually test in.* A subsystem requirements file that is a subset
+of the dev environment cannot be validated from inside that environment.
