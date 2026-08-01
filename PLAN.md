@@ -14,6 +14,23 @@ data-model. Blow-by-blow does NOT live here.
 - **Valuation model & stance routing**: Built Stages 0–4 (sqrt VOR position ceiling `dim_position_ceiling`, DraftSharks trees, stance-scoped Pareto & age tilt, pick stance scalars).
 - **Pick / Player Commensuration**: Resolved & anchored to KTC player point scale (`9997.0` max).
 - **Signal Crystallization**: Locked in [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md), [.claude/memory/trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md), and [Wayfinder Map #36](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/36).
+## Working state (2026-07-28)
+
+- **`mouserat_trade-bud` ships to GitHub Pages as a fully static site** —
+  `export_static.py` precomputes every endpoint from committed parquet, no
+  server/database/secrets. Pages is enabled (build type "GitHub Actions");
+  **PR #34** carries the change and the deploy fires automatically on merge.
+  Rationale, rejected alternatives, and the
+  invalid-NaN-JSON bug the parity check caught:
+  [ADR-0012](docs/adr/0012-static-export-for-trade-bud.md). How to run it:
+  [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md).
+  URL: <https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/>
+- Open, carried: the trade-tool UI has **never been browser-verified** (API
+  shape is curl-verified; no JS runtime on the dev machine, so
+  `evaluateTradeLocal()` and every DOM path are untested code). Oldest
+  outstanding item on the project.
+- Open, unrelated: 6 pre-existing dtype-drift FAILs in bare
+  `check_data_model.py` validate mode.
 
 
 **Uncommitted** (standing "commit only when asked"): 04a/04c/04e/04f,
