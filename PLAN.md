@@ -9,35 +9,25 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
-## [x] Active — trade-bud asset valuation & memory architecture (2026-07-31, COMPLETED & CRYSTALLIZED)
+## [ ] ACTIVE — trade-bud: wayfinder map #44
 
-- **Valuation model & stance routing**: Built Stages 0–4 (sqrt VOR position ceiling `dim_position_ceiling`, DraftSharks trees, stance-scoped Pareto & age tilt, pick stance scalars).
-- **Pick / Player Commensuration**: Resolved & anchored to KTC player point scale (`9997.0` max).
-- **Signal Crystallization**: Locked in [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md), [.claude/memory/trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md), and [Wayfinder Map #36](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/36).
-## Working state (2026-07-28)
+**Tracker: [wayfinder map #44](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/44)** —
+this is the live status board for this workstream; PLAN.md only summarizes it.
+Full design detail: [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md),
+[trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md).
 
-- **`mouserat_trade-bud` ships to GitHub Pages as a fully static site** —
-  `export_static.py` precomputes every endpoint from committed parquet, no
-  server/database/secrets. Pages is enabled (build type "GitHub Actions");
-  **PR #34** carries the change and the deploy fires automatically on merge.
-  Rationale, rejected alternatives, and the
-  invalid-NaN-JSON bug the parity check caught:
-  [ADR-0012](docs/adr/0012-static-export-for-trade-bud.md). How to run it:
-  [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md).
-  URL: <https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/>
-- Open, carried: the trade-tool UI has **never been browser-verified** (API
-  shape is curl-verified; no JS runtime on the dev machine, so
-  `evaluateTradeLocal()` and every DOM path are untested code). Oldest
-  outstanding item on the project.
-- Open, unrelated: 6 pre-existing dtype-drift FAILs in bare
-  `check_data_model.py` validate mode.
+**#49 shipped 2026-08-01** (uncommitted, standing "commit only when asked"):
+decisions 4-5 (pick/player commensuration + player-side scale fix) built —
+see Shipped section below. All 5 ADR-0013 decisions now built; commensuration
+line of work is closed pending commit.
 
+### ➡ NEXT ACTION
 
-**Uncommitted** (standing "commit only when asked"): 04a/04c/04e/04f,
-`dim_position_ceiling` (new) + `fact_dynasty_ranking_metrics` /
-`fact_fantrax_adp` (updated), `discord_bot/adp.py` + `player.py`,
-`etl_helpers.fold_ranks_long` (prefix param), all of
-`mouserat_trade-bud/backend` + `export_static.py` + frontend, and this file.
+**#50** — not yet read. Next item on wayfinder map #44 after #49.
+
+Working tree: `main` @ `023ba2e` plus uncommitted #49 implementation (2 code
+files + 1 new test file + requirements.txt) and this session's doc updates.
+Stale branches `trade-bud-static-pages` and `pages-deploy-fix` both deleted.
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
@@ -118,11 +108,20 @@ dead-money measures); the singular/plural table rename
   handoff and the dual-registry/crosswalk seams. **Planning task** — grill the
   design first (identity collisions, pre-draft rows without `gsis_id`,
   downstream FKs, PBI impact).
-- [ ] Delete stale branches `trade-bud-static-pages` / `pages-deploy-fix`
-  (squash-merge leftovers, strictly behind `main`, zero unique content).
+- [x] ~~Delete stale branches `trade-bud-static-pages` / `pages-deploy-fix`~~ —
+  both deleted 2026-08-01; verified zero unique files against `main` first.
 
 ## Shipped (one-liners; full detail in ADR / MEMORY / data-model)
 
+- **Trade-bud v2 valuation model** ([ADR-0013](docs/adr/0013-trade-bud-valuation-model.md),
+  all 5 decisions built): decisions 1–3 (2026-07-31, PRs #36/#43) — sqrt-VOR
+  position ceiling `dim_position_ceiling` (04e), DraftSharks two-tree pull
+  (04f), stance routing, future-stance age tilt, pick stance scalars.
+  `player_blended_values` and `_FORMAT_BY_POSITION_GROUP` deleted. Decisions
+  4-5 (2026-08-01, #49, uncommitted) — pick/player quantile-mapping
+  commensuration (`pick_value.py`) and age-tilt-folded-into-rank so `future`
+  can't exceed 100 (`data_access.player_values`); `tests/test_pick_commensuration.py`
+  added (6 tests, both invariants x 3 stances).
 - **Trade-bud → GitHub Pages, fully static** ([ADR-0012](docs/adr/0012-static-export-for-trade-bud.md),
   2026-07-28, PRs #34/#35): `export_static.py` precomputes every endpoint from
   committed parquet — no server, database, or secrets. Live at
