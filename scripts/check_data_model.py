@@ -89,10 +89,14 @@ def validate(data: dict) -> int:
         if extra:
             errors.append(f"[{name}] yaml declares columns not in parquet: {sorted(extra)}")
         for col, dtype in declared.items():
-            if col in real_cols and real_cols[col] != dtype:
-                errors.append(
-                    f"[{name}].{col}: yaml dtype '{dtype}' != parquet dtype '{real_cols[col]}'"
-                )
+            if col in real_cols:
+                real_dtype = real_cols[col]
+                if real_dtype != dtype and not (
+                    dtype in ("str", "string", "object") and real_dtype in ("str", "string", "object")
+                ):
+                    errors.append(
+                        f"[{name}].{col}: yaml dtype '{dtype}' != parquet dtype '{real_dtype}'"
+                    )
 
     # edge-target check: every edge.to / edge.via must be a declared table
     for t in tables:

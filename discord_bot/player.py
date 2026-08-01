@@ -119,11 +119,17 @@ def build_player_embeds(cfg: Config, name: str) -> list[discord.Embed]:
     composite_adp = metrics.get(("Composite", "composite_adp"))
     adp_df = fetch_parquet(_ADP_PATH, cfg)
     fantrax_adp = None
+    # Newest capture that carries ADP, not simply the newest capture: the
+    # post-2026-07-31 Players-grid partitions have no ADP column (Fantrax
+    # retired the draft-ranking board post-draft), so an unconditional max()
+    # would silently blank this line for every player. See adp.py.
     if not adp_df.empty:
-        latest = adp_df[adp_df["capture_date"] == adp_df["capture_date"].max()]
-        hit = latest[latest["gsis_id"] == gsis]
-        if not hit.empty and not pd.isna(hit.iloc[0]["adp"]):
-            fantrax_adp = float(hit.iloc[0]["adp"])
+        with_adp = adp_df[adp_df["adp"].notna()]
+        if not with_adp.empty:
+            latest = with_adp[with_adp["capture_date"] == with_adp["capture_date"].max()]
+            hit = latest[latest["gsis_id"] == gsis]
+            if not hit.empty:
+                fantrax_adp = float(hit.iloc[0]["adp"])
 
     title = f"{p['display_name']} — {pos_group} · {render.safe_str(p['team_abbr']) or 'FA'}"
     age = _age(p.get("birth_date"))

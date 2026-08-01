@@ -122,6 +122,8 @@
   <div class="panel">
     <h2>Positional Overview (league-wide, rank of 28)</h2>
     <div class="chip-row" id="overviewFilterChips"></div>
+    <label>Valuing on</label>
+    <div class="chip-row" id="overviewStanceChips"></div>
     <div id="overviewWrap" style="overflow-x:auto;"><table id="overviewTable"><thead></thead><tbody></tbody></table></div>
   </div>
 </div>
@@ -199,9 +201,27 @@ let state = {
   cpAssets: {players: [], picks: []},
   give: [],   // assets from myTeam going to cpTeam
   receive: [], // assets from cpTeam coming to myTeam
-  overviewRows: [],
+  overviewByStance: {},  // stance key -> rows, straight from positional-league.json
+  overviewRows: [],      // the currently-selected stance's slice of the above
+  overviewStance: 'balanced',
   overviewFilter: { type: 'all', value: null } // 'all' | 'division' | 'team'
 };
+
+// Display label -> the stance key the backend values under (data_access.STANCES).
+// Contending prices off DraftSharks' redraft board, the other two off the
+// dynasty boards.
+const STANCE_KEY = { 'Contending': 'contending', 'Balanced': 'balanced', 'Future-Focused': 'future' };
+
+// Asset values arrive as {contending, balanced, future}; every read goes
+// through here so there is exactly one place that decides which stance is
+// pricing the trade. That is MY team's stance: a Pareto delta is only
+// meaningful if both sides are totalled in one currency.
+function currentStanceKey() {
+  return STANCE_KEY[(state.myProfile || {}).stance] || 'balanced';
+}
+function assetValue(a) {
+  return (a.values && a.values[currentStanceKey()]) || 0;
+}
 
 function showTab(name) {
   document.getElementById('tab-overview').style.display = name === 'overview' ? '' : 'none';
@@ -317,7 +337,15 @@ function renderOverviewFilterChips() {
     const t = state.teams.find(t => t.team_key === f.value);
     if (t) chips.push(`<div class="chip selected">${t.team_name}</div>`);
   }
+  // Surplus/need is stance-dependent -- a contender's DL depth is not a
+  // rebuilder's -- so the table says which board it is ranking on, and lets
+  // you switch without leaving the tab.
+  const stanceChips = STANCES.map(s => {
+    const k = STANCE_KEY[s];
+    return `<div class="chip ${k === state.overviewStance ? 'selected' : ''}" onclick="setOverviewStance('${k}')">${s}</div>`;
+  }).join('');
   document.getElementById('overviewFilterChips').innerHTML = chips.join('');
+  document.getElementById('overviewStanceChips').innerHTML = stanceChips;
 }
 
 function setOverviewFilter(type, value) {
@@ -326,10 +354,19 @@ function setOverviewFilter(type, value) {
   renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
 }
 
-async function loadOverview() {
-  state.overviewRows = await api('/positional-strength/league');
+function setOverviewStance(stanceKey) {
+  state.overviewStance = stanceKey;
+  state.overviewRows = state.overviewByStance[stanceKey] || [];
   renderOverviewFilterChips();
   renderOverviewTable('overviewTable', state.overviewRows, state.teams.map(t => t.team_key));
+  renderTwoTeamOverview();
+}
+
+async function loadOverview() {
+  // positional-league.json is keyed by stance since the valuation redesign;
+  // all three ship in one file so switching costs no round trip.
+  state.overviewByStance = await api('/positional-strength/league');
+  setOverviewStance(state.overviewStance);
 }
 
 // Shared renderer: league-wide table uses every team_key; the two-team matchup
@@ -483,6 +520,15 @@ function setStance(mode, stance) {
   const p = mode === 'my' ? state.myProfile : state.cpProfile;
   p.stance = stance;
   renderProfile(mode, p);
+  // My stance is the one that prices the trade (see assetValue), so changing
+  // it has to re-render every value on screen, not just the profile card. The
+  // counterparty's stance is a read on THEM -- it moves no numbers.
+  if (mode === 'my') {
+    setOverviewStance(STANCE_KEY[stance] || 'balanced');
+    renderAssetLists();
+    renderBaskets();
+    evaluateTrade();
+  }
 }
 
 async function loadProfile(mode) {
@@ -491,6 +537,10 @@ async function loadProfile(mode) {
   const profile = await api(`/teams/${teamKey}/profile?mode=${mode}`);
   if (mode === 'my') state.myProfile = profile; else state.cpProfile = profile;
   renderProfile(mode, profile);
+  // The inferred stance is what prices the trade, and it arrives after the
+  // asset tables may already have painted under the 'balanced' default --
+  // re-run the same repricing an explicit stance click would.
+  if (mode === 'my') setStance('my', profile.stance);
 }
 
 const fmtSalary = v => v == null ? '-' : '$' + Math.round(v).toLocaleString();
@@ -507,7 +557,7 @@ const ASSET_COLS = [
   { key: 'Pos', get: a => assetPosition(a), sort: (a, b) => a.side_of_ball_sort_order - b.side_of_ball_sort_order || a.position_sort_order - b.position_sort_order },
   { key: 'Age', get: a => a.age != null ? a.age.toFixed(1) : '-', sort: (a, b) => (a.age ?? Infinity) - (b.age ?? Infinity) },
   { key: 'Salary', get: a => fmtSalary(a.cap_hit), sort: (a, b) => (a.cap_hit ?? 0) - (b.cap_hit ?? 0) },
-  { key: 'Value', get: a => a.value.toFixed(1), sort: (a, b) => a.value - b.value },
+  { key: 'Value', get: a => assetValue(a).toFixed(1), sort: (a, b) => assetValue(a) - assetValue(b) },
 ];
 
 let assetSort = { give: { col: 'Value', dir: -1 }, receive: { col: 'Value', dir: -1 } };
@@ -562,7 +612,7 @@ function renderBaskets() {
           const name = a.asset_type === 'player'
             ? `${a.name}${a.age != null ? ' (age ' + a.age.toFixed(1) + ')' : ''}`
             : `${a.draft_season} R${a.round}`;
-          return `<div class="basket-item"><span>${name} — ${fmtSalary(a.cap_hit)} (${a.value.toFixed(1)})</span>
+          return `<div class="basket-item"><span>${name} — ${fmtSalary(a.cap_hit)} (${assetValue(a).toFixed(1)})</span>
             <span class="x" onclick="removeAsset('${basketId === 'giveBasket' ? 'give' : 'receive'}','${a.asset_id}')">✕</span></div>`;
         }).join('')
       : '<span style="color:var(--muted)">empty</span>';
@@ -614,9 +664,10 @@ function renderCapCards() {
 }
 
 // Mirrors pareto.evaluate_trade() -- the summation half only. Every asset's
-// `value` was computed in Python by pareto.asset_value() and shipped in the
-// assets payload, so this duplicates no valuation logic; it adds the same
-// numbers the endpoint added. Keep in step with backend/pareto.py:45-70.
+// per-stance `values` were computed in Python by pareto.asset_value() and
+// shipped in the assets payload, so this duplicates no valuation logic; it
+// adds the same numbers the endpoint added, under the stance selected by
+// assetValue(). Keep in step with backend/pareto.py.
 function evaluateTradeLocal() {
   const myTeam = state.teams.find(t => t.team_key === state.myTeam);
   const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
@@ -627,7 +678,7 @@ function evaluateTradeLocal() {
   if (myTeam && cpTeam && myTeam.conference !== cpTeam.conference) {
     return { error: 'Trades are only allowed within a conference.' };
   }
-  const sum = assets => assets.reduce((acc, a) => acc + (a.value || 0), 0);
+  const sum = assets => assets.reduce((acc, a) => acc + assetValue(a), 0);
   const give_total = sum(state.give);
   const receive_total = sum(state.receive);
   const delta = receive_total - give_total;

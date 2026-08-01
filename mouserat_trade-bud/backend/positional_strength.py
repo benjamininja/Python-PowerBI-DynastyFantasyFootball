@@ -1,16 +1,16 @@
 """Per-team, per-position strength ranking -- the football analog of the
 baseball reference app's rotisserie category-gap table (decision #4).
 
-One ranking axis per position: teams are ranked 1..N by average blended
-dynasty value of their rostered players at that position. Rank near 1 =
-surplus (sell-high candidate), rank near N = need -- one ranking serves
-both, no separate surplus computation.
+One ranking axis per position: teams are ranked 1..N by average value of
+their rostered players at that position. Rank near 1 = surplus (sell-high
+candidate), rank near N = need -- one ranking serves both, no separate
+surplus computation.
 
-Offense positions use format SF (this league's base dynasty format);
-IDP positions (DL/LB/DB) use format IDP, which is FantasyPros-only --
-mirrors discord_bot/rankings.py's established per-format scoping (no single
-format+source spans both offense and IDP, confirmed in that module's
-docstring).
+All seven positions are computed in a single stance-scoped pass.
+data_access.player_values already scores every position group on one currency
+(position ceiling x within-position percentile), so the old split into an SF
+offense pass and an IDP pass -- which produced two incomparable scales and
+made a DL rank mean something different from a WR rank -- is gone.
 """
 
 from __future__ import annotations
@@ -19,10 +19,7 @@ import pandas as pd
 
 import data_access as da
 
-_OFFENSE_POSITIONS = ["QB", "RB", "WR", "TE"]
-_IDP_POSITIONS = ["DL", "LB", "DB"]
-_OFFENSE_FORMAT = "SF"
-_IDP_FORMAT = "IDP"
+_POSITIONS = ["QB", "RB", "WR", "TE", "DL", "LB", "DB"]
 
 
 def _position_sort_order() -> pd.DataFrame:
@@ -63,20 +60,20 @@ def _multi_position_counts(positions: list[str]) -> pd.DataFrame:
     )
 
 
-def _team_position_strength(fmt: str, positions: list[str]) -> pd.DataFrame:
+def _team_position_strength(stance: str, positions: list[str]) -> pd.DataFrame:
     roster = da.read_parquet("fact_fantasy_teams")
     players = da.read_parquet("dim_nfl_players")[["gsis_id", "position_group"]]
-    values = da.player_blended_values(fmt)
+    values = da.player_values(stance)[["gsis_id", "value"]]
     all_team_keys = da.read_parquet("dim_fantasy_teams")["team_key"].unique()
 
     r = roster.merge(players, on="gsis_id", how="left").merge(
         values, on="gsis_id", how="left"
     )
     r = r[r["position_group"].isin(positions)].copy()
-    r["blended_value"] = r["blended_value"].fillna(0)
+    r["value"] = r["value"].fillna(0)
 
     agg = (
-        r.groupby(["team_key", "position_group"])["blended_value"]
+        r.groupby(["team_key", "position_group"])["value"]
         .mean()
         .rename("avg_value")
         .reset_index()
@@ -117,20 +114,18 @@ def _label(rank: int, n_teams: int) -> str:
     return "neutral"
 
 
-def league_positional_strength() -> pd.DataFrame:
+def league_positional_strength(stance: str = "balanced") -> pd.DataFrame:
     """All teams x all positions -- computed once, sliced per-team by
     callers so the league-wide ranks stay consistent across requests."""
-    offense = _team_position_strength(_OFFENSE_FORMAT, _OFFENSE_POSITIONS)
-    idp = _team_position_strength(_IDP_FORMAT, _IDP_POSITIONS)
-    combined = pd.concat([offense, idp], ignore_index=True)
+    combined = _team_position_strength(stance, _POSITIONS)
     combined["label"] = combined.apply(
         lambda r: _label(int(r["rank"]), int(r["n_teams"])), axis=1
     )
     return combined
 
 
-def positional_strength(team_key: str) -> list[dict]:
-    combined = league_positional_strength()
+def positional_strength(team_key: str, stance: str = "balanced") -> list[dict]:
+    combined = league_positional_strength(stance)
     mine = combined[combined["team_key"] == team_key].sort_values(
         ["side_of_ball_sort_order", "position_sort_order"]
     )

@@ -2,9 +2,19 @@
 # # 04a_fantrax_weekly_scrape  (Playwright, weekly)
 #
 # **Purpose:** Authenticate to Fantrax via a headless browser and pull the full
-# draft-ranking board (`getDraftRanks`) as a weekly snapshot for league
-# `v744203wmmvjqzv6`. Replaces the dead UI export (disabled for duplicate-player
-# leagues) and the brittle pasted-cookie approach.
+# active-roster player universe from the Players grid (`getPlayerStats`) as a
+# weekly snapshot for league `v744203wmmvjqzv6`. Replaces the dead UI export
+# (disabled for duplicate-player leagues) and the brittle pasted-cookie approach.
+#
+# **Retired 2026-07-31 — the `getDraftRanks` board.** Fantrax kills that method
+# once the startup draft completes ("The draft has already been completed"), and
+# its parser (`extract_ranked_board`) was asymmetric anyway: it kept offense only
+# where Fantrax's *global* (offense-only, redraft) ADP was non-null while keeping
+# every rostered IDP, so the fact carried 39 QBs / 38 TEs against a true universe
+# of 119 / 192. The Players grid applies one active-roster filter to both sides
+# of the ball. `main_snapshot` is the live entry point; `main_scrape` /
+# `extract_ranked_board` / `board_to_frame` survive for replay of archived raw
+# JSON only.
 #
 # **Auth model:** Playwright persistent context. Log in ONCE (headful first run,
 # to clear any Cloudflare/captcha); the session is stored in a user-data dir and
@@ -18,22 +28,27 @@
 # getPlayerStats YTD actuals (incl. GP) into the season's "YTD" partition.
 #
 # **Outputs:**
-# - `data/raw/fantrax_draftranks_{season}_wk{NN}.json` — verbatim API response (audit/replay)
-# - `data/fact_fantrax_adp.parquet` — parsed weekly board; grain = scorer_id x season x week.
+# - `data/raw/fantrax_playerstats_{season}_wk{NN}.json` — verbatim paged API
+#   responses (audit/replay)
+# - `data/fact_fantrax_adp.parquet` — grain = scorer_id x season x week.
 #   Columns include overall_rank (Fantrax "Rk"), adp, salary, fpts, fpts_per_game,
-#   age, percent_drafted. fpts/fpts_per_game are PHASE-AWARE: season projections
-#   preseason, YTD actuals once the season starts (resolve_season_or_projection).
+#   games_played, age, percent_drafted. fpts/fpts_per_game are PHASE-AWARE: season
+#   projections preseason, YTD actuals once the season starts
+#   (resolve_season_or_projection). `adp`/`percent_drafted` are null for anyone
+#   outside Fantrax's offense-only global ADP set — that is expected, not a gap.
 #
-# **Stats not on this board:** games-played and the per-stat splits live only on the
-# Players grid (method `getPlayerStats`, miscDisplayType=1, paged maxResultsPerPage
-# up to 500). Validated for a future in-season GP/splits pull; not wired in yet.
+# **Truncation alarm:** `check_universe` gates the load on per-position minimums
+# (`MIN_ACTIVE_BY_POS`). A short pull raises instead of writing — a truncated
+# offense pool silently corrupts every value-over-replacement computation
+# downstream, which is the failure this notebook already shipped once.
 #
 # **Identity:** rows key on Fantrax `scorer_id`; `gsis_id` / `player_key` are joined
 # from dim_fantrax_crosswalk (built by 04z). `age` is derived from dim_nfl_players
 # via the crosswalk gsis_id — it's a registry attribute, not a board field.
 #
-# **Pipeline (one notebook, E+T+L):** scrape -> write raw JSON -> parse the ADP'd
-# board (~280 of ~8600) -> append to the parquet fact, dedup on [scorer_id, season, week].
+# **Pipeline (one notebook, E+T+L):** scrape paged grid -> write raw JSON ->
+# parse active-roster rows (~2,300 of ~8,600) -> gate on MIN_ACTIVE_BY_POS ->
+# replace-by-(season, week) into the parquet fact.
 #
 # **Setup:**
 #   pip install playwright python-dotenv && playwright install chromium
@@ -66,10 +81,18 @@ class LeagueConfig:
     ui_version: int = 3
     api_version: str = "182.4.8"          # 'v' field; bump when Fantrax updates UI
     timezone: str = "America/Chicago"
+    # refUrl for the RETIRED getDraftRanks call (see main_scrape). Kept only so
+    # the dead code still reads coherently; nothing live sends it.
     ref_url: str = (
         "https://www.fantrax.com/fantasy/league/v744203wmmvjqzv6/draft-ranking;"
         "seasonOrProjection=SEASON_23l_YEAR_TO_DATE?sortKey=ADP&sortDir=-1"
         "&rookie=false&view=RANKING&groupId=1010&posId="
+    )
+    # refUrl for the live Players-grid call (getPlayerStats). This is the page
+    # the grid is actually rendered from, so it's what the real UI sends.
+    players_ref_url: str = (
+        "https://www.fantrax.com/fantasy/league/v744203wmmvjqzv6/players;"
+        "statusOrTeamFilter=ALL;miscDisplayType=1;pageNumber=1"
     )
     # --- Playwright / auth ---
     user_data_dir: str = "data/.pw_profile"   # persistent session lives here (gitignore)
@@ -93,6 +116,10 @@ class LeagueConfig:
     players_page_size: int = 500
     players_misc_display: str = "1"                          # detailed view -> splits + GP
     players_pos_groups: tuple = ("FOOTBALL_OFFENSE", "FOOTBALL_DEFENSE")
+    # timeframeTypeCode for the grid. The projection vs actuals choice is
+    # carried by seasonOrProjection, not by this -- YEAR_TO_DATE is what the
+    # UI sends for both.
+    grid_timeframe: str = "YEAR_TO_DATE"
     # --- Heuristics ---
     min_expected_rows: int = 50
 
@@ -283,7 +310,7 @@ class FantraxScraper:
                 "seasonOrProjection": season_code,
                 "timeframeTypeCode": timeframe,
             }}],
-            "uiv": self.cfg.ui_version, "refUrl": self.cfg.ref_url,
+            "uiv": self.cfg.ui_version, "refUrl": self.cfg.players_ref_url,
             "dt": 0, "at": 0, "tz": self.cfg.timezone, "v": self.cfg.api_version,
         }
 
@@ -414,6 +441,27 @@ def _is_idp(scorer: dict) -> bool:
 
 def extract_ranked_board(raw: dict) -> list[dict]:
     """
+    RETIRED 2026-07-31 — unreachable, and it was silently lossy.
+
+    Dead because `getDraftRanks` itself is dead: once the startup draft
+    completed, Fantrax answers it with "The draft has already been completed,
+    thus you can no longer access this page" (see
+    data/raw/fantrax_draftranks_2026_wkPRE.json). Nothing can call this.
+
+    It was also asymmetric, which is why fact_fantrax_adp shipped a truncated
+    offense universe for two months: offense survives the filter below only if
+    it has a non-null Fantrax GLOBAL ADP -- and that ADP is offense-only
+    redraft demand, ~282 players -- while IDP survives on active-roster status
+    alone. Result: 1,374 IDP + 282 offense, i.e. 39 QBs and 38 TEs against a
+    true active-roster universe of 119 and 192. Any value-over-replacement
+    computation on that is nonsense for offense and fine for IDP.
+
+    The live replacement is the Players grid (`getPlayerStats`) via
+    fetch_player_stats + player_stats_to_frame, which applies the SAME
+    active-roster filter to both sides of the ball. See main_snapshot.
+
+    Original docstring follows.
+
     Return the full board for this league: offense players with non-null ADP
     (Fantrax global ADP is offense-only) PLUS IDP players on real NFL rosters.
 
@@ -655,8 +703,81 @@ def load_fact(df: pd.DataFrame, cfg: LeagueConfig = CFG) -> str:
 
 # %%
 # ---- Main -------------------------------------------------------------------
+# Minimum active-roster rows per position group expected from the Players grid,
+# used as a truncation alarm. Floors, not targets -- measured against the
+# captured 2025 YTD grid (QB 119, TE 192, WR 379, RB 206, DB 558, DL 420,
+# LB 334). If a pull comes in under these, the response was filtered or paged
+# short and MUST NOT be loaded: a truncated offense pool is exactly the bug
+# that retired extract_ranked_board.
+MIN_ACTIVE_BY_POS = {"QB": 100, "RB": 180, "WR": 330, "TE": 165,
+                     "DL": 380, "LB": 300, "DB": 500}
+
+
+def check_universe(df: pd.DataFrame, minimums: dict = None) -> dict:
+    """Per-position active-roster counts + a pass/fail verdict per position.
+
+    position_raw carries multi-eligibility strings ("DL,LB", "WR,DB"); count a
+    player under every position they're eligible at, since that's how they're
+    available to a roster slot.
+    """
+    minimums = MIN_ACTIVE_BY_POS if minimums is None else minimums
+    counts = (df["position_raw"].fillna("").str.split(",")
+              .explode().str.strip().value_counts().to_dict())
+    return {p: (counts.get(p, 0), n, counts.get(p, 0) >= n)
+            for p, n in sorted(minimums.items())}
+
+
+def snapshot_player_stats(cfg: LeagueConfig = CFG) -> pd.DataFrame:
+    """Live weekly snapshot: the full active-roster universe from the Players grid.
+
+    Replaces the retired getDraftRanks board (see extract_ranked_board). Writes
+    the same (season, week) partition the board used to, via load_fact's
+    replace-by-(season, week), so the truncated rows are fully displaced rather
+    than merged with.
+
+    Phase-aware exactly as before: preseason -> season projection, in-season ->
+    YTD actuals (resolve_season_or_projection).
+    """
+    week = derive_week_label(cfg)
+    season_code = resolve_season_or_projection(cfg)
+    label = f"{cfg.snapshot_season}_wk{week}"
+    responses = FantraxScraper(cfg).fetch_player_stats(
+        season_code, cfg.grid_timeframe, label)
+    df = player_stats_to_frame(responses, cfg, cfg.snapshot_season, week)
+    return df
+
+
+def main_snapshot() -> None:
+    """Default action: full-universe Players-grid snapshot for the current week."""
+    df = snapshot_player_stats(CFG)
+
+    print(f"\n[info] {len(df)} active-roster rows "
+          f"(season={CFG.snapshot_season} week={derive_week_label(CFG)})")
+    verdict = check_universe(df)
+    for pos, (got, want, ok) in verdict.items():
+        print(f"  {'ok ' if ok else 'LOW'} {pos:3} {got:5}  (>= {want})")
+
+    if not all(ok for _, _, ok in verdict.values()):
+        raise RuntimeError(
+            "Player universe came in short -- refusing to load a truncated "
+            "snapshot. Most likely the projection seasonOrProjection code is "
+            "not valid for getPlayerStats; re-run with --season-code to pin a "
+            "code from the response's seasonOrProjections list, or fall back "
+            "to actuals via --backfill-gp --season 2025."
+        )
+
+    fact_path = load_fact(df)
+    total_fact = len(pd.read_parquet(fact_path))
+    print(f"[ok] snapshot {len(df)} rows -> {fact_path} ({total_fact} total in fact)")
+    print("[next] re-run 04z_fantrax_crosswalk: the grid exposes offense "
+          "scorer_ids the ADP-filtered board never showed, so they have no "
+          "gsis_id yet.")
+
+
 def main_scrape() -> None:
-    """Default action: weekly draft-ranking board snapshot."""
+    """RETIRED 2026-07-31 -- getDraftRanks is dead post-draft, and this path
+    loaded a 3-5x truncated offense pool. See extract_ranked_board. Kept for
+    replay against archived raw JSON only; main_snapshot is the live path."""
     raw = FantraxScraper(CFG).fetch()
     print("\n=== RESPONSE SCHEMA ===")
     summarize_schema(raw)
@@ -680,12 +801,18 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description="Fantrax weekly scrape")
     ap.add_argument("--backfill-gp", action="store_true",
-                    help="pull getPlayerStats YTD actuals (incl. GP) instead of "
-                         "the draft board; in-season GP monitoring")
+                    help="pull a completed season's YTD actuals into that "
+                         "season's rolling 'YTD' partition (incl. GP)")
     ap.add_argument("--season", type=int, default=CFG.snapshot_season,
                     help="with --backfill-gp: season to backfill "
                          "(default: current snapshot season, live YTD)")
+    ap.add_argument("--season-code",
+                    help="override seasonOrProjection for the weekly snapshot "
+                         "(pin a code from the response's seasonOrProjections "
+                         "list if the phase-aware default is rejected)")
     args = ap.parse_args()
+    if args.season_code:
+        CFG.projection_code = CFG.ytd_code = args.season_code
     if args.backfill_gp:
         # Current season uses the live YTD code; completed seasons come from
         # YTD_SEASON_CODES (extend that map when Fantrax mints a new code).
@@ -696,4 +823,4 @@ if __name__ == "__main__":
             else YTD_SEASON_CODES[args.season]
         backfill_player_stats(CFG, args.season, week="YTD", season_code=code)
     else:
-        main_scrape()
+        main_snapshot()

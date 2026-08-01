@@ -562,14 +562,25 @@ ZERO_IS_MISSING = {"ktc_adp", "startup_adp"}
 
 def fold_ranks_long(df, source_col="source_name",
                     rank_cols=("overall_rank", "positional_rank"),
-                    id_cols=("source_name", "source_player_id", "format", "source_uid")):
+                    id_cols=("source_name", "source_player_id", "format", "source_uid"),
+                    prefix=None):
     """Melt wide overall/positional rank columns into source-prefixed EAV rows
     (metric_key/metric_num/metric_text), the shape the single dynasty fact expects.
     `metric_key` becomes e.g. ``ds_overall_rank`` via SOURCE_PREFIX. Rows with a
-    null rank are dropped. Shared by 04b/04x so the fold lives in one place."""
+    null rank are dropped. Shared by 04b/04x so the fold lives in one place.
+
+    `prefix` overrides the SOURCE_PREFIX lookup with a literal. Needed when one
+    source publishes more than one ranking tree and each tree needs its own
+    metric_keys: DraftSharks ships a dynasty board and a redraft board (04f),
+    which land as ``ds_*`` and ``dsr_*`` under the single source_name
+    "DynastySharks". That keeps the functional dependency the model relies on —
+    each metric_key maps to exactly ONE source_name, so source can live on
+    dim_dynasty_metric rather than on the fact.
+    """
     long = df.melt(id_vars=list(id_cols), value_vars=list(rank_cols),
                    var_name="metric_key", value_name="metric_num").dropna(subset=["metric_num"])
-    long["metric_key"] = long[source_col].map(SOURCE_PREFIX) + "_" + long["metric_key"]
+    pre = prefix if prefix is not None else long[source_col].map(SOURCE_PREFIX)
+    long["metric_key"] = pre + "_" + long["metric_key"]
     long["metric_num"] = long["metric_num"].astype(float)
     long["metric_text"] = None
     return long

@@ -40,8 +40,11 @@ desktop.ini
 *.swo
 .vscode/settings.json
 # Claude Code per-developer local settings (permissions allowlist etc.) — not shared.
+.claude/settings.json
 .claude/settings.local.json
 .claude/learnings.db
+pbi/.claude/
+Prompts.txt
 
 # ── mouserat_trade-bud static site build output ───────────────────────────────
 # Regenerated from committed parquet by export_static.py (and by the Pages

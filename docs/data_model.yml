@@ -190,6 +190,33 @@ tables:
       - { name: value, dtype: float64 }
     edges: []
 
+  - name: dim_position_ceiling
+    type: dim
+    grain: "(snapshot_date, conference, position_group)"
+    columns:
+      - { name: snapshot_date, dtype: "datetime64[us]" }
+      - { name: conference, dtype: str }
+      - { name: position_group, dtype: str }
+      - { name: pool_size, dtype: int64 }
+      - { name: n_rostered, dtype: float64 }
+      - { name: n_free_agents, dtype: float64 }
+      - { name: max_fpts, dtype: float64 }
+      - { name: replacement_fpts, dtype: float64 }
+      - { name: best_free_agent, dtype: str }
+      - { name: vor, dtype: float64 }
+      - { name: ceiling, dtype: float64 }
+      - { name: source_season, dtype: int64 }
+      - { name: source_week, dtype: str }
+    edges: []
+    notes: >
+      Cross-position scarcity multiplier for mouserat_trade-bud. VOR =
+      max_fpts - replacement_fpts, where replacement is the best free agent
+      at that position (opportunity cost), computed per 14-team conference
+      because the two conferences are separate player pools. conference =
+      "ALL" averages the two conferences' vor before rescaling to top = 100,
+      and is the row the app reads. position_group is normalized through
+      dim_position; not a key join, so no edge.
+
   - name: fact_draft_pick
     type: fact
     grain: pick_ref
@@ -486,7 +513,7 @@ tables:
       - { name: percent_drafted, dtype: float64 }
       - { name: fpts, dtype: float64 }
       - { name: fpts_per_game, dtype: float64 }
-      - { name: games_played, dtype: object }
+      - { name: games_played, dtype: float64 }
       - { name: age, dtype: float64 }
       - { name: gsis_id, dtype: str }
       - { name: player_key, dtype: str }
