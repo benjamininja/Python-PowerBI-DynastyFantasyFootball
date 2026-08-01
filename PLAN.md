@@ -9,25 +9,22 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
-## [ ] ACTIVE — trade-bud: wayfinder map #44
+## [x] CLOSED — trade-bud: wayfinder map #44 (2026-08-01)
 
 **Tracker: [wayfinder map #44](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/44)** —
-this is the live status board for this workstream; PLAN.md only summarizes it.
-Full design detail: [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md),
+closed. All 5 ADR-0013 decisions built and doc-truthed; #49 (implementation)
+and #50 (doc truth-up) both closed. Full design detail:
+[ADR-0013](docs/adr/0013-trade-bud-valuation-model.md),
 [trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md).
 
-**#49 shipped 2026-08-01** (uncommitted, standing "commit only when asked"):
-decisions 4-5 (pick/player commensuration + player-side scale fix) built —
-see Shipped section below. All 5 ADR-0013 decisions now built; commensuration
-line of work is closed pending commit.
+Shipped in commit `32eacc9` on `main`: decisions 4-5 (pick/player
+commensuration + player-side scale fix) + doc truth-up (ADR-0013, CONTEXT.md,
+memory, this file) in one commit, not pushed yet. Stale branches
+`trade-bud-static-pages` and `pages-deploy-fix` both deleted.
 
 ### ➡ NEXT ACTION
 
-**#50** — not yet read. Next item on wayfinder map #44 after #49.
-
-Working tree: `main` @ `023ba2e` plus uncommitted #49 implementation (2 code
-files + 1 new test file + requirements.txt) and this session's doc updates.
-Stale branches `trade-bud-static-pages` and `pages-deploy-fix` both deleted.
+None queued for trade-bud. See "➡ NEXT" below for the rest of the backlog.
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
