@@ -9,10 +9,10 @@ league_router = APIRouter(prefix="/positional-strength", tags=["positional-stren
 
 
 @router.get("/{team_key}/positional-strength")
-def team_positional_strength(team_key: str) -> list[dict]:
-    return ps.positional_strength(team_key)
+def team_positional_strength(team_key: str, stance: str = "balanced") -> list[dict]:
+    return ps.positional_strength(team_key, stance)
 
 
 @league_router.get("/league")
-def league_positional_strength() -> list[dict]:
-    return ps.league_positional_strength().to_dict(orient="records")
+def league_positional_strength(stance: str = "balanced") -> list[dict]:
+    return ps.league_positional_strength(stance).to_dict(orient="records")

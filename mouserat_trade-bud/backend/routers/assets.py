@@ -7,15 +7,24 @@ import pandas as pd
 from fastapi import APIRouter
 
 import data_access as da
-import pareto
 import pick_value as pv
 
 router = APIRouter(prefix="/teams", tags=["assets"])
 
-_FORMAT_BY_POSITION_GROUP = {
-    "QB": "SF", "RB": "SF", "WR": "SF", "TE": "SF",
-    "DL": "IDP", "LB": "IDP", "DB": "IDP",
-}
+
+def _values_by_stance() -> dict[str, dict[str, float]]:
+    """{stance: {gsis_id: value}} for all three stances.
+
+    Built once per request rather than calling pareto.asset_value per player:
+    that helper re-derives the whole league's valuation for a single lookup,
+    which is fine for a trade of a few assets but quadratic over a 45-man
+    roster x 3 stances.
+    """
+    return {
+        stance: dict(zip(v["gsis_id"], v["value"]))
+        for stance in da.STANCES
+        for v in [da.player_values(stance)]
+    }
 
 
 def _position_sort_order() -> pd.DataFrame:
@@ -41,6 +50,7 @@ def team_assets(team_key: str) -> dict:
     crosswalk = da.read_parquet("dim_fantrax_crosswalk")[["gsis_id", "position_raw"]].drop_duplicates("gsis_id")
     roster = roster.merge(crosswalk, on="gsis_id", how="left")
     sort_order = _position_sort_order()
+    values = _values_by_stance()
 
     players_out = []
     for _, r in roster.iterrows():
@@ -67,7 +77,11 @@ def team_assets(team_key: str) -> dict:
                 "cap_exempt": bool(r.get("cap_exempt")),
                 "roster_status": r.get("roster_status"),
                 "age": da.player_age(r["gsis_id"], players=players_dim),
-                "value": pareto.asset_value("player", r["gsis_id"]),
+                # One value per stance -- the static export ships all three so
+                # the stance chips switch instantly with no refetch.
+                "values": {
+                    s: float(values[s].get(r["gsis_id"], 0.0)) for s in da.STANCES
+                },
             }
         )
 
@@ -78,6 +92,7 @@ def team_assets(team_key: str) -> dict:
     pick_sort = sort_order.reindex(["Pick"]).iloc[0]
     picks_out = []
     for _, r in tradeable_picks.iterrows():
+        pick_vals = {s: pv.value_for_pick_row(r, inv, s) for s in da.STANCES}
         picks_out.append(
             {
                 "asset_type": "pick",
@@ -89,7 +104,10 @@ def team_assets(team_key: str) -> dict:
                 "position_sort_order": int(pick_sort["position_sort_order"]),
                 "cap_hit": 0.0,
                 "cap_exempt": True,
-                "value": pv.value_for_pick_row(r, inv),
+                # Same shape as a player asset so the frontend has one value
+                # accessor. A pick has no board to choose between, so the
+                # stance enters as a scalar (pick_value._STANCE_SCALAR).
+                "values": pick_vals,
             }
         )
 

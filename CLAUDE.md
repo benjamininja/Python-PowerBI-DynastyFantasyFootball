@@ -14,12 +14,19 @@ Two memory stores, different scopes:
 
 - **`.claude/memory/` (this repo, project-specific)** — moved here 2026-06-13
   from the global store:
+  - [MEMORY.md](.claude/memory/MEMORY.md) — project state index
   - [data-model.md](.claude/memory/data-model.md) — full star-schema, table
     grains, dynasty single-EAV-fact design, pipelines
   - [powerbi-semantic-model.md](.claude/memory/powerbi-semantic-model.md) —
     TMDL naming, rename cascade, Prep-for-AI gates, dynasty measures
   - [project-fantasy-football.md](.claude/memory/project-fantasy-football.md) —
     league context, notebook inventory, source registries, branch/secret state
+  - [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md) — trade-bud tool
+    architecture, static exporter, Pareto engine
+  - [trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md) — valuation engine,
+    sqrt VOR position ceiling (`dim_position_ceiling`), age tilt, stance scalars
+  - [fantrax-players-grid.md](.claude/memory/fantrax-players-grid.md) — Fantrax API
+    `getPlayerStats` grid capture design
 - **`C:\Users\benha\.claude\memory\` (global, cross-project)**:
   - `preferences.md` — working style: caveman lite, grill-me before code,
     `AskUserQuestion` for design decisions, `.ipynb`-only notebooks, git/TMDL
@@ -60,6 +67,11 @@ the parquet alone.
   `metric_key` maps to exactly **one** `source_name` (the FD that lets source
   live in `dim_dynasty_metric`, not on the fact). See data-model.md before
   adding/renaming any `metric_key`.
+- **Valuation model & stance routing**: Trade-bud valuations are stance-scoped
+  (`contending` / `balanced` / `future`). Position scarcity uses `dim_position_ceiling`
+  (`ceiling = sqrt(VOR)` rescaled to top = 100); Future-Focused applies an age tilt
+  `clip(1 + (26 - age) * 0.03, 0.70, 1.20)`; draft picks receive stance scalars
+  (contending 0.85, balanced 1.00, future 1.25). See `trade-bud-valuation.md`.
 - **Transformer tables** (`dim_position`, `dim_school`): every notebook
   touching position/school joins these. Add a row for a new raw value — never
   add if/else downstream.

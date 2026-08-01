@@ -84,3 +84,28 @@ The team/owner registry — names, abbreviations, manager contacts, and the
 team_key ↔ Fantrax pairing. Fantrax is its upstream source of truth; the league
 Google Sheet is a field-scoped synced mirror.
 _Avoid_: roster (that's players on a team), team list
+
+### Valuation & trade diagnostic
+
+**Stance**:
+A manager's strategic orientation (`contending`, `balanced`, `future`) that
+selects valuation boards, age multiplier curves, and draft pick scalars in
+`mouserat_trade-bud`.
+_Avoid_: mode, phase, team state
+
+**Position Ceiling**:
+The positional scarcity multiplier derived per-conference from replacement-level
+VOR (`ceiling = sqrt(max_fpts - replacement_fpts)` rescaled top = 100) to balance
+offensive and IDP asset values without inflating overall rankings.
+_Avoid_: position weight, tier multiplier
+
+**Pick Stance Scalar**:
+A stance-specific multiplier (`contending` 0.85, `balanced` 1.00, `future` 1.25)
+applied to draft pick curves to reflect temporal team goals.
+_Avoid_: pick tax, pick bump
+
+**Commensuration**:
+Mapping player and draft pick market values into a single, unified 0–100 point
+currency by anchoring to top-tier player KeepTradeCut (KTC) points.
+_Avoid_: dual scale, uncalibrated sum
+
