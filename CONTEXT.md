@@ -105,7 +105,13 @@ applied to draft pick curves to reflect temporal team goals.
 _Avoid_: pick tax, pick bump
 
 **Commensuration**:
-Mapping player and draft pick market values into a single, unified 0–100 point
-currency by anchoring to top-tier player KeepTradeCut (KTC) points.
+Mapping player and draft pick values onto one currency, so a mixed package can
+be summed at all. A source that quotes both in the same native units (KTC's
+`value`, DraftSharks' `ds_value`) is what makes it possible. **Built
+2026-08-01 (#49)**: a pick's percentile within its source's covered player
+pool maps onto our-scale player value at that same percentile (quantile
+mapping), clamped at the anchoring pool's own max; players fold their
+age tilt into the rank pre-ceiling instead of the finished value. Both are
+now capped at 100 by construction. ADR-0013 decisions 4-5.
 _Avoid_: dual scale, uncalibrated sum
 
