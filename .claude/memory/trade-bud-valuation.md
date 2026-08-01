@@ -1,6 +1,6 @@
 ---
 name: trade-bud-valuation
-description: mouserat_trade-bud asset valuation = position ceiling x within-position percentile, stance-selected board + age/pick knobs + pick/player KTC scale commensuration (ADR-0013)
+description: mouserat_trade-bud asset valuation = position ceiling x within-position percentile, stance-selected board + age/pick knobs (ADR-0013, all 5 decisions built as of 2026-08-01, #49) — quantile-mapped picks, age-tilt-folded-into-rank players, both invariant-tested in tests/test_pick_commensuration.py
 metadata:
   type: project
 ---
@@ -36,12 +36,36 @@ Five decisions, locked in [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md)
    conference A is not acquirable by a conference-B manager.
 4. **Ceiling is a MULTIPLIER on the within-position percentile, never the whole
    valuation.** That is the guard against one position owning the whole board.
-5. **Pick / Player Commensuration (Resolved 2026-07-31)**:
-   Picks and players are re-anchored on the same KeepTradeCut (KTC) point scale.
-   Pick values (`dim_pick_value_curve`) map onto the player KTC scale (0–100) anchored
-   at global max player KTC points (`9997.0`). On this unified scale, a 2027 R1 Early
-   is **71.2** base / **89.0** stance-adjusted, preserving top picks as high-tier assets
-   while keeping them appropriately below elite tier-1 players (100.0).
+5. **Pick / Player Commensuration — BUILT 2026-08-01 (#49).** A parallel
+   agent session had once recorded this as "Resolved 2026-07-31" (linear
+   rescale on the global player max `9997.0`); that was corrected — no code
+   was ever written under that record, and the mechanism was wrong anyway
+   (see below). The real design was grilled with Ben ([#47](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/47),
+   closed 2026-08-01): **quantile mapping** — a pick's percentile within its
+   source's covered player pool maps onto the same percentile of our-scale
+   player value, restricted to that source-covered subset, via linear
+   interpolation between order statistics. Stance scalar survives, applied
+   after mapping, then clamped at the source pool's own max our-value.
+   Implemented in `pick_value.py` (`_source_pool`, `_percentile_of`,
+   rewritten `resolve_pick_value`; `_with_percentiles` deleted). KTC's fact-
+   table pool is `source_name=="KTC", metric_key=="value"`; DraftSharks'
+   pick-curve label maps to `source_name=="DynastySharks",
+   metric_key=="ds_value"` on `fact_dynasty_ranking_metrics` (same entity,
+   different label per ingest pipeline — see `_SOURCE_METRIC`). Verified:
+   2027 R1 Early future-stance 108.4 → 98.4, below Josh Allen.
+6. **Player-side >100 overflow under `future` — BUILT 2026-08-01 (#49).**
+   The age tilt (decision 1's second knob) was applied to the finished
+   value, so it could push a player past the 100 ceiling every other stance
+   honors (Jeremiyah Love → 111.5). Grilled with Ben ([#51](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/51),
+   closed 2026-08-01): fold age into the *ranking* instead — blend
+   `board_percentile * age_tilt` into a score, re-rank that score within
+   (board, position_group) (0→1 by construction), multiply by ceiling last.
+   Can't exceed the ceiling by construction. Scoped to the `ranked` pool
+   only; fallback (fpts-ordered) players untouched. Implemented in
+   `data_access.player_values` (rerank happens on the per-board `ranks`
+   frame, before the cross-board average that produces `ranked`; the old
+   post-value `_age_multiplier` call is deleted). Verified: Jeremiyah Love
+   future-stance 111.5 → 99.6, exactly the RB ceiling (percentile 1.0).
 
 ## Why the old code was wrong
 
@@ -94,32 +118,26 @@ with a non-null global Fantrax ADP (offense-only, ~282 players) while IDP rows
 survived on active-roster alone (~1374). Offense was truncated 3-5x. See
 [fantrax-players-grid](fantrax-players-grid.md).
 
-## OPEN DEFECT — picks and players are still not one currency (found 2026-07-31)
+## Commensuration + player-scale fix — BUILT 2026-08-01 (#49)
 
-Ben's question — *"in what world is the best player in the league worth LESS
-than a future incoming rookie?"* — is a real defect, not a tuning complaint.
-The future pick premium exposed it; it did not cause it.
+Full design detail lives in [ADR-0013](../../docs/adr/0013-trade-bud-valuation-model.md)
+decisions 4-5 (quantile mapping for picks, age-tilt re-rank for players) — see
+locked decisions 5-6 above for the summary. Probe data and rejected
+alternatives (linear rescale, raw value-matched lookup, post-hoc clamp,
+global rescale) are on GitHub issues [#45](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/45)/[#47](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/47)/[#51](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/51),
+not duplicated here.
 
-`pick_value._with_percentiles` min-max normalizes **within the pick curve**:
-KTC's most expensive pick (2027 R1 Early, 7115) → 100, its cheapest (2028 R4
-Late, 1331) → 0. So a pick's "86.7" means *86.7% of the way from the worst
-4th-rounder to the best 1st*. A player's "100" means *Josh Allen*. Those are
-two unrelated pools summed as one currency — **the same class of bug as the
-`player_blended_values` / `_FORMAT_BY_POSITION_GROUP` defect this whole
-redesign exists to fix.** `pareto.py`'s "shared 0-100 scale" docstring asserts
-a commensuration that was never computed.
-
-**The anchor that makes a real fix possible**: `dim_dynasty_metric` has
-`metric_key = "value"` (*KTC Value*, source KTC) — KTC prices **players and
-picks in the same units** (both are ~1000-7000 point values). So a pick can be
-mapped to the player whose KTC value it matches, and priced at *that player's*
-value on our scale. Not yet verified that the KTC player-value range covers the
-pick range; that probe was the next step when work paused.
-
-Also unresolved and downstream of this: the future scalar pushes a 2027 R1 to
-**108.4**, above the documented 0-100 scale. Options put to Ben (accept >100
-and fix the docstrings / re-anchor all three scalars by 1.25 / clamp at 100)
-were superseded by the currency question and remain open.
+Both defects are fixed as of #49: `pick_value._with_percentiles` is deleted
+(replaced by quantile mapping + pool-max clamp); `player_values()` folds the
+age tilt into the pre-ceiling rank so it cannot exceed 100 under any stance.
+`mouserat_trade-bud/` now has test coverage —
+`tests/test_pick_commensuration.py` (repo-root `tests/`, not under the
+subproject) asserts both invariants (no pick prices above the highest-valued
+player in its anchoring pool; no player value exceeds its position's
+ceiling), parametrized across all 3 stances, 6 tests, run against real repo
+parquet with the same one-shot `lru_cache` memoization `export_static.py`
+uses (otherwise `resolve_pick_value` re-derives the whole player universe
+per pick).
 
 ## Fallback for uncovered players
 

@@ -2,7 +2,8 @@
 
 > Project-local memory. Cross-project preferences, terminology, and working
 > method live in root (`C:\Users\benha\.claude\`). Last consolidated:
-> 2026-07-31.
+> 2026-08-01 (#47/#51 grilled and closed; ADR-0013 decisions 4-5 designed,
+> not yet built).
 
 ## Active Files
 
@@ -12,7 +13,7 @@
 - [Source manifest](../../docs/SOURCES.md) — `docs/sources.yml` is **SSOT** (ADR-0007, BUILT 2026-06-14); `docs/SOURCES.md` tables **generated** from it via `scripts/check_sources.py` (`validate`/`--render`/`--check`): schema + notebook-exists + token-match (live, hard-fail) + reverse-drift (WARN, `ignore_hosts` valve). External-input boundary (Fantrax, Google Sheet, nflverse, KTC/FantasyPros/WalterFootball/DraftSharks/DynastySharks, manual Excel). `match` token ≠ `locator` (notebook-resident fingerprint; e.g. Sheet uses `team_sheet_csv_url`). Internal lineage stays in data-model `Source` col + README.
 - [Power BI Semantic Model](powerbi-semantic-model.md) — PBIP/TMDL model + PBIR report at pbi/mouserat2/; Fact_/Dim_ PascalCase (sourceColumn stays snake); rename-cascade; dynasty measures (latest-snapshot/avg) + 2026-06-12 single-EAV refactor; Prep-for-AI gates
 - [Startup draft board 05a](startup-draft-board-05a.md) — `notebooks/05a_startup_draft_board.py`; composite weights, Offense/Defense split, judgment-overlay CSV, Yo-Yo runway (games-played) semantics, IDP/crosswalk quirks
-- [Trade-bud valuation](trade-bud-valuation.md) — `value = position_ceiling x within-position percentile`; stance selects a *board*, plus two hand-set knobs (future-stance age tilt, pick stance scalar) + pick/player KTC scale commensuration (ADR-0013); `dim_position_ceiling` (04e, VOR vs best free agent, per-conference, sqrt-compressed); DraftSharks two-tree pull (04f)
+- [Trade-bud valuation](trade-bud-valuation.md) — `value = position_ceiling x within-position percentile`; stance selects a *board*, plus two hand-set knobs (future-stance age tilt, pick stance scalar); `dim_position_ceiling` (04e, VOR vs best free agent, per-conference, sqrt-compressed); DraftSharks two-tree pull (04f). **All 5 ADR-0013 decisions built as of 2026-08-01 (#49)** — quantile-mapped picks, age-tilt folded into rank for players, both capped at 100 by construction; `tests/test_pick_commensuration.py` (repo-root) covers both invariants across all 3 stances
 - [Fantrax Players grid](fantrax-players-grid.md) — `getDraftRanks` RETIRED post-draft; `getPlayerStats` is the live universe; the old board truncated offense 3-5x (TE 5.4x); `fact_fantrax_adp` now has `2026/PRE` (no ADP) + `2026/DRAFT` (last ADP ever)
 - [mouserat_trade-bud](mouserat_trade-bud.md) — trade-diagnostic subproject; v1 (3 slices) built, static exporter (ADR-0012) + valuation model (ADR-0013)
 
@@ -30,7 +31,7 @@
 - `docs/adr/0010-minors-stash-season-boundary.md` — **SUPERSEDED by ADR-0011.** Its stash-durability rule and `02d`'s `derive_minor_events` are dead letters (inert, never emitted a row).
 - `docs/adr/0011-minors-is-placement-not-contract.md` — **there is no `Minor` contract type.** Minors = eligibility (GP ≤ 19, Fantrax-computed, league-wide) + placement (which squad section a copy occupies — the team's lever and the sole cap exemption). Confirmed in data: all 125 Minors-placed copies hold `1st`; zero `Minor` contracts exist. `04v` is now read-only (write-side `--apply` + commissioner worklist deleted) but remains the sole writer of `fact_roster_placement`. **BUILT 2026-07-26 (PR #33).**
 - `docs/adr/0012-static-export-for-trade-bud.md` — `mouserat_trade-bud` ships to GitHub Pages as fully static JSON: `export_static.py` precomputes every GET endpoint **by calling the router functions directly** (never reimplementing endpoint logic); no server, database, or secrets in production. Sanitize non-finite floats and dump with `allow_nan=False` — `json.dumps` writes a bare `NaN` that `JSON.parse` rejects wholesale while Python's `json.load` accepts it. **BUILT 2026-07-28 (PRs #34/#35).**
-- `docs/adr/0013-trade-bud-valuation-model.md` — `mouserat_trade-bud` asset valuation model: sqrt-compressed VOR position ceiling (`dim_position_ceiling`), stance routing (`contending`, `balanced`, `future`), age multiplier tilt, pick stance scalars, and pick/player KTC point scale commensuration. **BUILT 2026-07-31.**
+- `docs/adr/0013-trade-bud-valuation-model.md` — `mouserat_trade-bud` asset valuation model. Decisions 1–3 (sqrt-compressed VOR position ceiling `dim_position_ceiling`, stance routing, age multiplier tilt, pick stance scalars) **BUILT 2026-07-31**. Decision 4 (pick/player commensuration via quantile mapping) and decision 5 (player-side age-tilt re-rank, caps at 100 by construction) **DESIGNED 2026-08-01 via HITL grilling (#47/#51), NOT built** — implementation is [#49](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/49). (Decision 4's original 2026-07-31 recording was a linear-rescale claim with zero code and a wrong mechanism — corrected, superseded by the grilled quantile-mapping design.) Status: *partially accepted*; tracked on wayfinder map #44.
 
 ## Directional shift (2026-06-13)
 

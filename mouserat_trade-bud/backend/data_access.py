@@ -159,8 +159,13 @@ def player_values(stance: str) -> pd.DataFrame:
     percentile, on the same 0-1 scale, so the tail is ordered by production
     rather than dropped to zero.
 
-    The `future` stance additionally applies `_age_multiplier` to the finished
-    value -- the only place a hand-set number touches a player price.
+    The `future` stance additionally folds `_age_multiplier` into the
+    *ranking*: `score = board_percentile * age_tilt`, re-ranked within
+    (board, position_group) to a new percentile before the ceiling
+    multiply. Folding it in pre-ceiling (rather than post-hoc on the
+    finished value) means it cannot push a value past its position's
+    ceiling by construction -- no clamp needed. Scoped to the ranked pool
+    only; the fpts fallback pool is untouched.
     """
     if stance not in _STANCE_RANK_KEYS:
         raise ValueError(f"unknown stance {stance!r}; expected one of {STANCES}")
@@ -183,6 +188,18 @@ def player_values(stance: str) -> pd.DataFrame:
     # should outvalue being unranked with the same production.
     place = ranks.groupby(board)["metric_num"].rank(method="min", ascending=True)
     ranks = ranks.assign(percentile=(n - place + 1) / n)
+
+    # future stance: fold the age tilt into the ranking, not the finished
+    # value, so a tilt >1.0 can never push a player past its ceiling (ADR-0013
+    # decision 5). score = board_percentile * age_tilt, re-ranked within
+    # (board, position_group) -- the top scorer is always exactly 1.0 by
+    # construction, same as the untilted percentile above.
+    if _STANCE_AGE_TILT[stance]:
+        ranks = ranks.merge(_player_ages(), on="gsis_id", how="left")
+        ranks["score"] = ranks["percentile"] * _age_multiplier(ranks["age"])
+        place2 = ranks.groupby(board)["score"].rank(method="min", ascending=False)
+        ranks["percentile"] = (n - place2 + 1) / n
+        ranks = ranks.drop(columns=["age", "score"])
 
     ranked = (
         ranks.groupby(["gsis_id", "position_group"], as_index=False)["percentile"]
@@ -211,11 +228,6 @@ def player_values(stance: str) -> pd.DataFrame:
     out = pd.concat([ranked, fallback], ignore_index=True)
     out = out.merge(ceilings, on="position_group", how="left")
     out["value"] = out["ceiling"] * out["percentile"]
-
-    if _STANCE_AGE_TILT[stance]:
-        out = out.merge(_player_ages(), on="gsis_id", how="left")
-        out["value"] = out["value"] * _age_multiplier(out["age"])
-        out = out.drop(columns="age")
 
     return out
 
