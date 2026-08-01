@@ -1806,3 +1806,433 @@ not merely that the first missing module is fixed.
 first being `json.load` accepting `NaN`): *the environment that hides a bug is
 the one you habitually test in.* A subsystem requirements file that is a subset
 of the dev environment cannot be validated from inside that environment.
+
+---
+
+## Checkpoint 18 (2026-07-31) — asset valuation is broken; hybrid VOR redesign LOCKED, nothing built
+
+Round 10 (static Pages port) is fully closed: PR #34 + #35 merged, deploy green,
+site live and verified at
+`https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/`
+(`meta.json` -> commit `740d620`, 28 teams / 196 positional rows; served HTML
+confirmed as the static build: "Data as of" present, `apiBase`/Reconnect gone,
+`evaluateTradeLocal` + `noindex` present). Stale branches `trade-bud-static-pages`
+and `pages-deploy-fix` are squash-merge leftovers — strictly BEHIND main, zero
+unique content, safe to delete; NOT deleted (awaiting Ben's OK).
+
+### The defect Ben spotted: IDP values wildly inflated
+
+Ben saw two DLs topping a Build-a-Trade asset list at 100.0 / 99.2. Root cause is
+a **unit error, not a tuning problem**.
+
+`pareto._player_value` (`pareto.py:19-26`) maps position_group -> *format*
+(`QB/RB/WR/TE -> "SF"`, `DL/LB/DB -> "IDP"`), then
+`data_access.player_blended_values(fmt)` (`data_access.py:65-95`) computes
+`percentile = (max - rank + 1) / max * 100` **within that format's own pool**.
+Pool sizes differ wildly:
+
+| format | sources | pool |
+|---|---|---|
+| SF (offense) | KTC + DynastySharks + FantasyPros | **562** |
+| IDP (defense) | FantasyPros **only** | **123** |
+
+IDP rank 1 of 123 = exactly 100.0 (Will Anderson Jr.); rank 2 = 99.19
+(Hutchinson) — reproduced to the decimal from Ben's screenshot. Josh Allen is
+also 100.0 at rank 1 of 562. **`evaluate_trade` sums these as one currency.**
+Best-of-123 is ~4.6x cheaper than best-of-562; every IDP gets that pool discount
+as free value.
+
+**The constraint was already known and honored elsewhere.**
+`project-fantasy-football.md:22` records *"no single (format, source) spans all
+positions ... `/rankings` is format-scoped and auto-picks the primary source per
+format"* — the Discord bot never mixes formats. `pareto.py` is the sole place
+that broke it. Not a new discovery: an existing rule violated in one spot.
+
+**Second, independent defect** (not visible in the screenshot): players outside
+FantasyPros' 123 score **0.0**, not a low value. Of rostered copies: DB **56.8%**
+zero, DL **36.1%**, LB **32.3%** (vs QB 0.9 / RB 1.0 / WR 0.8 / TE 0.0). Mean
+value DB 17.6, DL 25.7, LB 47.4 vs QB 65.7, WR 59.3. The model is bimodal — it
+inflates the top ~123 defenders AND zeroes out a third-to-half of the rest.
+
+### Ben's scarcity argument, confirmed quantitatively
+
+His reasoning: an NFL offense fields 11 but 5 are OL, so only ~6 are
+fantasy-scorable — real structural scarcity. Defense has no such limit; all 11
+can accrue tackles. So defense should carry lower positional value, and
+value-over-replacement is the principled lens.
+
+`getLeagueInfo` (public `fxea/general`, no auth — same endpoint family as `04u`)
+serves the lineup rules directly, so this never needed to be asked:
+`positionConstraints` = QB1 RB2 WR3 TE1 SFX1 RWT2 | DL1 LB1 DB1 ID2;
+`maxTotalActivePlayers` 15 (**10 offense / 5 IDP**), `maxTotalPlayers` 41,
+`maxTotalReservePlayers` 18.
+
+| | starters lg-wide | players listed | supply/demand |
+|---|---|---|---|
+| Offense (all) | 280 | 283 | **~1.0x** |
+| DL / LB / DB | 140 | 1,363 | **13-20x** (DB 19.8, DL 15.3, LB 13.6) |
+
+The league starts 280 offensive players and ~283 exist. Offense demand ~= supply;
+defense supply is ~10x demand. **Sharpest number in the investigation** — it
+validates Ben's structural argument exactly.
+
+`scoringSystem` also confirms his DT-vs-DE point: position-specific multipliers
+exist — `TkS` DL 3.5 / default lower, `TkA` DL 1.75 / DB 1.25 / default 1,
+`TFL` DL 3 / DB 2.5 / default 2, `PD` DB 3 / default 2.
+
+### The VOR input that already exists (nobody had used it)
+
+`fact_fantrax_adp` carries **`fpts` and `fpts_per_game` at 100% coverage** across
+all 1,656 rows — including **1,363 IDP** (DB 554, DL 429, LB 380), i.e. **11x**
+the ranking coverage. `season=2026, week='PRE', capture_date=2026-06-09`,
+`games_played` all null, and `fpts_per_game == fpts/17` exactly → these are
+**Fantrax 2026 projections in this league's own scoring**, not actuals. Forward
+looking, dense, already reflects the DL tackle multipliers above.
+
+**There is no stats/projections fact table in the repo** — no `fact_player_stats`,
+no nflverse weekly stats. `fact_fantrax_adp` is the ONLY fantasy-points source
+that exists today. Any VOR work rides on it.
+
+### Prototype result (throwaway, not committed)
+
+Rough VOR (`fpts - replacement_fpts(pos)`, replacement = Nth-best where N =
+league-wide starters incl. a hand-guessed flex share) put the best IDP at
+**33.5** vs best offensive asset 100 — against **100.0** today.
+
+**Two caveats recorded so this is not over-trusted:**
+1. **QB replacement came out at 2.7 pts — an artifact, not a finding.** Only 39
+   QBs are listed but superflex needs ~56, so the lookup fell off the end of the
+   pool and grabbed a near-zero backup, making QBs 10 of the top 15. The
+   replacement-rank-with-flex-allocation math is NOT solved.
+2. **Projections are single-season**, so pure VOR is win-now only — it cannot
+   distinguish a 23-year-old from a 31-year-old on equal projections. The dynasty
+   rankings in use now are multi-year by construction; that is the one thing they
+   get right and must not be discarded.
+
+### Decisions LOCKED this session (AskUserQuestion, both Ben's picks)
+
+1. **Default value set = HYBRID.** Dynasty ranking percentile orders players
+   *within* a position group; a VOR-derived scarcity weight sets each position's
+   *ceiling*:
+   `value = position_ceiling(pos) x within_pos_percentile`, where
+   `within_pos_percentile` = dynasty rank if ranked, else **fpts rank** (this is
+   what fills the 57%-of-DBs coverage hole). Chosen over pure VOR (no age
+   signal), over a hand-tuned IDP rescale (magic constant, coverage cliff
+   untouched), and over research-only.
+2. **Three value set types, tied to the existing stance selector**: Balanced
+   (default), Contending, Future — same hybrid formula, different weight on the
+   VOR/win-now term vs the dynasty/age term. Auto-selects from the per-team stance
+   `profiles.py` already infers and displays; manual override in the UI.
+
+**Binding architectural constraint**, stated before the choice: the site is fully
+static, so **every value set must be precomputed at build time and shipped as
+JSON** — no on-demand computation. Payload is a modeling constraint, not just UI.
+Current 411 KB; ~12 KB per team per extra set → three sets ~= 1.2 MB.
+
+### In flight at compaction — DraftSharks IDP source
+
+Ben supplied `https://www.draftsharks.com/rankings/idp/superflex` as an
+**additional IDP source** (directly relevant: IDP being single-source is *why*
+the pool is only 123). Probe findings:
+
+- Page embeds `var appData = {...}` — brace-matched and parsed OK, but it holds
+  **config only** (`scoringConfigurations`, `strengthOfSchedule` n=32,
+  `highRangePoints`, `columnGroups`), **not player rows**.
+- **`leagueType: "Redraft"`** — this URL is redraft IDP, NOT dynasty. Flag before
+  ingesting: for a dynasty league that is a win-now signal. Sibling dynasty paths
+  exist and were found in the page's own link set: `/dynasty-rankings`,
+  `/dynasty-rankings/ppr-superflex`, `/dynasty-rankings/te-premium`,
+  `/dynasty-rankings/rookies`.
+- Zero player names in served HTML (`Micah Parsons`/`Fred Warner` count 0), only
+  2 `<table>` / 43 `<tr>` → **rows load by XHR, not server-rendered.** Candidate
+  endpoint found in-page: **`/rankings/load-table`**. Not yet called.
+- NOT resolved: load-table request shape (params/headers), whether a dynasty IDP
+  variant exists, coverage count, crosswalk of source_player_id. Note
+  **DynastySharks is ALREADY a `source_name`** in the EAV (SF/TEPP via `04x`
+  manual Excel) — an IDP addition should extend that source, not mint a new one.
+
+### Next actions (ZERO files modified this session — investigation + decisions only)
+
+1. Resolve `/rankings/load-table` (and whether to use the **dynasty** URL instead
+   of the redraft one Ben linked) → decide if DraftSharks IDP is ingestible.
+2. Solve replacement-level-with-flex properly (kill the QB=2.7 artifact); *derive*
+   `position_ceiling` rather than hand-setting it.
+3. Then design the hybrid implementation: where it lives (likely a new module +
+   value-set dim/fact), how the exporter emits 3 sets, the UI selector.
+4. **Standing plan-gate applies** — well over threshold; explicit sign-off before
+   the first Edit/Write.
+
+**Still open from before, unchanged**: browser click-through of the live UI
+(oldest item, since Round 5 — every check so far is HTTP-level; no JS has ever
+executed); 6 pre-existing dtype-drift FAILs in bare `check_data_model.py`.
+
+---
+
+## Checkpoint 19 (2026-07-31) — DraftSharks IDP/offense fully solved; redraft=win-now stance mapping LOCKED-ish; still ZERO code written
+
+Continues Checkpoint 18. Same posture: **investigation + design only, no files
+modified except this memory file and PLAN.md, nothing committed.**
+
+### Ben's design correction (supersedes part of Checkpoint 18's decision 2)
+
+Ben: *"redraft should impact the win now mode, right? we should think of this
+for offense, as well."* This is **better than the locked design** and replaces
+half of it.
+
+Checkpoint 18 locked "3 value sets = same hybrid formula, different **weight**
+on the VOR/win-now term vs the dynasty/age term." That weight was an invented
+knob I'd have had to hand-tune — exactly the magic-constant smell that got the
+IDP-rescale option rejected in the first place.
+
+**Replacement**: the stance selects a **ranking source**, not a fudge factor.
+- Contending  -> **redraft** rankings (value to this season's starting lineup)
+- Future/Balanced -> **dynasty** rankings
+- Applies to **offense and defense identically** — not a defense-only patch.
+
+Corroboration found in DraftSharks' own page copy: they describe a Draft War
+Room *"Win Now"* mode that *"adjust[s] the weighting even heavier toward
+year-one projection."* Same concept, independently arrived at.
+
+### CRITICAL — the two axes are orthogonal; do not conflate them
+
+Redraft-vs-dynasty fixes the **time-horizon** axis ONLY. It does **not** fix
+the **cross-position scarcity** axis that caused the bug Ben spotted.
+
+A redraft IDP list still ranks 425 defenders 1..425; rank 1 still percentiles
+to 100.0 and still outranks Amon-Ra St. Brown when summed naively. Checkpoint
+18's supply/demand finding (280 offensive starters vs ~283 players; 140 IDP
+starters vs 1,363 players, 13-20x oversupply) is **untouched** by this change
+and still requires the VOR-derived position ceiling.
+
+**Design is now three terms, not two:**
+`value = position_ceiling(pos)  x  within_pos_percentile  x  [pool: redraft|dynasty per stance]`
+
+### DraftSharks: SOLVED, fully ingestible, no auth, no JS runtime needed
+
+Checkpoint 18 left this unresolved (`/rankings/load-table` uncalled, redraft-vs-
+dynasty unknown). All resolved:
+
+**Two separate URL trees, each self-identifying via `appData.leagueType`:**
+- redraft: `https://www.draftsharks.com/rankings/idp/te-premium-superflex` -> `leagueType: "Redraft"`, basePath `rankings`
+- dynasty: `https://www.draftsharks.com/dynasty-rankings/idp/te-premium-superflex` -> `leagueType: "Dynasty"`, basePath `dynasty-rankings`
+
+**THE ENDPOINT THAT MATTERS IS `load-rows`, NOT `load-table`.** This was the
+trap that cost most of the session:
+- `GET /{basePath}/load-table` returns only the **first 250 rows, always**. No
+  param moves it — verified `researchDepth` (accepts anything, changes
+  nothing), `limit`, `page`, `offset`, `pageSize`, `perPage`, `count`, `take`,
+  `size`, `skip`, `start` and 4 more: **all returned exactly 250.** I wrongly
+  concluded 250 was the real depth and floated an account-paywall theory.
+  **Ben corrected it from the live page** (screenshot: rank 411, `DB155`) while
+  NOT logged in. He was right; the cap was mine.
+- Real endpoint, found in `/assets/95e4994a/dsvue/alpinejs/apps/RankingsApp.min.js`:
+  ```
+  GET /{basePath}/load-rows?offset=N&limit=250&fantasyPosition=idp
+      &pprSuperflexSlug=te-premium-superflex&playerGroup=all&sort=
+  ```
+  Page bootstraps with `loadRows(250, 0, 0, false)` then pages on scroll.
+  Loop `offset` in steps of 250 until a chunk returns 0 rows.
+- `?sort=` empty is fine. Headers: a `Referer` on the matching page + optional
+  `HX-Request: true`. Plain `requests` session works (`etl._make_session()`).
+
+**Verified coverage (full pagination, live):**
+
+| tree | total rows | IDP | DL | LB | DB |
+|---|---|---|---|---|---|
+| dynasty-rankings | 900 | **411** | 159 | 90 | 162 |
+| rankings (redraft) | 980 | **425** | 174 | 94 | 157 |
+
+411 matches Ben's screenshot exactly. Non-IDP remainder is offense + K
+(dynasty: QB 52 / RB 120 / WR 192 / TE 89 / K 36) — **one pull yields offense
+AND defense**, so `fantasyPosition=idp` is not even required.
+
+**vs today's 123-player FantasyPros-only IDP pool: 3.3x-3.5x the coverage.**
+This is the direct fix for Checkpoint 18's second defect (56.8% of rostered DBs
+scoring exactly 0.0 because they fall outside FantasyPros' 123).
+
+**`/{basePath}/export` (CSV) is PAYWALLED** — confirmed by Ben and reproduced:
+returns HTTP 200 with a 124-byte header-only body
+(`Rank,Team,Player,"Fantasy Position",ADP,Bye,Age,"1yr. Proj","3yr. Proj","5yr. Proj","10yr. Proj","DS Analysis","3D Value +"`)
+and zero data rows. **Do not build on `/export`.** `load-rows` is unauthenticated
+and complete — use it.
+
+**Row shape — everything is in attributes, no text scraping needed:**
+`<tbody data-player-row data-key="35727" data-player-name="Carson Schwesinger"
+data-fantasy-position="LB" data-team-id="8" data-is-rookie="false"
+data-tier-overall="5" data-tier-positional="1" data-percent-low/high=...>`
+
+`data-key` is a stable DraftSharks player id -> the `source_player_id` for the
+EAV + a `dim_dynasty_crosswalk` entry. Per-`<td>` numeric columns each carry
+`data-value` **plus per-scoring variants in the same payload**
+(`data-scoring-value`, `data-scoring-value-half-ppr`, `data-scoring-value-ppr`,
+te-premium...) — so **one pull covers every scoring format**, no re-fetch per
+format. Columns confirmed on a real row (Schwesinger): rank 1, ADP 9.03, bye 11,
+age 23.4, **1yr Proj 242, 3yr Proj 692, 5yr Proj 1145, 10yr Proj 2145,
+3D Value+ 37.3**.
+
+**Big consequence — the win-now/future split may not need two scrapes.** The
+*dynasty* pull alone carries `1yr Proj` next to `3yr/5yr/10yr Proj` and
+`3D Value`, and `appData.selectedScoringConfig` exposes parallel keys
+`oneYrPtsDynastyTePremiumSuperflex` / `dsValueDynastyTePremiumSuperflex`.
+So "win-now" might be a **column choice within one pull** rather than a second
+source. NOT yet decided — pulling both trees is still the safer read since the
+redraft *ordering* is expert-produced, not derivable from dynasty columns
+(the two lists genuinely differ: dynasty leads Schwesinger/Cedric Gray/Nick
+Emmanwori, redraft leads Schwesinger/Myles Garrett/Chamarri Conner).
+
+**Source naming**: `DynastySharks` is ALREADY a `source_name` in the EAV
+(SF/TEPP via `04x` manual Excel). Extend that source; do not mint a new one.
+Also gives a second real IDP source, so `player_blended_values("IDP")` finally
+averages across sources instead of trusting FantasyPros alone.
+
+### Still open (unchanged from Checkpoint 18 unless noted)
+
+1. **Replacement-level-with-flex** — still unsolved; QB replacement of 2.7 pts
+   is a truncated-pool artifact (39 QBs listed, ~56 needed), which made QBs 10
+   of the top 15. `position_ceiling` must be *derived*, not hand-set.
+   NOTE: DraftSharks' `1yr Proj` (411-425 IDP + ~450 offense, dense) is now a
+   candidate projections source alongside `fact_fantrax_adp.fpts`, and its pool
+   is deeper than the 39-QB Fantrax list that caused the artifact.
+2. **Design the implementation** — new `04?` notebook for the DraftSharks pull,
+   EAV metric_keys, `position_ceiling` module, exporter emitting 3 value sets,
+   UI selector. **Plan gate applies: explicit sign-off before the first Edit/Write.**
+3. **Ben: browser click-through of the live UI** — oldest item, since Round 5.
+   Still zero JS ever executed on this machine.
+4. **Ben: OK to delete stale branches** `trade-bud-static-pages`, `pages-deploy-fix`
+   (both provably behind main).
+5. Decide: pull both trees, or dynasty-only + `1yr Proj` column (see above).
+6. 6 pre-existing dtype-drift FAILs in bare `check_data_model.py`.
+
+### Process learning
+
+**A uniform number across many different queries is a cap, not a measurement.**
+Every probe returned exactly 250 — same count for dynasty and redraft, for
+`fantasyPosition=idp` and unfiltered, for 12 different limit-param guesses. That
+invariance was the tell, and I read it as "250 is the list depth" and reached
+for an external explanation (paywall/login gating) instead of looking harder at
+my own request. Ben disproved it in one screenshot while logged out.
+**The answer was in the site's own JS bundle** (`RankingsApp.min.js`, one fetch
+away) the whole time — reading the client that calls the endpoint beats guessing
+parameter names against it. Same family as Round 9's lesson: probe actual
+behaviour rather than assuming, and treat too-clean results as suspect.
+
+---
+
+## Checkpoint 20 (2026-07-31) — replacement-level SOLVED (units error, not data depth); both DraftSharks trees adopted; still ZERO code written
+
+Continues Checkpoint 19. Same posture: **investigation + design only, no files
+modified except this memory file and PLAN.md, nothing committed.**
+
+### The QB=2.7 artifact was a UNITS ERROR, not a truncated pool
+
+Checkpoint 18 recorded QB replacement of 2.7 pts as "a truncated-pool artifact
+(39 QBs listed, ~56 needed)" and Checkpoint 19 hoped a deeper source would fix
+it. **Both readings were wrong.** The pool was never too shallow — the
+replacement rank was computed on the wrong scale.
+
+**This is a duplicate-player league: one copy per conference, and the two
+conferences are genuinely separate player pools.** Confirmed directly, not
+assumed: conference A rosters 55 distinct QBs, conference B rosters 52, but
+only **57 distinct QBs league-wide** — i.e. near-total overlap, two independent
+14-team drafts, not one 28-team pool.
+
+So replacement level is a **14-team** computation. The old math used 28 teams
+(`TEAMS * slots`), demanded ~56 QBs, ran off the end of a 39-deep list and
+grabbed a near-zero backup. Nothing about the source data was inadequate.
+
+**Corrected prototype** (throwaway, not committed) — `fact_fantrax_adp.fpts`,
+`TEAMS=14`, base `QB1 RB2 WR3 TE1 | DL1 LB1 DB1`, flex slots allocated greedily
+(each slot-instance goes to whichever eligible position has the best remaining
+player): `SFX` 1x over {QB,RB,WR,TE}, `RWT` 2x over {RB,WR,TE}, `ID` 2x over
+{DL,LB,DB}.
+
+| pos | repl rank | repl pts | pool | ceiling (max VOR, scaled) |
+|---|---|---|---|---|
+| RB | 41 | 154.1 | 90 | **100.0** |
+| WR | 49 | 152.2 | 116 | 61.7 |
+| QB | 27 | 251.3 | 39 | 51.0 |
+| TE | 23 | 169.7 | 38 | 33.7 |
+| LB | 22 | 192.1 | 380 | 27.7 |
+| DB | 34 | 192.8 | 554 | 23.8 |
+| DL | 14 | 172.4 | 429 | 19.8 |
+
+**Every replacement rank falls inside its pool** — QB at 27 of 39, no lookup
+runs off the end anywhere. IDP ceilings land at **19.8-27.7% of the top
+offensive asset**, which is exactly the cross-position scarcity correction Ben
+argued for and the direct fix for IDP rank-1 percentiling to 100.0.
+
+**Recorded caveat, do NOT over-trust**: RBs are now 12 of the top 15 by VOR,
+where QBs were 10 of 15 before. This is *not* the same failure — there is no
+truncation this time, it is the genuine RB scoring spread — but it is the same
+*shape* of result, and is precisely why `position_ceiling` must stay a
+multiplier on within-position percentile rather than becoming the whole
+valuation. A single-axis VOR ranking concentrates value in the
+highest-variance position by construction.
+
+**Process learning**: the previous session reached for a better data source to
+fix a number that was wrong for arithmetic reasons. Before sourcing more data
+to fix a bad number, check that the number is being asked for on the right
+scale. The league's own structural fact (two conferences = two pools) was
+already documented in `data-model.md` and in `CLAUDE.md`'s identity section;
+nobody had connected it to the VOR denominator.
+
+### DraftSharks would NOT have fixed it — and the two trees differ materially
+
+QB pool depth: **redraft 42, dynasty 52** — both still short of the old (wrong)
+56 requirement. Swapping sources would have papered over the units error
+without correcting it.
+
+Full positional coverage, both trees, verified live via full pagination:
+
+| tree | total | QB | RB | WR | TE | DL | LB | DB | K | DEF |
+|---|---|---|---|---|---|---|---|---|---|---|
+| rankings (redraft) | 980 | 42 | 130 | 206 | 108 | 174 | 94 | 157 | 37 | 32 |
+| dynasty-rankings | 900 | 52 | 120 | 192 | 89 | 159 | 90 | 162 | 36 | - |
+
+**Column sets are different — this is the load-bearing fact for the pull-scope
+decision** (read from each page's `<th>` row, not guessed):
+- **redraft**: RK, Player, Games, ADP, Bye, SOS, Injury Risk, **Floor Proj /
+  Consensus Proj / DS Proj / Ceiling Proj**, 3D Value
+- **dynasty**: RK, Player, ADP, Bye, Age, **1yr / 3yr / 5yr / 10yr Proj**,
+  DS Analysis, 3D Value +
+
+Dynasty's `1yr Proj` is **not** the redraft projection: Josh Allen = 379
+(dynasty 1yr) vs 390 (redraft DS Proj), with redraft also carrying floor 315.5
+and ceiling 451.9. Different estimates produced in different contexts.
+
+### DECISION LOCKED (AskUserQuestion, Ben's pick): pull BOTH trees
+
+Rationale as presented: the redraft **ordering** is expert-produced and cannot
+be reconstructed from dynasty columns — falling back to a derived sort would
+reintroduce exactly the hand-tuned-weight approach Checkpoint 19's correction
+replaced. Both trees also give a far deeper projections pool than Fantrax
+(WR 206 vs 116, RB 130 vs 90, TE 108 vs 38) plus floor/ceiling bands, SOS and
+injury risk. Cost is one extra paged loop in the same notebook.
+
+Note this is now a *choice*, not a necessity, for the ceiling term specifically
+— Fantrax `fpts` already suffices for replacement level at the corrected
+14-team scale. DraftSharks buys margin and richer inputs, not a fix.
+
+### Design state after this checkpoint
+
+`value = position_ceiling(pos) x within_pos_percentile x [pool: redraft|dynasty per stance]`
+
+- **term 1 `position_ceiling`** — SOLVED in principle (table above); derived
+  from projections + real lineup rules at 14-team scale, no hand-set constants.
+- **term 2 within-pos percentile** — percentile *within* a position group, which
+  is what makes it commensurable across positions (Checkpoint 18's
+  cross-format incommensurability finding).
+- **term 3 stance→source** — LOCKED Checkpoint 19, both trees now confirmed
+  pullable.
+
+### Still open
+
+1. **Implementation design** — new `04?` notebook for the two-tree DraftSharks
+   pull, EAV `metric_key`s (extend existing `DynastySharks` source, do not mint
+   a new one), `position_ceiling` module, exporter emitting 3 value sets, UI
+   selector. **Plan gate applies: explicit sign-off before the first Edit/Write.**
+2. Which projection column feeds `position_ceiling` — Fantrax `fpts`,
+   redraft `DS Proj`, or `Consensus Proj`. Not yet asked.
+3. **Ben: browser click-through of the live UI** — oldest item, since Round 5.
+4. **Ben: OK to delete stale branches** `trade-bud-static-pages`, `pages-deploy-fix`.
+5. 6 pre-existing dtype-drift FAILs in bare `check_data_model.py`.
