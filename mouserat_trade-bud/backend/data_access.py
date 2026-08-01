@@ -62,37 +62,162 @@ def roster_with_cap_hit() -> pd.DataFrame:
     return capmath.roster_with_cap_hit(CFG)
 
 
-def player_blended_values(fmt: str) -> pd.DataFrame:
-    """One row per gsis_id: a blended dynasty value on a 0-100 scale.
+STANCES = ("contending", "balanced", "future")
 
-    No pre-computed cross-source blended value exists in the EAV fact (only
-    KTC carries a raw point-value metric; other sources only carry ranks) --
-    per user decision, this blends each source's *_overall_rank for the
-    given format by converting rank -> a within-source percentile (so a
-    KTC pool of ~500 and a DynastySharks pool of a different size count
-    equally) and averaging whichever sources cover the player. Missing
-    sources are excluded from a player's average, not zero-filled.
+# Stance primarily selects a ranking *source*: a contending team is buying this
+# season's production (DraftSharks' redraft tree), everyone else is buying the
+# dynasty asset. There is exactly one dynasty board set, so balanced and future
+# read the same boards -- which made them price identically, two of three
+# stance chips a visible no-op. Future is therefore differentiated by an age
+# tilt below (decision 2026-07-31); it is the one hand-set knob on the player
+# side, and picks carry the matching one in pick_value.
+_STANCE_RANK_KEYS = {
+    "contending": ("dsr_overall_rank",),
+    "balanced": ("ds_overall_rank", "ktc_overall_rank", "fp_overall_rank"),
+    "future": ("ds_overall_rank", "ktc_overall_rank", "fp_overall_rank"),
+}
+
+# Only `future` tilts. Continuous in age rather than bucketed so nobody loses a
+# chunk of value overnight on a birthday, and clamped at both ends so the tilt
+# can shade a close trade without ever inverting a board's own ordering by more
+# than the clamp allows. Pivot 26 = roughly the age at which a dynasty asset
+# stops appreciating.
+_AGE_PIVOT = 26.0
+_AGE_SLOPE = 0.03
+_AGE_CLAMP = (0.70, 1.20)
+_STANCE_AGE_TILT = {"contending": False, "balanced": False, "future": True}
+
+
+def _age_multiplier(ages: pd.Series) -> pd.Series:
+    """Per-player youth premium for the future stance. Unknown birth_date -> 1.0
+    (no tilt): a missing date is ignorance, not evidence that a player is old."""
+    tilt = 1 + (_AGE_PIVOT - ages) * _AGE_SLOPE
+    return tilt.clip(*_AGE_CLAMP).fillna(1.0)
+
+
+def _player_ages() -> pd.DataFrame:
+    """gsis_id -> age in years, from dim_nfl_players.birth_date."""
+    players = read_parquet("dim_nfl_players")[["gsis_id", "birth_date"]].copy()
+    born = pd.to_datetime(players["birth_date"], errors="coerce")
+    players["age"] = (pd.Timestamp(date.today()) - born).dt.days / 365.25
+    return players[["gsis_id", "age"]]
+
+
+def _latest_overall_ranks(rank_keys: tuple[str, ...]) -> pd.DataFrame:
+    """The requested *_overall_rank rows, at each series' own latest snapshot.
+
+    Not a single global max(snapshot_date): the sources refresh on independent
+    cadences (DraftSharks was re-pulled 2026-07-31, KTC/FantasyPros last on
+    2026-06-13), so a global max would silently drop every source but the most
+    recently scraped one. A series here is (source_name, format, metric_key) --
+    the same source ranks several formats, each its own board.
     """
     eav = read_parquet("fact_dynasty_ranking_metrics")
-    rank_keys = [k for k in eav["metric_key"].unique() if k.endswith("_overall_rank")]
-    ranks = eav[(eav["format"] == fmt) & (eav["metric_key"].isin(rank_keys))]
+    ranks = eav[eav["metric_key"].isin(rank_keys)].copy()
     if ranks.empty:
-        return pd.DataFrame(columns=["gsis_id", "blended_value"])
+        return ranks
+    series = ["source_name", "format", "metric_key"]
+    newest = ranks.groupby(series)["snapshot_date"].transform("max")
+    return ranks[ranks["snapshot_date"] == newest].dropna(subset=["gsis_id"])
 
-    latest = ranks["snapshot_date"].max()
-    ranks = ranks[ranks["snapshot_date"] == latest].dropna(subset=["gsis_id"])
 
-    ranks = ranks.copy()
-    ranks["percentile"] = ranks.groupby("source_name")["metric_num"].transform(
-        lambda s: (s.max() - s + 1) / s.max() * 100
+def _position_fpts() -> pd.DataFrame:
+    """gsis_id -> fantasy points, from the newest Fantrax player-universe
+    capture. This is the fallback ordering for players no expert board covers
+    (~3% of rostered copies on the dynasty pool, ~8% on redraft, worst at QB)."""
+    adp = read_parquet("fact_fantrax_adp")
+    adp = adp[adp["capture_date"] == adp["capture_date"].max()]
+    adp = adp.dropna(subset=["gsis_id", "fpts"])
+    return (
+        adp.sort_values("fpts", ascending=False)
+        .drop_duplicates("gsis_id")[["gsis_id", "fpts"]]
     )
-    blended = (
-        ranks.groupby("gsis_id")["percentile"]
+
+
+def position_ceilings() -> pd.DataFrame:
+    """position_group -> ceiling (0-100), the cross-position scarcity
+    multiplier from dim_position_ceiling's conference-averaged `ALL` row."""
+    c = read_parquet("dim_position_ceiling")
+    c = c[c["snapshot_date"] == c["snapshot_date"].max()]
+    return c[c["conference"] == "ALL"][["position_group", "ceiling"]]
+
+
+def player_values(stance: str) -> pd.DataFrame:
+    """One row per gsis_id: `value` = position ceiling x within-position percentile.
+
+    Columns: gsis_id, position_group, percentile, ceiling, value, is_ranked.
+
+    The percentile is computed **within a position group**, never across a
+    whole format pool. That is the fix for the defect this module used to
+    have: the old blend ranked a DB against every other DB *and* against every
+    WR in the same pool depending on format, then summed offense and IDP
+    percentiles as if they were one currency. An 80th-percentile DB and an
+    80th-percentile QB are drawn from unrelated pools; only after each is
+    multiplied by its position's ceiling are the two numbers comparable.
+
+    Players no board covers fall back to their within-position fantasy-points
+    percentile, on the same 0-1 scale, so the tail is ordered by production
+    rather than dropped to zero.
+
+    The `future` stance additionally applies `_age_multiplier` to the finished
+    value -- the only place a hand-set number touches a player price.
+    """
+    if stance not in _STANCE_RANK_KEYS:
+        raise ValueError(f"unknown stance {stance!r}; expected one of {STANCES}")
+
+    players = read_parquet("dim_nfl_players")[["gsis_id", "position_group"]]
+    ceilings = position_ceilings()
+    positions = set(ceilings["position_group"])
+
+    ranks = _latest_overall_ranks(_STANCE_RANK_KEYS[stance])
+    ranks = ranks.merge(players, on="gsis_id", how="left")
+    ranks = ranks[ranks["position_group"].isin(positions)]
+
+    # Percentile within (board, position): each board is scored on its own
+    # depth at that position, so a 52-QB board and a 206-WR board contribute
+    # equally instead of the deeper board dominating the average.
+    board = ["source_name", "format", "metric_key", "position_group"]
+    n = ranks.groupby(board)["metric_num"].transform("size")
+    # metric_num is a rank -- 1 is best, so invert. Denominator n keeps the
+    # last-ranked player just above 0 rather than at it; being ranked at all
+    # should outvalue being unranked with the same production.
+    place = ranks.groupby(board)["metric_num"].rank(method="min", ascending=True)
+    ranks = ranks.assign(percentile=(n - place + 1) / n)
+
+    ranked = (
+        ranks.groupby(["gsis_id", "position_group"], as_index=False)["percentile"]
         .mean()
-        .rename("blended_value")
-        .reset_index()
+        .assign(is_ranked=True)
     )
-    return blended
+
+    # Unranked players are ordered among themselves by fantasy points, then
+    # compressed into the band *below* the worst ranked player at that
+    # position. Ranking them on the open 0-1 scale instead would put the best
+    # unranked QB at 1.0 -- ahead of every quarterback the experts actually
+    # rated -- because his pool is only the leftovers. The boards run ~900
+    # deep, so unranked means deep bench, and the floor is the right ceiling
+    # for them.
+    floor = (
+        ranked.groupby("position_group")["percentile"].min().rename("floor")
+    )
+    fpts = _position_fpts().merge(players, on="gsis_id", how="left")
+    fpts = fpts[fpts["position_group"].isin(positions)]
+    fpts = fpts[~fpts["gsis_id"].isin(set(ranked["gsis_id"]))].copy()
+    fpts["within"] = fpts.groupby("position_group")["fpts"].rank(pct=True)
+    fpts = fpts.merge(floor, on="position_group", how="left")
+    fpts["percentile"] = fpts["within"] * fpts["floor"].fillna(1.0)
+    fallback = fpts[["gsis_id", "position_group", "percentile"]].assign(is_ranked=False)
+
+    out = pd.concat([ranked, fallback], ignore_index=True)
+    out = out.merge(ceilings, on="position_group", how="left")
+    out["value"] = out["ceiling"] * out["percentile"]
+
+    if _STANCE_AGE_TILT[stance]:
+        out = out.merge(_player_ages(), on="gsis_id", how="left")
+        out["value"] = out["value"] * _age_multiplier(out["age"])
+        out = out.drop(columns="age")
+
+    return out
 
 
 def draft_pick_inventory() -> pd.DataFrame:

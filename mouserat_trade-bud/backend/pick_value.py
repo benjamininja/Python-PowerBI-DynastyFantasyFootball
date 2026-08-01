@@ -1,5 +1,5 @@
 """Resolves a real/synthetic draft pick to a blended 0-100 market-value
-percentile -- the same scale data_access.player_blended_values uses, so
+percentile -- the same 0-100 scale data_access.player_values produces, so
 picks and players are directly comparable for Pareto math (decision #11).
 
 Both curve sources in dim_pick_value_curve (KTC, DraftSharks -- see
@@ -17,6 +17,14 @@ import pandas as pd
 import data_access as da
 
 _TIERS = ["Early", "Mid", "Late"]
+
+# What a pick is worth depends on who is holding it: a contending team is
+# trying to win now and a pick is a player who does not exist yet, while a
+# future-focused team is buying exactly that. The curve sources publish one
+# market price, so this is a hand-set scalar (decision 2026-07-31) and the
+# matching knob to the future-stance age tilt in data_access. Applied last, so
+# picks stay on the same 0-100 scale as players.
+_STANCE_SCALAR = {"contending": 0.85, "balanced": 1.00, "future": 1.25}
 
 
 def _latest_curve() -> pd.DataFrame:
@@ -38,8 +46,11 @@ def _tier_for_slot(pick_in_round: int, n_teams: int) -> str:
     return _TIERS[idx]
 
 
-def resolve_pick_value(draft_year: int, round_num: int, pick_in_round: int, n_teams: int) -> float:
-    """Blended 0-100 percentile value for one pick.
+def resolve_pick_value(
+    draft_year: int, round_num: int, pick_in_round: int, n_teams: int,
+    stance: str = "balanced",
+) -> float:
+    """Blended 0-100 percentile value for one pick, scaled by stance.
 
     Averages whichever curve sources have data for this draft_year. A round
     beyond a source's covered range (KTC tops out at 4, DraftSharks at 5)
@@ -47,10 +58,11 @@ def resolve_pick_value(draft_year: int, round_num: int, pick_in_round: int, n_te
     dynasty pick value flattens out fast past round 4-5, so this is a
     reasonable floor rather than a cliff to zero.
     """
+    scalar = _STANCE_SCALAR[stance]
     curve = _with_percentiles(_latest_curve())
     year_curve = curve[curve["draft_year"] == draft_year]
     if year_curve.empty:
-        return 50.0  # no market data at all for this year -- neutral fallback
+        return 50.0 * scalar  # no market data at all for this year -- neutral fallback
 
     percentiles = []
     for source in year_curve["source_name"].unique():
@@ -67,10 +79,13 @@ def resolve_pick_value(draft_year: int, round_num: int, pick_in_round: int, n_te
         if not match.empty:
             percentiles.append(float(match["percentile"].iloc[0]))
 
-    return sum(percentiles) / len(percentiles) if percentiles else 50.0
+    blended = sum(percentiles) / len(percentiles) if percentiles else 50.0
+    return blended * scalar
 
 
-def value_for_pick_row(row: pd.Series, inventory: pd.DataFrame) -> float:
+def value_for_pick_row(
+    row: pd.Series, inventory: pd.DataFrame, stance: str = "balanced"
+) -> float:
     """Convenience wrapper for a fact_draft_pick-shaped row (slotted or
     unslotted future pick, as returned by data_access.draft_pick_inventory).
 
@@ -85,4 +100,6 @@ def value_for_pick_row(row: pd.Series, inventory: pd.DataFrame) -> float:
         pick_in_round = int(row["pick_in_round"])
     else:
         pick_in_round = (n_teams + 1) // 2
-    return resolve_pick_value(draft_year, int(row["round"]), pick_in_round, int(n_teams))
+    return resolve_pick_value(
+        draft_year, int(row["round"]), pick_in_round, int(n_teams), stance
+    )

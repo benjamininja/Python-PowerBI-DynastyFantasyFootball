@@ -63,7 +63,7 @@ def _memoize_readers() -> None:
     one-shot export process has no such staleness window.
     """
     da.read_parquet = functools.lru_cache(maxsize=None)(da.read_parquet)
-    da.player_blended_values = functools.lru_cache(maxsize=None)(da.player_blended_values)
+    da.player_values = functools.lru_cache(maxsize=None)(da.player_values)
     da.draft_pick_inventory = functools.lru_cache(maxsize=None)(da.draft_pick_inventory)
 
 
@@ -134,9 +134,13 @@ def export(out_dir: Path) -> None:
     team_keys = [t["team_key"] for t in teams]
     print(f"[ok] teams.json                 {len(teams)} teams")
 
-    league = positional_router.league_positional_strength()
+    # Positional ranks are stance-dependent (a contender's DL surplus is not a
+    # rebuilder's), so all three are precomputed and the chips switch between
+    # them client-side with no refetch.
+    league = {s: positional_router.league_positional_strength(s) for s in da.STANCES}
     total += _write_json(data_dir / "positional-league.json", league)
-    print(f"[ok] positional-league.json     {len(league)} rows")
+    n_rows = sum(len(v) for v in league.values())
+    print(f"[ok] positional-league.json     {n_rows} rows across {len(league)} stances")
 
     # 28 teams x 2 modes, nested one level -- small enough that one file
     # beats 56 round trips.
@@ -160,7 +164,8 @@ def export(out_dir: Path) -> None:
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "commit": _commit_sha(),
         "teams": len(teams),
-        "positional_rows": len(league),
+        "positional_rows": n_rows,
+        "stances": list(da.STANCES),
     })
 
     shutil.copy2(APP_DIR / "frontend" / "index.html", out_dir / "index.html")

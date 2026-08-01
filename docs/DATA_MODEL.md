@@ -19,6 +19,7 @@ graph LR
     dim_nfl_teams[dim_nfl_teams]
     dim_dynasty_metric[dim_dynasty_metric]
     dim_pick_value_curve[dim_pick_value_curve]
+    dim_position_ceiling[dim_position_ceiling]
     fact_draft_pick[(fact_draft_pick)]
     fact_draft_pick_future[(fact_draft_pick_future)]
     dim_season[dim_season]
@@ -90,6 +91,7 @@ graph LR
     class dim_nfl_teams dim;
     class dim_dynasty_metric dim;
     class dim_pick_value_curve dim;
+    class dim_position_ceiling dim;
     class fact_draft_pick fact;
     class fact_draft_pick_future fact;
     class dim_season dim;

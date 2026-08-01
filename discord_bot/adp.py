@@ -76,9 +76,18 @@ def build_adp_embeds(
     if adp.empty:
         raise CommandError("No ADP data available yet.")
 
-    # Latest capture only — fact_fantrax_adp is a manual-cadence time series.
-    latest = adp["capture_date"].max()
-    adp = adp[adp["capture_date"] == latest].copy()
+    # Latest capture that actually carries ADP — fact_fantrax_adp is a
+    # manual-cadence time series, and since 2026-07-31 its newest partitions
+    # come from the Fantrax Players grid, which serves no ADP column at all.
+    # Fantrax retired the draft-ranking board that produced ADP once the
+    # startup draft completed, so the final board snapshot (week="DRAFT") is
+    # the last ADP that will ever exist for this league. Taking the newest
+    # capture unconditionally would sort the whole board on an all-null column.
+    with_adp = adp[adp["adp"].notna()]
+    if with_adp.empty:
+        raise CommandError("No ADP data available yet.")
+    latest = with_adp["capture_date"].max()
+    adp = with_adp[with_adp["capture_date"] == latest].copy()
 
     # Position group for grouping/filtering comes from the player registry (the
     # source's own position_raw carries messy IDP multi-tokens like "DL,LB").

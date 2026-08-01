@@ -19,6 +19,10 @@ class TradeRequest(BaseModel):
     counterparty_team: str
     give: list[TradeAsset]
     receive: list[TradeAsset]
+    # Which expert board prices the players: "contending" reads DraftSharks'
+    # redraft tree, "balanced"/"future" the dynasty boards. See
+    # data_access.player_values.
+    stance: str = "balanced"
 
 
 def _asset_owners() -> tuple[set[tuple[str, str]], dict[str, str]]:
@@ -75,7 +79,14 @@ def evaluate_trade(req: TradeRequest) -> dict:
                 detail=f"Receive asset {asset.asset_id!r} is not owned by {req.counterparty_team!r}",
             )
 
+    if req.stance not in da.STANCES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown stance {req.stance!r}; expected one of {da.STANCES}",
+        )
+
     return pareto.evaluate_trade(
         give=[a.model_dump() for a in req.give],
         receive=[a.model_dump() for a in req.receive],
+        stance=req.stance,
     )
