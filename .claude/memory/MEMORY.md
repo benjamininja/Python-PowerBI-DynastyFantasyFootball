@@ -15,7 +15,7 @@
 - [Startup draft board 05a](startup-draft-board-05a.md) — `notebooks/05a_startup_draft_board.py`; composite weights, Offense/Defense split, judgment-overlay CSV, Yo-Yo runway (games-played) semantics, IDP/crosswalk quirks
 - [Trade-bud valuation](trade-bud-valuation.md) — `value = position_ceiling x within-position percentile`; stance selects a *board*, plus two hand-set knobs (future-stance age tilt, pick stance scalar); `dim_position_ceiling` (04e, VOR vs best free agent, per-conference, sqrt-compressed); DraftSharks two-tree pull (04f). **All 5 ADR-0013 decisions built as of 2026-08-01 (#49)** — quantile-mapped picks, age-tilt folded into rank for players, both capped at 100 by construction; `tests/test_pick_commensuration.py` (repo-root) covers both invariants across all 3 stances
 - [Fantrax Players grid](fantrax-players-grid.md) — `getDraftRanks` RETIRED post-draft; `getPlayerStats` is the live universe; the old board truncated offense 3-5x (TE 5.4x); `fact_fantrax_adp` now has `2026/PRE` (no ADP) + `2026/DRAFT` (last ADP ever)
-- [mouserat_trade-bud](mouserat_trade-bud.md) — trade-diagnostic subproject; v1 (3 slices) built, static exporter (ADR-0012) + valuation model (ADR-0013)
+- [mouserat_trade-bud](mouserat_trade-bud.md) — trade-diagnostic subproject; v1 (3 slices) built, static exporter (ADR-0012) + valuation model (ADR-0013). **Updated 2026-08-04**: wayfinder map #55 (FA-claim identity gap) open; child ticket #56 closed — 22/23 null-identity rows were stale output, 1 true gap remains (scorer_id `04cc5`); next up #57 (grilling, narrowed scope).
 
 ## Decisions (ADRs)
 

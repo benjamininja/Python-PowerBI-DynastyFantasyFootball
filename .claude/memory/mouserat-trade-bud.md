@@ -2316,39 +2316,45 @@ sessions**: after any `index.html` edit, rerun `export_static.py` and
 restart the `:8500` server *before* asking Ben to re-verify — don't assume
 "source is correct" means "served build is correct."
 
-**[NEW 2026-08-04] Second live-test bug found post-PR #53, fixed same
-session (uncommitted): stale Give/Receive totals after a team swap that
-empties both baskets.** `evaluateTrade()`
+**[UPDATED 2026-08-04] Second live-test bug found post-PR #53 — fixed and
+shipped.** Prior value: "fixed same session (uncommitted)." `evaluateTrade()`
 (`mouserat_trade-bud/frontend/index.html:691-695`) early-returns when
 `state.give.length === 0 && state.receive.length === 0`, but that branch
 never reset `giveTotal`/`receiveTotal` text or `barGive`/`barReceive`
 widths — so after `onTeamChange` correctly cleared the basket, the old
-totals/bar kept displaying. Fix: reset those four DOM values to `0`/`0%` in
-the early-return branch. Not yet committed or rebuilt into `_site/` as of
-this memory write.
+totals/bar kept displaying. Fix reset those four DOM values to `0`/`0%` in
+the early-return branch. Shipped via PR [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54),
+merged to `main`.
 
-**[NEW 2026-08-04] Wayfinder map charted (not yet created on GitHub —
-plan approved, `gh issue create` pending next step)**: destination = spec
-for closing the FA-claim identity-resolution gap (the 12-row null-identity
-subset only; the older 17-row startup-draft gap stays out of scope). Plan
-file: `C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`. Key facts
-from an Explore pass that reframed the problem — **identity resolution is
-NOT branched by `acquired_method`**; claims share the same
+**[UPDATED 2026-08-04] Wayfinder map created and charted on GitHub, ticket
+#56 already closed with findings.** Prior value: "charted, not yet created
+on GitHub." Map: [#55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55).
+Destination unchanged: spec for closing the FA-claim identity-resolution
+gap (older 17-row startup-draft gap stays out of scope). Plan file:
+`C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`. Key facts from
+an Explore pass that reframed the problem — **identity resolution is NOT
+branched by `acquired_method`**; claims share the same
 `scorer_id`→`gsis_id`/`player_key` join as everything else
 (`02d_fact_roster_transactions.py:158-175`). The actual gap:
 `04z_fantrax_crosswalk.ipynb`'s match universe is built from
 `fact_fantrax_adp` + draft-board captures and **never unions in scorer_ids
 from the `04t` claim/drop capture** — a claimed player never ADP-ranked or
-draft-boarded (confirmed case: scorer_id `04cc5`, Joe Mixon) has no
-crosswalk row at all. Raw claim payloads already carry both `scorerId` and
-`name` (`data/raw/fantrax_txn_history_2026.json`), so this is a pipeline
-join gap, not a missing-source-data gap. **9 of the 12 known-null rows are
-already resolved** in the current `dim_fantrax_crosswalk.parquet` (built
-2026-07-31) — `dim_roster_asset`/`fact_roster_transactions` are just stale
-(built 2026-07-26, before the crosswalk resolved them); rerunning the
-pipeline will likely clear most of them with zero code change. Planned
-tickets: (1) Task — rerun `04z`+`02d`, measure what's actually still
-unresolved; (2) Grilling, blocked by (1) — how to extend `04z`'s match
-universe to cover claim-only players. `contract_value=$2,000,000` for
-claims is confirmed *not* a bug — it's `LeagueConfig.fa_minimum_salary`
-applied intentionally (`02d:519-559`).
+draft-boarded has no crosswalk row at all. Raw claim payloads already carry
+both `scorerId` and `name` (`data/raw/fantrax_txn_history_2026.json`), so
+this is a pipeline join gap, not a missing-source-data gap.
+`contract_value=$2,000,000` for claims is confirmed *not* a bug — it's
+`LeagueConfig.fa_minimum_salary` applied intentionally (`02d:519-559`).
+
+Child tickets [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
+(Task) and [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+(Grilling, blocked by #56) wired via native GitHub sub-issue + blocked-by
+relationships. **#56 CLOSED 2026-08-04**: reran `04z_fantrax_crosswalk.ipynb`
+then `02d_fact_roster_transactions.py` (PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58),
+merged). Result: **22 of 23 known-null rows were stale output, now
+resolved** — `dim_fantrax_crosswalk` had already resolved them 2026-07-31;
+`dim_roster_asset`/`fact_roster_transactions` just hadn't rebuilt since
+2026-07-26 (the "9 of 12 likely stale" hypothesis undercounted — the real
+baseline was 23 null rows, not 12, and 22 cleared, not 9). **1 true gap
+remains: scorer_id `04cc5`** — claim-only (no `startup_draft` transaction),
+confirmed **zero rows** in `dim_fantrax_crosswalk`, exactly the hypothesized
+mechanism. Next: #57, narrowed to this single confirmed case.

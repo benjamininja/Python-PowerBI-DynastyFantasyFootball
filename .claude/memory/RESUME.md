@@ -1,60 +1,53 @@
-# RESUME — trade-bud: FA-claim wayfinder map + 2nd live-test bug (2026-08-04)
+# RESUME — trade-bud: FA-claim wayfinder map, ticket #56 closed (2026-08-04)
 
 **Files touched this session**: `mouserat_trade-bud/frontend/index.html`
-(uncommitted, local `main`), `.claude/memory/mouserat-trade-bud.md`,
-`PLAN.md`, plan file `C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`.
+(PR #54, merged), `data/dim_fantrax_crosswalk.parquet`,
+`data/dim_roster_asset.parquet`, `data/fact_roster_transactions.parquet`,
+`notebooks/04z_fantrax_crosswalk.ipynb` (PR #58, merged), `PLAN.md` (PR #59,
+open), `.claude/memory/mouserat-trade-bud.md`, `.claude/memory/MEMORY.md`.
 
-**Next task**: Run `gh issue create` for the wayfinder map + its 2 child
-tickets (plan approved, not yet executed on GitHub) — see "Wayfinder map to
-create" below.
+**Next task**: Pick up [wayfinder ticket #57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+("How should `04z_fantrax_crosswalk.ipynb`'s match universe be extended to
+cover claim-only players?") — a grilling ticket, not code yet. Start with
+`/grilling` or `/domain-modeling` per the map's own guidance.
 
-## Code changed this session (uncommitted)
+## No code changed this session requiring further action
 
-`evaluateTrade()` (`mouserat_trade-bud/frontend/index.html:691-695`) —
-early-return branch (both baskets empty) now also resets `giveTotal`/
-`receiveTotal` text to `'0'` and `barGive`/`barReceive` widths to `'0%'`.
-Bug: after a team swap correctly cleared the basket, the old Give/Receive
-totals and bar kept displaying (`onTeamChange`'s clear worked; only the
-total display didn't refresh). Not yet committed, not yet rebuilt into
-`_site/`.
+Everything planned this session shipped:
 
-**Command to run next**: from `mouserat_trade-bud/`,
-```
-../.venv/Scripts/python.exe export_static.py
-```
-then restart the `:8500` server (kill existing PID first — check with
-`netstat -ano | grep ':8500'`), then have Ben hard-refresh and re-verify the
-Give/Receive totals reset correctly on a team swap. Then commit → new
-branch → PR (same convention as #53).
+- PR [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54)
+  (Give/Receive stale-totals fix) — merged.
+- Wayfinder map [#55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55)
+  created, child tickets [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)/
+  [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+  wired (native GitHub sub-issue + blocked-by).
+- PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58)
+  (rerun `04z`+`02d`) — merged. Ticket #56 closed with findings.
+- PR [#59](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/59)
+  (PLAN.md doc update) — **open, not yet merged**, verify it landed before
+  trusting `PLAN.md` on `main` as current.
 
-## Wayfinder map to create (approved plan, not yet run)
+## Open decision for #57 (next concrete action)
 
-Full spec in `C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`.
-Summary: destination = spec for closing the FA-claim identity-resolution
-gap (12 roster rows, `acquired_method="claim"`, null `gsis_id`/`player_key`).
-Reframed by an Explore pass: claims use the *same* identity-resolution path
-as everything else (`02d_fact_roster_transactions.py:158-175`); the real gap
-is `04z_fantrax_crosswalk.ipynb`'s match universe never including `04t`
-claim/drop scorer_ids. 9 of 12 nulls are likely just stale pipeline output
-(crosswalk already resolved them 2026-07-31; `dim_roster_asset` last built
-2026-07-26).
+Ticket #56's rerun narrowed the scope hard: only **1 confirmed gap**
+remains (scorer_id `04cc5`, claim-only, zero rows in
+`dim_fantrax_crosswalk`), not the original 12-row estimate. #57 needs to
+resolve, via grilling:
+- Whether to always union `04t` claim/drop scorer_ids into `04z`'s match
+  universe, or scope it some other way.
+- How to handle names for players no longer rostered (dropped after the
+  claim).
+- Whether this is a one-off backfill (given only 1 case exists) or a
+  standing change to `04z`'s universe-building step.
 
-Tickets to create as children of the map (label `wayfinder:map`):
-1. `wayfinder:task` — rerun `04z_fantrax_crosswalk.ipynb` then
-   `02d_fact_roster_transactions.py`, diff the 12 known nulls against
-   refreshed output, report which scorer_ids are still genuinely unresolved.
-2. `wayfinder:grilling`, blocked by (1) — how to extend `04z`'s match
-   universe to cover claim-only players (always union `04t` scorer_ids?
-   handle no-longer-rostered names? one-off backfill vs. standing change?).
+Full context and the map's own framing: [mouserat-trade-bud.md](mouserat-trade-bud.md)'s
+"Wayfinder map created and charted on GitHub" entry (2026-08-04).
 
-Out of scope for this map: the older 17-row `acquired_method="startup_draft"`
-null-identity gap (separate, already-logged).
+## Loose end, not blocking
 
-## Also resolved this session (informational, no action needed)
-
-The "$0 minors contract" report from last session was **not a code bug** —
-root cause was a stale served `_site/` build (source was already correct,
-`export_static.py` just hadn't been rerun since the prior fixes). Fixed by
-rebuild + server restart. Lesson banked in
-[mouserat-trade-bud.md](mouserat-trade-bud.md): always rebuild+restart after
-an `index.html` edit before asking Ben to re-verify.
+A stray, unrelated uncommitted edit was found in
+`mouserat_trade-bud/frontend/index.html` mid-session (Spanish placeholder
+strings — "El Otro Perfil"/"El Otro Equipo" — not something this session
+wrote). Left untouched and out of every commit this session. Check
+`git status` on that file before starting #57 — it may still be sitting
+there uncommitted.
