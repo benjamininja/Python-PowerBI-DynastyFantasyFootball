@@ -38,32 +38,29 @@ have both `gsis_id` and `player_key` null. 17 are an older `acquired_method=
 "startup_draft"` gap, out of scope for now. The other 12 (`acquired_method=
 "claim"`) are the subject of the new wayfinder map below.
 
-## [ ] ACTIVE — trade-bud: FA-claim identity gap + a 2nd live-test bug (2026-08-04)
+## [x] CLOSED — trade-bud: FA-claim identity gap map charted + a 2nd live-test bug (2026-08-04)
 
-1. **Wayfinder map charted, not yet created on GitHub.** Destination: spec
-   for closing the FA-claim identity-resolution gap (12-row null-identity
-   subset). Plan file:
-   `C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`. Key reframe:
-   identity resolution isn't broken for claims — `04z_fantrax_crosswalk
-   .ipynb`'s match universe just never includes `04t` claim/drop scorer_ids,
-   so a claimed player never ADP-ranked/draft-boarded has no crosswalk row.
-   9 of 12 known-null rows are likely just stale output (crosswalk already
-   resolved them, `dim_roster_asset` wasn't rebuilt since). Full detail in
-   [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
-2. **2nd live-test bug found post-PR #53, fixed (uncommitted)**: stale
+1. **Wayfinder map [#55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55)
+   charted on GitHub**, with 2 child tickets wired via native GitHub
+   sub-issue + blocked-by relationships:
+   [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
+   (Task: rerun `04z`+`02d`, measure the real remaining gap) and
+   [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+   (Grilling: how to extend `04z`'s match universe, blocked by #56).
+   Destination: spec for closing the FA-claim identity-resolution gap
+   (12-row null-identity subset). Key reframe: identity resolution isn't
+   broken for claims — `04z_fantrax_crosswalk.ipynb`'s match universe just
+   never includes `04t` claim/drop scorer_ids, so a claimed player never
+   ADP-ranked/draft-boarded has no crosswalk row. 9 of 12 known-null rows
+   are likely just stale output (crosswalk already resolved them,
+   `dim_roster_asset` wasn't rebuilt since). Full detail in
+   [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md). #56 is the
+   frontier's first takeable item.
+2. **2nd live-test bug found post-PR #53, fixed and shipped**: stale
    Give/Receive totals after a team swap that empties both baskets —
    `evaluateTrade()`'s early-return branch (`index.html:691-695`) never
-   reset the total/bar DOM, so old numbers lingered. Fix applied; not yet
-   committed or rebuilt into `_site/`.
-
-### ➡ NEXT ACTION
-
-1. Run `gh issue create` for the wayfinder map (label `wayfinder:map`) +
-   its 2 initial child tickets (Task: rerun `04z`+`02d` and measure the real
-   remaining gap; Grilling, blocked by the Task: how to extend `04z`'s match
-   universe), wired per the plan file.
-2. Commit the Give/Receive-totals fix, rebuild `export_static.py`, restart
-   `:8500`, get Ben's re-verify, then branch+PR (same convention as #53).
+   reset the total/bar DOM, so old numbers lingered. Shipped via PR
+   [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54).
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
