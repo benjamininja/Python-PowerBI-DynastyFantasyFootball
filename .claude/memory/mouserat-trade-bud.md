@@ -2236,3 +2236,88 @@ Note this is now a *choice*, not a necessity, for the ceiling term specifically
 3. **Ben: browser click-through of the live UI** — oldest item, since Round 5.
 4. **Ben: OK to delete stale branches** `trade-bud-static-pages`, `pages-deploy-fix`.
 5. 6 pre-existing dtype-drift FAILs in bare `check_data_model.py`.
+
+## Post-ADR-0013 UI fixes (2026-08-03, uncommitted, main)
+
+Two small `mouserat_trade-bud/frontend/index.html`-only fixes found during a
+live browser walkthrough of the merged commensuration work (PR #52, see
+[[trade-bud-valuation]]):
+
+- **Salary display was reading `cap_hit`, not `contract_value`.**
+  `cap_hit` is intentionally zeroed for minors-placed players (`cap_exempt`,
+  ADR-0011) — correct for cap math, wrong for "what is this player paid."
+  Both the Salary column (`ASSET_COLS`) and the give/receive basket line item
+  now read `a.contract_value`. `True Cap`/`Trade Result Cap` (`capCardHtml`,
+  `renderCapCards`) are unchanged — they must keep summing `cap_hit`, since
+  that suppression is the whole point of the cap-exemption model. Backend
+  already shipped both fields on every player asset
+  (`routers/assets.py::team_assets`); this was frontend-only.
+- **Cap cards moved from "Build a Trade" up into the My Profile /
+  Counterparty panels** (`profileCard-my`/`profileCard-counterparty`), per
+  Ben's read that those panels have room. `capCardHtml()` dropped its nested
+  `.panel` wrapper (would have double-bordered inside the already-panel'd
+  profile card) in favor of a `.cap-inline` divider class. Element IDs
+  (`capCard-my`/`capCard-cp`) unchanged, so `renderCapCards()`'s call sites
+  needed no changes.
+
+Verified locally via `export_static.py` rebuild + `http.server :8500`, not
+yet browser-confirmed by Ben (walkthrough was in progress when this session
+paused). Not committed — commit only on request.
+
+**[UPDATED 2026-08-03] Continued same walkthrough, session 2 — two more
+frontend fixes + one real bug caught in the same `index.html`, plus a
+diagnosed-but-deferred data gap:**
+
+- **Counterparty helper panel removed.** The "No reliable data signal — ask
+  the owner directly" block (`renderProfile`, keyed off
+  `profile.low_confidence_fields`) was redundant with the low/medium/high
+  confidence chips already shown per-field — Ben's call, chips are enough.
+- **Real bug: `onTeamChange` never cleared `state.give`/`state.receive` on a
+  team swap.** Reported by Ben as "De'Von Achane is showing in trade AFTER
+  swapping teams, and the cost was still counting against that team's salary
+  too" — confirmed: switching `myTeam`/`cpTeam` re-fetches `myAssets`/
+  `cpAssets` and re-renders the asset picker, but the give/receive baskets
+  themselves are independent state that was never reset, so a stale asset
+  object from the old team both rendered in the basket and fed
+  `renderCapCards()`'s `cap_hit` sum against the *new* team. Fixed: `onTeamChange`
+  now sets `state.give = []` when `myTeam` changes and `state.receive = []`
+  when `cpTeam` changes, then re-renders baskets/cap cards/diagnostic.
+- **Diagnosed, left as-is per Ben's explicit choice**: a null-name/`-`-age
+  row (`DB`, `$2,000,000` salary, value `0.0`) traced to `capmath.
+  roster_with_cap_hit()` returning 29 roster rows with **both `gsis_id` and
+  `player_key` null** — no identity to resolve a name/age/value from at all.
+  12 are `acquired_method="claim"` (free-agency adds, flat
+  `contract_value=$2,000,000`) — the FA-claim ETL path never runs the
+  Fantrax scorerId→gsis_id crosswalk. The other 17 are older
+  `acquired_method="startup_draft"` rows with null `contract_value` — a
+  separate, pre-existing identity gap. **Root cause is upstream ETL** (likely
+  `02d_fact_roster_transactions.py`'s claim-handling), not fixable inside
+  `mouserat_trade-bud/` — asked Ben whether to filter these out of
+  `team_assets()` for now vs. leave visible; **he chose leave-as-is**, so no
+  filter was added. Revisit as its own scoped ETL task (see PLAN.md).
+
+All three fixes above are in the same uncommitted `index.html` on local
+`main` as the prior entry — still nothing committed, still needs its own
+branch+PR before merge (same convention as #52).
+
+**[OPEN, NOT RESOLVED] Ben reported mid-session: "what we shipped reverted
+something, minor league contracts are $0 again."** Investigated, not yet
+explained:
+- Working-tree `mouserat_trade-bud/frontend/index.html` Salary column reads
+  `a.contract_value` (correct, confirmed).
+- Served build `mouserat_trade-bud/_site/index.html` (mtime 2026-08-03
+  18:11, from the prior session's rebuild) **also already reads
+  `contract_value`**, not `cap_hit` — the fix IS in the served HTML.
+- Served data `mouserat_trade-bud/_site/data/assets/A10.json` **already has
+  correct non-zero `contract_value` for Minors-placed players** (e.g.
+  Fernando Mendoza `9,703,000`, cap_hit `0.0` as expected for the
+  cap-exemption) — confirmed by direct read.
+- Running `http.server` process (PID 49992) confirmed serving
+  `mouserat_trade-bud/_site` on `:8500` — the right directory.
+- **Nothing on disk explains a $0 minors salary right now** — every layer
+  checked (source data, exported JSON, served HTML) is correct. Leading
+  unconfirmed hypothesis: Ben's browser tab was loaded/cached before this
+  fix landed and needs a hard refresh, or he was looking at a different
+  screen/build than assumed. **Not confirmed — do not assume fixed.** Next
+  session: ask Ben exactly which screen/player showed the $0, and whether a
+  hard refresh (Ctrl+Shift+R) resolves it before digging further.
