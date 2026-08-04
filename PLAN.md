@@ -17,14 +17,61 @@ and #50 (doc truth-up) both closed. Full design detail:
 [ADR-0013](docs/adr/0013-trade-bud-valuation-model.md),
 [trade-bud-valuation.md](.claude/memory/trade-bud-valuation.md).
 
-Shipped in commit `32eacc9` on `main`: decisions 4-5 (pick/player
-commensuration + player-side scale fix) + doc truth-up (ADR-0013, CONTEXT.md,
-memory, this file) in one commit, not pushed yet. Stale branches
+Shipped via PR [#52](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/52),
+squash-merged to `main` as `d51a47e` (2026-08-03). Stale branches
 `trade-bud-static-pages` and `pages-deploy-fix` both deleted.
+
+## [ ] ACTIVE — trade-bud: post-merge browser walkthrough (2026-08-03)
+
+Ben started a live browser walkthrough of #52 (`http://127.0.0.1:8500/`,
+static export rebuilt off merged `main`) and found two frontend-only issues,
+both fixed — full detail in
+[mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md)'s "Post-ADR-0013
+UI fixes" section:
+
+1. Salary display (asset list + basket line) was reading `cap_hit` (zeroed
+   for minors-exempt players) instead of `contract_value` (true salary) —
+   fixed, cap math untouched.
+2. Cap cards (`True Cap`/`Trade Result Cap`) moved from "Build a Trade" up
+   into the My Profile / Counterparty panels per Ben's ask.
+3. Counterparty "No reliable data signal — ask the owner directly" helper
+   panel removed — the low/medium/high confidence chips already convey it.
+4. `onTeamChange` never cleared `state.give`/`state.receive` on a team swap —
+   stale assets (e.g. traded-away players) lingered in the basket and their
+   cap_hit kept counting against the newly-selected team. Fixed: switching
+   `myTeam` clears `give`, switching `cpTeam` clears `receive`.
+
+**Flagged, not fixed (Ben chose "leave as-is for now")**: 29 rostered rows
+have both `gsis_id` and `player_key` null (`capmath.roster_with_cap_hit()`),
+so they render as null-name/`-`-age assets in the trade UI. 12 are
+`acquired_method="claim"` (free-agency adds, `contract_value=$2,000,000`
+flat) — the FA-claim ETL path never resolves player identity via the
+Fantrax scorerId→gsis_id crosswalk. The other 17 are `acquired_method=
+"startup_draft"` with null `contract_value` — a separate, older identity gap.
+Root-caused to upstream ETL (likely `02d_fact_roster_transactions.py`'s
+claim-handling), not fixable in `mouserat_trade-bud/` alone — revisit as its
+own scoped task.
 
 ### ➡ NEXT ACTION
 
-None queued for trade-bud. See "➡ NEXT" below for the rest of the backlog.
+Open, unresolved: Ben reports "minor league contracts are $0 again."
+Checked all 3 layers (source data via `roster_with_cap_hit()`, exported
+`_site/data/assets/*.json`, served `_site/index.html`) — all already correct
+(non-zero `contract_value` for Minors players, Salary column reads
+`contract_value` not `cap_hit`). Root cause NOT found — leading guess was a
+stale browser build; `export_static.py` was rerun and the `:8500` server
+restarted against the fresh `_site/` this session, so ask Ben to hard-refresh
+and re-check before any more code changes. Full investigation trail in
+[mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
+
+Committed to branch `fix/trade-bud-swap-basket-reset`
+(`mouserat_trade-bud/frontend/index.html`, 3 fixes this session:
+helper-panel removal, `onTeamChange` basket-clear bug, plus the earlier
+salary/cap-card fixes). `export_static.py` reran and the `:8500` server
+restarted against the fresh `_site/`, so Ben's live tab now reflects all
+three fixes after a hard refresh. Not yet pushed/PR'd — waiting on Ben's
+walkthrough sign-off before `gh pr create` (feature-branch-to-main
+convention, same as #52).
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 

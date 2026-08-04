@@ -63,6 +63,7 @@
   .cap-line b { color: var(--text); }
   .cap-line .down { color: var(--bad); }
   .cap-line .up { color: var(--good); }
+  .cap-inline { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .basket { min-height: 40px; border: 1px dashed var(--border); border-radius: 6px; padding: 8px; font-size: 12px; }
   .basket-item {
     display: flex; justify-content: space-between; padding: 3px 0; color: var(--text);
@@ -91,8 +92,8 @@
 </head>
 <body>
 
-<h1>mouserat trade-bud</h1>
-<div class="subtitle">Dynasty trade diagnostic — positional need/surplus + Pareto-asymmetry check, players and picks together.</div>
+<h1>mouserat presents trade-bud</h1>
+<div class="subtitle">Dynasty trade diagnostic.</div>
 
 <div class="config">
   <span id="dataStatus"></span>
@@ -106,7 +107,7 @@
       <select id="myTeam" onchange="onTeamChange('my')"></select>
     </div>
     <div class="col">
-      <label>Counterparty (same conference)</label>
+      <label>El Otro Equipo (The Other Team)</label>
       <select id="cpTeam" onchange="onTeamChange('counterparty')"></select>
     </div>
   </div>
@@ -120,7 +121,7 @@
 <!-- TAB 1: league-wide overview -->
 <div id="tab-overview" class="tabpage">
   <div class="panel">
-    <h2>Positional Overview (league-wide, rank of 28)</h2>
+    <h2>Positional Overview</h2>
     <div class="chip-row" id="overviewFilterChips"></div>
     <label>Valuing on</label>
     <div class="chip-row" id="overviewStanceChips"></div>
@@ -135,16 +136,18 @@
   <div class="col panel" id="profileCard-my">
     <h2>My Profile</h2>
     <div id="myProfileBody"></div>
+    <div class="cap-inline" id="capCard-my"></div>
   </div>
   <div class="col panel" id="profileCard-counterparty">
     <h2>Counterparty</h2>
     <div id="cpProfileBody"></div>
+    <div class="cap-inline" id="capCard-cp"></div>
   </div>
 </div>
 
 <div id="analysisSection">
   <div class="panel">
-    <h2>Positional Overview (this matchup, rank of 28)</h2>
+    <h2>Positional Overview</h2>
     <div class="row">
       <div class="col">
         <div class="signal-line" id="posLabel-my"></div>
@@ -172,11 +175,6 @@
         <label id="receiveBasketLabel" style="margin-top:10px;">Receive basket</label>
         <div class="basket" id="receiveBasket"></div>
       </div>
-    </div>
-
-    <div class="row" style="margin-top:14px;">
-      <div class="col" id="capCard-my"></div>
-      <div class="col" id="capCard-cp"></div>
     </div>
 
     <div class="bar-wrap">
@@ -311,14 +309,19 @@ function onTeamChange(mode) {
   const teamKey = mode === 'my' ? document.getElementById('myTeam').value : document.getElementById('cpTeam').value;
   if (mode === 'my') {
     state.myTeam = teamKey || null;
+    state.give = [];
     refreshCpOptions();
   } else {
     state.cpTeam = teamKey || null;
+    state.receive = [];
   }
   const division = teamKey ? (state.teams.find(t => t.team_key === teamKey) || {}).division : null;
   setOverviewFilter(division ? 'division' : 'all', division || null);
   if (teamKey) loadProfile(mode);
   renderTwoTeamOverview();
+  renderBaskets();
+  renderCapCards();
+  evaluateTrade();
   if (state.myTeam && state.cpTeam) loadAnalysis();
 }
 
@@ -501,18 +504,12 @@ function renderProfile(mode, profile) {
   ).join('');
   const badge = c => `<span class="tag ${c === 'high' ? 'surplus' : c === 'low' ? 'need' : 'neutral'}">${c}</span>`;
   let html = `
-    <label>Stance (auto-inferred, click to override)</label>
+    <label>Stance (click to change)</label>
     <div class="chip-row">${chips}</div>
     <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b> confidence: ${badge(profile.stance_confidence)}</div>
     <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'} confidence: ${badge(profile.risk_confidence)}</div>
     <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season confidence: ${badge(profile.trade_activity_confidence)}</div>
   `;
-  if (profile.low_confidence_fields && profile.low_confidence_fields.length) {
-    html += `<div class="helper-panel">
-      <div class="title">No reliable data signal this team — ask the owner directly:</div>
-      ${profile.low_confidence_fields.map(f => `<div>• ${f.replace(/_/g, ' ')}</div>`).join('')}
-    </div>`;
-  }
   body.innerHTML = html;
 }
 
@@ -556,7 +553,10 @@ const ASSET_COLS = [
   { key: 'Name', get: a => assetName(a), sort: (a, b) => assetName(a).localeCompare(assetName(b)) },
   { key: 'Pos', get: a => assetPosition(a), sort: (a, b) => a.side_of_ball_sort_order - b.side_of_ball_sort_order || a.position_sort_order - b.position_sort_order },
   { key: 'Age', get: a => a.age != null ? a.age.toFixed(1) : '-', sort: (a, b) => (a.age ?? Infinity) - (b.age ?? Infinity) },
-  { key: 'Salary', get: a => fmtSalary(a.cap_hit), sort: (a, b) => (a.cap_hit ?? 0) - (b.cap_hit ?? 0) },
+  // Shows contract_value (the true salary) not cap_hit -- cap_hit is
+  // suppressed to 0 for minors-placed players (ADR-0011 cap exemption), which
+  // is correct for cap math but would misrepresent what the player is paid.
+  { key: 'Salary', get: a => fmtSalary(a.contract_value), sort: (a, b) => (a.contract_value ?? 0) - (b.contract_value ?? 0) },
   { key: 'Value', get: a => assetValue(a).toFixed(1), sort: (a, b) => assetValue(a) - assetValue(b) },
 ];
 
@@ -612,7 +612,7 @@ function renderBaskets() {
           const name = a.asset_type === 'player'
             ? `${a.name}${a.age != null ? ' (age ' + a.age.toFixed(1) + ')' : ''}`
             : `${a.draft_season} R${a.round}`;
-          return `<div class="basket-item"><span>${name} — ${fmtSalary(a.cap_hit)} (${assetValue(a).toFixed(1)})</span>
+          return `<div class="basket-item"><span>${name} — ${fmtSalary(a.contract_value)} (${assetValue(a).toFixed(1)})</span>
             <span class="x" onclick="removeAsset('${basketId === 'giveBasket' ? 'give' : 'receive'}','${a.asset_id}')">✕</span></div>`;
         }).join('')
       : '<span style="color:var(--muted)">empty</span>';
@@ -641,11 +641,9 @@ function capCardHtml(team, trueCap, resultCap) {
   const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
   const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
   return `
-    <div class="panel" style="margin-bottom:0;">
-      <div class="signal-line"><b>${team.team_name}</b></div>
-      <div class="cap-line">True Cap: <b>${fmtSalary(trueCap)}</b></div>
-      <div class="cap-line">Trade Result Cap: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>
-    </div>`;
+    <div class="signal-line"><b>${team.team_name}</b></div>
+    <div class="cap-line">True Cap: <b>${fmtSalary(trueCap)}</b></div>
+    <div class="cap-line">Trade Result Cap: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>`;
 }
 
 function renderCapCards() {
