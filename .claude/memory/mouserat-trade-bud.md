@@ -2296,28 +2296,59 @@ diagnosed-but-deferred data gap:**
   `team_assets()` for now vs. leave visible; **he chose leave-as-is**, so no
   filter was added. Revisit as its own scoped ETL task (see PLAN.md).
 
-All three fixes above are in the same uncommitted `index.html` on local
-`main` as the prior entry — still nothing committed, still needs its own
-branch+PR before merge (same convention as #52).
+**[UPDATED 2026-08-04]** All three fixes above shipped: committed on branch
+`fix/trade-bud-swap-basket-reset`, PR [#53](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/53)
+merged to `main`. Prior value: "still nothing committed, still needs its own
+branch+PR." A 4th small commit on the same PR simplified the header/subtitle
+copy ("mouserat presents trade-bud" / "Dynasty trade diagnostic.").
 
-**[OPEN, NOT RESOLVED] Ben reported mid-session: "what we shipped reverted
-something, minor league contracts are $0 again."** Investigated, not yet
-explained:
-- Working-tree `mouserat_trade-bud/frontend/index.html` Salary column reads
-  `a.contract_value` (correct, confirmed).
-- Served build `mouserat_trade-bud/_site/index.html` (mtime 2026-08-03
-  18:11, from the prior session's rebuild) **also already reads
-  `contract_value`**, not `cap_hit` — the fix IS in the served HTML.
-- Served data `mouserat_trade-bud/_site/data/assets/A10.json` **already has
-  correct non-zero `contract_value` for Minors-placed players** (e.g.
-  Fernando Mendoza `9,703,000`, cap_hit `0.0` as expected for the
-  cap-exemption) — confirmed by direct read.
-- Running `http.server` process (PID 49992) confirmed serving
-  `mouserat_trade-bud/_site` on `:8500` — the right directory.
-- **Nothing on disk explains a $0 minors salary right now** — every layer
-  checked (source data, exported JSON, served HTML) is correct. Leading
-  unconfirmed hypothesis: Ben's browser tab was loaded/cached before this
-  fix landed and needs a hard refresh, or he was looking at a different
-  screen/build than assumed. **Not confirmed — do not assume fixed.** Next
-  session: ask Ben exactly which screen/player showed the $0, and whether a
-  hard refresh (Ctrl+Shift+R) resolves it before digging further.
+**[UPDATED 2026-08-04] $0-minors-contract report — resolved, root cause was
+a stale served build, not code.** Prior entry logged this as
+"[OPEN, NOT RESOLVED]" after finding every layer on disk already correct.
+Confirmed this session: the `:8500` `http.server` (PID 49992) was serving a
+`_site/` build from *before* the two newest fixes (helper-panel removal,
+`onTeamChange` basket-clear) even though the working-tree source was
+correct — `export_static.py` had not been rerun since those edits. Fixed by
+rerunning `export_static.py` and restarting the server (new PID, confirmed
+`200` on `GET /`). Ben's live tab was pointed at the stale build; a
+rebuild+restart was the actual fix, not a code change. **Lesson for future
+sessions**: after any `index.html` edit, rerun `export_static.py` and
+restart the `:8500` server *before* asking Ben to re-verify — don't assume
+"source is correct" means "served build is correct."
+
+**[NEW 2026-08-04] Second live-test bug found post-PR #53, fixed same
+session (uncommitted): stale Give/Receive totals after a team swap that
+empties both baskets.** `evaluateTrade()`
+(`mouserat_trade-bud/frontend/index.html:691-695`) early-returns when
+`state.give.length === 0 && state.receive.length === 0`, but that branch
+never reset `giveTotal`/`receiveTotal` text or `barGive`/`barReceive`
+widths — so after `onTeamChange` correctly cleared the basket, the old
+totals/bar kept displaying. Fix: reset those four DOM values to `0`/`0%` in
+the early-return branch. Not yet committed or rebuilt into `_site/` as of
+this memory write.
+
+**[NEW 2026-08-04] Wayfinder map charted (not yet created on GitHub —
+plan approved, `gh issue create` pending next step)**: destination = spec
+for closing the FA-claim identity-resolution gap (the 12-row null-identity
+subset only; the older 17-row startup-draft gap stays out of scope). Plan
+file: `C:\Users\benha\.claude\plans\lucky-sleeping-snowglobe.md`. Key facts
+from an Explore pass that reframed the problem — **identity resolution is
+NOT branched by `acquired_method`**; claims share the same
+`scorer_id`→`gsis_id`/`player_key` join as everything else
+(`02d_fact_roster_transactions.py:158-175`). The actual gap:
+`04z_fantrax_crosswalk.ipynb`'s match universe is built from
+`fact_fantrax_adp` + draft-board captures and **never unions in scorer_ids
+from the `04t` claim/drop capture** — a claimed player never ADP-ranked or
+draft-boarded (confirmed case: scorer_id `04cc5`, Joe Mixon) has no
+crosswalk row at all. Raw claim payloads already carry both `scorerId` and
+`name` (`data/raw/fantrax_txn_history_2026.json`), so this is a pipeline
+join gap, not a missing-source-data gap. **9 of the 12 known-null rows are
+already resolved** in the current `dim_fantrax_crosswalk.parquet` (built
+2026-07-31) — `dim_roster_asset`/`fact_roster_transactions` are just stale
+(built 2026-07-26, before the crosswalk resolved them); rerunning the
+pipeline will likely clear most of them with zero code change. Planned
+tickets: (1) Task — rerun `04z`+`02d`, measure what's actually still
+unresolved; (2) Grilling, blocked by (1) — how to extend `04z`'s match
+universe to cover claim-only players. `contract_value=$2,000,000` for
+claims is confirmed *not* a bug — it's `LeagueConfig.fa_minimum_salary`
+applied intentionally (`02d:519-559`).

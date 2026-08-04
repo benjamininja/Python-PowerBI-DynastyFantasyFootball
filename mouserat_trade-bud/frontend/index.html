@@ -642,8 +642,8 @@ function capCardHtml(team, trueCap, resultCap) {
   const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
   return `
     <div class="signal-line"><b>${team.team_name}</b></div>
-    <div class="cap-line">True Cap: <b>${fmtSalary(trueCap)}</b></div>
-    <div class="cap-line">Trade Result Cap: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>`;
+    <div class="cap-line">Team Salary: <b>${fmtSalary(trueCap)}</b></div>
+    <div class="cap-line">Team Salary After Trade: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>`;
 }
 
 function renderCapCards() {
@@ -691,6 +691,10 @@ function evaluateTradeLocal() {
 async function evaluateTrade() {
   if (state.give.length === 0 && state.receive.length === 0) {
     document.getElementById('diagnostic').textContent = 'Add assets to both sides to see the trade diagnostic.';
+    document.getElementById('giveTotal').textContent = '0';
+    document.getElementById('receiveTotal').textContent = '0';
+    document.getElementById('barGive').style.width = '0%';
+    document.getElementById('barReceive').style.width = '0%';
     return;
   }
   const result = evaluateTradeLocal();
