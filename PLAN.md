@@ -62,6 +62,26 @@ have both `gsis_id` and `player_key` null. 17 are an older `acquired_method=
    reset the total/bar DOM, so old numbers lingered. Shipped via PR
    [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54).
 
+## [ ] ACTIVE — wayfinder map #55: FA-claim identity gap, ticket #56 done (2026-08-04)
+
+**Tracker: [wayfinder map #55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55).**
+Task ticket [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
+closed — reran `04z_fantrax_crosswalk.ipynb` then `02d_fact_roster_transactions.py`,
+shipped via PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58)
+(merged to `main`). **Result: 22 of 23 known-null rows were stale output,
+now resolved** (crosswalk had already resolved them 2026-07-31;
+`dim_roster_asset`/`fact_roster_transactions` just hadn't rebuilt since
+2026-07-26). **1 true gap remains: scorer_id `04cc5`** — claim-only, zero
+rows in `dim_fantrax_crosswalk`, confirming the map's hypothesized
+mechanism (`04z`'s match universe never unions in `04t` claim/drop
+scorer_ids).
+
+### ➡ NEXT ACTION
+
+Pick up [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+(Grilling: how should 04z's match universe be extended?) — narrowed scope,
+now a single confirmed case instead of the original 12-row estimate.
+
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
 Three versions, per the 2026-07-11 design:
