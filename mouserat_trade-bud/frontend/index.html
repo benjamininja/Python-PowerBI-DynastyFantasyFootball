@@ -139,7 +139,7 @@
     <div class="cap-inline" id="capCard-my"></div>
   </div>
   <div class="col panel" id="profileCard-counterparty">
-    <h2>Counterparty</h2>
+    <h2>El Otro Perfil</h2>
     <div id="cpProfileBody"></div>
     <div class="cap-inline" id="capCard-cp"></div>
   </div>
@@ -506,9 +506,9 @@ function renderProfile(mode, profile) {
   let html = `
     <label>Stance (click to change)</label>
     <div class="chip-row">${chips}</div>
-    <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b> confidence: ${badge(profile.stance_confidence)}</div>
-    <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'} confidence: ${badge(profile.risk_confidence)}</div>
-    <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season confidence: ${badge(profile.trade_activity_confidence)}</div>
+    <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b>: ${badge(profile.stance_confidence)}</div>
+    <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'}: ${badge(profile.risk_confidence)}</div>
+    <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season: ${badge(profile.trade_activity_confidence)}</div>
   `;
   body.innerHTML = html;
 }
@@ -710,7 +710,7 @@ async function evaluateTrade() {
 
   const favorsText = result.favors === 'even' ? 'This trade is even.'
     : result.favors === 'receiving_side' ? `This trade favors <b>my team</b> by ${result.asymmetry_pct.toFixed(1)}%.`
-    : `This trade favors the <b>counterparty</b> by ${result.asymmetry_pct.toFixed(1)}%.`;
+    : `This trade favors <b>El Otro Equipo</b> by ${result.asymmetry_pct.toFixed(1)}%.`;
   document.getElementById('diagnostic').innerHTML = favorsText;
 }
 
