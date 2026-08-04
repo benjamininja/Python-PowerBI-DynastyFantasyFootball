@@ -2358,3 +2358,60 @@ baseline was 23 null rows, not 12, and 22 cleared, not 9). **1 true gap
 remains: scorer_id `04cc5`** — claim-only (no `startup_draft` transaction),
 confirmed **zero rows** in `dim_fantrax_crosswalk`, exactly the hypothesized
 mechanism. Next: #57, narrowed to this single confirmed case.
+
+**Idea noted 2026-08-04, not built**: an add/drop-count profile signal,
+parallel to the existing `infer_trade_activity(team_key)`/`trade_count`
+pair (`profiles.py`) built for `fact_trade_log`. Same shape, different
+source: `fantrax_txn_history_{season}.json`'s `CLAIM_DROP` view (the same
+payload #57's crosswalk-universe fix reads) already carries every
+claim/drop row per team, transaction-coded (`transactionCode`:
+CLAIM/DROP). Counting these per team over a season/window could feed
+`risk_threshold`/`trade_activity`-style confidence the same way trade
+count does — high churn (frequent waiver moves) is a distinct roster-
+management signal from trade frequency, not currently captured anywhere
+in `build_profile()`. No decision yet on window, whether CLAIM and DROP
+count separately or combined, or which profile field it'd land in — flag
+for a future grilling session, not scoped into #57.
+
+**[NEW 2026-08-04] #57 design RESOLVED via grilling + adversarial review —
+approved, not yet built.** Plan file:
+`C:\Users\benha\.claude\plans\review-and-let-s-think-merry-bird.md`.
+Change is confined to `04z_fantrax_crosswalk.ipynb` cell id `253b3f55`
+(the `# ---- Load ----` cell); matching/persist/backfill/validation cells
+are untouched and already tolerate extra universe rows.
+
+Verified against live data (not assumed): `04cc5` resolves **cleanly** —
+`clean_name_for_match("Joe Mixon")` → 1 candidate in `dim_nfl_players`,
+`gsis_id 00-0033897`, `match_method="exact"`, score 100, **zero manual
+review, no gsis collision**. Fantrax snapshots the full `scorer` object
+onto every txn row, so `name` is present even when `teamName` is `"Not on
+a team"` — the "dropped players have no name" worry was a non-issue.
+Universe counts: ADP 2333 / draft 548 (4 not in ADP) / txn 29 TRADE + 49
+CLAIM_DROP; exactly **1** id (`04cc5`) missing today.
+
+**The adversarial pass reversed 3 of the grilling's own answers** — worth
+remembering as a pattern (the grilling answers were plausible; only
+checking the code falsified them):
+1. *Hard-fail → warn-and-skip.* `04z` **is** in `run_pipeline.py` (all 3
+   phases); `04t` is **not scheduled anywhere**, `data/raw/` is gitignored,
+   and `04t` is a Playwright scrape behind a Fantrax login gate. A `raise`
+   cascades via `needs` and kills `04v → 02d → 02e`. `02d` — the same
+   file's only other consumer — already warns and skips
+   (`02d_fact_roster_transactions.py:347-351`).
+2. *CLAIM_DROP-only → all rows, no view filter.* Filtering on
+   `filterSettings.view` costs **more** code than not filtering. TRADE has
+   0 gaps today but that's incidental, not structural. `02d` walks all rows
+   and branches on `transactionCode` — match it.
+3. *Second copy-paste block → one shared `_scorer_extras(scorers, known)`
+   helper.* Concrete latent bug, not just style: cell 3 computes
+   `_known = set(fact_latest["scorer_id"])` **before** the draft concat, so
+   a naively-copied block reusing it re-appends an already-present id
+   (verified: `03ccz`), making `scorer_id` non-unique → cell 6's
+   `set_index("scorer_id")` + `.map()` raises `InvalidIndexError`
+   **after** cell 5 already wrote the parquet (partially-updated state).
+
+Also settled: use `02d`'s season-agnostic glob `fantrax_txn_history_*.json`
+(mtime-sorted), **not** `{CFG.snapshot_season}` — the latter silently stops
+matching at season rollover. Acceptance criterion for the build is the
+downstream one: null-identity rows in `dim_roster_asset`/
+`fact_roster_transactions` go 1 → 0 after rerunning `04z` then `02d`.

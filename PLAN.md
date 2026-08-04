@@ -62,25 +62,39 @@ have both `gsis_id` and `player_key` null. 17 are an older `acquired_method=
    reset the total/bar DOM, so old numbers lingered. Shipped via PR
    [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54).
 
-## [ ] ACTIVE — wayfinder map #55: FA-claim identity gap, ticket #56 done (2026-08-04)
+## [ ] ACTIVE — wayfinder map #55: FA-claim identity gap, #57 designed (2026-08-04)
 
 **Tracker: [wayfinder map #55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55).**
-Task ticket [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
-closed — reran `04z_fantrax_crosswalk.ipynb` then `02d_fact_roster_transactions.py`,
-shipped via PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58)
-(merged to `main`). **Result: 22 of 23 known-null rows were stale output,
-now resolved** (crosswalk had already resolved them 2026-07-31;
-`dim_roster_asset`/`fact_roster_transactions` just hadn't rebuilt since
-2026-07-26). **1 true gap remains: scorer_id `04cc5`** — claim-only, zero
-rows in `dim_fantrax_crosswalk`, confirming the map's hypothesized
-mechanism (`04z`'s match universe never unions in `04t` claim/drop
-scorer_ids).
+
+- [x] [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
+  closed (PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58),
+  merged): 22 of 23 null-identity rows were stale output; **1 true gap
+  remains, scorer_id `04cc5`** — claim-only, zero crosswalk rows,
+  confirming the map's hypothesized mechanism.
+- [x] [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
+  **design resolved** (grilling + adversarial review, approved 2026-08-04).
+  Adversarial pass reversed 3 of the grilling's own answers: warn-and-skip
+  (not hard-fail — `04z` is scheduled, `04t` is not, and a `raise` would
+  cascade through `needs` into `04v → 02d → 02e`); all txn rows (not
+  CLAIM_DROP-only); one shared `_scorer_extras` helper (stale `_known`
+  would dup a scorer_id and crash cell 6 *after* cell 5 wrote the parquet).
+  Verified `04cc5` → `gsis_id 00-0033897`, exact match, zero manual review.
+  Plan: `C:\Users\benha\.claude\plans\review-and-let-s-think-merry-bird.md`;
+  detail in [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
 
 ### ➡ NEXT ACTION
 
-Pick up [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
-(Grilling: how should 04z's match universe be extended?) — narrowed scope,
-now a single confirmed case instead of the original 12-row estimate.
+**Build #57** — edit `notebooks/04z_fantrax_crosswalk.ipynb` cell id
+`253b3f55` only, per the approved plan. Then rerun `04z` → `02d` and
+confirm the acceptance criterion: null-identity rows in `dim_roster_asset`/
+`fact_roster_transactions` go **1 → 0**. Feature branch → PR, per
+CONTRIBUTING.md.
+
+Also captured this session, **not** scoped into #57: an add/drop-count
+profile signal (a `trade_count`-parallel roster-churn signal off the same
+`CLAIM_DROP` rows). Needs its own grilling — window, CLAIM vs DROP
+separate-or-combined, and which `build_profile()` field it lands in are all
+undecided.
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
