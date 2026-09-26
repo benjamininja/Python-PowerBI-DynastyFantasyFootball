@@ -57,3 +57,5 @@ mouserat_trade-bud/_site/
 # Auto-generated time-intelligence tables — Power BI recreates these on open.
 **/LocalDateTable_*.tmdl
 **/DateTableTemplate_*.tmdl
+# James HoD reference stack — embeds secrets, never commit
+docs/reference/
