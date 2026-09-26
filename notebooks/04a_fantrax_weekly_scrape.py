@@ -79,7 +79,7 @@ class LeagueConfig:
     projection_code: str = "PROJECTION_0_23l_SEASON"   # "Projected - Season"
     ytd_code: str = "SEASON_23l_YEAR_TO_DATE"          # "Reg Season - YTD"
     ui_version: int = 3
-    api_version: str = "182.4.8"          # 'v' field; bump when Fantrax updates UI
+    api_version: str = "186.3.22"         # 'v' field; bump when Fantrax updates UI (STALE_CLIENT pageError)
     timezone: str = "America/Chicago"
     # refUrl for the RETIRED getDraftRanks call (see main_scrape). Kept only so
     # the dead code still reads coherently; nothing live sends it.
