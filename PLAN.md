@@ -9,6 +9,36 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
+## [ ] ACTIVE — Supabase + in-season ETL: 3 wayfinder maps (charted 2026-09-26)
+
+Season is live; no in-season league data ingested yet, and storage is moving
+parquet-in-git → Supabase. Decided (2026-09-26): 3 parallel maps joined by a
+**storage seam** (`etl.read_table`/`write_table`, parquet backend first);
+maps carry to *change landed*; `docs/reference/` (James's HoD baseball
+Supabase stack) = pattern reference only, **kept out of git** (embeds keys).
+User direction: **daily run, weekly update-set**, tested; minimal
+player-week snapshot (roster status, contract, FPts YTD, age) — football is
+raw points, not categories.
+
+- [Map #69 — Supabase storage foundation](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/69):
+  #72 role/ADR (grilling) · #73 platform facts (research) · #74 seam
+  inventory (research) · #75 schema+RLS (grilling, ← #72 #73) · #76 provision
+  (HITL task, ← #72) · #77 build seam (task, ← #74; unblocks B/C writers).
+- [Map #70 — In-season Fantrax league flows](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/70):
+  #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
+  #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
+  #82 txn cadence (grilling) · #83 sources.yml truth-up (task) · #87 daily
+  run / weekly update-set (grilling) · #88 test strategy (grilling, ← #87).
+- [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
+  #84 nflreadpy API (research) · #85 grain/scope (grilling, ← #84) · #86
+  build + schedule (task, ← #85 #77).
+
+**Lanes.** Wave 1 (AFK, parallel): research #73 #74 #80 #84 (fired
+2026-09-26, findings on `research/*` branches), #78 capture, #83, plus
+#67 commit/PR and #68. Wave 2 (HITL, one at a time): #72 → #87 → #82 →
+#85; #77 once #74 lands, #79 once #78 lands. Wave 3: #75, #81, #88
+grillings, #76 provisioning; build tickets graduate from fog.
+
 ## [x] CLOSED — trade-bud: wayfinder map #44 (2026-08-01)
 
 **Tracker: [wayfinder map #44](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/44)** —
@@ -62,39 +92,70 @@ have both `gsis_id` and `player_key` null. 17 are an older `acquired_method=
    reset the total/bar DOM, so old numbers lingered. Shipped via PR
    [#54](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/54).
 
-## [ ] ACTIVE — wayfinder map #55: FA-claim identity gap, #57 designed (2026-08-04)
+## [x] CLOSED — wayfinder map #55: FA-claim identity gap (2026-08-04)
 
-**Tracker: [wayfinder map #55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55).**
+**Tracker: [wayfinder map #55](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/55)** —
+closed. #56 (rerun/measure) and #57 (grilled fix: union `04t` txn-history
+scorer_ids into `04z`'s match universe via `_scorer_extras`) both closed.
+Shipped via PR [#60](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/60),
+squash-merged to `main` as `7336606`. Verified: `04cc5` → `gsis_id
+00-0033897`/`exact`; `dim_roster_asset` null-identity rows 0 (was 1);
+`pytest tests/` 33 passed. Full detail:
+[mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
 
-- [x] [#56](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/56)
-  closed (PR [#58](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/58),
-  merged): 22 of 23 null-identity rows were stale output; **1 true gap
-  remains, scorer_id `04cc5`** — claim-only, zero crosswalk rows,
-  confirming the map's hypothesized mechanism.
-- [x] [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
-  **design resolved** (grilling + adversarial review, approved 2026-08-04).
-  Adversarial pass reversed 3 of the grilling's own answers: warn-and-skip
-  (not hard-fail — `04z` is scheduled, `04t` is not, and a `raise` would
-  cascade through `needs` into `04v → 02d → 02e`); all txn rows (not
-  CLAIM_DROP-only); one shared `_scorer_extras` helper (stale `_known`
-  would dup a scorer_id and crash cell 6 *after* cell 5 wrote the parquet).
-  Verified `04cc5` → `gsis_id 00-0033897`, exact match, zero manual review.
-  Plan: `C:\Users\benha\.claude\plans\review-and-let-s-think-merry-bird.md`;
-  detail in [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
+## [ ] ACTIVE — backlog triage from #55: #64/#61 closed, #62/#63 → grilled wayfinder maps (2026-08-04)
+
+Four backlog issues filed from #55's deferred items, prioritized #64 → #62
+→ #61 → #63.
+
+- [x] [#64](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/64)
+  closed — stale on filing, PR #58 (merged 2026-08-03, before #64 was
+  opened) already fixed the 17-row gap. Verified 0 null-identity rows today.
+- [x] [#61](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/61)
+  closed — moot, `dim_season` confirms 2026 is the league's inaugural
+  season, so there's no prior season for `04t` to backfill.
+- [x] [#62](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/62)
+  / [#63](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/63) —
+  both grilled, design fully decided, and wired into their own wayfinder
+  maps (see below). Original backlog issues closed, retrofitted as each
+  map's grilling ticket.
+
+**Wayfinder maps charted** (2026-08-04) — design done, implementation
+pointers created, nothing executed yet:
+
+- [Wayfinder Map: 04z crosswalk disambiguation hardening](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/65) —
+  grilling ticket [#62](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/62)
+  (closed), implementation ticket
+  [Task #67](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/67)
+  (open, unblocked). `disambiguate()` gets an `nfl_team` tiebreak + an
+  "ambiguous" flag routing genuinely-tied candidates to the review queue;
+  `dim_player_alias` wired into `match_one` as a `player_key` fallback.
+- [Wayfinder Map: trade-bud waiver-activity signal](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/66) —
+  grilling ticket [#63](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/63)
+  (closed), implementation ticket
+  [Task #68](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/68)
+  (open, unblocked). New `infer_waiver_activity(team_key)` in
+  `profiles.py`, exact mirror of `infer_trade_activity`.
+
+Full decision detail in
+[mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md).
 
 ### ➡ NEXT ACTION
 
-**Build #57** — edit `notebooks/04z_fantrax_crosswalk.ipynb` cell id
-`253b3f55` only, per the approved plan. Then rerun `04z` → `02d` and
-confirm the acceptance criterion: null-identity rows in `dim_roster_asset`/
-`fact_roster_transactions` go **1 → 0**. Feature branch → PR, per
-CONTRIBUTING.md.
-
-Also captured this session, **not** scoped into #57: an add/drop-count
-profile signal (a `trade_count`-parallel roster-churn signal off the same
-`CLAIM_DROP` rows). Needs its own grilling — window, CLAIM vs DROP
-separate-or-combined, and which `build_profile()` field it lands in are all
-undecided.
+**Task #67 implemented and verified (2026-08-06), not yet committed.**
+`disambiguate()` gained an `nfl_team` soft-filter tiebreak (after
+status, before `entry_year` sort) and returns `None` when candidates
+are still tied after every tiebreak (top `entry_year` null or shared by
+>1 row); `match_one` maps that to `method="ambiguous"`, `gsis_id=None`.
+Review-CSV filter extended to `["review", "unmatched", "ambiguous"]`.
+`ALIAS` wired into `match_one`'s `player_key` line as a `(cn, pos_key)`
+fallback behind `rp_lookup`. Verified: reran `04z` clean, 0 `ambiguous`
+rows today (no live tie hit the new branch) so `exact`/`exact+disambig`/
+`fuzzy`/`review`/`unmatched`/`manual`/`new` counts unchanged from
+pre-change baseline; `[ok] gsis_id mapping is 1:1` held; reran `02d` →
+`dim_roster_asset` null-identity player rows still 0; `pytest tests/` 33
+passed. **Open**: commit + PR, closes #67; then Task #68 (waiver
+activity) is next, open and unblocked.
 
 ## [ ] Active — dead money (3-version design, user building in PBI Desktop)
 
