@@ -44,11 +44,12 @@ the parquet alone.
   `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a
   `ModuleNotFoundError` while running a notebook/script means the package is
   missing from this file — add it there, don't just `pip install` ad hoc.
-- **Storage**: parquet for every dim/fact table (`data/*.parquet`); CSV only
-  for human-review staging (`data/review/*.csv`). Migration path to Fabric =
-  swap `pd.read/write_parquet` for `spark.read.parquet` + `abfss://` — schema
-  stays identical, so don't design around a future migration, just keep the
-  schema clean.
+- **Storage** (ADR-0014): Supabase Postgres is the **system of record** for
+  every dim/fact table, written only through the `etl_helpers` storage seam.
+  `data/*.parquet` is the **published snapshot**, exported after a good run;
+  Power BI, the bot and trade-bud read only the snapshot, never the database.
+  Until the seam (#77) and its Postgres backend land, parquet is still the
+  store that gets written. CSV is only for human-review staging (`data/review/*.csv`).
 - **Shared config/helpers**: `notebooks/etl_helpers.py` is the single source
   of truth — `LeagueConfig`/`CFG`/`DATA`/`REVIEW` (repo-root-anchored, CWD
   independent), `clean_player_name`, `generate_player_key`,
@@ -89,7 +90,7 @@ the parquet alone.
   author email (`38588919+benjamininja@users.noreply.github.com`) — repo
   `user.email` is already set to it. Commit only when asked. **One codified
   exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) commits
-  machine-generated `data/*.parquet` refreshes directly to `main`
+  the machine-generated published snapshot (`data/*.parquet`) directly to `main`
   (allowlist-verified, change-detected, rebase-then-push — CONTRIBUTING.md).
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,

@@ -1,74 +1,62 @@
-# RESUME — trade-bud: #57 design resolved + adversarially reviewed (2026-08-04)
+# RESUME — Supabase + in-season ETL: 3 wayfinder maps (updated 2026-09-26, post-#72)
 
-**Files touched this session**: `.claude/memory/MEMORY.md`,
-`.claude/memory/mouserat-trade-bud.md`, `.claude/memory/RESUME.md`,
-`mouserat_trade-bud/frontend/index.html` (all committed as `2807541`,
-pushed to `docs/plan-update-ticket-56-closed`), then `PLAN.md` +
-memory updates from this consolidation (**uncommitted**).
+**Git state**: branch `docs/wayfinder-supabase-inseason-maps` has an open PR
+(maps + ADR-0014). Carries `PLAN.md` ACTIVE section, this file, `.gitignore` +=
+`docs/reference/`, ADR-0014, the ADR-0012 amendment note, the CLAUDE.md storage
+rule and CONTEXT.md `### Storage`.
+`main` = 6be523e (PRs #89 + #90 merged, remote + local branches deleted).
+Uncommitted, not mine: `.claude/memory/MEMORY.md`, `mouserat-trade-bud.md`,
+untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
 
-**Next task**: Build ticket [#57](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/57)
-— edit `notebooks/04z_fantrax_crosswalk.ipynb` **cell id `253b3f55` only**,
-per the approved plan at
-`C:\Users\benha\.claude\plans\review-and-let-s-think-merry-bird.md`.
+## Decisions (user, 2026-09-26)
+- 3 parallel maps joined by a **storage seam** (`etl.read_table`/
+  `write_table`, parquet backend first, Supabase later).
+- Maps carry to **change landed** (decision tickets → task tickets).
+- `docs/reference/` = pattern reference only (reject name-keys, anon-write RLS);
+  now gitignored. User will tell James about his anon-write RLS himself.
+- **Daily run, weekly update-set, tested**; minimal player-week snapshot
+  (roster status, contract, FPts YTD, age) — football = raw points.
+- **#72 → ADR-0014** (grilled): Postgres = system of record; consumers read the
+  published parquet snapshot (exported only after a good run); the Change Poll
+  (public getTeamRosters hash) triggers the txn ETL; free tier + year-round
+  daily `etl_run_log` write; restore drill before cutover; Power BI stays on
+  parquet; Pro + live reads once a multi-sport app, auth, or James link lands
+  (one project, schemas football/baseball/shared). ADR-0012 amended, not
+  superseded. Did NOT query James's Supabase (his key); the user may ask him
+  for table sizes.
 
-## No code changed this session — design only
+## Maps (GitHub, native sub-issues + blocked-by wired)
+- **#69 Supabase storage foundation**: #72 ✅ (ADR-0014) · #73 ✅ · #74 ✅ ·
+  #75 schema+RLS (grill, ←72) · #76 provision (HITL, ←72) · #77 build seam
+  (task, **unblocked**; prereq grain fixes listed in #69 fog).
+- **#70 In-season Fantrax**: #78 ✅ · #79 schema extraction (research,
+  **unblocked**) · #80 ✅ · #81 fact model (grill, ←79,87) · #82 txn cadence
+  (grill) · #83 sources.yml truth-up (task; add 04s entry too) · #87 daily
+  run/weekly update-set (grill) · #88 test strategy (grill, ←87).
+- **#71 nflverse**: #84 ✅ · #85 grain (grill; minimal stats) · #86
+  build+schedule (task, ←85,77).
+All closed research gists are already folded into map **Decisions so far**.
 
-#57 was a grilling ticket. The design is **approved but not implemented**;
-no `.py`/`.ipynb` file was modified.
+## Landed this session
+- PR #89: `notebooks/04s_fantrax_inseason_capture.py` (schedule once; per
+  period standings COMBINED, `getLiveScoringStats {period}` (period
+  REQUIRED), `getTeamRosterInfo {teamId, period}` ×28 incl. Age/Sal/Con/FPts +
+  `draftPicksData`). Raw in `data/raw/fantrax_inseason_2026_{schedule,p01..p03}.json`.
+  Also `04a CFG.api_version` 182.4.8 → 186.3.22 (old = STALE_CLIENT pageError;
+  current version lives in Fantrax JS chunk `name:"fantrax",version:"…"`).
+- PR #90: #67 04z disambiguate tiebreak. #67 closed. **Map #65 still open —
+  check if destination reached and close.**
+- Tests: run with `.venv/Scripts/python.exe -m pytest tests/` (33 pass);
+  system python has no pytest.
 
-### What was decided
+## Next actions
+1. User merges the docs PR, then clears context.
+2. HITL queue: #87 (cadence + Change Poll host/interval) → #82 → #85 → #81;
+   #75 schema+RLS and #76 provision are now unblocked.
+3. AFK frontier: #79 (fantrax-payload-analyst on 04s raw files; never read
+   `data/raw/` in main context), #77 seam build, #83 sources truth-up, #68.
+4. Close map #65 if done.
 
-Restructure `04z`'s universe-extension section in cell `253b3f55` into one
-`_scorer_extras(scorers, known)` helper (holding the 5-field mapping once:
-`scorer_id`, `player_name`, `position_raw` via `re.sub(r"<[^>]+>", "", …)`,
-`nfl_team`, `is_rookie`) fed by two collectors: the existing draft-results
-glob, plus a **new** `fantrax_txn_history_*.json` collector walking every
-row's `scorer` object. `_known` must be **recomputed from `fact_latest`
-before each union**. Missing txn file → `02d`-style `[info] … (run 04t)`
-message and continue.
-
-The adversarial review reversed 3 answers the grilling itself had produced:
-1. **warn-and-skip, not hard-fail** — `04z` is in `run_pipeline.py` (all 3
-   phases), `04t` is not scheduled anywhere, `data/raw/` is gitignored, and
-   a `raise` cascades via `needs` into `04v → 02d → 02e`.
-2. **all txn rows, no view filter** — filtering on `filterSettings.view`
-   costs more code than not filtering; `02d` walks all rows too.
-3. **shared helper, not a second block** — cell 3's `_known` is computed
-   *before* the draft concat, so a copied block re-appends `03ccz`, making
-   `scorer_id` non-unique → cell 6 `.map()` raises `InvalidIndexError`
-   *after* cell 5 already wrote the parquet.
-
-Use `02d`'s season-agnostic glob `fantrax_txn_history_*.json` (mtime-sorted),
-**not** `{CFG.snapshot_season}` — the latter breaks at season rollover.
-
-### Exact commands to run next
-
-```powershell
-git checkout -b fix/04z-claim-only-match-universe
-# edit notebooks/04z_fantrax_crosswalk.ipynb cell 253b3f55
-.\run.ps1 notebooks\04z_fantrax_crosswalk.ipynb
-.\run.ps1 notebooks\02d_fact_roster_transactions.py
-.\run.ps1 -m pytest tests\
-```
-
-**Acceptance criterion** (the real one — downstream, not the notebook):
-null-identity rows in `dim_roster_asset` / `fact_roster_transactions` go
-**1 → 0**. Also assert `xwalk["scorer_id"].is_unique` (guards the finding-3
-bug) and that `dim_fantrax_crosswalk` has exactly one `04cc5` row with
-`gsis_id == "00-0033897"`, `match_method == "exact"`. Verify graceful
-degradation by temporarily moving `data/raw/fantrax_txn_history_2026.json`
-aside and confirming `04z` completes rather than raising.
-
-## Loose ends, not blocking
-
-- **Uncommitted**: `PLAN.md` + the memory files updated by this
-  consolidation. Commit before or alongside the #57 build.
-- The Spanish strings in `index.html` ("El Otro Perfil" / "El Otro Equipo")
-  were **confirmed intentional** by Ben this session and are committed in
-  `2807541` — no longer a loose end.
-- Untracked `.agents/` and `GEMINI.md` are from another CLI tool; left
-  alone deliberately, out of every commit.
-- **New idea, needs its own grilling**: add/drop-count profile signal
-  (`trade_count`-parallel roster-churn metric off the same `CLAIM_DROP`
-  rows). Window, CLAIM-vs-DROP handling, and target `build_profile()` field
-  all undecided. Recorded in `mouserat-trade-bud.md` + `PLAN.md`.
+Chart scripts (scratchpad, may be gone): `chart_maps.py`, `amend_b.py`.
+Map-edit pattern: `gh issue view N --json body -q .body > f.md`, python
+replace under `## Decisions so far\n\n`, `gh issue edit N --body-file f.md`.
