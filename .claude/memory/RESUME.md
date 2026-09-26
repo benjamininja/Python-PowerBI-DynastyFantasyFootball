@@ -1,8 +1,9 @@
-# RESUME — Supabase + in-season ETL: 3 wayfinder maps (updated 2026-09-26)
+# RESUME — Supabase + in-season ETL: 3 wayfinder maps (updated 2026-09-26, post-#72)
 
-**Git state**: on branch `docs/wayfinder-supabase-inseason-maps` (pushed, **no PR —
-hold until #72's ADR lands, then add ADR to this branch and PR**). Carries
-`PLAN.md` ACTIVE section, this file, `.gitignore` += `docs/reference/`.
+**Git state**: branch `docs/wayfinder-supabase-inseason-maps` has an open PR
+(maps + ADR-0014). Carries `PLAN.md` ACTIVE section, this file, `.gitignore` +=
+`docs/reference/`, ADR-0014, the ADR-0012 amendment note, the CLAUDE.md storage
+rule and CONTEXT.md `### Storage`.
 `main` = 6be523e (PRs #89 + #90 merged, remote + local branches deleted).
 Uncommitted, not mine: `.claude/memory/MEMORY.md`, `mouserat-trade-bud.md`,
 untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
@@ -15,10 +16,17 @@ untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
   now gitignored. User will tell James about his anon-write RLS himself.
 - **Daily run, weekly update-set, tested**; minimal player-week snapshot
   (roster status, contract, FPts YTD, age) — football = raw points.
-- New ADR must supersede ADR-0012 "no database" + CLAUDE.md storage rule.
+- **#72 → ADR-0014** (grilled): Postgres = system of record; consumers read the
+  published parquet snapshot (exported only after a good run); the Change Poll
+  (public getTeamRosters hash) triggers the txn ETL; free tier + year-round
+  daily `etl_run_log` write; restore drill before cutover; Power BI stays on
+  parquet; Pro + live reads once a multi-sport app, auth, or James link lands
+  (one project, schemas football/baseball/shared). ADR-0012 amended, not
+  superseded. Did NOT query James's Supabase (his key); the user may ask him
+  for table sizes.
 
 ## Maps (GitHub, native sub-issues + blocked-by wired)
-- **#69 Supabase storage foundation**: #72 role/ADR (grill) · #73 ✅ · #74 ✅ ·
+- **#69 Supabase storage foundation**: #72 ✅ (ADR-0014) · #73 ✅ · #74 ✅ ·
   #75 schema+RLS (grill, ←72) · #76 provision (HITL, ←72) · #77 build seam
   (task, **unblocked**; prereq grain fixes listed in #69 fog).
 - **#70 In-season Fantrax**: #78 ✅ · #79 schema extraction (research,
@@ -42,10 +50,9 @@ All closed research gists are already folded into map **Decisions so far**.
   system python has no pytest.
 
 ## Next actions
-1. **User runs `/grill-with-docs` on #72** (Supabase role: SoR vs mirror, parquet
-   fate, free-tier pause/no-backup mitigation, ADR-0012 supersession). Output:
-   new ADR → commit on docs branch → PR. Then user clears context.
-2. HITL queue after: #87 (cadence) → #82 → #85 → #81.
+1. User merges the docs PR, then clears context.
+2. HITL queue: #87 (cadence + Change Poll host/interval) → #82 → #85 → #81;
+   #75 schema+RLS and #76 provision are now unblocked.
 3. AFK frontier: #79 (fantrax-payload-analyst on 04s raw files; never read
    `data/raw/` in main context), #77 seam build, #83 sources truth-up, #68.
 4. Close map #65 if done.

@@ -58,6 +58,26 @@ faithful, **multi-hop** history — every hand-change is its own Trade, not a
 single net transfer from first owner to last.
 _Avoid_: swap, deal
 
+### Storage
+
+**System of Record**:
+The one store whose rows are the truth: Supabase Postgres (ADR-0014). Every
+ETL write goes through the storage seam into it, and its constraints reject bad
+rows at write time.
+_Avoid_: master, source of truth (ambiguous with upstream sources like Fantrax)
+
+**Published Snapshot**:
+`data/*.parquet`, exported from the System of Record only after a run commits
+and passes its checks, then committed to git. The only thing Power BI, the bot
+and trade-bud read, so they keep serving if the database pauses.
+_Avoid_: backup, mirror, cache
+
+**Change Poll**:
+A no-auth check that hashes each team's current-period roster on the public
+Fantrax API and triggers the transaction ETL when a hash changes. It stands in
+for the webhooks Fantrax doesn't offer.
+_Avoid_: webhook, live sync
+
 ### Time
 
 **Season** (`season_id`):
