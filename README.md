@@ -134,7 +134,7 @@ playwright install chromium
 
 # Fantrax credentials (for 04a_fantrax_weekly_scrape.py)
 # Create notebooks/.env with:
-#   FANTRAX_EMAIL=your@email.com
+#   FANTRAX_EMAIL=you@example.com
 #   FANTRAX_PASSWORD=yourpassword
 
 # Run notebooks in order (01a → 04z) with CWD = project root
