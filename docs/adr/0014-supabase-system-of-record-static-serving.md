@@ -1,6 +1,6 @@
 # Supabase is the ETL's system of record; serving stays a static published snapshot
 
-- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); not yet built.
+- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); not yet built. Amended by [ADR-0015](0015-etl-on-github-actions-owner-pii-confined.md) (2026-09-27): the ETL runs on GitHub Actions, so the rejected Actions keep-alive's "DB credentials in Actions secrets" reason no longer holds; Change Poll host and interval are set there.
 - Date: 2026-09-26
 - Amends: [ADR-0012](0012-static-export-for-trade-bud.md). Its "no database" framing and its rejected Supabase alternative are re-scoped to *serving*; the rest of ADR-0012 stands.
 - Scope:
