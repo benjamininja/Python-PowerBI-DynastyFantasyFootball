@@ -7,6 +7,9 @@
 - **Supersedes** the slot-keyed `dim_draft_pick` from [ADR-0004](0004-polymorphic-asset-id.md)'s
   Build amendment; **extends** ADR-0004's pick/`trade` design and
   [ADR-0003](0003-event-sourced-roster-transactions.md)'s ledger.
+- **Amended 2026-09-27 by [ADR-0016](0016-roster-state-from-snapshot-ledger-is-provenance.md):**
+  decision 5's surrogate `transaction_id` is replaced, for Fantrax Roster Moves, by
+  the natural key `(txSetId, scorer_id, team_key, event_type)`.
 
 ## Context
 
