@@ -1,18 +1,25 @@
 # RESUME — Supabase + in-season ETL maps (updated 2026-09-27, post-#85 grill)
 
-**Git state**: #85 docs shipped in PR #99 (`docs/85-nflverse-grain`); the user
-merges and deletes the remote branch. **First step next session**: `git switch
-main && git pull --ff-only && git branch -d docs/85-nflverse-grain`.
+**Git state**: `main` = 3f6c804 (PR #99 squash-merged, #85 done; local +
+remote branch deleted). This RESUME edit is uncommitted on `main` — fold it
+into the next docs branch.
 Commit/PR only when the user asks. Stage explicit paths only.
 Not mine (leave alone): `.claude/memory/MEMORY.md`, `mouserat-trade-bud.md`,
 untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
 
-**Side session running**: "Investigate missing in-season Fantrax ADP partitions"
-(`fact_fantrax_adp` has only DRAFT/PRE since 07-31; YTD backfill gone). Read its
-outcome before any 04a / GP work.
+**Side session (fact_fantrax_adp gap) — done 2026-09-27, uncommitted**:
+root cause = pipeline never scheduled/run (no task, no workflow); the 2025 YTD
+backfill never reached git. Filled: 2025/YTD (offline replay), 2026/01 + 02
+(new `04a --rebuild-week NN --through-date` via BY_DATE; ADP/%D/Sal are
+rebuild-day values). Also recalibrated `MIN_ACTIVE_BY_POS` to in-season floors
+(old ones blocked every in-season pull). **Still to do**: Tue 09-29 (after MNF)
+`.\run_weekly.ps1 --steps 04a_scrape,04z_crosswalk,04a_backfill_gp --no-commit`
+→ 2026/03 + 2026/YTD + gsis refresh. Uncommitted: `04a_fantrax_weekly_scrape.py`,
+`data/fact_fantrax_adp.parquet`, `data-model.md` — don't revert.
 
 **Email-leak session** ("Remove leaked owner emails from public repo",
-local_8a9a63f7…) is still waiting at its plan gate; nothing written yet. It
+local_8a9a63f7…) shipped PR #95 (stop publishing owner PII + PII scan gate,
+merged); session still open — verify what remains before touching its files. It
 found a Fantrax password in public history (`notebooks/.env`, 66b79d8); the
 user **rotated it 2026-09-27**, and the history scrub is still theirs to run.
 01c still writes `manager_email*`. Don't touch 01c, `etl_helpers.py`,

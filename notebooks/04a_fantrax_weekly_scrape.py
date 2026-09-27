@@ -298,24 +298,36 @@ class FantraxScraper:
 
     # --- players-grid (getPlayerStats) backfill ------------------------------
     def _player_stats_payload(self, season_code: str, timeframe: str,
-                              pos_group: str, page_no: int) -> dict:
-        """getPlayerStats request body for one position group + page."""
+                              pos_group: str, page_no: int,
+                              date_range: tuple[str, str] | None = None) -> dict:
+        """getPlayerStats request body for one position group + page.
+
+        date_range=(start, end) as ISO dates only applies to a *_BY_DATE
+        season code (timeframe BY_DATE) and returns cumulative actuals over
+        that window. Probed 2026-09-27: epoch-ms dates are ignored, and the
+        BY_PERIOD code ignores every period field tried (always the current
+        week), so BY_DATE is the only way to rebuild a past week.
+        """
+        data = {
+            "statusOrTeamFilter": "ALL",
+            "pageNumber": str(page_no),
+            "maxResultsPerPage": str(self.cfg.players_page_size),
+            "miscDisplayType": self.cfg.players_misc_display,
+            "positionOrGroup": pos_group,
+            "seasonOrProjection": season_code,
+            "timeframeTypeCode": timeframe,
+        }
+        if date_range:
+            data["startDate"], data["endDate"] = date_range
         return {
-            "msgs": [{"method": "getPlayerStats", "data": {
-                "statusOrTeamFilter": "ALL",
-                "pageNumber": str(page_no),
-                "maxResultsPerPage": str(self.cfg.players_page_size),
-                "miscDisplayType": self.cfg.players_misc_display,
-                "positionOrGroup": pos_group,
-                "seasonOrProjection": season_code,
-                "timeframeTypeCode": timeframe,
-            }}],
+            "msgs": [{"method": "getPlayerStats", "data": data}],
             "uiv": self.cfg.ui_version, "refUrl": self.cfg.players_ref_url,
             "dt": 0, "at": 0, "tz": self.cfg.timezone, "v": self.cfg.api_version,
         }
 
     def fetch_player_stats(self, season_code: str, timeframe: str,
-                           label: str) -> list:
+                           label: str,
+                           date_range: tuple[str, str] | None = None) -> list:
         """
         Paginate getPlayerStats across position groups (the 'ALL' group omits GP,
         so we pull FOOTBALL_OFFENSE + FOOTBALL_DEFENSE and union). Returns every
@@ -334,7 +346,7 @@ class FantraxScraper:
                 page_no = 1
                 while True:
                     payload = self._player_stats_payload(
-                        season_code, timeframe, pos_group, page_no)
+                        season_code, timeframe, pos_group, page_no, date_range)
                     raw = self._post_json(ctx, payload, "getPlayerStats")
                     if self._session_dead(raw):
                         self._login(page)
@@ -663,16 +675,24 @@ def player_stats_to_frame(responses: list, cfg: LeagueConfig,
 
 def backfill_player_stats(cfg: LeagueConfig, season: int, week: str = "YTD",
                           season_code: str | None = None,
-                          timeframe: str = "YEAR_TO_DATE") -> pd.DataFrame:
+                          timeframe: str = "YEAR_TO_DATE",
+                          date_range: tuple[str, str] | None = None) -> pd.DataFrame:
     """
     Scrape getPlayerStats for a completed season and append its actuals (incl. GP)
     to fact_fantrax_adp as season=<season>, week=<week>. A real-data counterpoint
     to the projection board. season_code defaults to YTD_SEASON_CODES[season].
+    With date_range (BY_DATE code), rebuilds a missed weekly snapshot as
+    cumulative actuals over the window; ADP/%D/Sal are still today's values.
     """
     season_code = season_code or YTD_SEASON_CODES[season]
     label = f"{season}_{week}"
-    responses = FantraxScraper(cfg).fetch_player_stats(season_code, timeframe, label)
+    responses = FantraxScraper(cfg).fetch_player_stats(
+        season_code, timeframe, label, date_range)
     df = player_stats_to_frame(responses, cfg, season, week)
+    verdict = check_universe(df)
+    if not all(ok for _, _, ok in verdict.values()):
+        raise RuntimeError(f"backfill {season}/{week} came in short -- "
+                           f"refusing to load: {verdict}")
     path = load_fact(df, cfg)
     print(f"[ok] backfill season={season} week={week}: {len(df)} rows -> {path}")
     return df
@@ -704,13 +724,14 @@ def load_fact(df: pd.DataFrame, cfg: LeagueConfig = CFG) -> str:
 # %%
 # ---- Main -------------------------------------------------------------------
 # Minimum active-roster rows per position group expected from the Players grid,
-# used as a truncation alarm. Floors, not targets -- measured against the
-# captured 2025 YTD grid (QB 119, TE 192, WR 379, RB 206, DB 558, DL 420,
-# LB 334). If a pull comes in under these, the response was filtered or paged
-# short and MUST NOT be loaded: a truncated offense pool is exactly the bug
-# that retired extract_ranked_board.
-MIN_ACTIVE_BY_POS = {"QB": 100, "RB": 180, "WR": 330, "TE": 165,
-                     "DL": 380, "LB": 300, "DB": 500}
+# used as a truncation alarm. Floors, not targets -- ~90% of the in-season
+# (53-man) universe, the smallest of the year: 2026 wk01 grid QB 107, RB 189,
+# WR 306, TE 184, DL 428, LB 362, DB 464 (offseason 90-man grids run ~14%
+# larger, e.g. 2025 YTD WR 386 / DB 562). If a pull comes in under these, the
+# response was filtered or paged short and MUST NOT be loaded: a truncated
+# offense pool (3-5x short) is exactly the bug that retired extract_ranked_board.
+MIN_ACTIVE_BY_POS = {"QB": 95, "RB": 170, "WR": 275, "TE": 165,
+                     "DL": 380, "LB": 325, "DB": 420}
 
 
 def check_universe(df: pd.DataFrame, minimums: dict = None) -> dict:
@@ -810,10 +831,25 @@ if __name__ == "__main__":
                     help="override seasonOrProjection for the weekly snapshot "
                          "(pin a code from the response's seasonOrProjections "
                          "list if the phase-aware default is rejected)")
+    ap.add_argument("--rebuild-week",
+                    help="rebuild a missed weekly snapshot for the current "
+                         "season, e.g. 01 (requires --through-date)")
+    ap.add_argument("--through-date",
+                    help="with --rebuild-week: last day (YYYY-MM-DD) of that "
+                         "Fantrax week; actuals are cumulative from week1_thursday")
     args = ap.parse_args()
     if args.season_code:
         CFG.projection_code = CFG.ytd_code = args.season_code
-    if args.backfill_gp:
+    if args.rebuild_week:
+        if not args.through_date:
+            ap.error("--rebuild-week requires --through-date")
+        week = f"{int(args.rebuild_week):02d}"
+        backfill_player_stats(
+            CFG, CFG.snapshot_season, week=week,
+            season_code=CFG.ytd_code.replace("_YEAR_TO_DATE", "_BY_DATE"),
+            timeframe="BY_DATE",
+            date_range=(CFG.week1_thursday, args.through_date))
+    elif args.backfill_gp:
         # Current season uses the live YTD code; completed seasons come from
         # YTD_SEASON_CODES (extend that map when Fantrax mints a new code).
         # week stays "YTD" for every season: a single rolling partition,
