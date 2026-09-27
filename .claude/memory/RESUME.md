@@ -1,10 +1,10 @@
 # RESUME — Supabase + in-season ETL maps (updated 2026-09-27, post-#87 grill)
 
-**Git state**: branch `docs/87-run-cadence` (off `main` = 08c5c80), **uncommitted**:
-`CONTEXT.md` (+Scoring Period, Update-Set, Drift, Owner PII; Owner Manifest
-note), new `docs/adr/0015-etl-on-github-actions-owner-pii-confined.md`,
-ADR-0014 amendment note, `PLAN.md` map line, this file. User has not yet
-asked to commit → ask "commit + PR?" first thing. Stage explicit paths only.
+**Git state**: **PR #94** open (`docs/87-run-cadence` → `main` = 08c5c80;
+no CI checks on docs): `CONTEXT.md` (+Scoring Period, Update-Set, Drift,
+Owner PII; Owner Manifest note), new ADR-0015, ADR-0014 amendment note,
+`PLAN.md` map line, this file. User merges it (squash, `--delete-branch`),
+then `git switch main && git pull`. Stage explicit paths only.
 Not mine (leave alone): `.claude/memory/MEMORY.md`, `mouserat-trade-bud.md`,
 untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
 
@@ -45,7 +45,7 @@ user's to run. Check its outcome before touching those files.
 - **#71 nflverse**: #84 ✅ · #85 grain (grill) · #86 build (←85,77).
 
 ## Next actions (no build work until the user says so)
-1. Ask to commit this branch → PR.
+1. Confirm PR #94 merged; check task_5f6a95b6 (email leak) outcome/PR.
 2. HITL grill queue: #82 → #85 → #88 → #81; #75 schema+RLS.
 3. AFK frontier: #92 spike, #79 (fantrax-payload-analyst; never read
    `data/raw/` in main context; also check payloads for Owner PII fields),
