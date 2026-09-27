@@ -1,11 +1,15 @@
 # RESUME — Supabase + in-season ETL maps (updated 2026-09-27, post-#85 grill)
 
-**Git state**: branch `docs/85-nflverse-grain` (from `main` = 8b4b3a6; PR #98
-for #82 merged). Uncommitted docs: `CONTEXT.md` (+Unit, Period Scoring
-by-Unit clause), new ADR-0017, `PLAN.md` (#85 ✅, in-season tables line), this
-file. Commit/PR only when the user asks. Stage explicit paths only.
+**Git state**: #85 docs shipped in PR #99 (`docs/85-nflverse-grain`); the user
+merges and deletes the remote branch. **First step next session**: `git switch
+main && git pull --ff-only && git branch -d docs/85-nflverse-grain`.
+Commit/PR only when the user asks. Stage explicit paths only.
 Not mine (leave alone): `.claude/memory/MEMORY.md`, `mouserat-trade-bud.md`,
 untracked `.agents/`, `GEMINI.md`, `.claude/worktrees/`.
+
+**Side session running**: "Investigate missing in-season Fantrax ADP partitions"
+(`fact_fantrax_adp` has only DRAFT/PRE since 07-31; YTD backfill gone). Read its
+outcome before any 04a / GP work.
 
 **Email-leak session** ("Remove leaked owner emails from public repo",
 local_8a9a63f7…) is still waiting at its plan gate; nothing written yet. It
@@ -46,8 +50,7 @@ plan-gated code change.
 3. nflverse: `fact_nfl_snap_counts` (gsis_id, game_id) + `fact_nfl_injuries`
    (gsis_id, season, week); current season, replaced each run (not
    Update-Sets); `period` stamped via `getLeagueInfo.scoringPeriods`.
-4. Side finding (chip spawned): `fact_fantrax_adp` has no in-season / YTD
-   partitions since 07-31 — scheduled 04a not landing data.
+4. Side finding → side session (see Git state).
 
 ## Maps (native sub-issues + blocked-by wired)
 - **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 schema+RLS (grill) ·
@@ -62,9 +65,9 @@ plan-gated code change.
 - **#71 nflverse**: #84 ✅ · #85 ✅ (ADR-0017) · #86 build (←77; body rewritten).
 
 ## Next actions (no build work until the user says so)
-1. User: commit/PR `docs/85-nflverse-grain` when ready. Owner re-enrolls the
+1. **Next: `/grill-with-docs #88`** (test strategy). Owner re-enrolls the
    Fantrax authenticator to capture the TOTP setup key for #92.
-2. HITL grill queue: #88 → #81 (now has live-scoring input comment); #75 schema+RLS.
+2. HITL grill queue after #88: #81 (now has live-scoring input comment); #75 schema+RLS.
 3. AFK frontier: #92 spike (now TOTP-first, see its comment), #79 (fantrax-payload-analyst; never read
    `data/raw/` in main context), #77 seam, #83, #68.
 
