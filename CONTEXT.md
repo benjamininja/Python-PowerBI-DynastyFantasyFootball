@@ -82,7 +82,16 @@ _Avoid_: transaction (Fantrax groups several moves under one), event
 **Period Scoring**:
 The points a player earned for the team that held him in a Scoring Period. The
 team is whichever team had him that period, not the one that has him now.
+Fantrax scores each stat separately, so Period Scoring can be broken down by
+Unit.
 _Avoid_: weekly stats, fantasy points (unqualified)
+
+**Unit**:
+The phase of play a stat, a point or a snap belongs to: **Offense**, **Defense**
+or **Special Teams**. Scoring stats take Fantrax's offense/defense grouping,
+except Return Yards and Blocked Kicks, which are Special Teams (the only special
+teams stats the league scores). Snaps are counted per Unit by the NFL.
+_Avoid_: side, phase, stat group
 
 **Dead Money**:
 Cap charged to a team for dropping a player on a guaranteed contract. It follows
