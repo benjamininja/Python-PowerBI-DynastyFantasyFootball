@@ -32,8 +32,9 @@ raw points, not categories.
   (grilling) · #92 Actions login spike (research) · #93 cadence build (task,
   ← #92 #77 #75 #76 #88).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
-  #84 nflreadpy API (research) · #85 grain/scope (grilling, ← #84) · #86
-  build + schedule (task, ← #85 #77).
+  #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
+  snaps + injuries only; points/GP from Fantrax) · #86 build + schedule
+  (task, ← #85 #77).
 
 **Lanes.** Wave 1 (AFK, parallel): research #73 #74 #80 #84 (fired
 2026-09-26, findings on `research/*` branches), #78 capture, #83, plus
@@ -221,8 +222,9 @@ dead-money measures); the singular/plural table rename
 
 ## [ ] Deferred — future
 
-- [ ] In-season tables: `fact_nfl_player_stats`, `fact_nfl_season_injuries`
-  (nflreadpy weekly) — per data-model "In-Season Tables (deferred)".
+- [ ] In-season tables: `fact_nfl_snap_counts`, `fact_nfl_injuries`
+  (nflreadpy, current season) — scope/grain per ADR-0017, build = #86.
+  (`fact_nfl_player_stats` dropped.)
 - [ ] Fabric migration: `pd.read/write_parquet` → `spark.read.parquet` /
   `abfss://` once the dynasty model settles (schema already migration-neutral).
 - [ ] Prep-for-AI / Fabric Data Agent config for the dynasty semantic model,
