@@ -86,6 +86,26 @@ fantasy season runs Mar 1 of the start year through the last day of February of
 the end year; the NFL season sits inside it.
 _Avoid_: year, draft_year, bare calendar year
 
+**Scoring Period** (`period`):
+Fantrax's week: the unit every in-season fact is keyed and bounded by
+(`season`, `period`). Same thing as Fantrax's roster period. Not the NFL week —
+periods start mid-week and the playoffs (P13–17) need not map one-to-one.
+_Avoid_: week, NFL week, gameweek
+
+**Update-Set**:
+The durable record of one Scoring Period. It moves through three states:
+**open** (the period is in play; refreshed every run), **closing** (the period
+has ended, judged on the league's Eastern clock; still refreshed so stat
+corrections land) and **closed** (the following period has ended; frozen). A
+closed Update-Set changes only by an explicit re-close.
+_Avoid_: weekly snapshot, week-closed data
+
+**Drift**:
+A difference between a closed Update-Set and what Fantrax reports now for that
+period. Raised as an alert, never auto-applied, because history must not change
+silently.
+_Avoid_: correction (that's the normal change a closing period absorbs)
+
 ### Teams & divisions
 
 **Conference**:
@@ -102,8 +122,17 @@ _Avoid_: conference (that's the stable code), bracket, group
 **Owner Manifest**:
 The team/owner registry — names, abbreviations, manager contacts, and the
 team_key ↔ Fantrax pairing. Fantrax is its upstream source of truth; the league
-Google Sheet is a field-scoped synced mirror.
+Google Sheet is a field-scoped synced mirror. Its manager contacts are Owner
+PII.
 _Avoid_: roster (that's players on a team), team list
+
+**Owner PII**:
+The link from a team to a real person: the person's human name, email and
+Fantrax username. Kept in one protected table only; never in the Published
+Snapshot, raw payload storage, docs or commits. Team names, abbreviations and
+Fantrax team ids are public league identity, not Owner PII — even when a team
+name contains a person's name.
+_Avoid_: owner (that's the team, as in Original/Current Owner), user data
 
 ### Valuation & trade diagnostic
 
