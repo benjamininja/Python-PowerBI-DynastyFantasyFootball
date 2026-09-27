@@ -1,0 +1,30 @@
+# Blocks owner PII from landing in this PUBLIC repo.
+#
+# Owner PII (manager emails, Fantrax usernames, names) lives only in Supabase
+# shared.owner (grill #87). scripts/check_pii.py scans every tracked file for
+# email-shaped strings (text + parquet string values) and fails if an
+# owner-sheet notebook has saved outputs. The pre-commit hook runs the same
+# script locally; this job is the enforcing gate -- make "pii-scan" a required
+# status check on main (Settings -> Branches).
+name: pii-scan
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pii-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install pyarrow
+
+      - run: python scripts/check_pii.py --all
