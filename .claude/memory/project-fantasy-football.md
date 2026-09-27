@@ -7,7 +7,7 @@
 - **`CONTRIBUTING.md` describes a `dev` branch that doesn't exist** (no local or remote `dev` — checked 2026-07-11). Actual practice, matching recent PR history: feature branch off `main` directly, PR to `main`, squash-merge, delete branch. Follow the actual practice, not the stale doc.
 - **Current branch (2026-07-11): `data-2026-draft-cap-update`**, off `main` (`b89671c`). Scope: 2026 startup-draft ingest (both divisions), $500M→$300M cap change, `Fact_FantasyTeams`/`Dim_FantasyTeams` cap-consistency fix, the `04z` crosswalk universe fix, `discord_bot/capmath.py`. The pending singular/plural table rename (`Dim_FantasyTeams`→`Dim_FantasyTeam` etc., see powerbi-semantic-model.md) is agreed to land as a **separate commit on this same branch**, not yet done.
 - `gh` CLI on PATH (v2.93, winget). Commit only when asked; leave unrelated working-tree changes (e.g. `pbi/Mouserat2.pbix`, untracked `skills/`, `workspace/`) out unless told otherwise.
-- **Push rule (GitHub email privacy ON)**: commits must use the noreply author email `38588919+benjamininja@users.noreply.github.com` or `git push` is rejected ("push declined due to email privacy restrictions"). Repo `user.email` is set to it; if a commit slips through with `redacted@example.com`, `git commit --amend --reset-author` before pushing.
+- **Push rule (GitHub email privacy ON)**: commits must use the noreply author email `38588919+benjamininja@users.noreply.github.com` or `git push` is rejected ("push declined due to email privacy restrictions"). Repo `user.email` is set to it; if a commit slips through with `<redacted>`, `git commit --amend --reset-author` before pushing.
 
 ## Power BI layer
 
@@ -70,7 +70,7 @@ Google Sheet (publicly viewable):
 - GID: `178660131`
 - Columns: Division, Team ID, Team Name, Team Abbreviation, Manager Email, Other Manager Email
 - Team IDs match `team_key` format (A01, B01, etc.)
-- Ben's team: A10 "Pac & Big L Deadly Combo" (redacted@example.com)
+- Ben's team: A10 "Pac & Big L Deadly Combo"
 
 ## Ranking Sources Registry
 

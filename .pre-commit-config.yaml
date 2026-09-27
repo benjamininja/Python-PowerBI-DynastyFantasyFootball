@@ -1,6 +1,18 @@
 repos:
+  # Owner-sheet notebooks must never carry saved outputs (they held manager
+  # emails). Scoped to owner-data notebooks only; check-pii scans all outputs.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 34071b78c181af3bf5af955c1426466e096fc3db  # 0.9.1
+    hooks:
+      - id: nbstripout
+        args: [--keep-id]  # cell ids are stable patch anchors -- never renumber
+        files: ^notebooks/01c_dim_fantasy_teams_seed\.ipynb$
   - repo: local
     hooks:
+      - id: check-pii
+        name: block owner PII (email-shaped strings) in a public repo
+        entry: ./.venv/Scripts/python.exe scripts/check_pii.py
+        language: system
       - id: check-sources
         name: validate docs/sources.yml manifest
         entry: ./.venv/Scripts/python.exe scripts/check_sources.py
