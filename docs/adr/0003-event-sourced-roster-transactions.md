@@ -8,6 +8,10 @@
   event_seq`) to admit draft picks and prospects as first-class assets;
   `event_type` gains `pick_allocation` (live) and `trade` (defined, dormant v1);
   `season → season_id` (new `dim_season`).
+- **Amended 2026-09-27 by [ADR-0016](0016-roster-state-from-snapshot-ledger-is-provenance.md):**
+  current rosters are read from the roster snapshot, not replayed from the ledger.
+  The ledger remains the source of provenance and Dead Money. The open
+  `dead_money` schedule is settled: rest of contract, by year.
 
 ## Context
 

@@ -58,6 +58,39 @@ faithful, **multi-hop** history — every hand-change is its own Trade, not a
 single net transfer from first owner to last.
 _Avoid_: swap, deal
 
+### Rosters & cap
+
+**Roster State**:
+Who is on each team right now: every player, their Roster Slot, salary and
+contract, as the team's Fantrax roster shows it. Read directly, never rebuilt by
+replaying Roster Moves. One per Scoring Period is kept alongside the current one.
+_Avoid_: current roster derived from the ledger, lineup
+
+**Roster Slot**:
+Where a player sits on a team: **Starter**, **Bench**, **IR** or **Minors**.
+Only Starters score. Fantrax calls Starter "Active" and Bench "Reserve"; those
+words are not used here. Not the NFL injury designation (Questionable/Doubtful/
+Out), which belongs to the player, not the slot.
+_Avoid_: active, reserve, roster status, injury status
+
+**Roster Move**:
+One team gaining or losing one player — a claim, a drop, or one leg of a Trade.
+The record of *how* and *when* a player arrived or left. Identified by the
+Fantrax transaction it came from plus the player, team and kind of move.
+_Avoid_: transaction (Fantrax groups several moves under one), event
+
+**Period Scoring**:
+The points a player earned for the team that held him in a Scoring Period. The
+team is whichever team had him that period, not the one that has him now.
+_Avoid_: weekly stats, fantasy points (unqualified)
+
+**Dead Money**:
+Cap charged to a team for dropping a player on a guaranteed contract. It follows
+the rest of the contract: each remaining guaranteed contract year charges its own
+rate in its own season, to the dropping team, even if the player is later
+re-claimed. Trades never create it.
+_Avoid_: cut penalty, cap hit (that's a rostered player's charge)
+
 ### Storage
 
 **System of Record**:
