@@ -28,7 +28,9 @@ raw points, not categories.
   #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
   #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
   #82 txn cadence (grilling) · #83 sources.yml truth-up (task) · #87 daily
-  run / weekly update-set (grilling) · #88 test strategy (grilling, ← #87).
+  run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
+  (grilling) · #92 Actions login spike (research) · #93 cadence build (task,
+  ← #92 #77 #75 #76 #88).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ← #84) · #86
   build + schedule (task, ← #85 #77).
