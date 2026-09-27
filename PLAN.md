@@ -9,6 +9,31 @@ data-model. Blow-by-blow does NOT live here.
 > compact → … ↺`. Compact at **~125K–150K tokens**. PLAN.md = heartbeat;
 > Memory/ADR/CONTEXT = real signal, batched into Phase 0.
 
+## [x] CLOSED — Owner-PII history scrub (final closeout, 2026-09-27)
+
+Forward fix shipped in #95 (`scripts/check_pii.py` + `pii-scan` CI; 01c no
+longer reads owner emails). This closes out the history side. Kit + local
+backups live **outside the repo and outside OneDrive** (session reset prompt
+has the path). Plan approved; user authorized rewrite + force-push.
+
+- [x] **Hard gate**: every other session on this repo stopped + paused; no
+  open PRs / Actions runs; everything worth keeping is pushed.
+- [x] Run `scrub.sh`: bare clone → filter-repo → verify CLEAN → `main` tip
+  tree identical → remote heads unmoved → force-push all branches + tags.
+- [x] Re-verify against a fresh clone of GitHub (VERIFY: CLEAN, 8 branches;
+  `main` tip tree unchanged).
+- [x] Local reset: old clone → `*-OLD-DO-NOT-PUSH`; fresh clone; re-apply
+  saved memory edits + untracked files; `.venv` + `pre-commit install`.
+  Every session/worktree restarts on the fresh clone — **never push from an
+  old clone**.
+- [x] (ask) make `pii-scan` a required check on `main` — ruleset
+  "main: require pii-scan", no bypass actors.
+- [x] Remove the temporary scrub allow rules from `~/.claude/settings.json` —
+  n/a, none found.
+- [x] Old clone + kit work dir removed. User declined (risk accepted):
+  GitHub Support sensitive-data request; moving owner columns off the
+  link-shared Sheet.
+
 ## [ ] ACTIVE — Supabase + in-season ETL: 3 wayfinder maps (charted 2026-09-26)
 
 Season is live; no in-season league data ingested yet, and storage is moving

@@ -8,6 +8,7 @@
 - **Current branch (2026-07-11): `data-2026-draft-cap-update`**, off `main` (`b89671c`). Scope: 2026 startup-draft ingest (both divisions), $500M→$300M cap change, `Fact_FantasyTeams`/`Dim_FantasyTeams` cap-consistency fix, the `04z` crosswalk universe fix, `discord_bot/capmath.py`. The pending singular/plural table rename (`Dim_FantasyTeams`→`Dim_FantasyTeam` etc., see powerbi-semantic-model.md) is agreed to land as a **separate commit on this same branch**, not yet done.
 - `gh` CLI on PATH (v2.93, winget). Commit only when asked; leave unrelated working-tree changes (e.g. `pbi/Mouserat2.pbix`, untracked `skills/`, `workspace/`) out unless told otherwise.
 - **Push rule (GitHub email privacy ON)**: commits must use the noreply author email `38588919+benjamininja@users.noreply.github.com` or `git push` is rejected ("push declined due to email privacy restrictions"). Repo `user.email` is set to it; if a commit slips through with `<redacted>`, `git commit --amend --reset-author` before pushing.
+- **Owner PII never goes in git (repo is PUBLIC)** — manager emails, Fantrax usernames, names live only in Supabase `shared.owner` (grill #87). Gate: `scripts/check_pii.py` (pre-commit `check-pii` + CI `pii-scan`) blocks email-shaped strings in text/parquet and saved outputs in owner-sheet notebooks; `nbstripout --keep-id` on 01c. 01c skips `*email*` columns at read time. Names/usernames aren't machine-detectable — review by hand. (#95, 2026-09-27)
 
 ## Power BI layer
 
