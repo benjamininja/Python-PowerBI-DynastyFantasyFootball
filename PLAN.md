@@ -27,7 +27,7 @@ raw points, not categories.
 - [Map #70 — In-season Fantrax league flows](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/70):
   #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
   #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
-  #82 txn cadence (grilling) · #83 sources.yml truth-up (task) · #87 daily
+  #82 txn cadence (grilling, ✅ ADR-0016) · #83 sources.yml truth-up (task) · #87 daily
   run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
   (grilling) · #92 Actions login spike (research) · #93 cadence build (task,
   ← #92 #77 #75 #76 #88).
@@ -159,19 +159,16 @@ pre-change baseline; `[ok] gsis_id mapping is 1:1` held; reran `02d` →
 passed. **Open**: commit + PR, closes #67; then Task #68 (waiver
 activity) is next, open and unblocked.
 
-## [ ] Active — dead money (3-version design, user building in PBI Desktop)
+## [ ] Active — dead money (design settled 2026-09-27, ADR-0016; build pending)
 
-Three versions, per the 2026-07-11 design:
-
-- **Current year**: `Dim_Contract[CapHitPct]` (by `contract_id`) x salary **at
-  time of separation** x `relative_nfl_season_number = 0`.
-- **Next year**: same at `relative_nfl_season_number = 1`.
-- **Total**: needs design; the contract-cycle rows in `Dim_Contract` are there.
-
-Blockers, both real: `dim_season` isn't in the semantic model yet, so nothing
-can reference `relative_nfl_season_number` (BUILT 2026-07-11 in `01f`); and
-there is **no `drop` event** in `fact_roster_transactions` — trades incur no cap
-hit, only drops do, so the event type has to exist first.
+Superseded the 2026-07-11 Power BI-first design. **Power BI visuals are
+deprioritized**; trade-bud and the bot need parity. Per
+[ADR-0016](docs/adr/0016-roster-state-from-snapshot-ledger-is-provenance.md):
+`fact_dead_money` is derived from drops, and each remaining guaranteed contract
+year charges its own `cap_hit_pct × contract_value` in its own season. The ETL
+computes a per-team cap table that both apps read. The old "no `drop` event"
+blocker is stale: `02d` emits drops, but `dead_money` is hardcoded 0 until the
+build lands.
 
 ## [ ] Active — Minors, open user actions only
 
