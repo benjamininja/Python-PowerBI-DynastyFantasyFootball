@@ -77,7 +77,7 @@ first = (ledger.sort_values("event_seq")
          [["team_key", "asset_id", "acquired_method"]])
 active = active.merge(first, on=["team_key", "asset_id"], how="left")
 
-# roster_status: OBSERVED squad placement (Active/Reserve/Minors) stamped from
+# roster_status: OBSERVED squad placement (Active/Reserve/Inj Res/Minors) stamped from
 # the latest fact_roster_placement snapshot (04v), keyed exactly on
 # (team_key, scorer_id) — the ledger rows carry scorer_id, no gsis fallback
 # needed. Not a derived rollup (allowed to live on the fact): cap exemption

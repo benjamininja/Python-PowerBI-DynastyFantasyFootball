@@ -117,10 +117,10 @@ In flight:
   - `playerViewType:'2'` puts Bench, IR and Minors under `BENCH`; only
     complete once the period is final.
   - No `matchupId` anywhere; `divisionId` only in public `getLeagueInfo`.
-  - Code follow-ups, not ticketed yet: `04v` lines 96/284 drop every
-    statusId `"3"` row as an "empty slot", but in-season `"3"` is IR with
-    real players; `04s` line 145 needs `playerViewType:'2'`; the 02d
-    comment; `dim_contract` has no `Minor` row.
+  - Code follow-ups, not ticketed yet: `04s` line 145 needs
+    `playerViewType:'2'`; the 02d comment; `dim_contract` has no `Minor`
+    row. (`04v` IR drop fixed in `fix/04v-keep-ir-rows`: IR rows kept as
+    `"Inj Res"`, charged per ADR-0011.)
 - The Fantrax stored session was alive on 2026-10-02 (one read-only call
   succeeded), so the overdue weekly pull can run without a manual login.
 

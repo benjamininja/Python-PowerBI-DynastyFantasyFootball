@@ -111,13 +111,15 @@ def test_capmath_minors_exempt():
     """Cap rules (2026-07-13 audit): a kept player charges the FULL
     contract_value (CapHitPct is dead-money-only, never applied); Minors
     PLACEMENT (roster_status) is the only exemption — a Minor-CONTRACT player
-    kept Active is charged in full; null roster_status charges (safe default)."""
+    kept Active is charged in full; null roster_status charges (safe default);
+    IR placement ("Inj Res") charges in full (ADR-0011, decided 2026-07-26)."""
     frames = {
         "fact_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":       ["A01", "A01", "A01", "A01"],
-            "contract_id":    ["1st", "1st", "Minor", "Minor"],
-            "contract_value": [10_000_000.0, 6_000_000.0, 2_000_000.0, 2_000_000.0],
-            "roster_status":  ["Active", None, "Minors", "Active"],
+            "team_key":       ["A01", "A01", "A01", "A01", "A01"],
+            "contract_id":    ["1st", "1st", "Minor", "Minor", "1st"],
+            "contract_value": [10_000_000.0, 6_000_000.0, 2_000_000.0, 2_000_000.0,
+                               3_000_000.0],
+            "roster_status":  ["Active", None, "Minors", "Active", "Inj Res"],
         }),
     }
     orig = capmath.fetch_parquet
@@ -131,7 +133,8 @@ def test_capmath_minors_exempt():
     assert hits[1] == 6_000_000.0    # null roster_status charges (safe default)
     assert hits[2] == 0.0            # Minors PLACEMENT: exempt
     assert hits[3] == 2_000_000.0    # Minor CONTRACT kept Active: charged in full
-    assert r["cap_exempt"].tolist() == [False, False, True, False]
+    assert hits[4] == 3_000_000.0    # IR placement: charged in full, not exempt
+    assert r["cap_exempt"].tolist() == [False, False, True, False, False]
     # contract_value untouched by the exemption
     assert r["contract_value"].tolist()[2] == 2_000_000.0
 

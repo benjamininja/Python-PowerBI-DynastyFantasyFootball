@@ -30,7 +30,8 @@ None of those hold; every number below was recounted from the payloads.
    tracks minors eligibility, not placement. This contradicts the fact
    ADR-0011 was built on; the ADR is to be reconciled.
 5. **`04v` drops every IR player**, because it treats statusId `"3"` as an
-   empty slot.
+   empty slot. *Fixed in `fix/04v-keep-ir-rows`: IR rows are kept as
+   `"Inj Res"`.*
 
 ## 1. Public `getTeamRosters`: fields and agreement with the authed call
 
@@ -187,8 +188,8 @@ IDs:
 
 | File | Line | Finding |
 |---|---|---|
-| `04v_minor_contracts.py` | 96, 284 | `EMPTY_SLOT_STATUS = "3"` skips every statusId `"3"` row. In-season `"3"` is IR with real players (35 in period 1, 50 in period 2). Empty slots are already caught by the missing `scorerId`. IR players would be dropped from `fact_roster_placement`. |
-| `04v_minor_contracts.py` | 95 | `STATUS_TO_SECTION_FALLBACK` has no `"3"`. Low impact: the live `statusTotals` names override the fallback. |
+| `04v_minor_contracts.py` | 96, 284 | **Fixed** (`fix/04v-keep-ir-rows`). `EMPTY_SLOT_STATUS = "3"` skips every statusId `"3"` row. In-season `"3"` is IR with real players (35 in period 1, 50 in period 2). Empty slots are already caught by the missing `scorerId`. IR players would be dropped from `fact_roster_placement`. |
+| `04v_minor_contracts.py` | 95 | **Fixed** (`fix/04v-keep-ir-rows`; `"3": "Inj Res"`, the live `statusTotals` name). `STATUS_TO_SECTION_FALLBACK` had no `"3"`. Low impact: the live `statusTotals` names override the fallback. |
 | `04s_fantrax_inseason_capture.py` | 145 | Sends no `playerViewType`, so only Starters are captured. Needs `"playerViewType": "2"`. |
 | `02d_fact_roster_transactions.py` | 496–518 | Comment says the public `period` is ignored. Out of date (section 2). |
 | `dim_contract` | — | No `Minor` row (section 4). |
