@@ -73,9 +73,8 @@ plan-gated code change.
 ## Maps (native sub-issues + blocked-by wired)
 - **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 schema+RLS (grill) ·
   #76 provision (HITL) · #77 build seam (task).
-- **#70 In-season Fantrax**: #78 ✅ · #79 schema extraction (research; now also
-  must confirm public roster fields incl. Roster Slot) · #80 ✅ · #81 fact model
-  (grill, ←79) · #82 ✅ · #83 sources truth-up · #87 ✅ · #88 test strategy
+- **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 fact model
+  (grill) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   (grill) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
   (←92,77,75,76,88; now also 04t orchestration + poll-writes-snapshot) ·
   **#96** `fact_dead_money` + stable move key (task) · **#97** shared cap
@@ -86,55 +85,49 @@ plan-gated code change.
 
 Approved by the owner on 2026-10-02 — do these in order:
 
-1. **Settle #79** (see "In flight" below) — recount, verify the `Minor`
-   contract claim, write the findings doc, post, close.
-2. **Grill #75** (Supabase schema + RLS) with `grill-with-docs`, one
+1. **Grill #75** (Supabase schema + RLS) with `grill-with-docs`, one
    question at a time. Inputs: the #75 body + its ADR-0015 scope comment,
    ADR-0014, ADR-0015, `docs/research/supabase-platform-facts.md`,
-   `docs/reference/` (pattern reference only, kept out of git).
+   `docs/reference/` (pattern reference only, kept out of git). Start it in
+   a fresh window. Treat contract columns as provisional until item 2.
+2. **Reconcile ADR-0011 with the `Minor` contract** (not yet written; plan
+   gate applies). Owner's reading, 2026-10-02: the other commissioner chose
+   the fluid design — `Minor` is the category for anyone inside the
+   minors-eligible window; the Minors space holds players and cap, moving
+   up and down freely. Counts agree (349 of 351 `Minor` rows are eligible;
+   only 138 sit in the Minors slot). To settle: reword ADR-0011, and how
+   `dim_contract` represents `Minor` (it has no such row today).
 
 Done 2026-10-02: research docs landed in `docs/research/`, issue links
 repointed, `research/*` and `feat/78-inseason-capture` remote branches
-removed; repo `user.email` set to the noreply address.
+removed; repo `user.email` set to the noreply address; **#79 closed** —
+findings in `docs/research/inseason-schema-extraction.md`.
 
 In flight:
 
-- **#79 schema extraction** (`fantrax-payload-analyst` background session).
-  Its first report was **rejected** by the managing session — do not post
-  it. Problems: 280 ACTIVE / 252 BENCH vs 310 / 464 from the 2026-09-27
-  live call; a one-team sample used as proof; a contract named "Minor"
-  reported, which conflicts with ADR-0011 and must be verified with counts;
-  backfill "proof" was a quote from the #80 doc. It was sent back with an
-  exact evidence list. **Its second report (2026-10-02) is still not
-  postable**: its status counts sum to 764 while its contract-by-status
-  counts and its own period-3 total are 1,099; it says IR players are
-  public-only although the authed captures have statusId `"3"` rows; its
-  BENCH coverage table uses the 764 base. Directionally it says yes to all
-  three questions (public `getTeamRosters` has all four Roster Slots +
-  salary + contract with 0 nulls; `period=N` returns distinct past periods,
-  so the 02d:503-518 "period ignored" comment is preseason-only;
-  `playerViewType:'2'` BENCH holds nearly all Reserve / IR / Minors).
-  **Big claim to verify first**: a contract named `Minor` on ~138
-  Minors-slot players plus ~190 others, which would contradict ADR-0011's
-  "no Minor contract". The live responses are saved in the session
-  scratchpad `issue79\` (`public_rosters_p1_response.json`,
-  `public_rosters_p3_response.json`,
-  `live_scoring_p3_playerviewtype2_response.json`,
-  `public_league_info_response.json`, `inseason-schema-complete.md`); the
-  scratchpad is session-scoped, so re-fetch the public ones if it is gone.
-  Next step: the managing session recounts from those files with its own
-  short script (print counts only, never dump the payload), then writes
-  `docs/research/inseason-schema-extraction.md`, posts a Resolution comment
-  on #79, closes it, and passes the answers to #81 / #93 / #96 / #97. If
-  the `Minor` contract is real, ADR-0011 needs an amendment — raise it with
-  the owner before #75 / #81 settle any contract columns. Likely
-  follow-ups it surfaced: `04s` should send `playerViewType:'2'`; `04v`
-  `STATUS_TO_SECTION_FALLBACK` lacks statusId `"3"` (IR).
-- **#83** — done, PR #103.
+- Nothing. #83 done (PR #103). **#79 done 2026-10-02**: both agent reports
+  were rejected (totals did not reconcile; the live-scoring file it cited
+  was never saved), so the managing session recounted everything itself.
+  Results, all in `docs/research/inseason-schema-extraction.md`:
+  - Public `getTeamRosters` has all four Roster Slots + salary + contract,
+    0 nulls, and equals the authed roster call row for row → the Change
+    Poll can persist it with no login (ADR-0016 decision 3 confirmed).
+  - `period=N` returns real past periods in-season (the 02d:496-518
+    comment is preseason-only).
+  - `playerViewType:'2'` puts Bench, IR and Minors under `BENCH`; only
+    complete once the period is final.
+  - No `matchupId` anywhere; `divisionId` only in public `getLeagueInfo`.
+  - Code follow-ups, not ticketed yet: `04v` lines 96/284 drop every
+    statusId `"3"` row as an "empty slot", but in-season `"3"` is IR with
+    real players; `04s` line 145 needs `playerViewType:'2'`; the 02d
+    comment; `dim_contract` has no `Minor` row.
+- The Fantrax stored session was alive on 2026-10-02 (one read-only call
+  succeeded), so the overdue weekly pull can run without a manual login.
 
 After that:
 
-- HITL grills: #88 test strategy, then #81 once #79 is settled.
+- HITL grills: #88 test strategy, then #81 (unblocked by #79; needs the
+  ADR-0011 reconcile first).
 - Build, plan-gated: #77 storage seam (inventory doc in `docs/research/`);
   unblocks #86 and #93. Then #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; run the

@@ -72,15 +72,22 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
 `dynastyFantasyFootball-central-builder`:
 
 - AFK, fired 2026-10-02: #83 sources truth-up ✅ (PR #103). #79 schema
-  extraction reported twice; both reports had counts that do not reconcile,
-  so nothing is posted yet — the managing session recounts from the saved
-  responses first. It also claims a `Minor` contract exists in-season,
-  which would contradict ADR-0011; verify before relying on it. Next AFK:
-  #68.
+  extraction ✅ — recounted by the managing session after two unreliable
+  agent reports; findings in
+  [inseason-schema-extraction.md](docs/research/inseason-schema-extraction.md).
+  Public rosters carry all four Roster Slots + salary + contract and
+  backfill past periods; `playerViewType:'2'` BENCH holds Bench, IR and
+  Minors. Next AFK: #68.
+- **ADR-0011 to reconcile**: a `Minor` contract now exists on ~1/3 of
+  roster rows and tracks minors eligibility, not placement (owner,
+  2026-10-02: the fluid design — category for anyone in the eligible
+  window; the Minors space holds players and cap). `dim_contract` has no
+  `Minor` row. Settle before #75 / #81 fix contract columns.
+- Code follow-ups from #79, not ticketed: `04v` drops IR players (treats
+  statusId `"3"` as an empty slot); `04s` needs `playerViewType:'2'`.
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
-- HITL grills: **#75 next** (owner's pick), then #88, then #81 once #79 is
-  settled.
+- HITL grills: **#75 next** (owner's pick), then #88, then #81.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
