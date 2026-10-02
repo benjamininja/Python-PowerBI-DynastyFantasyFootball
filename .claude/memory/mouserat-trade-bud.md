@@ -2415,3 +2415,132 @@ Also settled: use `02d`'s season-agnostic glob `fantrax_txn_history_*.json`
 matching at season rollover. Acceptance criterion for the build is the
 downstream one: null-identity rows in `dim_roster_asset`/
 `fact_roster_transactions` go 1 → 0 after rerunning `04z` then `02d`.
+
+**[CLOSED 2026-08-04]** #57 built and merged via PR #60 (main @ 7336606).
+Verified live: `04cc5` resolves to `gsis_id=00-0033897`/`exact`; `dim_roster_asset`
+null-identity player rows 0 (was 1); graceful-degradation path (txn file
+absent) confirmed by moving the file aside and rerunning; `pytest tests/`
+33 passed. #55 (the parent wayfinder map) closed same day. Deferred items
+from #55/#57 split into their own backlog issues rather than left in this
+memory file only: #61 (prior-season backfill), #62 (fuzzy-match precision
+risk from the widened universe), #63 (the add/drop-count churn signal
+above), #64 (the older 17-row startup-draft gap, previously unfiled).
+
+**[CLOSED 2026-08-04] #64 (17-row startup-draft gap) — stale on filing.**
+PR #58 (`ebc5dc7`, merged 2026-08-03, *before* #64 was opened) already fixed
+it via the same stale-crosswalk-sync mechanism as #55/#56's 22-row set —
+`mint_assets()`/`02d` just needed a rerun against the already-resolved
+crosswalk. Verified independently against current parquet: `0` rows in
+`dim_roster_asset` with `asset_type=='player'` and both `gsis_id`/
+`player_key` null; `0/975` `startup_draft` rows in
+`fact_roster_transactions` have null `gsis_id`. No code change.
+
+**[CLOSED 2026-08-04] #61 (prior-season backfill for `04t`) — moot.**
+`dim_season.parquet` confirms `season_id 2026-2027` is `season_id` 0,
+themed "Startup Draft (inaugural)" — this is the league's first season, so
+there's no prior-season history for `04t`'s transaction capture to backfill.
+Revisit only at a future season rollover if it ever becomes relevant. No
+code change.
+
+**[GRILLED 2026-08-04 → BUILT 2026-09-26, PR #90] #62 (fuzzy-match
+precision risk) — charted as wayfinder map #65, implemented as task #67.**
+Prior value: "IN PROGRESS — grilling started, being turned into its own
+wayfinder map." Investigation confirmed
+no live misfire today: all 11 current `fuzzy`-tier rows in
+`dim_fantrax_crosswalk` are legitimate nickname/typo/suffix variants (e.g.
+`Gregory Rousseau`→`Greg Rousseau` score 90); the txn-only universe
+extension from #57 has introduced exactly 1 new scorer_id so far (`04cc5`,
+matched `exact`, not fuzzy) — the feared interaction hasn't materialized
+yet. But two real, pre-existing gaps surfaced, independent of #57:
+- **(a)** `disambiguate()` in `04z_fantrax_crosswalk.ipynb` cell `b4224514`
+  (active-status filter → sort by `entry_year` desc → take first) is
+  unverified against 53 `dim_nfl_players` name-collision groups that have
+  >1 `ACT`-status player at the same position — it silently picks the
+  most-recent entrant with no correctness check. Tiebreak design: next
+  block.
+- **(b) DECIDED**: `dim_player_alias` (`ALIAS`) is imported in `04z` but
+  never consulted — confirmed dead import via full-text scan. Its grain
+  (`name_clean, position_raw → player_key`, built/appended by
+  `add_players_from_source`/`record_alias` in `etl_helpers.py` +
+  `03z_apply_fuzzy_review.ipynb`) is scoped to the **rookie-prospect** axis,
+  not `dim_nfl_players`/`gsis_id`. The 04z analog is `"player_key":
+  rp_lookup.get(cn)` in `match_one` — a bare name-clean lookup into
+  `dim_rookie_prospect` with no fallback. **Decided: wire ALIAS in as a
+  fallback** — when `cn` misses `rp_lookup` but `(cn, pos_key)` has a
+  decided alias, use the alias's `player_key`. Matches the exact pattern
+  `add_players_from_source` already uses elsewhere; every ALIAS row's
+  `player_key` is guaranteed to already exist in `dim_rookie_prospect` (by
+  construction — `record_alias`'s "new" decisions create the
+  `dim_rookie_prospect` row in the same apply step), so the fallback needs
+  no decision-value special-casing (`auto`/`match`/`new` all resolve the
+  same way).
+
+**[DECIDED 2026-08-04] (a) tiebreak fix, full design:**
+`disambiguate()` chain becomes position (soft) → `ACT` status (soft) →
+**new: `nfl_team` (soft)** → `entry_year` desc → **new: ambiguous flag**.
+- `nfl_team` closes a doc/code gap — `data-model.md` already documented
+  "position → active status → team / most recent entry_year" but the code
+  never used team. `fact_fantrax_adp.nfl_team` and `dim_nfl_players
+  .team_abbr` are the same abbreviation format (`'DAL'`, `'WAS'`, …) —
+  direct compare, no crosswalk needed. Applied as a soft filter (`if
+  m.any()`), same pattern as the existing position filter.
+- Residual ties (still >1 candidate after position/status/team, and
+  `entry_year` null or shared by >1 row at the max) no longer silently take
+  `.iloc[0]`. `disambiguate()` returns ambiguous instead; `match_one` sets
+  `method="ambiguous"`, `gsis_id=None`. Review-CSV filter (cell `88c1adcf`)
+  extends `isin(["review", "unmatched"])` → `isin(["review", "unmatched",
+  "ambiguous"])`. New method value chosen over reusing `"review"` so the
+  method column keeps distinguishing "fuzzy score too low" from "exact name,
+  candidates genuinely tied."
+- Re-audit scope resolved as a non-issue: 04z fully rebuilds
+  `dim_fantrax_crosswalk.parquet` from scratch every run (no incremental
+  state), so this logic automatically re-evaluates all 2338 existing rows,
+  including historical `exact+disambig`/`fuzzy` ones, on the very next run.
+  No separate re-audit step needed.
+
+**[BUILT 2026-09-26]** Both (a) and (b) shipped as task
+[#67](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/67)
+via PR [#90](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/90).
+Prior value: "Not yet implemented — grilling closed, design ready for its
+own wayfinder map / implementation issue." Verified at build: reran `04z`
+clean with 0 `ambiguous` rows (no live tie hits the new branch yet), method
+counts unchanged from the pre-change baseline, `[ok] gsis_id mapping is 1:1`
+held, `pytest tests/` green. Map
+[#65](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/65)
+has reached its destination.
+
+**[DECIDED 2026-08-04] #63 (add/drop-count churn signal), full design:**
+New `infer_waiver_activity(team_key)` in
+`mouserat_trade-bud/backend/profiles.py`, exact mirror of the existing
+`infer_trade_activity`.
+- **Source**: `fact_roster_transactions` directly (`event_type.isin(["claim",
+  "drop"])`) — already parsed by `02d`, no raw-JSON re-read needed. Verified
+  raw `fantrax_txn_history_2026.json` transactionCode counts (`{'CLAIM': 53,
+  'DROP': 2}`) match the parsed fact table exactly.
+- **Window**: season-to-date / all-time, matching `trade_count`'s existing
+  precedent (single-season history so far). No trailing-N-week logic.
+- **CLAIM/DROP**: combined into one `waiver_count`, not tracked separately.
+  League is still preseason (inaugural 2026 season) so most claims land on
+  open bench slots without a paired drop — a standalone `drop_count` would
+  be near-zero noise for almost every team today (53 CLAIM vs 2 DROP
+  league-wide).
+- **Fields**: `waiver_activity` (tier) / `waiver_count` (raw) /
+  `waiver_activity_confidence` — parallel to `trade_activity`/`trade_count`.
+- **Tiering**: own constants `_WAIVER_ACTIVITY_ACTIVE = 4`,
+  `_WAIVER_ACTIVITY_OCCASIONAL = 1` — same cut points as `trade_activity`.
+  Today's distribution (max 14, six teams ≥4, four teams 1-3, seventeen
+  teams 0) spreads reasonably across active/occasional/inactive.
+- **Confidence**: `"medium"` if `waiver_count > 0` else `"low"`, same rule
+  as trade activity.
+- **Wiring**: added to `build_profile()` alongside the other three
+  `infer_*` calls, and to `low_confidence_fields()` the same way
+  `trade_activity_confidence` is.
+
+**Not yet implemented as of 2026-10-02.** Grilling is finished and posted
+to #63 as a comment; charted as wayfinder map
+[#66](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/66)
+with task [#68](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/68)
+ready to build. The #62 side it was queued behind is done (PR #90), so #68
+is next in this lane. The counts above (53 CLAIM / 2 DROP, tier
+distribution) are preseason figures from 2026-08-04 — re-check the cut
+points against in-season data when building.

@@ -54,18 +54,42 @@ raw points, not categories.
   #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
   #82 txn cadence (grilling, ✅ ADR-0016) · #83 sources.yml truth-up (task) · #87 daily
   run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
-  (grilling) · #92 Actions login spike (research) · #93 cadence build (task,
-  ← #92 #77 #75 #76 #88).
+  (grilling) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
+  #93 cadence build (task, ← #92 #77 #75 #76 #88; now also 04t orchestration
+  + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
+  ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
+  snapshot + provenance (task, ← #96 #79).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
   snaps + injuries only; points/GP from Fantrax) · #86 build + schedule
   (task, ← #85 #77).
 
-**Lanes.** Wave 1 (AFK, parallel): research #73 #74 #80 #84 (fired
-2026-09-26, findings on `research/*` branches), #78 capture, #83, plus
-#67 commit/PR and #68. Wave 2 (HITL, one at a time): #72 → #87 → #82 →
-#85; #77 once #74 lands, #79 once #78 lands. Wave 3: #75, #81, #88
-grillings, #76 provisioning; build tickets graduate from fog.
+**Lanes.** Wave 1 (AFK, parallel) ✅: research #73 #74 #80 #84 (full
+findings live only on the `research/*` branches; each issue carries a
+summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
+#72 → #87 → #82 → #85 (ADR-0014..0017). **Wave 3, in progress
+(2026-10-02)**, run from the managing session
+`dynastyFantasyFootball-central-builder`:
+
+- AFK, fired 2026-10-02: #83 sources truth-up ✅ (PR #103). #79 schema
+  extraction reported twice; both reports had counts that do not reconcile,
+  so nothing is posted yet — the managing session recounts from the saved
+  responses first. It also claims a `Minor` contract exists in-season,
+  which would contradict ADR-0011; verify before relying on it. Next AFK:
+  #68.
+- Approved 2026-10-02, pending: land the four research docs in
+  `docs/research/`, repoint the issue links, then remove the `research/*`
+  and `feat/78-inseason-capture` branches.
+- HITL grills: **#75 next** (owner's pick), then #88, then #81 once #79 is
+  settled.
+- Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
+- Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
+- Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
+  provisioning.
+
+**Overdue, owner-run:** `fact_fantrax_adp` stops at `2026/02` (checked
+2026-10-02) — the weekly pull planned for 2026-09-29 has not run, and week 4
+is now due. It needs a live Fantrax session until #92 lands.
 
 ## [x] CLOSED — trade-bud: wayfinder map #44 (2026-08-01)
 
@@ -148,14 +172,16 @@ Four backlog issues filed from #55's deferred items, prioritized #64 → #62
   maps (see below). Original backlog issues closed, retrofitted as each
   map's grilling ticket.
 
-**Wayfinder maps charted** (2026-08-04) — design done, implementation
-pointers created, nothing executed yet:
+**Wayfinder maps charted** (2026-08-04) — #65's task is built, #66's is
+not:
 
 - [Wayfinder Map: 04z crosswalk disambiguation hardening](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/65) —
   grilling ticket [#62](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/62)
   (closed), implementation ticket
   [Task #67](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/67)
-  (open, unblocked). `disambiguate()` gets an `nfl_team` tiebreak + an
+  (✅ built, PR [#90](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/90),
+  2026-09-26; map #65 has reached its destination and is still open on
+  GitHub). `disambiguate()` gets an `nfl_team` tiebreak + an
   "ambiguous" flag routing genuinely-tied candidates to the review queue;
   `dim_player_alias` wired into `match_one` as a `player_key` fallback.
 - [Wayfinder Map: trade-bud waiver-activity signal](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/66) —
@@ -170,20 +196,11 @@ Full decision detail in
 
 ### ➡ NEXT ACTION
 
-**Task #67 implemented and verified (2026-08-06), not yet committed.**
-`disambiguate()` gained an `nfl_team` soft-filter tiebreak (after
-status, before `entry_year` sort) and returns `None` when candidates
-are still tied after every tiebreak (top `entry_year` null or shared by
->1 row); `match_one` maps that to `method="ambiguous"`, `gsis_id=None`.
-Review-CSV filter extended to `["review", "unmatched", "ambiguous"]`.
-`ALIAS` wired into `match_one`'s `player_key` line as a `(cn, pos_key)`
-fallback behind `rp_lookup`. Verified: reran `04z` clean, 0 `ambiguous`
-rows today (no live tie hit the new branch) so `exact`/`exact+disambig`/
-`fuzzy`/`review`/`unmatched`/`manual`/`new` counts unchanged from
-pre-change baseline; `[ok] gsis_id mapping is 1:1` held; reran `02d` →
-`dim_roster_asset` null-identity player rows still 0; `pytest tests/` 33
-passed. **Open**: commit + PR, closes #67; then Task #68 (waiver
-activity) is next, open and unblocked.
+**Task #68 (waiver activity)** — open, unblocked, design fully decided
+(see memory). Re-check the tier cut points against in-season claim/drop
+counts when building; the grilled figures are preseason. #67 shipped
+2026-09-26 via PR #90 (detail in
+[mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md)).
 
 ## [ ] Active — dead money (design settled 2026-09-27, ADR-0016; build pending)
 
