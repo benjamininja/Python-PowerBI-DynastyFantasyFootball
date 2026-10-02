@@ -89,11 +89,12 @@ CONTRACT_HEADER_CANDIDATES = ("Con", "Contract", "Ctr", "Ct")
 # Roster placement is per-ROW (statusId), not per-table — the roster response's
 # tables split by stat group (offense/defense), and their captions are empty.
 # The live map is read from each response's statusTotals (Fantrax's own id->name
-# list); this fallback is the vocabulary observed 2026-07-12. Unknown ids pass
-# through raw so new sections (e.g. IR in-season) surface instead of silently
-# binning. Cap logic downstream keys on "Minors" (exempt); Active/Reserve charge.
-STATUS_TO_SECTION_FALLBACK = {"1": "Active", "2": "Reserve", "9": "Minors"}
-EMPTY_SLOT_STATUS = "3"   # placeholder rows, scorerId null
+# list); this fallback is the vocabulary observed 2026-07-12, plus "3" = IR
+# ("Inj Res" in the in-season statusTotals; absent from preseason ones). Unknown
+# ids pass through raw so new sections surface instead of silently binning.
+# Cap logic downstream keys on "Minors" (exempt); Active/Reserve/IR charge
+# (ADR-0011).
+STATUS_TO_SECTION_FALLBACK = {"1": "Active", "2": "Reserve", "3": "Inj Res", "9": "Minors"}
 
 PLACEMENT_FACT = "fact_roster_placement"
 ELIGIBILITY_FACT = "fact_minor_eligibility"
@@ -252,8 +253,8 @@ def fetch_rosters(scraper, ctx, page, teams: pd.DataFrame) -> dict:
 def rosters_to_frame(rosters: dict, teams: pd.DataFrame,
                      season: int, week: str) -> pd.DataFrame:
     """Flatten per-team roster responses into placement rows. Placement is the
-    per-row statusId (1/2=active lineup, 9=Minors squad; see STATUS_TO_SECTION);
-    the response's tables split by stat group, not placement. Header-based cell
+    per-row statusId (1=Starter, 2=Bench, 3=IR, 9=Minors squad; see
+    STATUS_TO_SECTION_FALLBACK); the response's tables split by stat group, not placement. Header-based cell
     lookup, like 04a's grid parser. scorer.minorsEligible rides along as
     Fantrax's row-level eligibility/placement flag."""
     key_by_id = {t.fantrax_team_id: getattr(t, "team_key", None)
@@ -280,9 +281,9 @@ def rosters_to_frame(rosters: dict, teams: pd.DataFrame,
             for r in tbl.get("rows", []):
                 s = r.get("scorer") or {}
                 sid = s.get("scorerId")
-                status_id = r.get("statusId")
-                if not sid or status_id == EMPTY_SLOT_STATUS:   # empty roster slot
+                if not sid:   # empty roster slot (any section)
                     continue
+                status_id = r.get("statusId")
                 section = status_map.get(status_id, str(status_id))
                 cells = r.get("cells", [])
 

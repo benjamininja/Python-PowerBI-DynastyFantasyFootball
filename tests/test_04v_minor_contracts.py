@@ -77,11 +77,33 @@ class TestRostersToFrame:
         assert len(df) == 1
 
     def test_empty_slots_skipped_and_status_mapped(self):
+        # Empty slots (null scorerId) occur under every statusId -- skipped by
+        # the missing scorer, not by section.
         raw = self._raw({"t1": [self._row("x1", "Guy A", "9"),
-                                {"scorer": {}, "statusId": "3", "cells": []}]})
+                                {"scorer": {}, "statusId": "3", "cells": []},
+                                {"scorer": {"scorerId": None}, "statusId": "2",
+                                 "cells": []}]})
         df = mv.rosters_to_frame(raw, self._teams(["t1"]), 2026, "PRE")
         assert len(df) == 1
         assert df.iloc[0].roster_section == "Minors"
+
+    def test_ir_row_kept_via_fallback(self):
+        # In-season statusId "3" is IR with real players -- must not be dropped.
+        # Fixture statusTotals lacks "3", so the fallback names it.
+        raw = self._raw({"t1": [self._row("x1", "Guy A", "3")]})
+        df = mv.rosters_to_frame(raw, self._teams(["t1"]), 2026, "01")
+        assert len(df) == 1
+        assert df.iloc[0].roster_section == "Inj Res"
+        assert df.iloc[0].status_id == "3"
+
+    def test_live_status_totals_name_overrides_fallback(self):
+        # Name differs from the fallback's "Inj Res", so this proves the live
+        # statusTotals map wins rather than passing via the fallback.
+        raw = self._raw({"t1": [self._row("x1", "Guy A", "3")]})
+        tbl = raw["t1"]["responses"][0]["data"]["tables"][0]
+        tbl["statusTotals"].append({"id": "3", "name": "IR"})
+        df = mv.rosters_to_frame(raw, self._teams(["t1"]), 2026, "01")
+        assert df.iloc[0].roster_section == "IR"
 
     def test_minors_placement_keeps_ordinary_contract(self):
         # ADR-0011: placement in the Minors squad does not change the contract.
@@ -91,7 +113,7 @@ class TestRostersToFrame:
         assert df.iloc[0].contract == "1st"
 
     def test_unknown_status_id_passes_through_raw(self):
-        # A new section (e.g. IR appearing in-season) must surface, not bin.
+        # A section id in neither statusTotals nor the fallback must surface, not bin.
         raw = self._raw({"t1": [self._row("x1", "Guy A", "11")]})
         df = mv.rosters_to_frame(raw, self._teams(["t1"]), 2026, "PRE")
         assert df.iloc[0].roster_section == "11"

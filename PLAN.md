@@ -83,8 +83,9 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   2026-10-02: the fluid design — category for anyone in the eligible
   window; the Minors space holds players and cap). `dim_contract` has no
   `Minor` row. Settle before #75 / #81 fix contract columns.
-- Code follow-ups from #79, not ticketed: `04v` drops IR players (treats
-  statusId `"3"` as an empty slot); `04s` needs `playerViewType:'2'`.
+- Code follow-ups from #79, not ticketed: `04s` needs `playerViewType:'2'`.
+  `04v` IR drop fixed ✅ (`fix/04v-keep-ir-rows`: IR kept as `"Inj Res"`,
+  charges per ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
 - HITL grills: **#75 next** (owner's pick), then #88, then #81.
