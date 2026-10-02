@@ -31,23 +31,31 @@ ignore_hosts:
 
 sources:
   # ---------------------------------------------------------------- live
-  - id: fantrax_getdraftranks
-    name: "Fantrax — getDraftRanks"
+  # RETIRED 2026-07-31: the `getDraftRanks` board. Fantrax kills that method once
+  # the startup draft completes, so 04a's live path is the Players grid
+  # (`getPlayerStats`, main_snapshot). The getDraftRanks code left in 04a is
+  # replay-only for archived raw JSON — it is no longer an external source.
+  # (id was fantrax_getdraftranks until the #83 truth-up.)
+  - id: fantrax_playerstats_grid
+    name: "Fantrax — getPlayerStats (Players grid)"
     status: live
-    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getDraftRanks)"
-    purpose: "League-specific dynasty draft-ranking board + percent-drafted (cross-league demand)"
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats; getDraftRanks retired 2026-07-31)"
+    purpose: "Full active-roster universe: FPts, FP/G, GP, ADP, %D, salary. Codes: `PROJECTION_0_23l_SEASON` (preseason), `SEASON_23l_YEAR_TO_DATE` (in-season / YTD), `SEASON_23l_BY_DATE` + ISO startDate/endDate (rebuild a missed week, `--rebuild-week`)"
     auth: "Fantrax account login, env-stored (FANTRAX_EMAIL/FANTRAX_PASSWORD); persistent Playwright profile (data/.pw_profile/)"
     cadence: "Weekly (Windows Task Scheduler)"
     feeds:
       - { notebook: 04a_fantrax_weekly_scrape.py, table: fact_fantrax_adp }
-    match: ["v744203wmmvjqzv6"]
+    # Method fingerprint, not the league id: 04a still carries the league id in
+    # its retired getDraftRanks code, so the id alone would not prove the live
+    # Players-grid call is still there.
+    match: ["getPlayerStats"]
 
   - id: fantrax_minor_contracts
     name: "Fantrax — getPlayerStats (MINOR_FANTASY filters) + getTeamRosterInfo"
     status: live
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN; getTeamRosterInfo per team)"
     purpose: "Minors system inputs (read-only): site's minors-eligibility verdict (GP<=19) + per-team squad placement (Active/Reserve/Minors). Placement drives roster_status and the cap exemption; Minors is not a contract type (ADR-0011)"
-    auth: "Same Fantrax session as fantrax_getdraftranks (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
+    auth: "Same Fantrax session as the Players-grid source (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
     cadence: "Weekly (Windows Task Scheduler, after 04a)"
     feeds:
       - { notebook: 04v_minor_contracts.py, table: fact_roster_placement }
@@ -55,6 +63,48 @@ sources:
     # 04v reuses 04a's CFG, so the league id never appears in its source —
     # match on the filter enum that defines this feed instead.
     match: ["MINOR_FANTASY"]
+
+  # 04w / 04t are capture-only scripts: they write verbatim JSON to data/raw/
+  # and 02d parses it into the tables. Both notebooks are listed so the lint
+  # trips if EITHER side stops referencing the method (02d carries the method
+  # name as its SOURCE / TRADE_SOURCE constant).
+  - id: fantrax_getdraftresults
+    name: "Fantrax — getDraftResults"
+    status: live
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getDraftResults + getFantasyLeagueInfo + getRefObject FantasyDraftPickType; one call per division)"
+    purpose: "Live-draft made-pick attribution: every slot of the startup draft board per division -> `startup_draft` events in the event-sourced ledger, the pick grid and the asset bridge (ADR-0003/0004)"
+    auth: "Same Fantrax session as the Players-grid source (04w imports 04a's scraper: env-stored login + persistent Playwright profile)"
+    cadence: "Live draft only — re-run between picks + on settle (never scheduled)"
+    feeds:
+      - { notebook: 04w_fantrax_draft_results.py, table: "(raw capture: data/raw/fantrax_draftresults_{season}_{divisionId}.json)" }
+      - { notebook: 02d_fact_roster_transactions.py, table: fact_roster_transactions }
+      - { notebook: 02d_fact_roster_transactions.py, table: fact_draft_pick }
+      - { notebook: 02d_fact_roster_transactions.py, table: dim_roster_asset }
+    match: ["getDraftResults"]
+
+  - id: fantrax_transaction_history
+    name: "Fantrax — getTransactionDetailsHistory"
+    status: live
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getTransactionDetailsHistory; team=ALL, views TRADE + CLAIM_DROP, all pages)"
+    purpose: "Roster Moves log (trade legs, claims, drops) -> ledger `trade` / `trade_away` / `claim` / `drop` events + the per-asset trade log (players and picks). No public fxea equivalent exists"
+    auth: "Same Fantrax session as the Players-grid source (04t imports 04a's scraper: env-stored login + persistent Playwright profile)"
+    cadence: "Manual run today (not in run_pipeline.py); ADR-0016 moves it to a full-season pull on every Change Poll trigger + the daily run"
+    feeds:
+      - { notebook: 04t_fantrax_transaction_history.py, table: "(raw capture: data/raw/fantrax_txn_history_{season}.json)" }
+      - { notebook: 02d_fact_roster_transactions.py, table: fact_roster_transactions }
+      - { notebook: 02d_fact_roster_transactions.py, table: fact_trade_log }
+    match: ["getTransactionDetailsHistory"]
+
+  - id: fantrax_public_fxea
+    name: "Fantrax — public fxea API (getDraftPicks + getTeamRosters)"
+    status: live
+    locator: "https://www.fantrax.com/fxea/general/{getDraftPicks,getTeamRosters}?leagueId=v744203wmmvjqzv6"
+    purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades). getTeamRosters is a print-only reconciliation check against fact_roster_placement — never written (fact_fantasy_teams stays ledger-replay-only, ADR-0003)"
+    auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
+    cadence: "Manual run (not in run_pipeline.py)"
+    feeds:
+      - { notebook: 04u_fantrax_public_api.py, table: fact_draft_pick_future }
+    match: ["fxea/general"]
 
   - id: google_sheet_team_manifest
     name: "Google Sheet — team manifest"
@@ -151,16 +201,20 @@ sources:
     match: ["RookieRankings_2026_ManualExtraction.xlsx", "RotoBaller", "FantasyCalc"]
 
   # ------------------------------------------------------------- planned
-  - id: fantrax_draftresults_draftpicks
-    name: "Fantrax — getDraftResults / draftPicks.go"
+  # Split out of the old combined "getDraftResults / draftPicks.go" row in the
+  # #83 truth-up: getDraftResults is built (live, above); draftPicks.go was
+  # never captured. Forward-pick ownership is served today by the public fxea
+  # getDraftPicks (04u), but ADR-0006 still names draftPicks.go the ownership
+  # SSOT, so it stays planned until an ADR retires it.
+  - id: fantrax_draftpicks_go
+    name: "Fantrax — draftPicks.go"
     status: planned
-    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (getDraftResults live-draft; draftPicks.go ownership — capture pending)"
-    purpose: "Made-pick attribution (live draft) + pick-ownership/trades inventory -> event-sourced ledger"
-    auth: "Same as getDraftRanks (Fantrax login + Playwright profile)"
-    cadence: "Between picks (live draft) + on settle"
-    feeds:
-      - { notebook: 04w_fantrax_draft_results.py, table: fact_roster_transactions }
-    match: ["getDraftResults", "draftPicks", "v744203wmmvjqzv6"]
+    locator: "Fantrax draftPicks.go page (league v744203wmmvjqzv6; per division — capture pending)"
+    purpose: "Pick-ownership SSOT per ADR-0006 (current + forward). Not captured; forward-pick ownership comes from the public fxea getDraftPicks (04u) today"
+    auth: "Same Fantrax session as the Players-grid source (Fantrax login + Playwright profile)"
+    cadence: "TBD (capture pending)"
+    feeds: []
+    match: []
 
   - id: fantrax_commissioner_admin
     name: "Fantrax — commissioner admin"
