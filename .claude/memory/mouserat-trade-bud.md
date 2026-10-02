@@ -2498,8 +2498,16 @@ yet. But two real, pre-existing gaps surfaced, independent of #57:
   including historical `exact+disambig`/`fuzzy` ones, on the very next run.
   No separate re-audit step needed.
 
-Not yet implemented — grilling closed, design ready for its own wayfinder
-map / implementation issue.
+**[BUILT 2026-09-26]** Both (a) and (b) shipped as task
+[#67](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/67)
+via PR [#90](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/90).
+Prior value: "Not yet implemented — grilling closed, design ready for its
+own wayfinder map / implementation issue." Verified at build: reran `04z`
+clean with 0 `ambiguous` rows (no live tie hits the new branch yet), method
+counts unchanged from the pre-change baseline, `[ok] gsis_id mapping is 1:1`
+held, `pytest tests/` green. Map
+[#65](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/65)
+has reached its destination.
 
 **[DECIDED 2026-08-04] #63 (add/drop-count churn signal), full design:**
 New `infer_waiver_activity(team_key)` in
@@ -2528,6 +2536,11 @@ New `infer_waiver_activity(team_key)` in
   `infer_*` calls, and to `low_confidence_fields()` the same way
   `trade_activity_confidence` is.
 
-Not yet implemented — grilling closed, posted to #63 as a comment, design
-ready for implementation (paired with #62's implementation, per user
-priority order: #62 first).
+**Not yet implemented as of 2026-10-02.** Grilling is finished and posted
+to #63 as a comment; charted as wayfinder map
+[#66](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/66)
+with task [#68](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/68)
+ready to build. The #62 side it was queued behind is done (PR #90), so #68
+is next in this lane. The counts above (53 CLAIM / 2 DROP, tier
+distribution) are preseason figures from 2026-08-04 — re-check the cut
+points against in-season data when building.

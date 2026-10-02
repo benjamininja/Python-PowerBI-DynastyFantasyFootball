@@ -71,10 +71,18 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
 (2026-10-02)**, run from the managing session
 `dynastyFantasyFootball-central-builder`:
 
-- AFK, fired 2026-10-02: #79 schema extraction (must settle the three
-  questions on the issue: public `getTeamRosters` fields, past-period
-  backfill, IR/Minors under BENCH) and #83 sources truth-up. Next AFK: #68.
-- HITL grills: #88 and #75 (both unblocked), then #81 once #79 reports.
+- AFK, fired 2026-10-02: #83 sources truth-up ✅ (PR #103). #79 schema
+  extraction reported twice; both reports had counts that do not reconcile,
+  so nothing is posted yet — the managing session recounts from the saved
+  responses first. It also claims a `Minor` contract exists in-season,
+  which would contradict ADR-0011; verify before relying on it. Next AFK:
+  #68.
+- Approved 2026-10-02, pending: land the four research docs in
+  `docs/research/`, repoint the issue links, then remove the `research/*`
+  and `feat/78-inseason-capture` branches.
+- HITL grills: **#75 next** (owner's pick), then #88, then #81 once #79 is
+  settled.
+- Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
