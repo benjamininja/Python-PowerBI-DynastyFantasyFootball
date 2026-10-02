@@ -23,16 +23,18 @@ scrub is done.
 → `2026/03` + `2026/YTD` + gsis refresh. Week 4 is now also due. It needs a
 live Fantrax session (see the auth note below) until #92 lands.
 
-**Research findings home** (decided 2026-10-02): full findings for #73, #74,
-#80 and #84 move from the `research/*` branches to `docs/research/` on
-`main`; the issue Resolution comments are repointed there. New research
-tickets (#79 onward) land their findings in `docs/research/` too.
+**Research findings home** (done 2026-10-02): full findings for #73, #74,
+#80 and #84 live in `docs/research/` on `main`; the issue Resolution
+comments point there. New research tickets (#79 onward) land their findings
+in `docs/research/` too.
 
-**Environment gotchas found 2026-10-02**: the post-scrub re-clone left the
-repo `user.email` unset to the noreply address — check
-`git config user.email` before committing. `.pre-commit-config.yaml`
-hard-codes `./.venv`, so commits fail inside agent worktrees; commit from
-the main checkout instead.
+**Environment gotchas found 2026-10-02**: the post-scrub re-clone had left
+the repo `user.email` unset; it is now set repo-local to the noreply
+address (owner's decision, 2026-10-02). Squash-merge commits on `main` are
+authored by GitHub from the account's email setting, which local config
+does not control — the owner turns on "Keep my email addresses private" in
+GitHub. `.pre-commit-config.yaml` hard-codes `./.venv`, so commits fail
+inside agent worktrees; commit from the main checkout instead.
 
 **Fantrax auth (2026-09-27)**: creds live in gitignored repo-root `.env`
 (the only one; `notebooks/.env` no longer exists). The account now has **TOTP
@@ -82,26 +84,18 @@ plan-gated code change.
 
 ## Next actions (compact handoff, 2026-10-02)
 
-Approved by the owner on 2026-10-02, **not yet done** — do these in order:
+Approved by the owner on 2026-10-02 — do these in order:
 
-1. **Land research docs** (approved): new branch from `main`; copy
-   `research/<slug>.md` from each of `origin/research/supabase-platform-facts`,
-   `storage-seam-inventory`, `fantrax-fxea-public-api`,
-   `nflreadpy-inseason-api` into `docs/research/`; PR + squash-merge. Then
-   repoint the link in each Resolution comment on #73, #74, #80, #84 to the
-   `main` path. Then remove the four `research/*` remote branches and
-   `feat/78-inseason-capture` (fully merged via PR #89). Update the PLAN.md
-   "Lanes" sentence that says findings live only on the branches.
-2. **Owner asked for full decision context** (no action taken yet) on the
-   repo `user.email`: it is the Gmail address, not the GitHub noreply one
-   that CLAUDE.md says is set; squash commits on `main` back to at least #90
-   are authored with the Gmail address (GitHub-side squash author, which
-   local config does not control). Lay out the options; change nothing
-   until the owner decides.
-3. **Grill #75** (Supabase schema + RLS) with `grill-with-docs`, one
+1. **Settle #79** (see "In flight" below) — recount, verify the `Minor`
+   contract claim, write the findings doc, post, close.
+2. **Grill #75** (Supabase schema + RLS) with `grill-with-docs`, one
    question at a time. Inputs: the #75 body + its ADR-0015 scope comment,
-   ADR-0014, ADR-0015, the supabase-platform-facts research doc,
+   ADR-0014, ADR-0015, `docs/research/supabase-platform-facts.md`,
    `docs/reference/` (pattern reference only, kept out of git).
+
+Done 2026-10-02: research docs landed in `docs/research/`, issue links
+repointed, `research/*` and `feat/78-inseason-capture` remote branches
+removed; repo `user.email` set to the noreply address.
 
 In flight:
 

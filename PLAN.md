@@ -65,7 +65,7 @@ raw points, not categories.
   (task, ← #85 #77).
 
 **Lanes.** Wave 1 (AFK, parallel) ✅: research #73 #74 #80 #84 (full
-findings live only on the `research/*` branches; each issue carries a
+findings in [`docs/research/`](docs/research/); each issue carries a
 summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
 #72 → #87 → #82 → #85 (ADR-0014..0017). **Wave 3, in progress
 (2026-10-02)**, run from the managing session
@@ -77,9 +77,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   responses first. It also claims a `Minor` contract exists in-season,
   which would contradict ADR-0011; verify before relying on it. Next AFK:
   #68.
-- Approved 2026-10-02, pending: land the four research docs in
-  `docs/research/`, repoint the issue links, then remove the `research/*`
-  and `feat/78-inseason-capture` branches.
+- Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
+  (2026-10-02); new research tickets (#79 onward) write there too.
 - HITL grills: **#75 next** (owner's pick), then #88, then #81 once #79 is
   settled.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
