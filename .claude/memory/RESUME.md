@@ -4,8 +4,10 @@
 AFK tickets as background sessions, reviews what they return, and posts to
 GitHub; HITL grills happen in the managing session.
 
-**Git state**: `main` = 65e1d4d (PR #101) plus the 2026-10-02 docs PRs
-(#102 memory/PLAN reconcile, #103 sources truth-up). History was rewritten
+**Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
+docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
+docs, #105 #79 findings. Branch `docs/75-schema-rls` carries ADR-0018 +
+PLAN/RESUME/seam-inventory edits (PR pending owner go). History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
 asks. Stage explicit paths only. Untracked and not ours (leave alone):
@@ -71,7 +73,7 @@ plan-gated code change.
 4. Side finding → side session (see Git state).
 
 ## Maps (native sub-issues + blocked-by wired)
-- **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 schema+RLS (grill) ·
+- **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 ✅ (ADR-0018) ·
   #76 provision (HITL) · #77 build seam (task).
 - **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 fact model
   (grill) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
@@ -83,14 +85,20 @@ plan-gated code change.
 
 ## Next actions (compact handoff, 2026-10-02)
 
-Approved by the owner on 2026-10-02 — do these in order:
+**#75 grilled ✅ 2026-10-02** (Q1–Q17) →
+[ADR-0018](../../docs/adr/0018-supabase-schema-and-rls.md). Close-out still
+to do, each on owner go: PR for branch `docs/75-schema-rls`; Resolution
+comment + close #75; new #69 issues — (a) registry generator +
+`migrate.yml` + first migration (←#76), (b) trade-log pick legs →
+Original Owner (`pick_ref`), (c) grain fixes (Composite, `fact_fantasy_teams`
+`scorer_id`, combine gsis orphans, `division_id`), (d) post-cutover
+orphan-resolution approach (owner wants something better than manual
+review queues); hand-off comment on #77 (tight types reach the snapshot).
+Note: `grill-with-docs` is user-invoked only — ask the owner to type it.
 
-1. **Grill #75** (Supabase schema + RLS) with `grill-with-docs`, one
-   question at a time. Inputs: the #75 body + its ADR-0015 scope comment,
-   ADR-0014, ADR-0015, `docs/research/supabase-platform-facts.md`,
-   `docs/reference/` (pattern reference only, kept out of git). Start it in
-   a fresh window. Treat contract columns as provisional until item 2.
-2. **Reconcile ADR-0011 with the `Minor` contract** (not yet written; plan
+Approved by the owner on 2026-10-02 — next in order:
+
+1. **Reconcile ADR-0011 with the `Minor` contract** (not yet written; plan
    gate applies). Owner's reading, 2026-10-02: the other commissioner chose
    the fluid design — `Minor` is the category for anyone inside the
    minors-eligible window; the Minors space holds players and cap, moving
@@ -105,7 +113,12 @@ findings in `docs/research/inseason-schema-extraction.md`.
 
 In flight:
 
-- Nothing. #83 done (PR #103). **#79 done 2026-10-02**: both agent reports
+- **04v IR fix merged ✅** (PR #106, 2026-10-02): IR rows are kept in
+  `fact_roster_placement` as `"Inj Res"` (Fantrax's own `statusTotals`
+  name) and charged per ADR-0011; cap totals unchanged. The first
+  in-season 02e run may list IR players as placement orphans (ledger
+  gaps surfaced, no cap effect).
+- #83 done (PR #103). **#79 done 2026-10-02**: both agent reports
   were rejected (totals did not reconcile; the live-scoring file it cited
   was never saved), so the managing session recounted everything itself.
   Results, all in `docs/research/inseason-schema-extraction.md`:
@@ -118,9 +131,8 @@ In flight:
     complete once the period is final.
   - No `matchupId` anywhere; `divisionId` only in public `getLeagueInfo`.
   - Code follow-ups, not ticketed yet: `04s` line 145 needs
-    `playerViewType:'2'`; the 02d comment; `dim_contract` has no `Minor`
-    row. (`04v` IR drop fixed in `fix/04v-keep-ir-rows`: IR rows kept as
-    `"Inj Res"`, charged per ADR-0011.)
+    `playerViewType:'2'`; the 02d:496-518 comment; `dim_contract` has no
+    `Minor` row.
 - The Fantrax stored session was alive on 2026-10-02 (one read-only call
   succeeded), so the overdue weekly pull can run without a manual login.
 
