@@ -78,12 +78,18 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   Public rosters carry all four Roster Slots + salary + contract and
   backfill past periods; `playerViewType:'2'` BENCH holds Bench, IR and
   Minors. Next AFK: #68.
-- **ADR-0011 to reconcile**: a `Minor` contract now exists on ~1/3 of
-  roster rows and tracks minors eligibility, not placement (owner,
-  2026-10-02: the fluid design — category for anyone in the eligible
-  window; the Minors space holds players and cap). `dim_contract` has no
-  `Minor` row. Settle before #81 fixes contract columns (ADR-0018 keeps the
-  `contract_id` FK provisional until then).
+- **ADR-0011 reconciled ✅ 2026-10-02 →
+  [ADR-0019](docs/adr/0019-minor-is-a-pre-1st-contract-stage.md)**: `Minor` is
+  the pre-`1st` contract stage. Any eligible player holds it, however they
+  were acquired. A drop costs 0% dead money, the contract is off the clock,
+  and the player moves to `1st` mid-season the period after GP > 19, same
+  salary.
+  - Contracts are observed from Roster State, with a #88 drift check for
+    mismatches.
+  - `02d` takes each move's contract from the snapshot first, falling back
+    to a default.
+  - The Minors slot stays the only cap exemption.
+  - Build: the `dim_contract` row + `02d` sourcing (#113).
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
   `football`/`shared`/`ops`; registry-generated migrations; PK = grain;
@@ -97,7 +103,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
-- Next: reconcile ADR-0011 with `Minor`, then HITL grills #88 → #81.
+- Next: HITL grills #88 (now also has the Minor drift check) → #81.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
@@ -231,11 +237,15 @@ build lands.
 
 ## [ ] Active — Minors, open user actions only
 
-Design closed: [ADR-0011](docs/adr/0011-minors-is-placement-not-contract.md)
-(supersedes ADR-0010) — **there is no Minor contract type**. Minors is
-eligibility (GP ≤ 19, Fantrax-computed) + placement (the team's lever, and the
-sole cap exemption). `04v` is read-only; it is the sole writer of
-`fact_roster_placement`. Full build detail in
+Design closed:
+- [ADR-0011](docs/adr/0011-minors-is-placement-not-contract.md) (supersedes
+  ADR-0010) still holds, except its headline: **placement** (the team's
+  lever) is the only cap exemption. `04v` is read-only and is the only
+  writer of `fact_roster_placement`.
+- [ADR-0019](docs/adr/0019-minor-is-a-pre-1st-contract-stage.md)
+  (2026-10-02) replaces that headline. **`Minor` is the contract** held
+  while eligible (GP ≤ 19, Fantrax-computed): 0% dead money, off the clock,
+  and `1st` the period after GP > 19. Full build detail in
 `.claude/memory/project-fantasy-football.md`.
 
 **Open, user-owned:** site eligibility condition 20 → 19 (pending
@@ -314,7 +324,8 @@ dead-money measures); the singular/plural table rename
   committed parquet — no server, database, or secrets. Live at
   <https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/>.
 - **Minors = placement, not contract** ([ADR-0011](docs/adr/0011-minors-is-placement-not-contract.md),
-  2026-07-26, PR #33, supersedes ADR-0010): the `Minor` contract type is void;
+  2026-07-26, PR #33, supersedes ADR-0010; headline superseded by
+  [ADR-0019](docs/adr/0019-minor-is-a-pre-1st-contract-stage.md) 2026-10-02): the `Minor` contract type is void;
   `04v`'s write-side `--apply` path and commissioner worklist deleted.
 - **Critical-review epic, 6 slices** (2026-07-13, PRs #25→#29+F): A apply
   pacing + FA CSV export · B `scripts/run_pipeline.py` phase-aware orchestrator

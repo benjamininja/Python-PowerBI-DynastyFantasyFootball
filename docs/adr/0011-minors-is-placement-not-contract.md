@@ -1,6 +1,11 @@
 # Minors is placement + eligibility, not a contract type
 
-- Status: accepted
+- Status: accepted; **headline superseded by
+  [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md)** (2026-10-02).
+  Fantrax now reports a `Minor` contract held while minors-eligible, so "there
+  is no Minor contract type" no longer holds. Everything else here stands:
+  `04v` read-only, no Fantrax write path, IR charged, and only the Minors slot
+  cap-exempt.
 - Date: 2026-07-26
 - **Supersedes** [ADR-0010](0010-minors-stash-season-boundary.md) (stash
   durability across season boundaries), which modelled protection for a

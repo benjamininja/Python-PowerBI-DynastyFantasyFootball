@@ -28,7 +28,9 @@ None of those hold; every number below was recounted from the payloads.
    `BENCH`.** It is only complete once the period is final.
 4. **A `Minor` contract now exists on about a third of roster rows.** It
    tracks minors eligibility, not placement. This contradicts the fact
-   ADR-0011 was built on; the ADR is to be reconciled.
+   ADR-0011 was built on. *Reconciled in
+   [ADR-0019](../adr/0019-minor-is-a-pre-1st-contract-stage.md): `Minor` is the
+   pre-`1st` contract stage.*
 5. **`04v` drops every IR player**, because it treats statusId `"3"` as an
    empty slot. *Fixed in `fix/04v-keep-ir-rows`: IR rows are kept as
    `"Inj Res"`.*
@@ -200,9 +202,9 @@ pass through them.
 
 ## Still open
 
-1. Reconcile ADR-0011 with the `Minor` contract (owner's reading in
-   section 4), and decide how `dim_contract` represents it, before #75 and
-   #81 fix any contract column.
+1. ~~Reconcile ADR-0011 with the `Minor` contract.~~ Done 2026-10-02:
+   [ADR-0019](../adr/0019-minor-is-a-pre-1st-contract-stage.md) settles it,
+   including the `dim_contract` row.
 2. Which instant the public per-period snapshot represents.
 3. Why 15 non-starters are missing from `BENCH` in a final period.
 4. Whether `allEventsFinished` reliably marks a final period.
