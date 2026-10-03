@@ -1,0 +1,1136 @@
+[
+ {
+  "responses": [
+   {
+    "data": {
+     "displayedPosOrGroup": "FOOTBALL_OFFENSE",
+     "tableHeader": {
+      "cells": [
+       {
+        "shortName": "Rk"
+       },
+       {
+        "shortName": "Sta"
+       },
+       {
+        "shortName": "Age"
+       },
+       {
+        "shortName": "Opp"
+       },
+       {
+        "shortName": "Sal"
+       },
+       {
+        "shortName": "FPts"
+       },
+       {
+        "shortName": "FP/G"
+       },
+       {
+        "shortName": "%D"
+       },
+       {
+        "shortName": "ADP"
+       },
+       {
+        "shortName": "Bye"
+       },
+       {
+        "shortName": "Ros"
+       },
+       {
+        "shortName": "+/-"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "Int"
+       },
+       {
+        "shortName": "RU-ATT"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "REC"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "Tgt"
+       },
+       {
+        "shortName": "FL"
+       },
+       {
+        "shortName": "RtY"
+       },
+       {
+        "shortName": "2RR"
+       },
+       {
+        "shortName": "1D"
+       },
+       {
+        "shortName": "GP"
+       }
+      ]
+     },
+     "statsTable": [
+      {
+       "scorer": {
+        "scorerId": "06jdy",
+        "name": "Drake Maye",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "NE",
+        "rookie": false,
+        "rank": 1
+       },
+       "cells": [
+        {
+         "content": "1"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "23"
+        },
+        {
+         "content": "@SEA (6th)<br/>Wed 7:20PM"
+        },
+        {
+         "content": "21,127,000"
+        },
+        {
+         "content": "616.71"
+        },
+        {
+         "content": "36.28"
+        },
+        {
+         "content": "100"
+        },
+        {
+         "content": "54.2"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "98%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "4,394"
+        },
+        {
+         "content": "31"
+        },
+        {
+         "content": "8"
+        },
+        {
+         "content": "103"
+        },
+        {
+         "content": "450"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "241"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "04mnz",
+        "name": "Josh Allen",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "BUF",
+        "rookie": false,
+        "rank": 2
+       },
+       "cells": [
+        {
+         "content": "2"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "30"
+        },
+        {
+         "content": "@HOU (4th)<br/>Sun 12:00PM"
+        },
+        {
+         "content": "21,022,000"
+        },
+        {
+         "content": "613.62"
+        },
+        {
+         "content": "36.1"
+        },
+        {
+         "content": "100"
+        },
+        {
+         "content": "25.1"
+        },
+        {
+         "content": "7"
+        },
+        {
+         "content": "97%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "3,668"
+        },
+        {
+         "content": "25"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "112"
+        },
+        {
+         "content": "579"
+        },
+        {
+         "content": "14"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "223"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "048xf",
+        "name": "Christian McCaffrey",
+        "posShortNames": "<b>RB</b>",
+        "teamShortName": "SF",
+        "rookie": false,
+        "rank": 3
+       },
+       "cells": [
+        {
+         "content": "3"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "29"
+        },
+        {
+         "content": "@LAR (4th)<br/>Thu 7:35PM"
+        },
+        {
+         "content": "21,012,000"
+        },
+        {
+         "content": "613.35"
+        },
+        {
+         "content": "36.08"
+        },
+        {
+         "content": "100"
+        },
+        {
+         "content": "5.2"
+        },
+        {
+         "content": "8"
+        },
+        {
+         "content": "96%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "311"
+        },
+        {
+         "content": "1,202"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "102"
+        },
+        {
+         "content": "924"
+        },
+        {
+         "content": "7"
+        },
+        {
+         "content": "129"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "119"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "01cdj",
+        "name": "Matthew Stafford",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "LAR",
+        "rookie": false,
+        "rank": 4
+       },
+       "cells": [
+        {
+         "content": "4"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "38"
+        },
+        {
+         "content": "SF (19th)<br/>Thu 7:35PM"
+        },
+        {
+         "content": "20,337,000"
+        },
+        {
+         "content": "593.63"
+        },
+        {
+         "content": "34.92"
+        },
+        {
+         "content": "100"
+        },
+        {
+         "content": "84.1"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "95%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "4,707"
+        },
+        {
+         "content": "46"
+        },
+        {
+         "content": "8"
+        },
+        {
+         "content": "29"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "236"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "060sm",
+        "name": "Bo Melton",
+        "posShortNames": "<b>WR</b>,DB",
+        "teamShortName": "GB",
+        "rookie": false,
+        "rank": 762
+       },
+       "cells": [
+        {
+         "content": "762"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "27"
+        },
+        {
+         "content": "@MIN (19th)<br/>Sun 3:25PM"
+        },
+        {
+         "content": "1,703,000"
+        },
+        {
+         "content": "78.15"
+        },
+        {
+         "content": "4.88"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "4%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "5"
+        },
+        {
+         "content": "35"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "107"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "13"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "467"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "6"
+        },
+        {
+         "content": "16"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "04yo1",
+        "name": "Deebo Samuel",
+        "posShortNames": "<b>WR</b>",
+        "teamShortName": "(N/A)",
+        "rookie": false,
+        "rank": 66
+       },
+       "cells": [
+        {
+         "content": "66"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "30"
+        },
+        {
+         "content": "Bye"
+        },
+        {
+         "content": "9,375,000"
+        },
+        {
+         "content": "273.65"
+        },
+        {
+         "content": "17.1"
+        },
+        {
+         "content": "96"
+        },
+        {
+         "content": "145.3"
+        },
+        {
+         "content": ""
+        },
+        {
+         "content": "89%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "17"
+        },
+        {
+         "content": "75"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "72"
+        },
+        {
+         "content": "727"
+        },
+        {
+         "content": "5"
+        },
+        {
+         "content": "99"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "452"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "36"
+        },
+        {
+         "content": "16"
+        }
+       ]
+      }
+     ],
+     "paginatedResultSet": {
+      "totalNumPages": 8,
+      "pageNumber": 1,
+      "maxResultsPerPage": 500,
+      "totalNumResults": 3690
+     }
+    }
+   }
+  ]
+ },
+ {
+  "responses": [
+   {
+    "data": {
+     "displayedPosOrGroup": "FOOTBALL_DEFENSE",
+     "tableHeader": {
+      "cells": [
+       {
+        "shortName": "Rk"
+       },
+       {
+        "shortName": "Sta"
+       },
+       {
+        "shortName": "Age"
+       },
+       {
+        "shortName": "Opp"
+       },
+       {
+        "shortName": "Sal"
+       },
+       {
+        "shortName": "FPts"
+       },
+       {
+        "shortName": "FP/G"
+       },
+       {
+        "shortName": "%D"
+       },
+       {
+        "shortName": "ADP"
+       },
+       {
+        "shortName": "Bye"
+       },
+       {
+        "shortName": "Ros"
+       },
+       {
+        "shortName": "+/-"
+       },
+       {
+        "shortName": "FF"
+       },
+       {
+        "shortName": "FR"
+       },
+       {
+        "shortName": "FRYd"
+       },
+       {
+        "shortName": "Int"
+       },
+       {
+        "shortName": "IntYd"
+       },
+       {
+        "shortName": "Sk"
+       },
+       {
+        "shortName": "TkA"
+       },
+       {
+        "shortName": "TkS"
+       },
+       {
+        "shortName": "TFL"
+       },
+       {
+        "shortName": "Sft"
+       },
+       {
+        "shortName": "PD"
+       },
+       {
+        "shortName": "RtY"
+       },
+       {
+        "shortName": "BK"
+       },
+       {
+        "shortName": "TDD"
+       },
+       {
+        "shortName": "GP"
+       }
+      ]
+     },
+     "statsTable": [
+      {
+       "scorer": {
+        "scorerId": "04ca0",
+        "name": "Myles Garrett",
+        "posShortNames": "<b>DL</b>",
+        "teamShortName": "LAR",
+        "rookie": false,
+        "rank": 99
+       },
+       "cells": [
+        {
+         "content": "99"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "30"
+        },
+        {
+         "content": "SF (17th)<br/>Thu 7:35PM"
+        },
+        {
+         "content": "8,256,000"
+        },
+        {
+         "content": "241"
+        },
+        {
+         "content": "14.18"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "94%"
+        },
+        {
+         "content": "+1%"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "23.0"
+        },
+        {
+         "content": "17"
+        },
+        {
+         "content": "43"
+        },
+        {
+         "content": "33"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "04zv3",
+        "name": "Maxx Crosby",
+        "posShortNames": "<b>DL</b>",
+        "teamShortName": "LV",
+        "rookie": false,
+        "rank": 117
+       },
+       "cells": [
+        {
+         "content": "117"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "28"
+        },
+        {
+         "content": "MIA (9th)<br/>Sun 3:25PM"
+        },
+        {
+         "content": "7,551,000"
+        },
+        {
+         "content": "220.4"
+        },
+        {
+         "content": "14.69"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "13"
+        },
+        {
+         "content": "94%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "19"
+        },
+        {
+         "content": "10.0"
+        },
+        {
+         "content": "28"
+        },
+        {
+         "content": "45"
+        },
+        {
+         "content": "28"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "6"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "15"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "060jq",
+        "name": "Aidan Hutchinson",
+        "posShortNames": "<b>DL</b>",
+        "teamShortName": "DET",
+        "rookie": false,
+        "rank": 143
+       },
+       "cells": [
+        {
+         "content": "143"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "25"
+        },
+        {
+         "content": "NO (12th)<br/>Sun 12:00PM"
+        },
+        {
+         "content": "6,468,000"
+        },
+        {
+         "content": "188.8"
+        },
+        {
+         "content": "11.11"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "6"
+        },
+        {
+         "content": "94%"
+        },
+        {
+         "content": "+1%"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "58"
+        },
+        {
+         "content": "14.5"
+        },
+        {
+         "content": "18"
+        },
+        {
+         "content": "36"
+        },
+        {
+         "content": "14"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "17"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "060sm",
+        "name": "Bo Melton",
+        "posShortNames": "<b>WR</b>,DB",
+        "teamShortName": "GB",
+        "rookie": false,
+        "rank": 762
+       },
+       "cells": [
+        {
+         "content": "762"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "27"
+        },
+        {
+         "content": "@MIN (19th)<br/>Sun 3:25PM"
+        },
+        {
+         "content": "1,703,000"
+        },
+        {
+         "content": "49.7"
+        },
+        {
+         "content": "3.11"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "-"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "4%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "467"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "16"
+        }
+       ]
+      }
+     ],
+     "paginatedResultSet": {
+      "totalNumPages": 10,
+      "pageNumber": 1,
+      "maxResultsPerPage": 500,
+      "totalNumResults": 4961
+     }
+    }
+   }
+  ]
+ }
+]

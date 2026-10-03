@@ -12,6 +12,7 @@ Regenerate when Fantrax changes shape (a deliberate PR — the fixture diff
 shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py            # all fixtures
     .\\run.ps1 scripts\\make_fixtures.py roster_info.json
+A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
 To cover a new parser (#113 02d draft/transactions, #117 getLeagueInfo,
 #118 live scoring + standings): add an ALLOWLIST spec, a trimmer and a
@@ -37,19 +38,24 @@ def _cells(*keys: str) -> list:
     return [{k: KEEP for k in keys}]
 
 
+# 04a player_stats_to_frame: list of getPlayerStats pages.
+_PLAYERSTATS = [{"responses": [{"data": {
+    "displayedPosOrGroup": KEEP,
+    "tableHeader": {"cells": _cells("shortName")},
+    "statsTable": [{
+        "scorer": {k: KEEP for k in ("scorerId", "name", "posShortNames",
+                                     "teamShortName", "rookie", "rank")},
+        "cells": _cells("content"),
+    }],
+    "paginatedResultSet": {k: KEEP for k in ("totalNumPages", "pageNumber",
+                                             "maxResultsPerPage", "totalNumResults")},
+}}]}]
+
 ALLOWLIST: dict[str, object] = {
-    # 04a player_stats_to_frame: list of getPlayerStats pages.
-    "playerstats_page.json": [{"responses": [{"data": {
-        "displayedPosOrGroup": KEEP,
-        "tableHeader": {"cells": _cells("shortName")},
-        "statsTable": [{
-            "scorer": {k: KEEP for k in ("scorerId", "name", "posShortNames",
-                                         "teamShortName", "rookie", "rank")},
-            "cells": _cells("content"),
-        }],
-        "paginatedResultSet": {k: KEEP for k in ("totalNumPages", "pageNumber",
-                                                 "maxResultsPerPage", "totalNumResults")},
-    }}]}],
+    # BY_DATE pull (--rebuild-week): Fantrax serves no Rk, the parser derives it.
+    "playerstats_page.json": _PLAYERSTATS,
+    # YEAR_TO_DATE pull: scorer.rank served, Rk/%D/ADP header columns present.
+    "playerstats_page_ranked.json": _PLAYERSTATS,
     # 04u build_future_picks: public getDraftPicks.
     "public_draftpicks.json": {"futureDraftPicks": [{k: KEEP for k in (
         "year", "round", "originalOwnerTeamId", "currentOwnerTeamId")}]},
@@ -188,6 +194,7 @@ def trim_rosters(p01: dict) -> dict:
 # a newer capture.
 SOURCES = {
     "playerstats_page.json": ("fantrax_playerstats_2026_01.json", trim_playerstats),
+    "playerstats_page_ranked.json": ("fantrax_playerstats_2025_YTD.json", trim_playerstats),
     "public_draftpicks.json": ("fantrax_public_draftpicks.json", trim_draftpicks),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
     "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
@@ -203,13 +210,15 @@ def build(name: str, raw_dir: Path = RAW):
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Cut allowlisted parser fixtures from data/raw")
     ap.add_argument("names", nargs="*", help=f"fixtures to (re)build: {', '.join(SOURCES)}")
+    ap.add_argument("--raw-dir", type=Path, default=RAW,
+                    help="folder holding the raw captures (default: data/raw)")
     args = ap.parse_args(argv)
     unknown = set(args.names) - set(SOURCES)
     if unknown:
         ap.error(f"unknown fixture(s): {sorted(unknown)}")
     OUT.mkdir(parents=True, exist_ok=True)
     for name in args.names or SOURCES:
-        fixture = build(name)
+        fixture = build(name, args.raw_dir)
         out = OUT / name
         out.write_text(json.dumps(fixture, indent=1, ensure_ascii=False) + "\n",
                        encoding="utf-8", newline="\n")
