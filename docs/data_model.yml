@@ -28,12 +28,29 @@
 #             table name>, on: <join column(s)>}. `via: direct` = joins
 #             straight to the target's key. `via: <resolver>` = the real
 #             route is through that resolver table, not a direct FK.
+#
+# Check parameters (ADR-0008 amendment decisions 3, 4, 6, 16; read by
+# notebooks/etl_checks.py):
+#   chain         : the publish unit that writes this table — fantrax_core |
+#                   rookie | dynasty_profile | nflverse. Absent = manual-only
+#                   (written by hand-run notebooks, reaches main by PR; the
+#                   pipeline never stages it). Steps in run_pipeline.py carry
+#                   the same tag.
+#   required_keys : columns that must be non-null on every row (the
+#                   scorer_id / team_key / period-or-week set, where the table
+#                   has them and they are never legitimately null).
+#   shrink_limit  : optional; max fractional row-count drop against the last
+#                   published snapshot (git HEAD) before the Gate blocks.
+#                   Default 0.20. Shrinking to zero rows always blocks.
+#   The grain Gate checks uniqueness of `grain` over rows whose grain columns
+#   are all non-null; null-key rows file one `grain_null_key` Review finding.
 
 tables:
   # --------------------------------------------------------------- dims
   - name: dim_nfl_players
     type: dim
     grain: gsis_id
+    chain: nflverse
     columns:
       - { name: gsis_id, dtype: str }
       - { name: display_name, dtype: str }
@@ -69,6 +86,7 @@ tables:
   - name: dim_rookie_prospect
     type: dim
     grain: player_key
+    chain: rookie
     columns:
       - { name: player_key, dtype: str }
       - { name: player_name, dtype: str }
@@ -136,6 +154,7 @@ tables:
   - name: dim_fantasy_teams
     type: dim
     grain: team_key
+    required_keys: [team_key]
     columns:
       - { name: team_key, dtype: str }
       - { name: team_name, dtype: str }
@@ -168,6 +187,7 @@ tables:
   - name: dim_dynasty_metric
     type: dim
     grain: metric_key
+    chain: dynasty_profile
     columns:
       - { name: metric_key, dtype: str }
       - { name: metric_label, dtype: str }
@@ -220,6 +240,7 @@ tables:
   - name: fact_draft_pick
     type: fact
     grain: pick_ref
+    chain: fantrax_core
     columns:
       - { name: pick_ref, dtype: str }
       - { name: draft_season, dtype: str }
@@ -261,6 +282,7 @@ tables:
   - name: dim_season
     type: dim
     grain: season_id
+    chain: fantrax_core
     columns:
       - { name: season_id, dtype: str }
       - { name: season_start_year, dtype: int64 }
@@ -287,6 +309,8 @@ tables:
   - name: dim_fantrax_crosswalk
     type: resolver
     grain: scorer_id
+    chain: fantrax_core
+    required_keys: [scorer_id]
     columns:
       - { name: scorer_id, dtype: str }
       - { name: player_name, dtype: str }
@@ -305,6 +329,7 @@ tables:
   - name: dim_dynasty_crosswalk
     type: resolver
     grain: source_uid
+    chain: dynasty_profile
     columns:
       - { name: source, dtype: str }
       - { name: source_player_id, dtype: str }
@@ -324,6 +349,7 @@ tables:
   - name: dim_player_alias
     type: resolver
     grain: "(name_clean, position_raw)"
+    chain: rookie
     columns:
       - { name: name_clean, dtype: str }
       - { name: position_raw, dtype: str }
@@ -337,6 +363,7 @@ tables:
   - name: dim_roster_asset
     type: resolver
     grain: asset_id
+    chain: fantrax_core
     columns:
       - { name: asset_id, dtype: int64 }
       - { name: asset_type, dtype: str }
@@ -387,6 +414,8 @@ tables:
   - name: fact_fantasy_teams
     type: fact
     grain: "(team_key, gsis_id)"
+    chain: fantrax_core
+    required_keys: [team_key]
     columns:
       - { name: team_key, dtype: str }
       - { name: gsis_id, dtype: str }
@@ -407,6 +436,8 @@ tables:
   - name: fact_roster_transactions
     type: fact
     grain: "(season_id, event_type, team_key, asset_id, event_seq)"
+    chain: fantrax_core
+    required_keys: [team_key]
     columns:
       - { name: season_id, dtype: str }
       - { name: event_type, dtype: str }
@@ -434,9 +465,40 @@ tables:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
 
+  - name: fact_trade_log
+    type: fact
+    grain: "(transaction_id, asset_kind, scorer_id, draft_year, draft_round, pick_in_round)"
+    chain: fantrax_core
+    required_keys: [team_key_from, team_key_to, week]
+    columns:
+      - { name: transaction_id, dtype: str }
+      - { name: asset_kind, dtype: str }
+      - { name: team_key_from, dtype: str }
+      - { name: team_key_to, dtype: str }
+      - { name: event_date, dtype: "datetime64[us]" }
+      - { name: week, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: gsis_id, dtype: str }
+      - { name: draft_round, dtype: float64 }
+      - { name: pick_in_round, dtype: float64 }
+      - { name: draft_year, dtype: float64 }
+      - { name: pick_owner_hint, dtype: str }
+      - { name: source, dtype: str }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: "team_key_from, team_key_to -> team_key" }
+      - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+    notes: >
+      One row per asset moved in a trade (player rows carry scorer_id; pick
+      rows carry draft_year/draft_round/pick_in_round), so no grain column is
+      non-null on every row: the grain Gate files every row as
+      grain_null_key until #109 gives the table an asset_id key.
+
   - name: fact_roster_placement
     type: fact
     grain: "(team_id, scorer_id, season, week)"
+    chain: fantrax_core
+    required_keys: [scorer_id, team_key, week]
     columns:
       - { name: season, dtype: int64 }
       - { name: week, dtype: str }
@@ -461,6 +523,8 @@ tables:
   - name: fact_minor_eligibility
     type: fact
     grain: "(scorer_id, season, week)"
+    chain: fantrax_core
+    required_keys: [scorer_id, week]
     columns:
       - { name: scorer_id, dtype: str }
       - { name: player_name, dtype: str }
@@ -479,6 +543,7 @@ tables:
   - name: fact_rookie_rankings
     type: fact
     grain: "(player_key, source_name, phase, draft_year)"
+    chain: rookie
     columns:
       - { name: player_key, dtype: str }
       - { name: gsis_id, dtype: str }
@@ -498,6 +563,8 @@ tables:
   - name: fact_fantrax_adp
     type: fact
     grain: "(scorer_id, season, week)"
+    chain: fantrax_core
+    required_keys: [scorer_id, week]
     columns:
       - { name: scorer_id, dtype: str }
       - { name: season, dtype: int64 }
@@ -525,6 +592,7 @@ tables:
   - name: fact_dynasty_ranking_metrics
     type: fact
     grain: "(snapshot_date, source_name, source_player_id, format, metric_key)"
+    chain: dynasty_profile
     columns:
       - { name: snapshot_date, dtype: "datetime64[us]" }
       - { name: source_name, dtype: str }

@@ -1,0 +1,46 @@
+# Unit + parser tests in clean venvs (ADR-0008 amendment decision 14, #115).
+#
+# Two jobs, one per requirements file, so a dependency that exists only in a
+# developer's .venv fails here instead of in production. Parser tests run on
+# the committed fixtures in tests/fixtures/fantrax/ -- no network, no
+# data/raw. Make "tests" and "bot-tests" required status checks on main
+# (Settings -> Branches) once green.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m pytest tests/
+
+  bot-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: discord_bot/requirements.txt
+
+      - run: pip install -r discord_bot/requirements.txt
+
+      - run: python -m pytest discord_bot/tests/

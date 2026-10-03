@@ -1,6 +1,6 @@
 # Regression-testing standard: pytest, pre-commit, CI and post-run checks
 
-- Status: accepted — **BUILT 2026-07-11**; **amended 2026-10-03 (#88)**: post-run checks, publish gate and CI, designed through HITL grilling, not yet built ([amendment](#amendment-2026-10-03-publish-gate-post-run-checks-ci-88))
+- Status: accepted — **BUILT 2026-07-11**; **amended 2026-10-03 (#88)**: post-run checks, publish gate and CI, designed through HITL grilling; foundation built (#115), in-season checks pending #116 ([amendment](#amendment-2026-10-03-publish-gate-post-run-checks-ci-88))
 - Date: 2026-07-11
 - Scope: `pyproject.toml`, `tests/`, `discord_bot/tests/test_offline_smoke.py`,
   `.pre-commit-config.yaml`, `requirements.txt`, `discord_bot/requirements.txt`
@@ -95,8 +95,10 @@ be torn up when one shows up.
 ## Amendment 2026-10-03: publish gate, post-run checks, CI (#88)
 
 Designed through HITL grilling on 2026-10-03
-([#88](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/88));
-not yet built. The July decisions above stand.
+([#88](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/88)).
+Foundation (decisions 3–6, 8, 13–16) built in
+[#115](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/115);
+the in-season checks wait for #116. The July decisions above stand.
 
 - Amends:
   - [ADR-0014](0014-supabase-system-of-record-static-serving.md) decision 3: the publish unit is a Chain, not the whole run (decision 3).
@@ -126,12 +128,16 @@ not yet built. The July decisions above stand.
    - Each Chain (Fantrax core, rookie, dynasty profile, nflverse) publishes its own tables once its steps and Gate checks pass. Each Chain writes in one DB transaction.
    - A failed Chain keeps its last good tables, and the other Chains still publish.
    - Before cutover, a failed Chain's parquet is restored from git `HEAD`, so its files never reach the commit.
+
+   *Amended at build (#115): the nflverse Chain starts now with `01e`; #86 adds to it. Each registry table carries one `chain:` (`docs/data_model.yml`), and each pipeline step carries the same tag. Tables with no Chain are manual-only: the pipeline never stages them, and they reach `main` by PR. A Chain with no step in the run is not judged.*
 4. **Gate checks:**
    - a step exits non-zero;
    - grain uniqueness on each table's registry grain (the primary key enforces it after cutover);
    - row-count collapse (decision 6);
    - coverage: Roster State has 28 teams, 14 per Conference; Period Scoring has every Scoring Period from 1 to the last closed one; required keys (`scorer_id`, `team_key`, `period`) are non-null;
    - schema: columns and dtypes match `docs/data_model.yml`. This catches a renamed Fantrax field that leaves a parser silently writing an all-null column.
+
+   *Amended at build (#115): grain uniqueness is checked over rows whose grain columns are all non-null, so a new duplicate still blocks. Rows with a null grain column file one `grain_null_key` Review finding per table, with the count in its detail. At build time these were `fact_fantasy_teams` (29), `fact_dynasty_ranking_metrics` (1,812 Composite rows) and `fact_trade_log` (125, until #109 gives it a key). Required keys are listed per table as `required_keys`, only where a key is never legitimately null.*
 5. **No FPts-YTD-non-decreasing check.** A drop during a closing period is a normal stat correction. A change to a closed period is Drift, which is already checked.
 6. **Collapse** means a table shrinks by more than 20%, or to zero rows, against the last published snapshot.
    - A table can set its own limit in `docs/data_model.yml`.
@@ -148,6 +154,8 @@ not yet built. The July decisions above stand.
    - A repeat finding only updates `last_seen_at` and the run id.
    - When a run no longer sees it, the row auto-resolves (`resolution = 'cleared'`). A recurrence opens a new row.
    - This needs `last_seen_at` and a partial unique index on open rows.
+
+   *Amended at build (#115): a repeat also refreshes `detail`, so a count in it stays current. Only a check that ran in this run can clear its rows, so a run of one Chain never clears another Chain's findings. A pipeline run files findings only for the tables it publishes.*
 9. **Grace.** Each Review check has a `grace_periods` setting.
    - A finding inside its grace is filed as `pending` and is not surfaced. If it clears first, it resolves silently.
    - The Minor drift check uses one period, in both directions: an ineligible player still on `Minor`, and an eligible player on `1st` or `FA`. A player who passes 19 games in period N is due on `1st` only from N+1, and a claimed player can sit on `FA` until the commissioner flips them.

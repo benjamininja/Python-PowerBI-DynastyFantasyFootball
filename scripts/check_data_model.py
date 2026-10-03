@@ -31,6 +31,10 @@ import pandas as pd
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
+# The schema rule is shared with the publish gate (notebooks/etl_checks.py).
+sys.path.insert(0, str(REPO / "notebooks"))
+import etl_checks  # noqa: E402
+
 MODEL_YML = REPO / "docs" / "data_model.yml"
 MODEL_MD = REPO / "docs" / "DATA_MODEL.md"
 DATA_DIR = REPO / "data"
@@ -81,22 +85,7 @@ def validate(data: dict) -> int:
             errors.append(f"[{name}] no data/{name}.parquet found on disk")
             continue
         real_cols = {c: str(d) for c, d in pd.read_parquet(parquet_path).dtypes.items()}
-        declared = {c["name"]: str(c["dtype"]) for c in (t.get("columns") or [])}
-        missing = set(real_cols) - set(declared)
-        extra = set(declared) - set(real_cols)
-        if missing:
-            errors.append(f"[{name}] parquet has undeclared columns: {sorted(missing)}")
-        if extra:
-            errors.append(f"[{name}] yaml declares columns not in parquet: {sorted(extra)}")
-        for col, dtype in declared.items():
-            if col in real_cols:
-                real_dtype = real_cols[col]
-                if real_dtype != dtype and not (
-                    dtype in ("str", "string", "object") and real_dtype in ("str", "string", "object")
-                ):
-                    errors.append(
-                        f"[{name}].{col}: yaml dtype '{dtype}' != parquet dtype '{real_dtype}'"
-                    )
+        errors += etl_checks.schema_errors(t, real_cols)
 
     # edge-target check: every edge.to / edge.via must be a declared table
     for t in tables:

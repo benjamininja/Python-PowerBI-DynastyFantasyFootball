@@ -1,0 +1,1054 @@
+[
+ {
+  "responses": [
+   {
+    "data": {
+     "displayedPosOrGroup": "FOOTBALL_OFFENSE",
+     "tableHeader": {
+      "cells": [
+       {
+        "shortName": "Sta"
+       },
+       {
+        "shortName": "Age"
+       },
+       {
+        "shortName": "Opp"
+       },
+       {
+        "shortName": "Sal"
+       },
+       {
+        "shortName": "Con"
+       },
+       {
+        "shortName": "FPts"
+       },
+       {
+        "shortName": "FP/G"
+       },
+       {
+        "shortName": "Bye"
+       },
+       {
+        "shortName": "Ros"
+       },
+       {
+        "shortName": "+/-"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "Int"
+       },
+       {
+        "shortName": "RU-ATT"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "REC"
+       },
+       {
+        "shortName": "YDS"
+       },
+       {
+        "shortName": "TD"
+       },
+       {
+        "shortName": "Tgt"
+       },
+       {
+        "shortName": "FL"
+       },
+       {
+        "shortName": "RtY"
+       },
+       {
+        "shortName": "2RR"
+       },
+       {
+        "shortName": "1D"
+       },
+       {
+        "shortName": "GP"
+       }
+      ]
+     },
+     "statsTable": [
+      {
+       "scorer": {
+        "scorerId": "06jdx",
+        "name": "Caleb Williams",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "CHI",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "BMW"
+        },
+        {
+         "content": "24"
+        },
+        {
+         "content": "PHI (17th)<br/>Mon 7:15PM"
+        },
+        {
+         "content": "15,460,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "56.76"
+        },
+        {
+         "content": "56.76"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "100%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "269"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "65"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "17"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "06anq",
+        "name": "Jahmyr Gibbs",
+        "posShortNames": "<b>RB</b>",
+        "teamShortName": "DET",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "STK"
+        },
+        {
+         "content": "24"
+        },
+        {
+         "content": "NYJ 24<br/>@DET 31 F"
+        },
+        {
+         "content": "20,867,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "55.85"
+        },
+        {
+         "content": "55.85"
+        },
+        {
+         "content": "6"
+        },
+        {
+         "content": "100%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "29"
+        },
+        {
+         "content": "156"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "5"
+        },
+        {
+         "content": "30"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "5"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "15"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "04mnz",
+        "name": "Josh Allen",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "BUF",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "STCD"
+        },
+        {
+         "content": "30"
+        },
+        {
+         "content": "LAC 16<br/>@BUF 24"
+        },
+        {
+         "content": "19,307,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "52.16"
+        },
+        {
+         "content": "52.16"
+        },
+        {
+         "content": "7"
+        },
+        {
+         "content": "100%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "334"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "6"
+        },
+        {
+         "content": "23"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "15"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "06amz",
+        "name": "Bryce Young",
+        "posShortNames": "<b>QB</b>",
+        "teamShortName": "CAR",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "BGFH"
+        },
+        {
+         "content": "25"
+        },
+        {
+         "content": "CAR 18<br/>@CLE 13"
+        },
+        {
+         "content": "13,263,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "49.94"
+        },
+        {
+         "content": "49.94"
+        },
+        {
+         "content": "5"
+        },
+        {
+         "content": "91%"
+        },
+        {
+         "content": "+19%"
+        },
+        {
+         "content": "361"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "18"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "060sm",
+        "name": "Bo Melton",
+        "posShortNames": "<b>WR</b>,DB",
+        "teamShortName": "GB",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "FA"
+        },
+        {
+         "content": "27"
+        },
+        {
+         "content": "ATL 35<br/>@GB 14 F"
+        },
+        {
+         "content": "2,000,000"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "15.4"
+        },
+        {
+         "content": "15.4"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "3%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "124"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "040id",
+        "name": "Tyreek Hill",
+        "posShortNames": "<b>WR</b>",
+        "teamShortName": "(N/A)",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "wesgtr"
+        },
+        {
+         "content": "32"
+        },
+        {
+         "content": "Bye"
+        },
+        {
+         "content": "2,000,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": ""
+        },
+        {
+         "content": "28%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        }
+       ]
+      }
+     ],
+     "paginatedResultSet": {
+      "totalNumPages": 6,
+      "pageNumber": 1,
+      "maxResultsPerPage": 500,
+      "totalNumResults": 2502
+     }
+    }
+   }
+  ]
+ },
+ {
+  "responses": [
+   {
+    "data": {
+     "displayedPosOrGroup": "FOOTBALL_DEFENSE",
+     "tableHeader": {
+      "cells": [
+       {
+        "shortName": "Sta"
+       },
+       {
+        "shortName": "Age"
+       },
+       {
+        "shortName": "Opp"
+       },
+       {
+        "shortName": "Sal"
+       },
+       {
+        "shortName": "Con"
+       },
+       {
+        "shortName": "FPts"
+       },
+       {
+        "shortName": "FP/G"
+       },
+       {
+        "shortName": "Bye"
+       },
+       {
+        "shortName": "Ros"
+       },
+       {
+        "shortName": "+/-"
+       },
+       {
+        "shortName": "FF"
+       },
+       {
+        "shortName": "FR"
+       },
+       {
+        "shortName": "FRYd"
+       },
+       {
+        "shortName": "Int"
+       },
+       {
+        "shortName": "IntYd"
+       },
+       {
+        "shortName": "Sk"
+       },
+       {
+        "shortName": "TkA"
+       },
+       {
+        "shortName": "TkS"
+       },
+       {
+        "shortName": "TFL"
+       },
+       {
+        "shortName": "Sft"
+       },
+       {
+        "shortName": "PD"
+       },
+       {
+        "shortName": "RtY"
+       },
+       {
+        "shortName": "BK"
+       },
+       {
+        "shortName": "TDD"
+       },
+       {
+        "shortName": "GP"
+       }
+      ]
+     },
+     "statsTable": [
+      {
+       "scorer": {
+        "scorerId": "05rlj",
+        "name": "Gregory Rousseau",
+        "posShortNames": "<b>DL</b>,LB",
+        "teamShortName": "BUF",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "DM"
+        },
+        {
+         "content": "26"
+        },
+        {
+         "content": "LAC 16<br/>@BUF 24"
+        },
+        {
+         "content": "7,673,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "40"
+        },
+        {
+         "content": "40"
+        },
+        {
+         "content": "7"
+        },
+        {
+         "content": "85%"
+        },
+        {
+         "content": "+11%"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "2.0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "074yk",
+        "name": "Josiah Trotter",
+        "posShortNames": "<b>LB</b>",
+        "teamShortName": "TB",
+        "rookie": true
+       },
+       "cells": [
+        {
+         "content": "NT 8"
+        },
+        {
+         "content": "21"
+        },
+        {
+         "content": "MIN 0<br/>@TB 0"
+        },
+        {
+         "content": "5,515,000"
+        },
+        {
+         "content": "Minor"
+        },
+        {
+         "content": "38.8"
+        },
+        {
+         "content": "38.8"
+        },
+        {
+         "content": "10"
+        },
+        {
+         "content": "82%"
+        },
+        {
+         "content": "+4%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "38"
+        },
+        {
+         "content": "1.0"
+        },
+        {
+         "content": "7"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "2"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "04cap",
+        "name": "T.J. Watt",
+        "posShortNames": "<b>LB</b>",
+        "teamShortName": "PIT",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "wesgtr"
+        },
+        {
+         "content": "31"
+        },
+        {
+         "content": "CIN 27<br/>@PIT 30"
+        },
+        {
+         "content": "5,834,000"
+        },
+        {
+         "content": "1st"
+        },
+        {
+         "content": "36.5"
+        },
+        {
+         "content": "36.5"
+        },
+        {
+         "content": "9"
+        },
+        {
+         "content": "87%"
+        },
+        {
+         "content": "+3%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "35"
+        },
+        {
+         "content": "2.0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "4"
+        },
+        {
+         "content": "3"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      },
+      {
+       "scorer": {
+        "scorerId": "060sm",
+        "name": "Bo Melton",
+        "posShortNames": "<b>WR</b>,DB",
+        "teamShortName": "GB",
+        "rookie": false
+       },
+       "cells": [
+        {
+         "content": "FA"
+        },
+        {
+         "content": "27"
+        },
+        {
+         "content": "ATL 35<br/>@GB 14 F"
+        },
+        {
+         "content": "2,000,000"
+        },
+        {
+         "content": "FA"
+        },
+        {
+         "content": "12.4"
+        },
+        {
+         "content": "12.4"
+        },
+        {
+         "content": "11"
+        },
+        {
+         "content": "3%"
+        },
+        {
+         "content": "0%"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "124"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "0"
+        },
+        {
+         "content": "1"
+        }
+       ]
+      }
+     ],
+     "paginatedResultSet": {
+      "totalNumPages": 8,
+      "pageNumber": 1,
+      "maxResultsPerPage": 500,
+      "totalNumResults": 3711
+     }
+    }
+   }
+  ]
+ }
+]

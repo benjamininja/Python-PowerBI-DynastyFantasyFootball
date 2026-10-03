@@ -1,0 +1,70 @@
+{
+ "responses": [
+  {
+   "data": {
+    "tableList": [
+     {
+      "caption": "Week 1",
+      "subCaption": "(Wed Sep 9, 2026 - Wed Sep 16, 2026)",
+      "rows": [
+       {
+        "cells": [
+         {
+          "teamId": "brkcyuhbmmyzna5f"
+         },
+         {},
+         {
+          "teamId": "b3l7iznmmoboq9lg"
+         },
+         {}
+        ]
+       },
+       {
+        "cells": [
+         {
+          "teamId": "s5bodsc1mn6pjqtc"
+         },
+         {},
+         {
+          "teamId": "66ao8djmmn0kdqp0"
+         },
+         {}
+        ]
+       }
+      ]
+     },
+     {
+      "caption": "Week 2",
+      "subCaption": "(Thu Sep 17, 2026 - Wed Sep 23, 2026)",
+      "rows": [
+       {
+        "cells": [
+         {
+          "teamId": "b3l7iznmmoboq9lg"
+         },
+         {},
+         {
+          "teamId": "s5bodsc1mn6pjqtc"
+         },
+         {}
+        ]
+       },
+       {
+        "cells": [
+         {
+          "teamId": "brkcyuhbmmyzna5f"
+         },
+         {},
+         {
+          "teamId": "6nhnbkuqmmwi166w"
+         },
+         {}
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

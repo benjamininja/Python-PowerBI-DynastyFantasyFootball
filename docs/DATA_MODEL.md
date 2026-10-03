@@ -31,6 +31,7 @@ graph LR
     fact_nfl_combine_pro_day_metrics[(fact_nfl_combine_pro_day_metrics)]
     fact_fantasy_teams[(fact_fantasy_teams)]
     fact_roster_transactions[(fact_roster_transactions)]
+    fact_trade_log[(fact_trade_log)]
     fact_roster_placement[(fact_roster_placement)]
     fact_minor_eligibility[(fact_minor_eligibility)]
     fact_rookie_rankings[(fact_rookie_rankings)]
@@ -66,6 +67,9 @@ graph LR
     fact_roster_transactions --> dim_contract
     fact_roster_transactions --> dim_nfl_players
     fact_roster_transactions -.via dim_fantrax_crosswalk.-> dim_nfl_players
+    fact_trade_log --> dim_fantasy_teams
+    fact_trade_log --> dim_fantrax_crosswalk
+    fact_trade_log --> dim_nfl_players
     fact_roster_placement --> dim_fantasy_teams
     fact_roster_placement -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_roster_placement -.via dim_fantrax_crosswalk.-> dim_rookie_prospect
@@ -103,6 +107,7 @@ graph LR
     class fact_nfl_combine_pro_day_metrics fact;
     class fact_fantasy_teams fact;
     class fact_roster_transactions fact;
+    class fact_trade_log fact;
     class fact_roster_placement fact;
     class fact_minor_eligibility fact;
     class fact_rookie_rankings fact;

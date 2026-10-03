@@ -1,0 +1,233 @@
+"""Unit tests for notebooks/etl_checks.py — the publish-gate check suite
+(#115, ADR-0008 amendment decisions 4, 6, 8, 16).
+
+The gate functions are pure, so most tests build tiny DataFrames. run_suite
+runs against a tmp data dir with an injected registry and HEAD row count;
+head_row_count runs against a throwaway git repo (conftest.git_repo).
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
+
+import pandas as pd
+import pytest
+
+import etl_checks as ec
+from conftest import git
+
+
+def _teams(conferences=("A",) * 14 + ("B",) * 14):
+    return pd.DataFrame({"team_key": [f"T{i:02d}" for i in range(len(conferences))],
+                         "conference": list(conferences)})
+
+
+class TestRegistry:
+    def test_single_grain(self):
+        assert ec.table_key({"grain": "scorer_id"}) == ["scorer_id"]
+
+    def test_composite_grain(self):
+        assert ec.table_key({"grain": "(team_id, scorer_id, season, week)"}) == [
+            "team_id", "scorer_id", "season", "week"]
+
+    def test_pk_wins_over_grain(self):
+        # ADR-0018's pk (#108) replaces grain without touching the checks.
+        assert ec.table_key({"grain": "(a, b)", "pk": ["a", "c"]}) == ["a", "c"]
+        assert ec.table_key({"grain": "(a, b)", "pk": "z"}) == ["z"]
+
+    def test_chain_tables_skip_manual(self):
+        reg = {"t1": {"chain": "rookie"}, "t2": {"chain": "rookie"}, "t3": {}}
+        assert ec.chain_tables(reg) == {"rookie": ["t1", "t2"]}
+
+    def test_real_registry_loads(self):
+        reg = ec.load_registry()
+        assert "fact_trade_log" in reg
+        assert all(ec.table_key(e) for e in reg.values())
+
+
+class TestGrain:
+    def test_unique(self):
+        df = pd.DataFrame({"a": [1, 2], "b": ["x", "x"]})
+        assert ec.check_grain(df, ["a", "b"]) == (0, 0)
+
+    def test_duplicate_on_complete_keys(self):
+        df = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]})
+        assert ec.check_grain(df, ["a", "b"]) == (1, 0)
+
+    def test_null_key_rows_excluded_and_counted(self):
+        # Two rows sharing a null key are not "duplicates" — they're filed.
+        df = pd.DataFrame({"a": [1, 1, 2], "b": [None, None, "y"]})
+        assert ec.check_grain(df, ["a", "b"]) == (0, 2)
+
+
+class TestRequiredKeys:
+    def test_ok(self):
+        assert ec.check_required_keys(pd.DataFrame({"k": [1, 2]}), ["k"]) == []
+
+    def test_nulls(self):
+        assert ec.check_required_keys(pd.DataFrame({"k": [1, None]}), ["k"]) == ["k: 1 null"]
+
+    def test_missing_column(self):
+        assert ec.check_required_keys(pd.DataFrame({"k": [1]}), ["j"]) == ["j: column missing"]
+
+
+class TestSchema:
+    entry = {"name": "t", "columns": [{"name": "a", "dtype": "str"},
+                                      {"name": "b", "dtype": "int64"}]}
+
+    def test_match_text_family(self):
+        assert ec.schema_errors(self.entry, {"a": "object", "b": "int64"}) == []
+
+    def test_dtype_drift(self):
+        assert ec.schema_errors(self.entry, {"a": "str", "b": "float64"}) == [
+            "[t].b: yaml dtype 'int64' != parquet dtype 'float64'"]
+
+    def test_renamed_column(self):
+        errs = ec.schema_errors(self.entry, {"a": "str", "b2": "int64"})
+        assert "[t] parquet has undeclared columns: ['b2']" in errs
+        assert "[t] yaml declares columns not in parquet: ['b']" in errs
+
+
+class TestShrink:
+    def test_within_limit(self):
+        assert ec.check_shrink(80, 100) is None          # exactly 20% is allowed
+
+    def test_over_limit(self):
+        assert "shrank 100 -> 79" in ec.check_shrink(79, 100)
+
+    def test_to_zero(self):
+        assert "collapsed to 0" in ec.check_shrink(0, 100)
+
+    def test_growth_never_blocks(self):
+        assert ec.check_shrink(500, 100) is None
+
+    def test_new_table(self):
+        assert ec.check_shrink(0, None) is None
+
+    def test_per_table_limit(self):
+        assert ec.check_shrink(60, 100, limit=0.5) is None
+        assert ec.check_shrink(40, 100, limit=0.5) is not None
+
+    def test_accepted(self):
+        assert ec.check_shrink(0, 100, accepted=True) is None
+
+
+class TestHeadRowCount:
+    def test_reads_head_and_missing(self, git_repo):
+        pd.DataFrame({"a": range(7)}).to_parquet(git_repo / "data" / "t.parquet")
+        git(git_repo, "add", "data/t.parquet")
+        git(git_repo, "commit", "-q", "-m", "seed")
+        # The working copy changes; HEAD is what counts.
+        pd.DataFrame({"a": range(2)}).to_parquet(git_repo / "data" / "t.parquet")
+        assert ec.head_row_count("t", repo=git_repo) == 7
+        assert ec.head_row_count("absent", repo=git_repo) is None
+
+
+class TestCoverage:
+    def test_full(self):
+        assert ec.coverage_errors(_teams()[["team_key"]], _teams()) == []
+
+    def test_missing_team(self):
+        errs = ec.coverage_errors(_teams().iloc[1:][["team_key"]], _teams())
+        assert "27 teams, expected 28" in errs
+        assert "conference A: 13 teams, expected 14" in errs
+
+    def test_unknown_team(self):
+        roster = pd.DataFrame({"team_key": [*_teams()["team_key"], "ZZ"]})
+        assert any("not in dim_fantasy_teams" in e for e in ec.coverage_errors(roster, _teams()))
+
+    def test_latest_partition(self):
+        df = pd.DataFrame({"capture_date": ["2026-07-01", "2026-07-08", "2026-07-08"]})
+        assert len(ec.latest_partition(df)) == 2
+
+
+class TestRunSuite:
+    REG = {
+        "t": {"name": "t", "chain": "rookie", "grain": "(k, j)", "required_keys": ["k"],
+              "columns": [{"name": "k", "dtype": "int64"}, {"name": "j", "dtype": "str"}]},
+    }
+
+    def _run(self, tmp_path, df, head=None, accepted=()):
+        df.to_parquet(tmp_path / "t.parquet")
+        res = ec.run_suite(["t"], accepted, registry=self.REG, data_dir=tmp_path,
+                           head_rows=lambda name: head)
+        return {r.check: r for r in res}
+
+    def test_clean(self, tmp_path):
+        res = self._run(tmp_path, pd.DataFrame({"k": [1, 2], "j": ["a", "b"]}))
+        assert all(r.ok for r in res.values())
+        assert {r.chain for r in res.values()} == {"rookie"}
+        assert set(res) == {"schema", "grain", "grain_null_key", "required_keys", "shrink"}
+
+    def test_duplicate_blocks(self, tmp_path):
+        res = self._run(tmp_path, pd.DataFrame({"k": [1, 1], "j": ["a", "a"]}))
+        assert not res["grain"].ok and res["grain"].tier == "gate"
+
+    def test_null_key_files_one_finding(self, tmp_path):
+        res = self._run(tmp_path, pd.DataFrame({"k": [1, 1, 2], "j": [None, None, "b"]}))
+        assert res["grain"].ok
+        r = res["grain_null_key"]
+        assert r.tier == "review" and r.findings == [("*", "2 of 3 rows have a null grain column")]
+
+    def test_shrink_and_accept(self, tmp_path):
+        df = pd.DataFrame({"k": [1], "j": ["a"]})
+        assert not self._run(tmp_path, df, head=10)["shrink"].ok
+        assert self._run(tmp_path, df, head=10, accepted=["t"])["shrink"].ok
+
+    def test_missing_parquet_blocks(self, tmp_path):
+        res = ec.run_suite(["t"], registry=self.REG, data_dir=tmp_path, head_rows=lambda n: None)
+        assert [(r.check, r.ok) for r in res] == [("schema", False)]
+
+
+class TestFiling:
+    def _f(self, row_key="*", detail="2 rows"):
+        return {"check_name": "grain_null_key", "table_name": "t",
+                "row_key": row_key, "detail": detail}
+
+    RAN = {("grain_null_key", "t")}
+
+    def _empty(self):
+        return pd.DataFrame(columns=ec.FILING_COLUMNS)
+
+    def test_new(self):
+        out, stats = ec.file_findings(self._empty(), [self._f()], self.RAN, "r1", "t1")
+        assert stats == {"opened": 1, "repeated": 0, "cleared": 0, "open": 1}
+        row = out.iloc[0]
+        assert (row.created_at, row.last_seen_at, row.run_id, row.pending) == ("t1", "t1", "r1", False)
+
+    def test_repeat_updates_in_place(self):
+        out, _ = ec.file_findings(self._empty(), [self._f()], self.RAN, "r1", "t1")
+        out, stats = ec.file_findings(out, [self._f(detail="3 rows")], self.RAN, "r2", "t2")
+        assert len(out) == 1 and stats["repeated"] == 1
+        row = out.iloc[0]
+        assert (row.created_at, row.last_seen_at, row.run_id, row.detail) == ("t1", "t2", "r2", "3 rows")
+
+    def test_cleared_when_unseen(self):
+        out, _ = ec.file_findings(self._empty(), [self._f()], self.RAN, "r1", "t1")
+        out, stats = ec.file_findings(out, [], self.RAN, "r2", "t2")
+        assert stats["cleared"] == 1 and stats["open"] == 0
+        assert (out.iloc[0].resolved_at, out.iloc[0].resolution) == ("t2", "cleared")
+
+    def test_not_cleared_when_check_did_not_run(self):
+        out, _ = ec.file_findings(self._empty(), [self._f()], self.RAN, "r1", "t1")
+        out, stats = ec.file_findings(out, [], {("grain_null_key", "other")}, "r2", "t2")
+        assert stats["cleared"] == 0 and stats["open"] == 1
+
+    def test_recurrence_opens_new_row(self):
+        out, _ = ec.file_findings(self._empty(), [self._f()], self.RAN, "r1", "t1")
+        out, _ = ec.file_findings(out, [], self.RAN, "r2", "t2")
+        out, stats = ec.file_findings(out, [self._f()], self.RAN, "r3", "t3")
+        assert len(out) == 2 and stats["opened"] == 1 and stats["open"] == 1
+
+    def test_csv_round_trip(self, tmp_path):
+        path = tmp_path / "review_check.csv"
+        res = [ec.Result("grain_null_key", "t", "rookie", "review", False,
+                         findings=[("*", "2 rows")]),
+               ec.Result("grain", "t", "rookie", "gate", True)]
+        assert ec.file_review(res, "r1", path=path, now="t1")["opened"] == 1
+        assert ec.file_review(res, "r2", path=path, now="t2") == {
+            "opened": 0, "repeated": 1, "cleared": 0, "open": 1}
+        back = pd.read_csv(path, dtype=str, keep_default_na=False)
+        assert list(back.columns) == ec.FILING_COLUMNS and len(back) == 1
+        clean = [ec.Result("grain_null_key", "t", "rookie", "review", True)]
+        assert ec.file_review(clean, "r3", path=path, now="t3")["cleared"] == 1
