@@ -316,14 +316,15 @@ dead-money measures); the singular/plural table rename
 3. **Externally gated**: ADR-0005 Sheet **write**-sync (Sheets-API auth + PII
    go-ahead); Railway deploy of the merged discord bot (`railway.json` +
    crash-loop guards in place; runs locally only).
-4. **`fact_fantrax_adp.overall_rank` on rebuilt weeks** (2026-10-03, branch
-   `fix/fantrax-rank-by-date`). Fantrax serves no Rk on `BY_DATE` pulls, so
-   `player_stats_to_frame` now derives it (`_fpts_rank`; detail in
-   data-model.md). USER, after merge: replay
-   `data/raw/fantrax_playerstats_2026_01.json` / `_02.json` through the parser
-   to fill the null ranks — no live session needed, snippet in the PR body.
-   Unconfirmed: that the in-season `YEAR_TO_DATE` weekly pull still serves Rk;
-   check `scorer.rank` on the first wk 03+ capture.
+4. **`fact_fantrax_adp.overall_rank` on rebuilt weeks** (2026-10-03). Fantrax
+   serves no Rk on `BY_DATE` pulls, so `player_stats_to_frame` derives it
+   (`_fpts_rank`; detail in data-model.md) — shipped via PR
+   [#121](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/121).
+   Wk 01–02 backfilled the same day by offline replay of their raw captures
+   (branch `fix/fantrax-adp-rank-backfill`): 857 and 1,078 ranks, no other
+   column changed. Still open, USER: confirm the in-season `YEAR_TO_DATE`
+   weekly pull still serves Rk — check `scorer.rank` on the first wk 03+
+   capture.
 
 ## [ ] Deferred — user requested
 
