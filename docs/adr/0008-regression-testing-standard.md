@@ -142,7 +142,7 @@ not yet built. The July decisions above stand.
    - every Starter in the period roster has an `ACTIVE` live-scoring entry;
    - per team, the Starter FPts sum equals Fantrax's `totalFpts` for the period, to 0.01.
 
-   Matchup completeness waits for #81's fact model. Bench completeness is not checked: 15 non-starters were missing from `BENCH` in final period 1, unexplained ([#79](../research/inseason-schema-extraction.md)).
+   Matchup completeness waits for #81's fact model. *Defined in [ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81) (decision 10): all 14 matchups present, pairs mirror, and schedule FPts = `totalFpts` = the Starter sum.* Bench completeness is not checked: 15 non-starters were missing from `BENCH` in final period 1, unexplained ([#79](../research/inseason-schema-extraction.md)).
 8. **Filing.**
    - `ops.review_check` holds one open row per `(check_name, table_name, row_key)`.
    - A repeat finding only updates `last_seen_at` and the run id.

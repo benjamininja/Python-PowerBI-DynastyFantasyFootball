@@ -63,7 +63,8 @@ _Avoid_: swap, deal
 **Roster State**:
 Who is on each team right now: every player, their Roster Slot, salary and
 contract, as the team's Fantrax roster shows it. Read directly, never rebuilt by
-replaying Roster Moves. One per Scoring Period is kept alongside the current one.
+replaying Roster Moves. The current one is kept all year; one per regular-season
+Scoring Period is kept alongside it.
 _Avoid_: current roster derived from the ledger, lineup
 
 **Roster Slot**:
@@ -96,10 +97,11 @@ Fantrax transaction it came from plus the player, team and kind of move.
 _Avoid_: transaction (Fantrax groups several moves under one), event
 
 **Period Scoring**:
-The points a player earned for the team that held him in a Scoring Period. The
-team is whichever team had him that period, not the one that has him now.
-Fantrax scores each stat separately, so Period Scoring can be broken down by
-Unit.
+The points a player earned in a Scoring Period while on a team. The team is
+whichever team had the player that period, not the one that has them now. It is
+recorded for every rostered player, but only a Starter's points count toward the
+Team Score. Fantrax scores each stat separately, so Period Scoring is broken down
+by Unit; the individual stats are not kept.
 _Avoid_: weekly stats, fantasy points (unqualified)
 
 **Unit**:
@@ -115,6 +117,25 @@ the rest of the contract: each remaining guaranteed contract year charges its ow
 rate in its own season, to the dropping team, even if the player is later
 re-claimed. Trades never create it.
 _Avoid_: cut penalty, cap hit (that's a rostered player's charge)
+
+### Results
+
+**Team Score**:
+A team's points for a Scoring Period: the sum of its Starters' Period Scoring.
+It is Fantrax's matchup score, and it decides the Matchup.
+_Avoid_: total points, team fpts
+
+**Matchup**:
+Two teams from the same Conference playing each other in one regular-season
+Scoring Period. Every team has exactly one per period, and the higher Team Score
+wins.
+_Avoid_: game, fixture, head-to-head
+
+**Standings**:
+The ranking of teams as of a Scoring Period, in Fantrax's order with its
+tiebreaks, along with Fantrax's playoff odds and each team's remaining salary.
+Win-loss records and points for and against come from Matchups.
+_Avoid_: table, leaderboard, power rankings
 
 ### Storage
 
@@ -176,6 +197,7 @@ _Avoid_: year, draft_year, bare calendar year
 Fantrax's week: the unit every in-season fact is keyed and bounded by
 (`season`, `period`). Same thing as Fantrax's roster period. Not the NFL week —
 periods start mid-week and the playoffs (P13–17) need not map one-to-one.
+Playoff periods are on the calendar but have no Update-Set.
 _Avoid_: week, NFL week, gameweek
 
 **Update-Set**:
@@ -184,6 +206,8 @@ The durable record of one Scoring Period. It moves through three states:
 has ended, judged on the league's Eastern clock; still refreshed so stat
 corrections land) and **closed** (the following period has ended and its Close
 checks pass; frozen). A closed Update-Set changes only by an explicit re-close.
+Only regular-season periods have one. A period's Period Scoring, Matchups and
+Standings are first recorded once its games are all final, as it enters closing.
 _Avoid_: weekly snapshot, week-closed data
 
 **Drift**:
@@ -202,7 +226,7 @@ _Avoid_: division (that's the seasonal label, below)
 **Division**:
 The **seasonal display name** of a Conference (`Riddell` / `Wilson` for
 2026-2027) — themed and allowed to change between seasons. Resolved per season,
-not a fixed team attribute.
+not a fixed team attribute, and taken from Fantrax.
 _Avoid_: conference (that's the stable code), bracket, group
 
 **Owner Manifest**:

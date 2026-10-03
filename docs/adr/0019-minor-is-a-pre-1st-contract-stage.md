@@ -34,7 +34,7 @@
    - an eligible player on `1st` or `FA`;
    - an ineligible player on `Minor`.
 5. **Any eligible player is on `Minor`,** however they were acquired: draft, auction or claim. Protection follows eligibility, not a team's stash, so ADR-0010's season-boundary stash rule stays dead.
-6. **`02d` takes each Roster Move's contract from the latest Roster State at or before the move.** A default applies only when there is no snapshot to read: the preseason draft history, or a claim and drop inside one period.
+6. **`02d` takes each Roster Move's contract from the latest Roster State at or before the move.** A default applies only when there is no snapshot to read: the preseason draft history, or a claim and drop inside one period. *The per-period Roster State is `fact_roster_state` ([ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81), decision 3), which replaces `fact_roster_placement`.*
    - Default: `Minor` if the player is eligible. Otherwise `1st` for a drafted player, or `FA`/the inherited contract for a claim.
    - The hard-coded `CONTRACT_ID = "1st"` becomes that fallback.
 7. **`dim_contract` gains one row:**

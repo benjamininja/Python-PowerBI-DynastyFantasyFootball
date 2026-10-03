@@ -23,7 +23,7 @@
 ## Decision
 
 1. **No nflverse stats table.** `fact_nfl_player_stats` is dropped. Points, points by Unit and games played come from Fantrax, so the numbers always match what the league scored.
-2. **Unit tagging.** Special Teams = Return Yards (`3218`) and Blocked Kicks (`256g`). Every other stat takes its Fantrax group. Period Scoring by Unit is modelled in #81.
+2. **Unit tagging.** Special Teams = Return Yards (`3218`) and Blocked Kicks (`256g`). Every other stat takes its Fantrax group. Period Scoring by Unit is modelled in #81. *Modelled in [ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81) (decision 1): `fpts_offense`, `fpts_defense` and `fpts_special_teams` columns on `fact_period_scoring`; per-stat values are not kept.*
 3. **Two nflverse facts, current season only:**
    - `fact_nfl_snap_counts`, keyed `(gsis_id, game_id)`: NFL `season`, `week`, `team`, and offense/defense/special-teams snaps and pct. `pfr_player_id` maps to gsis through `load_rosters_weekly.pfr_id`. Unmapped rows (almost all OL/LS, who can't be rostered) are dropped, and the count is printed.
    - `fact_nfl_injuries`, keyed `(gsis_id, season, week)`: `game_type`, `team`, `report_status`, `report_primary_injury`, `practice_status`.
