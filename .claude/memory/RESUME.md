@@ -8,7 +8,8 @@ GitHub; HITL grills happen in the managing session.
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
 docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then `main` = 1a70ce1 (PR #112 ADR-0019 Minor
 reconcile); then `main` = 9458c9d (PR #114, #88 test strategy: ADR-0008
-amended in place). History was rewritten
+amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
+place). History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
 asks. Stage explicit paths only. Untracked and not ours (leave alone):
@@ -163,7 +164,7 @@ The owner chose to amend ADR-0016 in place.
 - Done 2026-10-03 on the owner's go: blocked-by links wired and verified;
   comments on #110 (`roster_slot`), #97 (the `salary_remaining` check) and
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
-  ADR-0019; PR merged; #81 closed with a Resolution.
+  ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
 Next: builds, plan-gated — #115, #113, then #117 → #118.
 
