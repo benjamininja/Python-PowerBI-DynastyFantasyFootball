@@ -89,7 +89,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - `02d` takes each move's contract from the snapshot first, falling back
     to a default.
   - The Minors slot stays the only cap exemption.
-  - Build: the `dim_contract` row + `02d` sourcing (new #70 issue).
+  - Build: the `dim_contract` row + `02d` sourcing (#113).
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
   `football`/`shared`/`ops`; registry-generated migrations; PK = grain;

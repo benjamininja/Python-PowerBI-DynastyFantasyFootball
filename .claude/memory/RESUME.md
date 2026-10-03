@@ -6,9 +6,7 @@ GitHub; HITL grills happen in the managing session.
 
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
-docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then
-branch `docs/adr-0019-minor-contract` (ADR-0019 Minor reconcile, PR pending
-the owner's go). History was rewritten
+docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then PR #112 (ADR-0019 Minor reconcile). History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
 asks. Stage explicit paths only. Untracked and not ours (leave alone):
@@ -99,10 +97,11 @@ plan-gated code change.
 - `02d` takes each move's contract from the snapshot, falling back to a
   default.
 - ADR-0011's headline only is superseded; the rest of it stands.
-- Docs are done on branch `docs/adr-0019-minor-contract`. Pending the
-  owner's go: the PR + merge, a new #70 build issue (the `01b` Minor row +
-  `02d` contract sourcing, with a `cap-ledger-auditor` review), and
-  comments on #88 (drift-check spec) and #96 (Minor drops price 0).
+- Merged as PR #112.
+- Build issue **#113** (under #70): the `01b` Minor row + `02d` contract
+  sourcing + the `04v` header comment, with a `cap-ledger-auditor` review.
+- Comments posted on #88 (drift-check spec) and #96 (Minor drops price 0).
+- The owner kept the #77 ← #110 blocked-by link.
 
 **Next on resume: the #88 test-strategy grill** (ask the owner to type
 `/grill-with-docs #88 test strategy`), then #81.
