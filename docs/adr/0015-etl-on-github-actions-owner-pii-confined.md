@@ -53,6 +53,6 @@
 
 - ADR-0014's "DB credentials stay out of Actions secrets" no longer holds. The credentials live in a `main`-only environment instead.
 - Map #69 gains `change_poll_state`, `review_*`, `shared.owner` and the `raw/` bucket. `01c` stops reading manager emails from the sheet; owners are maintained in `shared.owner`.
-- Discord posts only on events (failure, period close, drift, poll-triggered run). Silence means success, which is why the dead-man's switch is required.
+- Discord posts only on events (failure, period close, drift, poll-triggered run). Silence means success, which is why the dead-man's switch is required. *[ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decision 12) adds one daily-digest line: counts of new Review findings, only when there are any.*
 - Freshness is bounded by the poll (10 min + a one-poll debounce) plus ~2 min for publishing.
 - Docs and commits refer to people by role, not by name.

@@ -125,9 +125,10 @@ rows at write time.
 _Avoid_: master, source of truth (ambiguous with upstream sources like Fantrax)
 
 **Published Snapshot**:
-`data/*.parquet`, exported from the System of Record only after a run commits
-and passes its checks, then committed to git. The only thing Power BI, the bot
-and trade-bud read, so they keep serving if the database pauses.
+`data/*.parquet`, exported from the System of Record one Chain at a time, only
+after that Chain commits and passes its Gate checks, then committed to git. The
+only thing Power BI, the bot and trade-bud read, so they keep serving if the
+database pauses.
 _Avoid_: backup, mirror, cache
 
 **Change Poll**:
@@ -135,6 +136,33 @@ A no-auth check that hashes each team's current-period roster on the public
 Fantrax API and triggers the transaction ETL when a hash changes. It stands in
 for the webhooks Fantrax doesn't offer.
 _Avoid_: webhook, live sync
+
+### Checks
+
+**Chain**:
+A group of pipeline steps whose tables publish together or not at all: the
+Fantrax core, the rookie scrapes, the dynasty profile, nflverse. A failed Chain
+keeps its last good tables; the others still publish.
+_Avoid_: run (one run holds several Chains), job, group
+
+**Gate check**:
+A check that fails when the pipeline itself produced something broken or
+incomplete: a step failed, a key repeats, a table collapsed, coverage is
+missing, a column changed shape. It blocks its Chain from publishing.
+_Avoid_: test, assertion, blocking review
+
+**Review check**:
+A check that fails when the data faithfully mirrors Fantrax but disagrees with
+what the league expects, such as a contract that doesn't match Minors
+Eligibility, or an unmapped key. It files a finding for a person and never
+blocks a publish. A finding can wait out a grace period before it is raised.
+_Avoid_: warning, error, Drift (Drift is one kind of Review finding)
+
+**Close check**:
+A check that must pass before an Update-Set goes from closing to closed: every
+team's roster present, every Starter scored, team totals matching Fantrax.
+Until it passes, the Update-Set stays closing.
+_Avoid_: final check, freeze check
 
 ### Time
 
@@ -154,8 +182,8 @@ _Avoid_: week, NFL week, gameweek
 The durable record of one Scoring Period. It moves through three states:
 **open** (the period is in play; refreshed every run), **closing** (the period
 has ended, judged on the league's Eastern clock; still refreshed so stat
-corrections land) and **closed** (the following period has ended; frozen). A
-closed Update-Set changes only by an explicit re-close.
+corrections land) and **closed** (the following period has ended and its Close
+checks pass; frozen). A closed Update-Set changes only by an explicit re-close.
 _Avoid_: weekly snapshot, week-closed data
 
 **Drift**:

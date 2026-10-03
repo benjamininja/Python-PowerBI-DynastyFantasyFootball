@@ -54,8 +54,8 @@ raw points, not categories.
   #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
   #82 txn cadence (grilling, ✅ ADR-0016) · #83 sources.yml truth-up (task) · #87 daily
   run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
-  (grilling) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
-  #93 cadence build (task, ← #92 #77 #75 #76 #88; now also 04t orchestration
+  (grilling, ✅ ADR-0008 amendment) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
+  #93 cadence build (task, ← #92 #77 #75 #76 + #115; now also 04t orchestration
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79).
@@ -90,6 +90,22 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     to a default.
   - The Minors slot stays the only cap exemption.
   - Build: the `dim_contract` row + `02d` sourcing (#113).
+- **#88 grilled ✅ 2026-10-03 →
+  [ADR-0008 amendment](docs/adr/0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88)**
+  (amended in place, owner's choice).
+  - Every publish is gated. Gate checks block their Chain; Review checks file
+    to `ops.review_check` and never block.
+  - The publish unit is a Chain, so one broken scraper no longer freezes
+    rosters.
+  - Close checks must pass before an Update-Set freezes.
+  - Review findings: one open row each, auto-resolve, per-check grace (Minor
+    drift = 1 period).
+  - Drift sweep runs daily. Discord posts events plus a daily digest.
+  - Fixtures are generated with a key allowlist. CI gets a required
+    `tests.yml`, and `run_pipeline.py` gets `--check-only`.
+  - Build (a), the foundation (also fixes the commit-on-failure bug at
+    `run_pipeline.py:325`): #115.
+  - Build (b), the in-season checks (← #115, #81, #93): #116.
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
   `football`/`shared`/`ops`; registry-generated migrations; PK = grain;
@@ -103,9 +119,10 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
-- Next: HITL grills #88 (now also has the Minor drift check) → #81.
+- Next: HITL grill #81 (fact model).
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
+- Build, plan-gated: #115 (#88 build (a), can start now); #77 seam (← #74 ✅) →
+  unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
 
@@ -341,7 +358,8 @@ dead-money measures); the singular/plural table rename
 - **Regression-testing standard** ([ADR-0008](docs/adr/0008-regression-testing-standard.md),
   2026-07-11): `.venv` pytest scoped to `tests/`; `test_etl_helpers.py`;
   bot offline smoke made pytest-discoverable; `check_sources.py` wired into
-  pre-commit.
+  pre-commit. *Amended 2026-10-03 (#88): publish gate, Gate/Review/Close
+  checks and CI. Designed, not built.*
 - **2026 startup draft ingest + $500M→$300M cap change** (2026-07-11, PR #17),
   incl. the `04z` crosswalk universe fix and the `Fact_FantasyTeams` cap
   consistency fix (CapHit/Conference derived live, never ETL-frozen).
