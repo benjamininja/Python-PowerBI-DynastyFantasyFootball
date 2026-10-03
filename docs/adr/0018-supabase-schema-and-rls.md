@@ -43,7 +43,7 @@
 6. **Foreign keys on clean edges only.**
    - `DEFERRABLE INITIALLY DEFERRED` FKs on `gsis_id`, `team_key`, `contract_id`, `metric_key`, `asset_id` and `season_id`, so a dim's full replace and its facts commit in one transaction. The 2 combine orphans are fixed first.
    - Dirty edges (`player_key`, `position_raw`, `scorer_id`) are post-run checks (#88) that file to `ops.review_check`. Each one is promoted to a real FK once it is clean.
-   - The `contract_id` FK is provisional until the `Minor` contract is settled (ADR-0011).
+   - The `contract_id` FK is provisional until the `Minor` contract is settled (ADR-0011). *Settled by [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md): the FK is a clean edge once `dim_contract` has its `Minor` row.*
 7. **The EAV fact stays as it is** (one table, same grain). It adds a CHECK `(metric_num IS NOT NULL OR metric_text IS NOT NULL)` and the `metric_key` FK. NaN is normalized to NULL on write.
 8. **Tight types at cutover, through to the snapshot.**
    - Nullable integers become `integer`, ISO date strings become `date`, and every all-null column gets a declared type.
@@ -68,7 +68,7 @@
 12. **Migrations apply from Actions.**
     - `migrate.yml` runs `supabase db push` in the main-only environment when `supabase/migrations/**` changes on `main`, before the next ETL run.
     - PRs validate migrations against a throwaway Postgres service container, with no secrets.
-13. **Scope.** This ADR covers the conventions plus DDL for the 27 current tables and the `ops`/`shared` tables. In-season tables (#81, #86, #96) are added later through the same registry. `dim_contract` gains `Minor` only after ADR-0011 is reconciled.
+13. **Scope.** This ADR covers the conventions plus DDL for the 27 current tables and the `ops`/`shared` tables. In-season tables (#81, #86, #96) are added later through the same registry. `dim_contract` gains `Minor` only after ADR-0011 is reconciled (*settled by [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md)*).
 
 ## Alternatives considered
 

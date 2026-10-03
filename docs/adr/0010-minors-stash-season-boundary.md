@@ -14,6 +14,11 @@
 > reason — not "no Minor contracts *yet*", but no such thing at all. The
 > `derive_minor_events()` logic this ADR describes remains in `02d` as inert
 > dead code pending a cleanup pass; it has never emitted a row.
+>
+> **2026-10-02:** [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md)
+> brings back a `Minor` contract, but this ADR stays superseded. Under 0019,
+> any eligible player is on `Minor` however they were acquired. Protection
+> follows eligibility, not a team's stash, so no stash can break.
 - Scope: `notebooks/02d_fact_roster_transactions.py` (`derive_minor_events`),
   `notebooks/04v_minor_contracts.py` (doc only), `fact_roster_transactions`
 - **Corrects** the Yo-Yo Rule wording carried in `PLAN.md` and

@@ -6,8 +6,9 @@ GitHub; HITL grills happen in the managing session.
 
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
-docs, #105 #79 findings. Branch `docs/75-schema-rls` carries ADR-0018 +
-PLAN/RESUME/seam-inventory edits (PR pending owner go). History was rewritten
+docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then
+branch `docs/adr-0019-minor-contract` (ADR-0019 Minor reconcile, PR pending
+the owner's go). History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
 asks. Stage explicit paths only. Untracked and not ours (leave alone):
@@ -74,7 +75,8 @@ plan-gated code change.
 
 ## Maps (native sub-issues + blocked-by wired)
 - **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 ✅ (ADR-0018) ·
-  #76 provision (HITL) · #77 build seam (task).
+  #76 provision (HITL) · #77 build seam (task, ←110) · #108 migrations
+  (←76,109,110) · #109 pick legs · #110 grain fixes · #111 orphans (←108).
 - **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 fact model
   (grill) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   (grill) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
@@ -85,26 +87,40 @@ plan-gated code change.
 
 ## Next actions (compact handoff, 2026-10-02)
 
+**ADR-0011 reconcile grilled ✅ 2026-10-02 (Q1–Q10)** →
+[ADR-0019](../../docs/adr/0019-minor-is-a-pre-1st-contract-stage.md).
+- `Minor` is the pre-`1st` contract stage, held by any eligible player
+  however they were acquired.
+- A Minor drop costs 0% dead money; the contract is off the clock with NULL
+  years and is not cap-exempt.
+- The player moves to `1st` mid-season, the period after GP > 19, with the
+  same salary; that season is year 1.
+- Contracts are observed from Roster State, plus a #88 drift check.
+- `02d` takes each move's contract from the snapshot, falling back to a
+  default.
+- ADR-0011's headline only is superseded; the rest of it stands.
+- Docs are done on branch `docs/adr-0019-minor-contract`. Pending the
+  owner's go: the PR + merge, a new #70 build issue (the `01b` Minor row +
+  `02d` contract sourcing, with a `cap-ledger-auditor` review), and
+  comments on #88 (drift-check spec) and #96 (Minor drops price 0).
+
+**Next on resume: the #88 test-strategy grill** (ask the owner to type
+`/grill-with-docs #88 test strategy`), then #81.
+
 **#75 grilled ✅ 2026-10-02** (Q1–Q17) →
-[ADR-0018](../../docs/adr/0018-supabase-schema-and-rls.md). Close-out still
-to do, each on owner go: PR for branch `docs/75-schema-rls`; Resolution
-comment + close #75; new #69 issues — (a) registry generator +
-`migrate.yml` + first migration (←#76), (b) trade-log pick legs →
-Original Owner (`pick_ref`), (c) grain fixes (Composite, `fact_fantasy_teams`
-`scorer_id`, combine gsis orphans, `division_id`), (d) post-cutover
-orphan-resolution approach (owner wants something better than manual
-review queues); hand-off comment on #77 (tight types reach the snapshot).
+[ADR-0018](../../docs/adr/0018-supabase-schema-and-rls.md), merged PR #107.
+#75 closed with Resolution; map #69 "Decisions so far" updated; hand-off on
+#77. New #69 children: **#108** registry-generated migrations +
+`migrate.yml` + first migration (← #76 #109 #110) · **#109** trade-log pick
+legs → Original Owner (`pick_ref`) + mint assets · **#110** grain fixes
+(Composite, `fact_fantasy_teams` `scorer_id`, combine orphans,
+`division_id`; also blocks #77 per seam-inventory §8 prereqs) · **#111**
+post-cutover orphan resolution without manual queues (← #108).
 Note: `grill-with-docs` is user-invoked only — ask the owner to type it.
 
 Approved by the owner on 2026-10-02 — next in order:
 
-1. **Reconcile ADR-0011 with the `Minor` contract** (not yet written; plan
-   gate applies). Owner's reading, 2026-10-02: the other commissioner chose
-   the fluid design — `Minor` is the category for anyone inside the
-   minors-eligible window; the Minors space holds players and cap, moving
-   up and down freely. Counts agree (349 of 351 `Minor` rows are eligible;
-   only 138 sit in the Minors slot). To settle: reword ADR-0011, and how
-   `dim_contract` represents `Minor` (it has no such row today).
+1. ~~Reconcile ADR-0011 with the `Minor` contract~~ ✅ ADR-0019 (above).
 
 Done 2026-10-02: research docs landed in `docs/research/`, issue links
 repointed, `research/*` and `feat/78-inseason-capture` remote branches
@@ -138,8 +154,8 @@ In flight:
 
 After that:
 
-- HITL grills: #88 test strategy, then #81 (unblocked by #79; needs the
-  ADR-0011 reconcile first).
+- HITL grills: #88 test strategy (include the ADR-0019 Minor drift check),
+  then #81 (unblocked by #79 and ADR-0019).
 - Build, plan-gated: #77 storage seam (inventory doc in `docs/research/`);
   unblocks #86 and #93. Then #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; run the

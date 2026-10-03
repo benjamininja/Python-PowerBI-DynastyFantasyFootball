@@ -70,8 +70,24 @@ _Avoid_: current roster derived from the ledger, lineup
 Where a player sits on a team: **Starter**, **Bench**, **IR** or **Minors**.
 Only Starters score. Fantrax calls Starter "Active" and Bench "Reserve"; those
 words are not used here. Not the NFL injury designation (Questionable/Doubtful/
-Out), which belongs to the player, not the slot.
+Out), which belongs to the player, not the slot. The Minors slot is not the
+Minor contract: a Minor player can sit in any slot. Only the Minors slot takes
+a player's salary off the cap.
 _Avoid_: active, reserve, roster status, injury status
+
+**Minors Eligibility**:
+Whether a player is still inside the prospect window: career plus current
+regular-season games played of 19 or fewer, as Fantrax computes it. A flag on
+the player, league-wide, whether rostered or not. It lets a team use the
+Minors slot but doesn't make them.
+_Avoid_: Yo-Yo status, minor (that's the contract)
+
+**Minor**:
+The contract a player holds while minors-eligible, however they were acquired.
+The stage before `1st`: off the 3-year clock, and dropping the player creates
+no Dead Money. The player moves to `1st` in the Scoring Period after they pass
+19 games, with the same salary, and that season is year 1.
+_Avoid_: Minors (that's the slot), stash, minor-league contract
 
 **Roster Move**:
 One team gaining or losing one player — a claim, a drop, or one leg of a Trade.
