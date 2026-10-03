@@ -132,7 +132,7 @@ week            -- "PRE", zero-padded "01".."18", "YTD" (rolling season actuals)
 capture_date    -- date the scrape ran
 player_name, position_raw, nfl_team
 is_rookie       -- bool from scorer.rookie
-overall_rank    -- Fantrax "Rk": rank by FPts across the whole pool (computed, see below)
+overall_rank    -- Fantrax "Rk": rank by FPts across the whole pool (served scorer.rank; derived on BY_DATE rebuilds, see below)
 adp             -- Average Draft Position (statsAll[4]); rank-on column
 salary          -- cap salary (statsAll[1])
 percent_drafted

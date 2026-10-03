@@ -5,6 +5,9 @@
 > 2026-08-01 (#47/#51 grilled and closed). Index truth-up 2026-10-02
 > (not a full consolidation): trade-bud line reconciled with PR #90,
 > ADR-0013 status corrected, ADR-0014..0017 + RESUME pointer added.
+> Phase 0 on 2026-10-03, scoped to the `overall_rank` fix (#121/#122):
+> fantrax-players-grid, data-model, RESUME (agent-worktree gotchas drained
+> from the harness store).
 
 ## Active Files
 
@@ -15,7 +18,7 @@
 - [Power BI Semantic Model](powerbi-semantic-model.md) — PBIP/TMDL model + PBIR report at pbi/mouserat2/; Fact_/Dim_ PascalCase (sourceColumn stays snake); rename-cascade; dynasty measures (latest-snapshot/avg) + 2026-06-12 single-EAV refactor; Prep-for-AI gates
 - [Startup draft board 05a](startup-draft-board-05a.md) — `notebooks/05a_startup_draft_board.py`; composite weights, Offense/Defense split, judgment-overlay CSV, Yo-Yo runway (games-played) semantics, IDP/crosswalk quirks
 - [Trade-bud valuation](trade-bud-valuation.md) — `value = position_ceiling x within-position percentile`; stance selects a *board*, plus two hand-set knobs (future-stance age tilt, pick stance scalar); `dim_position_ceiling` (04e, VOR vs best free agent, per-conference, sqrt-compressed); DraftSharks two-tree pull (04f). **All 5 ADR-0013 decisions built as of 2026-08-01 (#49)** — quantile-mapped picks, age-tilt folded into rank for players, both capped at 100 by construction; `tests/test_pick_commensuration.py` (repo-root) covers both invariants across all 3 stances
-- [Fantrax Players grid](fantrax-players-grid.md) — `getDraftRanks` RETIRED post-draft; `getPlayerStats` is the live universe; the old board truncated offense 3-5x (TE 5.4x); `fact_fantrax_adp` now has `2026/PRE` (no ADP) + `2026/DRAFT` (last ADP ever)
+- [Fantrax Players grid](fantrax-players-grid.md) — `getDraftRanks` RETIRED post-draft; `getPlayerStats` is the live universe; the old board truncated offense 3-5x (TE 5.4x); `fact_fantrax_adp` now has `2026/PRE` (no ADP) + `2026/DRAFT` (last ADP ever). 2026-10-03: Rk is served per request timeframe — `BY_DATE` (`--rebuild-week`) has none, so `overall_rank` is derived there (PRs #121/#122); raw-capture → request table
 - [mouserat_trade-bud](mouserat-trade-bud.md) — trade-diagnostic subproject; v1 (3 slices) built, static exporter (ADR-0012) + valuation model (ADR-0013). Updated 2026-10-02: #62 and #63 were grilled to fully-decided designs on 2026-08-04 and each charted as its own wayfinder map. [Map #65](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/65) (04z disambiguation hardening): task [#67](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/67) **BUILT 2026-09-26 via PR #90** (`nfl_team` tiebreak, `ambiguous` method, ALIAS `player_key` fallback); map reached its destination, still open on GitHub. [Map #66](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/66) (trade-bud waiver-activity signal): task [#68](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/68) open/unblocked, **not built**. Prior value (2026-08-04): "task #67 open/unblocked … Nothing implemented yet". Map #55 **CLOSED** — #57 built + merged via PR #60 (`04cc5` resolved, `dim_roster_asset` null-identity rows 0). Backlog issues #64/#61 closed same day (stale/moot).
 - [RESUME](RESUME.md) — session-handoff note for the **active** work: Supabase + in-season ETL wayfinder maps #69/#70/#71 (charted 2026-09-26). Ticket states, grilled decisions (#82, #85), next actions. Read first when resuming; `PLAN.md` carries the same board at a coarser grain.
 

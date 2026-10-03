@@ -19,13 +19,19 @@ asks. Stage explicit paths only. Untracked and not ours (leave alone):
 #100 `fact_fantrax_adp` gap fill + in-season universe floors (new
 `04a --rebuild-week NN --through-date`), #101 scrub closeout. The Fantrax
 password found in public history was rotated 2026-09-27 and the history
-scrub is done.
+scrub is done. Also merged 2026-10-03: PR #121 (`04a` derives `overall_rank`
+when Fantrax serves no Rk) and PR #122 (wk 01–02 rank backfill by offline
+replay); `main` = 899be7a.
 
 **Overdue, user-owned — weekly Fantrax pull**: `fact_fantrax_adp` stops at
 `2026/02` (checked 2026-10-02). The run planned for Tue 09-29 did not happen:
 `.\run_weekly.ps1 --steps 04a_scrape,04z_crosswalk,04a_backfill_gp --no-commit`
 → `2026/03` + `2026/YTD` + gsis refresh. Week 4 is now also due. It needs a
-live Fantrax session (see the auth note below) until #92 lands.
+live Fantrax session (see the auth note below) until #92 lands. On that first
+wk 03+ capture, check that `scorer.rank` is served: the in-season
+`YEAR_TO_DATE` pull has not been observed since #121, and if Fantrax omits Rk
+there too the partition gets the derived rank (see
+[fantrax-players-grid.md](fantrax-players-grid.md)).
 
 **Research findings home** (done 2026-10-02): full findings for #73, #74,
 #80 and #84 live in `docs/research/` on `main`; the issue Resolution
@@ -37,8 +43,27 @@ the repo `user.email` unset; it is now set repo-local to the noreply
 address (owner's decision, 2026-10-02). Squash-merge commits on `main` are
 authored by GitHub from the account's email setting, which local config
 does not control — the owner turns on "Keep my email addresses private" in
-GitHub. `.pre-commit-config.yaml` hard-codes `./.venv`, so commits fail
-inside agent worktrees; commit from the main checkout instead.
+GitHub.
+
+**Working from an agent worktree (2026-10-03)**: a worktree under
+`.claude/worktrees/` holds tracked files only, so it has no `.venv/` and no
+`data/raw/`.
+- Python / pytest: call the main checkout's interpreter with CWD = the
+  worktree (`<main>\.venv\Scripts\python.exe -m pytest tests/`). `.\run.ps1`
+  fails there.
+- Fixtures: `scripts/make_fixtures.py --raw-dir <main>\data\raw`.
+- Commits: `.pre-commit-config.yaml` hard-codes `./.venv`, so `git commit`
+  fails in a bare worktree, and the main checkout is usually on another
+  session's branch. Make a small ignored venv in the worktree instead:
+  `<main>\.venv\Scripts\python.exe -m venv --without-pip .venv`, then one
+  file `.venv\Lib\site-packages\main_checkout_venv.pth` holding the path
+  `<main>\.venv\Lib\site-packages`. All hooks then run; no `--no-verify`.
+- Do not junction `data\raw` or `.venv` into a worktree (agent's caution, not
+  an owner rule): worktree cleanup deletes recursively and could follow the
+  junction into the main checkout's untracked captures.
+- `gh pr merge --delete-branch` run from the PR's branch leaves the worktree
+  on `main`, which blocks `git checkout main` everywhere else. Follow it with
+  `git checkout --detach`.
 
 **Fantrax auth (2026-09-27)**: creds live in gitignored repo-root `.env`
 (the only one; `notebooks/.env` no longer exists). The account now has **TOTP
@@ -182,9 +207,10 @@ makes `tests`/`bot-tests` required). What landed:
   `.github/workflows/tests.yml` runs `tests` and `bot-tests`.
 - `--check-only` today: 0 Gate failures and 3 `grain_null_key` findings
   (29 / 1,812 / 125).
-- Found while building, not yet ticketed: `fact_fantrax_adp.overall_rank` is
-  100% null for 2026 wk01–02. The in-season grid's `scorer` has no `rank`
-  key, so 04a `player_stats_to_frame` writes None.
+- Found while building: `fact_fantrax_adp.overall_rank` was 100% null for
+  2026 wk01–02. **Fixed 2026-10-03** (PRs #121, #122). The cause was the
+  `BY_DATE` request used by `--rebuild-week`, not in-season pulls in general;
+  detail in [fantrax-players-grid.md](fantrax-players-grid.md).
 
 Plan was `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
 Owner decisions (planning window):

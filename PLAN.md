@@ -321,8 +321,8 @@ dead-money measures); the singular/plural table rename
    (`_fpts_rank`; detail in data-model.md) — shipped via PR
    [#121](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/121).
    Wk 01–02 backfilled the same day by offline replay of their raw captures
-   (branch `fix/fantrax-adp-rank-backfill`): 857 and 1,078 ranks, no other
-   column changed. Still open, USER: confirm the in-season `YEAR_TO_DATE`
+   (PR [#122](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/122)):
+   857 and 1,078 ranks, no other column changed. Still open, USER: confirm the in-season `YEAR_TO_DATE`
    weekly pull still serves Rk — check `scorer.rank` on the first wk 03+
    capture.
 
