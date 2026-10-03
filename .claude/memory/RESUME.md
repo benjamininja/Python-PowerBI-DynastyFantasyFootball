@@ -7,7 +7,8 @@ GitHub; HITL grills happen in the managing session.
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
 docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then `main` = 1a70ce1 (PR #112 ADR-0019 Minor
-reconcile); then the #88 docs PR (ADR-0008 amended in place). History was rewritten
+reconcile); then `main` = 9458c9d (PR #114, #88 test strategy: ADR-0008
+amended in place). History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
 asks. Stage explicit paths only. Untracked and not ours (leave alone):
@@ -76,15 +77,17 @@ plan-gated code change.
 - **#69 Supabase storage**: #72 ✅ · #73 ✅ · #74 ✅ · #75 ✅ (ADR-0018) ·
   #76 provision (HITL) · #77 build seam (task, ←110) · #108 migrations
   (←76,109,110) · #109 pick legs · #110 grain fixes · #111 orphans (←108).
-- **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 fact model
-  (grill) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
+- **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 ✅ (ADR-0016
+  amendment) · **#117** Roster State build (←113) · **#118** Scoring build
+  (←117) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   ✅ (ADR-0008 amendment) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
-  (←92,77,75,76 + #115; now also 04t orchestration + poll-writes-snapshot) ·
+  (←92,77,75,76,115,117; now also 04t orchestration + poll-writes-snapshot) ·
+  #115 checks foundation · #116 in-season checks (←115,93,118) ·
   **#96** `fact_dead_money` + stable move key (task) · **#97** shared cap
   module + cap table, 02e = snapshot+provenance (task, ←96,79).
 - **#71 nflverse**: #84 ✅ · #85 ✅ (ADR-0017) · #86 build (←77; body rewritten).
 
-## Next actions (compact handoff, 2026-10-02)
+## Next actions (compact handoff, 2026-10-03)
 
 **ADR-0011 reconcile grilled ✅ 2026-10-02 (Q1–Q10)** →
 [ADR-0019](../../docs/adr/0019-minor-is-a-pre-1st-contract-stage.md).
@@ -126,23 +129,43 @@ The owner chose to amend ADR-0008 in place rather than write a new ADR.
 - CONTEXT gains Chain, Gate check, Review check and Close check.
 - Build (a) **#115**, the foundation, can start now and fixes the
   commit-on-failure bug at `run_pipeline.py:325`.
-- Build (b) **#116**, the in-season checks, is blocked by #115, #81 and #93.
+- Build (b) **#116**, the in-season checks, is blocked by #115, #93 and #118
+  (← #81 replaced by ← #118 on 2026-10-03).
 - #93 is now blocked by #115 instead of #88.
+- Merged as PR #114. #88 is closed with a Resolution, and map #70's
+  "Decisions so far" has the #88 entry.
+- #70's "Decisions so far" gap for #79 and ADR-0019 filled 2026-10-03.
 
-**On resume: start the #81 grill** (fact model). Ask the owner to type
-`/grill-with-docs #81 fact model` (the skill is user-invoked only). Grill one
-question at a time, recommended answer first, and plan-gate before any
-write.
+**#81 grilled ✅ 2026-10-03 (Q1–Q18, plus Q12b/Q12c)** →
+[ADR-0016 amendment](../../docs/adr/0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81).
+The owner chose to amend ADR-0016 in place.
+- Points are stored by Unit, not per stat.
+- New tables:
+  - `dim_scoring_period` (all 17 periods, `is_playoff`, Update-Set state);
+  - `fact_roster_state` (per period, P1–12; retires `fact_roster_placement`);
+  - `fact_period_scoring` (every rostered player with an entry; no zero-fill);
+  - `fact_matchup` (one row per team, schedule FPts; W/L/T derived);
+  - `fact_standings` (`rank`, `playoff_odds`, `salary_remaining` only).
+- `fact_fantasy_teams` is the current Roster State all year; `roster_status`
+  becomes `roster_slot` (a comment goes on #110).
+- Players by `scorer_id` only. Age is derived from `birth_date`. No YTD
+  columns. `dim_division` comes from public `getLeagueInfo`. Playoffs are out
+  of scope (owner's choice; no ticket).
+- Scoring, matchup and standings rows load once `allEventsFinished` is true.
+- The matchup Close check is defined (ADR-0008 decision 7 carries a note).
+- CONTEXT gains Team Score, Matchup and Standings; Period Scoring, Roster
+  State, Update-Set, Scoring Period and Division are edited.
+- Payload facts are recorded in the research doc ("Still open" item 4 is
+  answered).
+- Builds, both sub-issues of #70: **#117** Roster State (← #113,
+  cap-ledger-auditor review), then **#118** Scoring (← #117; includes `04s`
+  `playerViewType:'2'`). #93 ← #117; #116 ← #118, replacing ← #81.
+- Done 2026-10-03 on the owner's go: blocked-by links wired and verified;
+  comments on #110 (`roster_slot`), #97 (the `salary_remaining` check) and
+  #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
+  ADR-0019; PR merged; #81 closed with a Resolution.
 
-Read first:
-- #81's body and comments;
-- ADR-0016 decision 1 (Period Scoring);
-- ADR-0017 decision 1 (per-period and by-Unit points);
-- the #79 findings (`docs/research/inseason-schema-extraction.md`);
-- `CONTEXT.md`: Period Scoring, Scoring Period, Update-Set, Unit.
-
-Matchup grain is open in #81 (there is no `matchupId`), and so is the
-matchup Close check the #88 amendment deferred to it.
+Next: builds, plan-gated — #115, #113, then #117 → #118.
 
 **#75 grilled ✅ 2026-10-02** (Q1–Q17) →
 [ADR-0018](../../docs/adr/0018-supabase-schema-and-rls.md), merged PR #107.
@@ -191,8 +214,7 @@ In flight:
 
 After that:
 
-- HITL grill: #81 (unblocked by #79, ADR-0019 and the #88 amendment).
-- Build, plan-gated: #115 (#88 build (a), can start now); #113; #77 storage seam
+- Build, plan-gated: #115 (#88 build (a), can start now); #113 → #117 → #118; #77 storage seam
   (inventory doc in `docs/research/`), which unblocks #86 and #93. Then
   #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; run the

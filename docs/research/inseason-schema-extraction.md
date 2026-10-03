@@ -207,4 +207,19 @@ pass through them.
    including the `dim_contract` row.
 2. Which instant the public per-period snapshot represents.
 3. Why 15 non-starters are missing from `BENCH` in a final period.
-4. Whether `allEventsFinished` reliably marks a final period.
+   *Harmless under #81: a player with no entry gets no scoring row.*
+4. ~~Whether `allEventsFinished` reliably marks a final period.~~ Checked
+   2026-10-03 for #81: it sits at `live_scoring.responses[0].data.allEventsFinished`,
+   and it is `true` for final periods 1 and 2 and `false` for period 3 in progress.
+   No other completion flag exists.
+
+Also checked 2026-10-03 for #81, all from the authed captures:
+
+- **Schedule:** 12 regular-season weeks, 14 matchups each. Every team plays
+  once a week, never across Conferences. There are no playoff weeks.
+- **Standings (COMBINED):** headers are in `tableList[0].header.cells[]`:
+  W, L, T, Win%, Div, GB, Salary Remaining (`SR`), FPtsF, FPtsA, Streak and
+  % Playoffs. The league-wide rank (1–28) is in `fixedCells`.
+- **Live scoring:** `statsMap` keys `_1010` and `_1020` are offense and
+  defense group totals. Skipping them, the Starters' `object1` sum equals
+  `ACTIVE.totalFpts` to 0.01 for all 28 teams in period 1.

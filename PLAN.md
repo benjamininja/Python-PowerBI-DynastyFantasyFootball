@@ -51,14 +51,15 @@ raw points, not categories.
   (HITL task, ← #72) · #77 build seam (task, ← #74; unblocks B/C writers).
 - [Map #70 — In-season Fantrax league flows](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/70):
   #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
-  #80 public fxea API (research) · #81 fact model (grilling, ← #79 #80 #87) ·
+  #80 public fxea API (research) · #81 fact model (grilling, ✅ ADR-0016 amendment) ·
   #82 txn cadence (grilling, ✅ ADR-0016) · #83 sources.yml truth-up (task) · #87 daily
   run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
   (grilling, ✅ ADR-0008 amendment) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
   #93 cadence build (task, ← #92 #77 #75 #76 + #115; now also 04t orchestration
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
-  snapshot + provenance (task, ← #96 #79).
+  snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
+  ← #113) · #118 Scoring build (task, ← #117).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
   snaps + injuries only; points/GP from Fantrax) · #86 build + schedule
@@ -105,7 +106,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     `tests.yml`, and `run_pipeline.py` gets `--check-only`.
   - Build (a), the foundation (also fixes the commit-on-failure bug at
     `run_pipeline.py:325`): #115.
-  - Build (b), the in-season checks (← #115, #81, #93): #116.
+  - Build (b), the in-season checks (← #115, #93 and #118): #116.
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
   `football`/`shared`/`ops`; registry-generated migrations; PK = grain;
@@ -114,15 +115,30 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   `shared.owner` lookup for the PII check; `migrate.yml` on merge. Prereqs:
   the grain fixes, trade-log pick legs resolved to Original Owners,
   `division_id`.
-- Code follow-ups from #79: `04s` needs `playerViewType:'2'` (not ticketed).
+- Code follow-ups from #79: `04s` needs `playerViewType:'2'` (now in #118).
   `04v` IR drop fixed ✅ (PR #106: IR kept as `"Inj Res"`, charges per
   ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
-- Next: HITL grill #81 (fact model).
+- **#81 grilled ✅ 2026-10-03 →
+  [ADR-0016 amendment](docs/adr/0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81)**
+  (amended in place, owner's choice).
+  - New tables:
+    - `dim_scoring_period`: all 17 periods, plus the Update-Set state;
+    - `fact_roster_state`: per period, P1–12; retires `fact_roster_placement`;
+    - `fact_period_scoring`: points by Unit, every rostered player;
+    - `fact_matchup`: one row per team;
+    - `fact_standings`: rank, playoff odds and salary remaining only.
+  - `fact_fantasy_teams` is the current Roster State all year; `roster_status`
+    becomes `roster_slot` (#110).
+  - Players by `scorer_id` only. Age is derived. No YTD columns. Division
+    comes from Fantrax. Playoffs are out of scope.
+  - Scoring loads once `allEventsFinished`. The matchup Close check is defined.
+  - Builds: #117 Roster State (← #113), then #118 Scoring (← #117).
+    #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #115 (#88 build (a), can start now); #77 seam (← #74 ✅) →
-  unblocks #86 and #93; #96 → #97.
+- Build, plan-gated: #115 (#88 build (a), can start now); #113 → #117 → #118;
+  #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
 
