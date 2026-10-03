@@ -47,7 +47,7 @@ raw points, not categories.
 
 - [Map #69 — Supabase storage foundation](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/69):
   #72 role/ADR (grilling) · #73 platform facts (research) · #74 seam
-  inventory (research) · #75 schema+RLS (grilling, ← #72 #73) · #76 provision
+  inventory (research) · #75 schema+RLS (grilling, ✅ ADR-0018) · #76 provision
   (HITL task, ← #72) · #77 build seam (task, ← #74; unblocks B/C writers).
 - [Map #70 — In-season Fantrax league flows](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/70):
   #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
@@ -82,13 +82,22 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   roster rows and tracks minors eligibility, not placement (owner,
   2026-10-02: the fluid design — category for anyone in the eligible
   window; the Minors space holds players and cap). `dim_contract` has no
-  `Minor` row. Settle before #75 / #81 fix contract columns.
-- Code follow-ups from #79, not ticketed: `04s` needs `playerViewType:'2'`.
-  `04v` IR drop fixed ✅ (`fix/04v-keep-ir-rows`: IR kept as `"Inj Res"`,
-  charges per ADR-0011).
+  `Minor` row. Settle before #81 fixes contract columns (ADR-0018 keeps the
+  `contract_id` FK provisional until then).
+- **#75 grilled ✅ 2026-10-02 →
+  [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
+  `football`/`shared`/`ops`; registry-generated migrations; PK = grain;
+  deferred FKs on clean edges, dirty edges as checks; tight types through to
+  the snapshot; RLS on with `etl_writer` + a read-only login; hashed
+  `shared.owner` lookup for the PII check; `migrate.yml` on merge. Prereqs:
+  the grain fixes, trade-log pick legs resolved to Original Owners,
+  `division_id`.
+- Code follow-ups from #79: `04s` needs `playerViewType:'2'` (not ticketed).
+  `04v` IR drop fixed ✅ (PR #106: IR kept as `"Inj Res"`, charges per
+  ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
   (2026-10-02); new research tickets (#79 onward) write there too.
-- HITL grills: **#75 next** (owner's pick), then #88, then #81.
+- Next: reconcile ADR-0011 with `Minor`, then HITL grills #88 → #81.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76

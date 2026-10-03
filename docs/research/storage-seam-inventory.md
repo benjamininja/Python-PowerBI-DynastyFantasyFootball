@@ -300,6 +300,11 @@ seam section of `etl_helpers.py`. This locks in the migration.
 
 ## 8. Migration order
 
+> **Decided 2026-10-02 in [ADR-0018](../adr/0018-supabase-schema-and-rls.md)
+> (#75):** the prereqs below are settled there, and types are tightened at
+> cutover through to the snapshot, superseding the "mirror pandas in phase 1"
+> handling in section 5.
+
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,
    the `fact_fantasy_teams` grain, `fact_trade_log` in `data_model.yml`, SQL
    types for the all-NULL columns, and the `divisionId` rename.
