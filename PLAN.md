@@ -105,7 +105,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Fixtures are generated with a key allowlist. CI gets a required
     `tests.yml`, and `run_pipeline.py` gets `--check-only`.
   - Build (a), the foundation (also fixes the commit-on-failure bug at
-    `run_pipeline.py:325`): #115.
+    `run_pipeline.py:325`): #115 — **built 2026-10-03** (`etl_checks.py`,
+    per-Chain publish, `--check-only`, fixtures, `tests.yml`); PR pending.
   - Build (b), the in-season checks (← #115, #93 and #118): #116.
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
@@ -137,7 +138,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Builds: #117 Roster State (← #113), then #118 Scoring (← #117).
     #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #115 (#88 build (a), can start now); #113 → #117 → #118;
+- Build, plan-gated: #113 → #117 → #118 (#115 built, PR pending);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.

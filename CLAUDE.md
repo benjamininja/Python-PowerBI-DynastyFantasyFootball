@@ -91,6 +91,7 @@ the parquet alone.
   `user.email` is already set to it. Commit only when asked. **One codified
   exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) commits
   the machine-generated published snapshot (`data/*.parquet`) directly to `main`
+  — only the passing Chains' tables, never manual-only or new ones
   (allowlist-verified, change-detected, rebase-then-push — CONTRIBUTING.md).
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,

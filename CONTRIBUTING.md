@@ -10,9 +10,13 @@ dev    ← active development. All session work lands here.
 **Allowlisted data-commit exception (2026-07-13):** the scheduled pipeline
 (`scripts/run_pipeline.py`, via `run_weekly.ps1`) commits **machine-generated
 `data/*.parquet` refreshes directly to `main`**. This is deliberate and
-narrowly scoped: the orchestrator stages only the `data/*.parquet` pathspec,
-verifies every staged path matches it (aborts otherwise), skips the commit
-entirely when nothing changed, and rebases on `origin/main` before pushing.
+narrowly scoped: the orchestrator stages only the tracked parquet of the
+Chains that passed their steps and Gate checks (ADR-0008 amendment, #115),
+restores a held Chain's parquet from `HEAD`, verifies every staged path
+matches `data/*.parquet` (aborts otherwise), skips the commit entirely when
+nothing changed, and rebases on `origin/main` before pushing. Manual-only
+tables (no `chain:` in `docs/data_model.yml`) and brand-new parquet files are
+never staged by the pipeline — they reach `main` by PR.
 Code, notebooks, PBI, and docs still always go feature branch → PR.
 Watchpoint: parquet history growth — revisit (LFS/releases) only if repo size
 becomes a problem.

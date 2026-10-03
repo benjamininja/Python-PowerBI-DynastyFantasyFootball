@@ -54,6 +54,11 @@ base), which lacks `playwright` and ships a broken `pyarrow`
   `generate_player_key`, `parse_height_to_inches`, `_make_session`, `_parse_rank_date`,
   `add_players_from_source`, `ingest_ranking_source`, `append_review`. The notebooks import
   from it rather than carrying copies.
+- **`etl_checks.py`** — the publish-gate check suite (ADR-0008 amendment, #115).
+  It runs Table Gates (grain, required keys, schema, shrink) with parameters from
+  `docs/data_model.yml`, plus domain checks (coverage), and files Review findings
+  to `data/review/review_check.csv`. `scripts/run_pipeline.py` runs it after each
+  Chain; `--check-only` runs it alone.
 
 ## Notebooks
 

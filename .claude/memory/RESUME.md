@@ -166,7 +166,38 @@ The owner chose to amend ADR-0016 in place.
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
   ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
-Next: builds, plan-gated — #115, #113, then #117 → #118.
+Next: builds, plan-gated — #113, then #117 → #118.
+
+**#115 BUILT 2026-10-03** on `feat/115-check-suite` (PR pending the owner's
+go; after merge: comments on #113/#117/#118, #115 Resolution + close, owner
+makes `tests`/`bot-tests` required). What landed:
+- `notebooks/etl_checks.py` holds the Table Gates, coverage and
+  `review_check.csv` filing. `docs/data_model.yml` gains `chain` and
+  `required_keys` and registers `fact_trade_log`.
+- `run_pipeline.py` adds per-Chain `plan_publish`, a `commit_data` that
+  restores held Chains and stages explicit paths, and the `--check-only` and
+  `--accept-shrink` flags.
+- Fixtures: `scripts/make_fixtures.py` writes `tests/fixtures/fantrax/` (4
+  fixtures, allowlist-pruned). There are 4 new test files, and
+  `.github/workflows/tests.yml` runs `tests` and `bot-tests`.
+- `--check-only` today: 0 Gate failures and 3 `grain_null_key` findings
+  (29 / 1,812 / 125).
+- Found while building, not yet ticketed: `fact_fantrax_adp.overall_rank` is
+  100% null for 2026 wk01–02. The in-season grid's `scorer` has no `rank`
+  key, so 04a `player_stats_to_frame` writes None.
+
+Plan was `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
+Owner decisions (planning window):
+1. Parser tests only for parsers that exist (04a, 04u picks, 04s schedule
+   helpers, 04v `rosters_to_frame`); `make_fixtures.py` extensible. 02d seam
+   → #113, `getLeagueInfo` → #117, live scoring/standings → #118 (comments
+   after merge).
+2. Grain Gate over complete-key rows; null-key rows file one
+   `grain_null_key` Review finding per table (ff_teams 29, dynasty 1,812,
+   trade_log 125 today).
+3. Pipeline stages only passing Chains' tables; the 10 manual-only tables go
+   to `main` by PR.
+4. nflverse Chain starts now with 01e.
 
 **#75 grilled ✅ 2026-10-02** (Q1–Q17) →
 [ADR-0018](../../docs/adr/0018-supabase-schema-and-rls.md), merged PR #107.
@@ -215,7 +246,7 @@ In flight:
 
 After that:
 
-- Build, plan-gated: #115 (#88 build (a), can start now); #113 → #117 → #118; #77 storage seam
+- Build, plan-gated: #113 → #117 → #118 (#115 built, PR pending); #77 storage seam
   (inventory doc in `docs/research/`), which unblocks #86 and #93. Then
   #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; run the

@@ -12,6 +12,8 @@ thefuzz>=0.20
 playwright>=1.45
 nflreadpy>=0.1
 openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
+pyyaml>=6            # docs/*.yml registries (check_data_model.py, etl_checks.py)
+httpx>=0.27          # discord_bot/github_fetch.py, imported by trade-bud's data_access in tests/
 
 # Headless/agent notebook execution (jupyter nbconvert --execute --inplace).
 # Not needed for interactive VS Code notebook editing -- only when running

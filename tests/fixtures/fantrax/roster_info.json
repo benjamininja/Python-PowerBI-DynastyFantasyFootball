@@ -1,0 +1,2389 @@
+{
+ "6nhnbkuqmmwi166w": {
+  "responses": [
+   {
+    "data": {
+     "tables": [
+      {
+       "statusTotals": [
+        {
+         "id": "1",
+         "name": "Active"
+        },
+        {
+         "id": "2",
+         "name": "Reserve"
+        },
+        {
+         "id": "9",
+         "name": "Minors"
+        }
+       ],
+       "header": {
+        "cells": [
+         {
+          "shortName": "Age"
+         },
+         {
+          "shortName": "Opp"
+         },
+         {
+          "shortName": "Sal"
+         },
+         {
+          "shortName": "Con"
+         },
+         {
+          "shortName": "FPts"
+         },
+         {
+          "shortName": "Bye"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "Int"
+         },
+         {
+          "shortName": "RU-ATT"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "REC"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "Tgt"
+         },
+         {
+          "shortName": "FL"
+         },
+         {
+          "shortName": "RtY"
+         },
+         {
+          "shortName": "2RR"
+         },
+         {
+          "shortName": "1D"
+         }
+        ]
+       },
+       "rows": [
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "060tq",
+          "name": "Jayden Daniels",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "25"
+          },
+          {
+           "content": "WAS 22<br/>@PHI 24 F"
+          },
+          {
+           "content": "17,118,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "29.91"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "164"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "5"
+          },
+          {
+           "content": "31"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "11"
+          }
+         ]
+        },
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "06l7s",
+          "name": "Bucky Irving",
+          "posShortNames": "<b>RB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "24"
+          },
+          {
+           "content": "TB 27<br/>@CIN 33 F"
+          },
+          {
+           "content": "14,183,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "27.3"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "8"
+          },
+          {
+           "content": "45"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "48"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "5"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "03kiy",
+          "name": "Marcus Mariota",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "32"
+          },
+          {
+           "content": "WAS 22<br/>@PHI 24 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "06swa",
+          "name": "Jaydon Blue",
+          "posShortNames": "<b>RB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "22"
+          },
+          {
+           "content": "WAS 22<br/>@PHI 24 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "cells": [
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "074xe",
+          "name": "Fernando Mendoza",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "22"
+          },
+          {
+           "content": "MIA 13<br/>@LV 27 F"
+          },
+          {
+           "content": "9,703,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "13"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "06s5z",
+          "name": "Shedeur Sanders",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "24"
+          },
+          {
+           "content": "CLE 10<br/>@JAX 34 F"
+          },
+          {
+           "content": "5,897,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "11"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "statusTotals": [
+        {
+         "id": "1",
+         "name": "Active"
+        },
+        {
+         "id": "2",
+         "name": "Reserve"
+        },
+        {
+         "id": "3",
+         "name": "Inj Res"
+        }
+       ],
+       "header": {
+        "cells": [
+         {
+          "shortName": "Age"
+         },
+         {
+          "shortName": "Opp"
+         },
+         {
+          "shortName": "Sal"
+         },
+         {
+          "shortName": "Con"
+         },
+         {
+          "shortName": "FPts"
+         },
+         {
+          "shortName": "Bye"
+         },
+         {
+          "shortName": "FF"
+         },
+         {
+          "shortName": "FR"
+         },
+         {
+          "shortName": "FRYd"
+         },
+         {
+          "shortName": "Int"
+         },
+         {
+          "shortName": "IntYd"
+         },
+         {
+          "shortName": "Sk"
+         },
+         {
+          "shortName": "TkA"
+         },
+         {
+          "shortName": "TkS"
+         },
+         {
+          "shortName": "TFL"
+         },
+         {
+          "shortName": "Sft"
+         },
+         {
+          "shortName": "PD"
+         },
+         {
+          "shortName": "RtY"
+         },
+         {
+          "shortName": "BK"
+         },
+         {
+          "shortName": "TDD"
+         }
+        ]
+       },
+       "rows": [
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "06src",
+          "name": "Mason Graham",
+          "posShortNames": "<b>DL</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "CLE 10<br/>@JAX 34 F"
+          },
+          {
+           "content": "7,669,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "23"
+          },
+          {
+           "content": "11"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "3"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "04yph",
+          "name": "T.J. Edwards",
+          "posShortNames": "<b>LB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "30"
+          },
+          {
+           "content": "CHI 59<br/>@CAR 37 F"
+          },
+          {
+           "content": "7,774,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "060k8",
+          "name": "George Karlaftis",
+          "posShortNames": "<b>DL</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "25"
+          },
+          {
+           "content": "DEN 10<br/>@KC 31 F"
+          },
+          {
+           "content": "7,857,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "5"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "074xg",
+          "name": "Malachi Lawrence",
+          "posShortNames": "<b>DL</b>,LB",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "DAL 20<br/>@NYG 28 F"
+          },
+          {
+           "content": "3,286,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "12.25"
+          },
+          {
+           "content": "14"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "3"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "cells": [
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          }
+         ]
+        },
+        {
+         "statusId": "3",
+         "scorer": {
+          "scorerId": "06sr6",
+          "name": "James Pearce",
+          "posShortNames": "<b>DL</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "22"
+          },
+          {
+           "content": "ATL 13<br/>@PIT 20 F"
+          },
+          {
+           "content": "5,609,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "11"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ },
+ "6wmapyeymntmhosz": {
+  "responses": [
+   {
+    "data": {
+     "tables": [
+      {
+       "statusTotals": [
+        {
+         "id": "1",
+         "name": "Active"
+        },
+        {
+         "id": "2",
+         "name": "Reserve"
+        },
+        {
+         "id": "3",
+         "name": "Inj Res"
+        },
+        {
+         "id": "9",
+         "name": "Minors"
+        }
+       ],
+       "header": {
+        "cells": [
+         {
+          "shortName": "Age"
+         },
+         {
+          "shortName": "Opp"
+         },
+         {
+          "shortName": "Sal"
+         },
+         {
+          "shortName": "Con"
+         },
+         {
+          "shortName": "FPts"
+         },
+         {
+          "shortName": "Bye"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "Int"
+         },
+         {
+          "shortName": "RU-ATT"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "REC"
+         },
+         {
+          "shortName": "YDS"
+         },
+         {
+          "shortName": "TD"
+         },
+         {
+          "shortName": "Tgt"
+         },
+         {
+          "shortName": "FL"
+         },
+         {
+          "shortName": "RtY"
+         },
+         {
+          "shortName": "2RR"
+         },
+         {
+          "shortName": "1D"
+         }
+        ]
+       },
+       "rows": [
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "040ha",
+          "name": "Dak Prescott",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "33"
+          },
+          {
+           "content": "DAL 20<br/>@NYG 28 F"
+          },
+          {
+           "content": "15,814,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "27.9"
+          },
+          {
+           "content": "14"
+          },
+          {
+           "content": "175"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "14"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "13"
+          }
+         ]
+        },
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "06s4w",
+          "name": "Quinshon Judkins",
+          "posShortNames": "<b>RB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "22"
+          },
+          {
+           "content": "CLE 10<br/>@JAX 34 F"
+          },
+          {
+           "content": "16,979,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "12"
+          },
+          {
+           "content": "11"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "12"
+          },
+          {
+           "content": "33"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "17"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "07552",
+          "name": "Jalon Daniels",
+          "posShortNames": "<b>QB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "TB 27<br/>@CIN 33 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "FA"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "06s7c",
+          "name": "DJ Giddens",
+          "posShortNames": "<b>RB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "BAL 41<br/>@IND 23 F"
+          },
+          {
+           "content": "2,899,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "13"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "cells": [
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          }
+         ]
+        },
+        {
+         "statusId": "3",
+         "scorer": {
+          "scorerId": "06jei",
+          "name": "Ricky Pearsall",
+          "posShortNames": "<b>WR</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "26"
+          },
+          {
+           "content": "SF 27<br/>@LAR 7 F"
+          },
+          {
+           "content": "8,443,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "8"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "3",
+         "scorer": {
+          "scorerId": "073nk",
+          "name": "Jordyn Tyson",
+          "posShortNames": "<b>WR</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "22"
+          },
+          {
+           "content": "NO 30<br/>@DET 31 F"
+          },
+          {
+           "content": "6,980,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "8"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "0752f",
+          "name": "Malik Benson",
+          "posShortNames": "<b>WR</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "MIA 13<br/>@LV 27 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "4.55"
+          },
+          {
+           "content": "13"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "-8"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "6"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "35"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "06sy7",
+          "name": "Konata Mumpfield",
+          "posShortNames": "<b>WR</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "SF 27<br/>@LAR 7 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "11"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "statusTotals": [
+        {
+         "id": "1",
+         "name": "Active"
+        },
+        {
+         "id": "2",
+         "name": "Reserve"
+        },
+        {
+         "id": "9",
+         "name": "Minors"
+        }
+       ],
+       "header": {
+        "cells": [
+         {
+          "shortName": "Age"
+         },
+         {
+          "shortName": "Opp"
+         },
+         {
+          "shortName": "Sal"
+         },
+         {
+          "shortName": "Con"
+         },
+         {
+          "shortName": "FPts"
+         },
+         {
+          "shortName": "Bye"
+         },
+         {
+          "shortName": "FF"
+         },
+         {
+          "shortName": "FR"
+         },
+         {
+          "shortName": "FRYd"
+         },
+         {
+          "shortName": "Int"
+         },
+         {
+          "shortName": "IntYd"
+         },
+         {
+          "shortName": "Sk"
+         },
+         {
+          "shortName": "TkA"
+         },
+         {
+          "shortName": "TkS"
+         },
+         {
+          "shortName": "TFL"
+         },
+         {
+          "shortName": "Sft"
+         },
+         {
+          "shortName": "PD"
+         },
+         {
+          "shortName": "RtY"
+         },
+         {
+          "shortName": "BK"
+         },
+         {
+          "shortName": "TDD"
+         }
+        ]
+       },
+       "rows": [
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "04yq0",
+          "name": "Montez Sweat",
+          "posShortNames": "<b>DL</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "30"
+          },
+          {
+           "content": "CHI 59<br/>@CAR 37 F"
+          },
+          {
+           "content": "8,101,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "11.25"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "1",
+         "scorer": {
+          "scorerId": "06l7c",
+          "name": "Cedric Gray",
+          "posShortNames": "<b>LB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "NYJ 23<br/>@TEN 10 F"
+          },
+          {
+           "content": "8,099,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "9"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "05rlj",
+          "name": "Gregory Rousseau",
+          "posShortNames": "<b>DL</b>,LB",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "26"
+          },
+          {
+           "content": "BUF 36<br/>@HOU 31 F"
+          },
+          {
+           "content": "7,673,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "40"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "4"
+          },
+          {
+           "content": "2"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "scorer": {
+          "scorerId": "060re",
+          "name": "Nik Bonitto",
+          "posShortNames": "<b>LB</b>",
+          "minorsEligible": false
+         },
+         "cells": [
+          {
+           "content": "27"
+          },
+          {
+           "content": "DEN 10<br/>@KC 31 F"
+          },
+          {
+           "content": "4,679,000"
+          },
+          {
+           "content": "1st"
+          },
+          {
+           "content": "3"
+          },
+          {
+           "content": "10"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "2",
+         "cells": [
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          },
+          {
+           "content": ""
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "06ssp",
+          "name": "Donovan Ezeiruaku",
+          "posShortNames": "<b>DL</b>,LB",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "DAL 20<br/>@NYG 28 F"
+          },
+          {
+           "content": "5,677,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "35"
+          },
+          {
+           "content": "14"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0.5"
+          },
+          {
+           "content": "6"
+          },
+          {
+           "content": "4"
+          },
+          {
+           "content": "1"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        },
+        {
+         "statusId": "9",
+         "scorer": {
+          "scorerId": "06l6j",
+          "name": "Junior Colson",
+          "posShortNames": "<b>LB</b>",
+          "minorsEligible": true
+         },
+         "cells": [
+          {
+           "content": "23"
+          },
+          {
+           "content": "ARI 26<br/>@LAC 14 F"
+          },
+          {
+           "content": "2,000,000"
+          },
+          {
+           "content": "Minor"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "7"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          },
+          {
+           "content": "0"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ]
+ }
+}

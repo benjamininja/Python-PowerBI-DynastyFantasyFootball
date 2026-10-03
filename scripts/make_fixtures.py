@@ -1,0 +1,221 @@
+"""make_fixtures.py — cut committed parser-test fixtures out of data/raw.
+
+ADR-0008 amendment decision 13: parser tests run on fixtures generated from
+real Fantrax payloads, not hand-trimmed or synthetic ones. Each fixture is
+  1. a row/team selection over one raw file (its trimmer), then
+  2. pruned to an ALLOWLIST — a nested spec of the only keys kept — so owner,
+     user, avatar and every other unlisted field is dropped by construction.
+tests/test_fixture_allowlist.py asserts every committed fixture is already
+pruned (prune(f) == f), so a hand edit can't sneak a field back in.
+
+Regenerate when Fantrax changes shape (a deliberate PR — the fixture diff
+shows the drift):
+    .\\run.ps1 scripts\\make_fixtures.py            # all fixtures
+    .\\run.ps1 scripts\\make_fixtures.py roster_info.json
+
+To cover a new parser (#113 02d draft/transactions, #117 getLeagueInfo,
+#118 live scoring + standings): add an ALLOWLIST spec, a trimmer and a
+SOURCES row, regenerate, and test the parser against the new file.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+RAW = REPO / "data" / "raw"
+OUT = REPO / "tests" / "fixtures" / "fantrax"
+
+KEEP = True     # leaf: keep the scalar (or list of scalars) as-is
+ANY = "*"       # dict spec key: any key (e.g. a {teamId: payload} map)
+
+
+# ---- Allowlist ----------------------------------------------------------------------
+def _cells(*keys: str) -> list:
+    return [{k: KEEP for k in keys}]
+
+
+ALLOWLIST: dict[str, object] = {
+    # 04a player_stats_to_frame: list of getPlayerStats pages.
+    "playerstats_page.json": [{"responses": [{"data": {
+        "displayedPosOrGroup": KEEP,
+        "tableHeader": {"cells": _cells("shortName")},
+        "statsTable": [{
+            "scorer": {k: KEEP for k in ("scorerId", "name", "posShortNames",
+                                         "teamShortName", "rookie", "rank")},
+            "cells": _cells("content"),
+        }],
+        "paginatedResultSet": {k: KEEP for k in ("totalNumPages", "pageNumber",
+                                                 "maxResultsPerPage", "totalNumResults")},
+    }}]}],
+    # 04u build_future_picks: public getDraftPicks.
+    "public_draftpicks.json": {"futureDraftPicks": [{k: KEEP for k in (
+        "year", "round", "originalOwnerTeamId", "currentOwnerTeamId")}]},
+    # 04s schedule_periods / schedule_team_ids: getStandings view=SCHEDULE.
+    "schedule.json": {"responses": [{"data": {"tableList": [{
+        "caption": KEEP, "subCaption": KEEP,
+        "rows": [{"cells": _cells("teamId")}],
+    }]}}]},
+    # 04v rosters_to_frame: {teamId: getTeamRosterInfo} from 04s's p01 capture.
+    "roster_info.json": {ANY: {"responses": [{"data": {"tables": [{
+        "statusTotals": [{"id": KEEP, "name": KEEP}],
+        "header": {"cells": _cells("shortName")},
+        "rows": [{
+            "statusId": KEEP,
+            "scorer": {k: KEEP for k in ("scorerId", "name", "posShortNames",
+                                         "minorsEligible")},
+            "cells": _cells("content"),
+        }],
+    }]}}]}},
+}
+
+
+def _scalar(x) -> bool:
+    return x is None or isinstance(x, (str, int, float, bool))
+
+
+def prune(node, spec):
+    """Keep only what `spec` lists. Raises on a shape the spec doesn't expect
+    (Fantrax drift), and never lets a KEEP leaf carry a nested object."""
+    if spec is KEEP:
+        if _scalar(node) or (isinstance(node, list) and all(_scalar(x) for x in node)):
+            return node
+        raise ValueError(f"KEEP leaf holds a nested object: {type(node).__name__}")
+    if isinstance(spec, list):
+        if not isinstance(node, list):
+            raise ValueError(f"expected a list, got {type(node).__name__}")
+        return [prune(x, spec[0]) for x in node]
+    if not isinstance(node, dict):
+        if node is None:
+            return None
+        raise ValueError(f"expected an object, got {type(node).__name__}")
+    if ANY in spec:
+        return {k: prune(v, spec[ANY]) for k, v in node.items()}
+    return {k: prune(node[k], sub) for k, sub in spec.items() if k in node}
+
+
+# ---- Trimmers (row/team selection) --------------------------------------------------
+def _data(resp: dict) -> dict:
+    return resp["responses"][0]["data"]
+
+
+def _active(row: dict) -> bool:
+    return row["scorer"].get("teamShortName", "(N/A)") != "(N/A)"
+
+
+def trim_playerstats(pages: list) -> list:
+    """First OFFENSE + first DEFENSE page, ~10 rows: a few active rows each,
+    one player present on both pages (first occurrence wins in the parser)
+    and one '(N/A)' row (filtered out by the parser)."""
+    off = next(p for p in pages if _data(p).get("displayedPosOrGroup") == "FOOTBALL_OFFENSE")
+    de = next(p for p in pages if _data(p).get("displayedPosOrGroup") == "FOOTBALL_DEFENSE")
+    off_rows, de_rows = _data(off)["statsTable"], _data(de)["statsTable"]
+    de_ids = {r["scorer"]["scorerId"] for r in de_rows}
+    shared = next(r for r in off_rows if _active(r) and r["scorer"]["scorerId"] in de_ids)
+    sid = shared["scorer"]["scorerId"]
+    na = next(r for r in off_rows if not _active(r))
+    keep_off = [r for r in off_rows if _active(r) and r["scorer"]["scorerId"] != sid][:4]
+    keep_de = [r for r in de_rows if _active(r) and r["scorer"]["scorerId"] != sid][:3]
+    keep_de.append(next(r for r in de_rows if r["scorer"]["scorerId"] == sid))
+    return [{"responses": [{"data": {**_data(off), "statsTable": keep_off + [shared, na]}}]},
+            {"responses": [{"data": {**_data(de), "statsTable": keep_de}}]}]
+
+
+def trim_draftpicks(raw: dict) -> dict:
+    """Two teams' future picks, including at least one pick traded between
+    them (currentOwnerTeamId != originalOwnerTeamId)."""
+    picks = raw["futureDraftPicks"]
+    traded = next(p for p in picks if p["originalOwnerTeamId"] != p["currentOwnerTeamId"])
+    teams = {traded["originalOwnerTeamId"], traded["currentOwnerTeamId"]}
+    return {"futureDraftPicks": [p for p in picks if p["originalOwnerTeamId"] in teams
+                                 and p["currentOwnerTeamId"] in teams]}
+
+
+def trim_schedule(raw: dict) -> dict:
+    """Two schedule weeks, two matchups each."""
+    tables = [{**t, "rows": t.get("rows", [])[:2]} for t in _data(raw)["tableList"][:2]]
+    return {"responses": [{"data": {"tableList": tables}}]}
+
+
+ROSTER_SECTIONS = {"1", "2", "3", "9"}    # Active, Reserve, IR, Minors
+
+
+def _roster_rows(raw: dict) -> list[dict]:
+    return [r for t in _data(raw).get("tables", []) for r in t.get("rows", [])]
+
+
+def _covers(raw: dict) -> bool:
+    rows = [r for r in _roster_rows(raw) if r.get("scorer")]
+    return (ROSTER_SECTIONS <= {str(r.get("statusId")) for r in rows}
+            and any(r["scorer"].get("minorsEligible") for r in rows))
+
+
+def _trim_table(tbl: dict) -> dict:
+    """Up to two players per section, one empty slot, and a minorsEligible row."""
+    keep, per_section = set(), {}
+    for i, r in enumerate(tbl.get("rows", [])):
+        if not r.get("scorer"):
+            if "empty" not in per_section:
+                per_section["empty"] = 1
+                keep.add(i)
+            continue
+        s = str(r.get("statusId"))
+        if per_section.get(s, 0) < 2:
+            per_section[s] = per_section.get(s, 0) + 1
+            keep.add(i)
+    rows = tbl.get("rows", [])
+    if rows and not any((rows[i].get("scorer") or {}).get("minorsEligible") for i in keep):
+        keep |= {next((i for i, r in enumerate(rows)
+                       if (r.get("scorer") or {}).get("minorsEligible")), 0)}
+    return {**tbl, "rows": [r for i, r in enumerate(rows) if i in keep]}
+
+
+def trim_rosters(p01: dict) -> dict:
+    """Two teams whose rosters cover Active, Reserve, IR and Minors rows plus
+    a minorsEligible player."""
+    rosters = p01["rosters"]
+    picked = [tid for tid in sorted(rosters) if _covers(rosters[tid])][:2]
+    if len(picked) < 2:
+        raise ValueError("fewer than two teams cover every roster section")
+    return {tid: {"responses": [{"data": {
+        "tables": [_trim_table(t) for t in _data(rosters[tid]).get("tables", [])]}}]}
+        for tid in picked}
+
+
+# fixture -> (raw source file, trimmer). Bump the source when re-cutting from
+# a newer capture.
+SOURCES = {
+    "playerstats_page.json": ("fantrax_playerstats_2026_01.json", trim_playerstats),
+    "public_draftpicks.json": ("fantrax_public_draftpicks.json", trim_draftpicks),
+    "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
+    "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
+}
+
+
+def build(name: str, raw_dir: Path = RAW):
+    src, trim = SOURCES[name]
+    raw = json.loads((raw_dir / src).read_text(encoding="utf-8"))
+    return prune(trim(raw), ALLOWLIST[name])
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="Cut allowlisted parser fixtures from data/raw")
+    ap.add_argument("names", nargs="*", help=f"fixtures to (re)build: {', '.join(SOURCES)}")
+    args = ap.parse_args(argv)
+    unknown = set(args.names) - set(SOURCES)
+    if unknown:
+        ap.error(f"unknown fixture(s): {sorted(unknown)}")
+    OUT.mkdir(parents=True, exist_ok=True)
+    for name in args.names or SOURCES:
+        fixture = build(name)
+        out = OUT / name
+        out.write_text(json.dumps(fixture, indent=1, ensure_ascii=False) + "\n",
+                       encoding="utf-8", newline="\n")
+        print(f"[ok] {name}: {out.stat().st_size:,} bytes <- {SOURCES[name][0]}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
