@@ -55,7 +55,7 @@ raw points, not categories.
   #82 txn cadence (grilling, ✅ ADR-0016) · #83 sources.yml truth-up (task) · #87 daily
   run / weekly update-set (grilling, ✅ ADR-0015) · #88 test strategy
   (grilling, ✅ ADR-0008 amendment) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
-  #93 cadence build (task, ← #92 #77 #75 #76 + #88 build (a); now also 04t orchestration
+  #93 cadence build (task, ← #92 #77 #75 #76 + #115; now also 04t orchestration
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79).
@@ -104,8 +104,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Fixtures are generated with a key allowlist. CI gets a required
     `tests.yml`, and `run_pipeline.py` gets `--check-only`.
   - Build (a), the foundation (also fixes the commit-on-failure bug at
-    `run_pipeline.py:325`): #TBD-a.
-  - Build (b), the in-season checks (← (a), #81, #93): #TBD-b.
+    `run_pipeline.py:325`): #115.
+  - Build (b), the in-season checks (← #115, #81, #93): #116.
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
   `football`/`shared`/`ops`; registry-generated migrations; PK = grain;
@@ -121,7 +121,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   (2026-10-02); new research tickets (#79 onward) write there too.
 - Next: HITL grill #81 (fact model).
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #88 build (a) (can start now); #77 seam (← #74 ✅) →
+- Build, plan-gated: #115 (#88 build (a), can start now); #77 seam (← #74 ✅) →
   unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.

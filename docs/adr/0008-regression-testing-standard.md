@@ -177,8 +177,8 @@ not yet built. The July decisions above stand.
     - Domain checks (coverage, Close checks, Minor drift, dirty edges, replay, Drift) are functions in `notebooks/etl_checks.py`, which `run_pipeline.py` runs after each Chain.
     - Before cutover, findings go to `data/review/review_check.csv` with the `ops.review_check` columns. The #77 seam later swaps that for the table.
 17. **Two build issues under #70.**
-    - (a) The foundation, buildable on today's parquet pipeline: decisions 3–6, 8 and 13–16, which also fix the commit-on-failure bug.
-    - (b) The in-season checks, which need Update-Sets, per-period Roster State and `04t` in the pipeline: decisions 7 and 9–12, plus replay.
+    - (a) [#115](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/115): the foundation, buildable on today's parquet pipeline: decisions 3–6, 8 and 13–16, which also fix the commit-on-failure bug.
+    - (b) [#116](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/116): the in-season checks, which need Update-Sets, per-period Roster State and `04t` in the pipeline: decisions 7 and 9–12, plus replay.
 
 ### Alternatives considered
 
@@ -200,10 +200,10 @@ not yet built. The July decisions above stand.
 
 ### Consequences
 
-- **The commit-on-failure bug is fixed by build (a),** before any Actions cutover (#93).
+- **The commit-on-failure bug is fixed by build (a) #115,** before any Actions cutover (#93).
 - **ADR-0014's "a failed run publishes nothing" now reads per Chain.** A failed Chain publishes nothing; the other Chains still publish.
 - **`ops.review_check` is no longer append-only.** The generator emits a partial unique index on open rows, and the writer upserts.
 - **The registry grows check parameters,** a shrink limit and required keys, beside ADR-0018's `pk`/`fk`/`sql_type`.
 - **A Close-check failure delays freezing.** Drift is measured only against Update-Sets that actually closed.
 - **Fixture regeneration is a deliberate PR.** A changed fixture shows the Fantrax shape drift in review.
-- **Wiring.** #93 is blocked by (a). (b) is blocked by (a), #81 and #93.
+- **Wiring.** #93 is blocked by #115. #116 is blocked by #115, #81 and #93.

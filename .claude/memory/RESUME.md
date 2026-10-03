@@ -79,7 +79,7 @@ plan-gated code change.
 - **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 fact model
   (grill) · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   ✅ (ADR-0008 amendment) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
-  (←92,77,75,76 + #88 build (a); now also 04t orchestration + poll-writes-snapshot) ·
+  (←92,77,75,76 + #115; now also 04t orchestration + poll-writes-snapshot) ·
   **#96** `fact_dead_money` + stable move key (task) · **#97** shared cap
   module + cap table, 02e = snapshot+provenance (task, ←96,79).
 - **#71 nflverse**: #84 ✅ · #85 ✅ (ADR-0017) · #86 build (←77; body rewritten).
@@ -124,10 +124,10 @@ The owner chose to amend ADR-0008 in place rather than write a new ADR.
 - ADR-0014 decision 3, ADR-0018 decision 11, ADR-0015 and ADR-0019 carry
   amend notes.
 - CONTEXT gains Chain, Gate check, Review check and Close check.
-- Build (a), the foundation, can start now and fixes the
+- Build (a) **#115**, the foundation, can start now and fixes the
   commit-on-failure bug at `run_pipeline.py:325`.
-- Build (b), the in-season checks, is blocked by (a), #81 and #93.
-- #93 is now blocked by (a) instead of #88.
+- Build (b) **#116**, the in-season checks, is blocked by #115, #81 and #93.
+- #93 is now blocked by #115 instead of #88.
 
 **On resume: start the #81 grill** (fact model). Ask the owner to type
 `/grill-with-docs #81 fact model` (the skill is user-invoked only). Grill one
@@ -192,7 +192,7 @@ In flight:
 After that:
 
 - HITL grill: #81 (unblocked by #79, ADR-0019 and the #88 amendment).
-- Build, plan-gated: #88 build (a) (can start now); #113; #77 storage seam
+- Build, plan-gated: #115 (#88 build (a), can start now); #113; #77 storage seam
   (inventory doc in `docs/research/`), which unblocks #86 and #93. Then
   #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; run the
