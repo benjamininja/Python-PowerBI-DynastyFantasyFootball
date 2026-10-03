@@ -68,7 +68,7 @@
   - `02d` contract sourcing with the eligibility-aware fallback, where `Minor` writes a NULL `contract_year`;
   - tests;
   - a `cap-ledger-auditor` review.
-- **The drift check is an input to the #88 grill.** It files to `ops.review_check` once that table exists (ADR-0018).
+- **The drift check is an input to the #88 grill.** It files to `ops.review_check` once that table exists (ADR-0018). *Settled in [ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decision 9). It is a Review check with one Scoring Period of grace: a mismatch surfaces only if it is still there once the next period starts.*
 - **The `contract_id` FK becomes a normal clean edge** once the row lands.
 - **The `contract_year` rollover clock is still unbuilt** (noted in ADR-0010). Decision 3 defines when the clock starts, but nothing advances it yet.
 - **ADR-0011's "Zero `Minor` contracts exist" stays in its body as the record of July's data.** The status line points readers here.

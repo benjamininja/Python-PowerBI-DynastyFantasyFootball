@@ -42,7 +42,7 @@
    - **`fact_trade_log` PK = `(transaction_id, asset_id)`**, with `asset_id` → `dim_roster_asset` (ADR-0004). Every pick has an Original Owner, so all unowned pick legs are resolved to a `pick_ref` and minted as assets before the table loads. That also removes the exact duplicate.
 6. **Foreign keys on clean edges only.**
    - `DEFERRABLE INITIALLY DEFERRED` FKs on `gsis_id`, `team_key`, `contract_id`, `metric_key`, `asset_id` and `season_id`, so a dim's full replace and its facts commit in one transaction. The 2 combine orphans are fixed first.
-   - Dirty edges (`player_key`, `position_raw`, `scorer_id`) are post-run checks (#88) that file to `ops.review_check`. Each one is promoted to a real FK once it is clean.
+   - Dirty edges (`player_key`, `position_raw`, `scorer_id`) are post-run checks (#88) that file to `ops.review_check`. Each one is promoted to a real FK once it is clean. *Per [ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decision 10), they file one row per distinct orphan key, scoped to what can be acted on.*
    - The `contract_id` FK is provisional until the `Minor` contract is settled (ADR-0011). *Settled by [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md): the FK is a clean edge once `dim_contract` has its `Minor` row.*
 7. **The EAV fact stays as it is** (one table, same grain). It adds a CHECK `(metric_num IS NOT NULL OR metric_text IS NOT NULL)` and the `metric_key` FK. NaN is normalized to NULL on write.
 8. **Tight types at cutover, through to the snapshot.**
@@ -63,7 +63,7 @@
     - `change_poll_state`: `team_key` PK → `dim_fantasy_teams`, `period`, `roster_hash`, `last_polled_at`, `hash_changed_at`, `pending_since` (debounce).
     - **Review queues, interim until after cutover:**
       - Typed tables `review_fantrax_crosswalk`, `review_dynasty_crosswalk` and `review_fuzzy_matches` mirror today's CSV columns, plus `created_at`, `resolved_at` and `resolution`.
-      - `review_check` (`check_name`, `table_name`, `row_key` jsonb, `detail` jsonb, `run_id`, `created_at`, `resolved_at`) holds post-run check findings and Drift.
+      - `review_check` (`check_name`, `table_name`, `row_key` jsonb, `detail` jsonb, `run_id`, `created_at`, `resolved_at`) holds post-run check findings and Drift. *Amended by [ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decisions 8–9): it adds `last_seen_at`, a `pending` state for findings inside their grace, and a partial unique index giving one open row per `(check_name, table_name, row_key)`; rows auto-resolve when no longer seen.*
       - A follow-up issue is committed to replace manual orphan review with another resolution approach.
 12. **Migrations apply from Actions.**
     - `migrate.yml` runs `supabase db push` in the main-only environment when `supabase/migrations/**` changes on `main`, before the next ETL run.

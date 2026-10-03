@@ -49,6 +49,7 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
 3. **Publish only a good run.**
    - The snapshot is exported only after the run's DB transaction commits and its post-run checks pass (the test strategy is #88).
    - A failed run publishes nothing, and the last good snapshot keeps serving.
+   - *Amended by [ADR-0008's 2026-10-03 amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (#88): the publish unit is a Chain. A failed Chain publishes nothing and the other Chains still publish.*
 4. **The snapshot refreshes on change, not just on schedule.**
    - Refresh triggers:
      - the daily run
