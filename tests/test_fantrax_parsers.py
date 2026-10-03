@@ -70,6 +70,30 @@ class TestPlayerStats:
         verdict = fx.check_universe(df, minimums={"QB": 4, "LB": 3})
         assert verdict == {"LB": (3, 3, True), "QB": (3, 4, False)}
 
+    def test_rank_derived_when_not_served(self, df):
+        # BY_DATE pull: no scorer.rank, so Rk is FPts order across both pages.
+        assert df.set_index("scorer_id")["overall_rank"].to_dict() == {
+            "06jdx": 1, "06anq": 2, "04mnz": 3, "06amz": 4,
+            "05rlj": 5, "074yk": 6, "04cap": 7, "060sm": 8}
+
+    def test_served_rank_wins(self, no_crosswalk):
+        # YEAR_TO_DATE pull: Fantrax's pool-wide Rk, not a re-rank of these rows.
+        df = fx.player_stats_to_frame(
+            _load("playerstats_page_ranked.json"), fx.CFG, 2025, "YTD").set_index("scorer_id")
+        assert df["overall_rank"].to_dict() == {
+            "06jdy": 1, "04mnz": 2, "048xf": 3, "01cdj": 4,
+            "060sm": 762, "04ca0": 99, "04zv3": 117, "060jq": 143}
+        assert df.loc["060sm", "fpts"] == pytest.approx(78.15)    # offense page's row
+        # Rk at header index 0 shifts every column; shortName mapping still holds.
+        row = df.loc["06jdy"]
+        assert (row["adp"], row["percent_drafted"], row["games_played"], row["age"]) == (
+            pytest.approx(54.2), 100.0, 17, 23)
+
+    def test_fpts_rank_rule(self):
+        # Zero / missing FPts are unranked; ties keep input order.
+        scored = [("a", 5.0), ("b", 0.0), ("c", 5.0), ("d", None), ("e", 9.0)]
+        assert fx._fpts_rank(scored) == {"e": 1, "a": 2, "c": 3}
+
 
 class TestFuturePicks:
     def test_build(self):

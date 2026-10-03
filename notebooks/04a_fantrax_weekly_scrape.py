@@ -306,7 +306,10 @@ class FantraxScraper:
         season code (timeframe BY_DATE) and returns cumulative actuals over
         that window. Probed 2026-09-27: epoch-ms dates are ignored, and the
         BY_PERIOD code ignores every period field tried (always the current
-        week), so BY_DATE is the only way to rebuild a past week.
+        week), so BY_DATE is the only way to rebuild a past week. BY_DATE
+        responses carry no Rk (no scorer.rank, no Rk column), unlike the
+        YEAR_TO_DATE and projection codes -- player_stats_to_frame derives
+        overall_rank for them.
         """
         data = {
             "statusOrTeamFilter": "ALL",
@@ -514,19 +517,27 @@ def _load_crosswalk(cfg: LeagueConfig) -> dict:
     return {r.scorer_id: (r.gsis_id, r.player_key) for r in xw.itertuples()}
 
 
+def _fpts_rank(scored) -> dict:
+    """
+    (scorer_id, fpts) pairs -> {scorer_id: 1-based rank}, FPts descending: the
+    shape of Fantrax's "Rk" (ranking based on fantasy points among all players).
+    Players with no FPts are unranked (absent from the map -> null Rk). Ties keep
+    input order.
+    """
+    ranked = sorted((p for p in scored if p[1] is not None and p[1] > 0),
+                    key=lambda p: p[1], reverse=True)
+    return {sid: i + 1 for i, (sid, _) in enumerate(ranked)}
+
+
 def _overall_rank_map(raw: dict) -> dict:
     """
-    Reproduce Fantrax's "Rk" (ranking based on fantasy points among all players):
-    rank the entire scorer pool by FPts (statsAll[2]) descending, 1-based.
-    Players with no FPts are unranked (absent from the map -> null Rk). Ties keep
-    response order. In-season this is YTD-actual rank; preseason it's projected.
+    Reproduce Fantrax's "Rk" for the draft-ranks board: rank the entire scorer
+    pool by FPts (statsAll[2]) via _fpts_rank. In-season this is YTD-actual
+    rank; preseason it's projected.
     """
     rows = raw["responses"][0]["data"]["fullStats"]
-    scored = [(r["scorer"]["scorerId"], r["statsAll"][2])
-              for r in rows
-              if r.get("statsAll") and r["statsAll"][2] is not None and r["statsAll"][2] > 0]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return {sid: i + 1 for i, (sid, _) in enumerate(scored)}
+    return _fpts_rank((r["scorer"]["scorerId"], r["statsAll"][2])
+                      for r in rows if r.get("statsAll"))
 
 
 def _age_map(cfg: LeagueConfig, gsis_ids: set, as_of: date) -> dict:
@@ -624,19 +635,20 @@ def player_stats_to_frame(responses: list, cfg: LeagueConfig,
 
     Filter: active NFL roster only (teamShortName != '(N/A)'). Dual-eligible
     players appear in both position-group pulls -> first occurrence wins.
-    overall_rank uses Fantrax's global scorer.rank; age comes straight from the
-    grid's Age column (always present here, unlike the draft-ranks board).
+    overall_rank is Fantrax's global scorer.rank when the pull serves one. BY_DATE
+    pulls (--rebuild-week) carry no Rk at all, so there it is derived from that
+    pull's FPts over the whole pool (_fpts_rank; zero-FPts players stay null).
+    Age comes straight from the grid's Age column (always present here, unlike
+    the draft-ranks board).
     """
     today = date.today().isoformat()
     xwalk = _load_crosswalk(cfg)
-    recs, seen = [], set()
+    recs, seen, pool = [], set(), []
     for resp in responses:
         d = resp["responses"][0]["data"]
         hdr = {c.get("shortName"): i for i, c in enumerate(d["tableHeader"]["cells"])}
         for r in d.get("statsTable", []):
             s = r["scorer"]
-            if s.get("teamShortName", "(N/A)") == "(N/A)":
-                continue
             sid = s["scorerId"]
             if sid in seen:
                 continue
@@ -647,6 +659,10 @@ def player_stats_to_frame(responses: list, cfg: LeagueConfig,
                 i = hdr.get(name)
                 return cells[i].get("content") if (i is not None and i < len(cells)) else None
 
+            fpts = _cell_num(col("FPts"))
+            pool.append((sid, fpts))        # whole pool, before the active filter
+            if s.get("teamShortName", "(N/A)") == "(N/A)":
+                continue
             gsis, pkey = xwalk.get(sid, (None, None))
             age = _cell_num(col("Age"))
             gp = _cell_num(col("GP"))
@@ -663,13 +679,20 @@ def player_stats_to_frame(responses: list, cfg: LeagueConfig,
                 "adp":             _cell_num(col("ADP")),
                 "salary":          _cell_num(col("Sal")),
                 "percent_drafted": _cell_num(col("%D")),
-                "fpts":            _cell_num(col("FPts")),
+                "fpts":            fpts,
                 "fpts_per_game":   _cell_num(col("FP/G")),
                 "games_played":    int(gp) if gp is not None else None,
                 "age":             int(age) if age is not None else None,
                 "gsis_id":         gsis,
                 "player_key":      pkey,
             })
+    # No Rk served (BY_DATE): rank the whole pool by this pull's FPts instead.
+    # All-or-nothing per pull, so one partition never mixes Fantrax's scale with
+    # the derived one.
+    if not any(rec["overall_rank"] is not None for rec in recs):
+        derived = _fpts_rank(pool)
+        for rec in recs:
+            rec["overall_rank"] = derived.get(rec["scorer_id"])
     return pd.DataFrame.from_records(recs)
 
 
