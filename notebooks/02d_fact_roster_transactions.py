@@ -443,8 +443,9 @@ def unknown_contracts(frame: pd.DataFrame, contracts: pd.DataFrame) -> list:
 # %%
 # ---- Salary sourcing (#125) -------------------------------------------------
 # A draft pick and a claim START a stint, so each sets the salary the copy
-# carries. Both read it off Roster State: the FIRST snapshot that shows the
-# copy on the move's team inside the stint the move starts:
+# carries. Both read it off the roster snapshot (04v's fact_roster_placement):
+# the FIRST capture that shows the copy on the move's team inside the stint
+# the move starts:
 #          move day  <  capture day  <  the day the copy next left the team
 # - After the move day, for the reason a contract is read from before it: a
 #   capture dated the move day may predate the move.
@@ -467,15 +468,27 @@ def unknown_contracts(frame: pd.DataFrame, contracts: pd.DataFrame) -> list:
 #
 # A trade and a drop set no salary: they carry the copy's.
 #
+# Known limits (cap-ledger-auditor, #125; none bites on today's data):
+# - The two lower draft tiers are weak. A capture taken after the pick can
+#   already carry Fantrax's post-draft re-price, and another season's pool is
+#   priced differently (main() warns when a pick falls that far).
+# - A claim traded away before its first snapshot keeps its default: the trade
+#   carries the salary on, and the new team's snapshot is not read.
+# - The lookup is not bounded by season: a claim with no snapshot before the
+#   season rolls over would read next season's first capture.
+#
 # #117 re-points this lookup at fact_roster_state with the contract lookup.
+# That table starts at Scoring Period 1, so the preseason salaries read here
+# need a home before fact_roster_placement is retired.
 class DraftSalaries(NamedTuple):
     season: dict   # scorer_id -> [(capture day, salary)], the draft's season, oldest first
     latest: dict   # scorer_id -> salary on the latest capture of any season
 
 
 def index_salaries(placement) -> dict:
-    """Every Roster State row's salary, indexed per copy, the preseason capture
-    included. Left out: rows with no capture date and rows with no salary."""
+    """Every roster snapshot row's salary, indexed per copy, the preseason
+    capture included. Left out: rows with no capture date and rows with no
+    salary."""
     if placement is None or placement.empty:
         return {}
     seen = placement[placement["capture_date"].notna() & placement["salary"].notna()]
@@ -511,10 +524,10 @@ def departures(legs: list) -> dict:
 
 def stint_end(departs: dict, team_key, scorer_id, joined=None):
     """When the copy next left the team after joining it at `joined`; None when
-    it never did. A draft pick passes no `joined`: the ledger puts every
-    transaction after the draft, so its stint ends at the copy's first
-    departure. A departure stamped the same instant as the join belongs to the
-    stint before (sort_legs puts it first)."""
+    it never did. A draft pick passes no `joined`: the ledger and 02e's replay
+    put every transaction after the draft, so its stint ends at the copy's
+    first departure, whatever its date. A departure stamped the same instant as
+    the join belongs to the stint before (sort_legs puts it first)."""
     return next((left for left in departs.get((team_key, scorer_id), ())
                  if joined is None or left > joined), None)
 

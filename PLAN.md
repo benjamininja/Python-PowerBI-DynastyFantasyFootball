@@ -145,9 +145,9 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #113 ✅ PR #124 (it carries no `fact_*` parquet;
   Resolution and hand-on comments posted) → #125 salary sourcing (built
-  2026-10-03 on `fix/125-salary-sourcing`, PR open: draft picks and
+  2026-10-03 on `fix/125-salary-sourcing`, PR #126, auditor done: draft picks and
   claims take their salary from the roster snapshot, then draft-time ADP;
-  all 1,006 roster rows on Fantrax period 1 now match; the PR publishes the
+  all 1,004 roster rows on Fantrax period 1 now match; the PR publishes the
   ledger and roster) → #117 → #118
   (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.

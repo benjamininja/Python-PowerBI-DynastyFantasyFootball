@@ -12,8 +12,9 @@ amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
 place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
 493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass). Working branch:
-`fix/125-salary-sourcing` (#125, committed, PR open; the
-`cap-ledger-auditor` review was still running at commit time).
+`fix/125-salary-sourcing` (#125, PR #126; `cap-ledger-auditor` done, no
+defect). Owner's instruction, 2026-10-03: merge once CI is green and the
+auditor is done.
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -196,8 +197,8 @@ The owner chose to amend ADR-0016 in place.
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
   ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
-Next: resolve the auditor's findings on the #125 PR (fix or report each),
-merge on the owner's go, then #117 → #118.
+Next: merge PR #126 on green CI (squash, `--delete-branch`), then the
+after-merge items below on the owner's go, then #117 → #118.
 
 **#125 salary sourcing — BUILT 2026-10-03 on `fix/125-salary-sourcing`;
 committed and PR opened on the owner's go. Merge only when asked.**
@@ -236,9 +237,12 @@ Issue #125 is a sub-issue of map #70.
   - Draft salaries read off: 946 roster snapshot, 27 ADP on or before the
     pick, 2 ADP after the pick. Claims: 16 off the snapshot, 37 at the
     league minimum.
-  - Against Fantrax period 1: all 1,006 active roster rows found there match
-    (baseline 964: draft 904 of 940, claim 31 of 37, trade 29 of 29). Period
-    3: all 995 match (baseline 954).
+  - Against Fantrax period 1: all 1,004 active roster rows found there match
+    (baseline 962: draft 902 of 938, claim 31 of 37, trade 29 of 29). Period
+    3: all 993 match (baseline 952). The first commit and PR text said 1,006
+    and 995: `p01_salary.csv` and `p03_salary.csv` hold one scorer twice on
+    two teams, which inflated the join by 2. Dedupe on `(team_key,
+    scorer_id)` before joining.
   - Cap totals vs baseline: 13 of 28 teams move, active roster salary
     +$170.7M, dead money 0. Vs `main`'s published roster: 23 teams move,
     +$276.6M. Lowest remaining cap is now $561K; no team is over.
@@ -252,6 +256,44 @@ Issue #125 is a sub-issue of map #70.
   The other three `02d` outputs are identical to `main`.
 - Scratchpad: `baseline125/` (pre-change rerun), `baseline_main/` (`main`'s
   tables), `vs_fantrax.py`, `cap125.py`, `issue_salary.md`.
+- **`cap-ledger-auditor`, 2026-10-03: no defect.** It re-ran the table
+  diff, the Fantrax comparison, the cap totals and the suites; all held.
+  Fixed in the follow-up commit: ADR-0019 decision 6 and ADR-0003 notes that
+  salary is sourced on its own, the `data_model.yml` wording, "roster
+  snapshot" instead of "Roster State" in the salary comments, a "Known
+  limits" comment, and tests (`TestRepriced`, the other Conference's copy).
+  No code path changed, so the data was not rerun.
+- **Open after the audit (not fixed; each needs the owner or a later
+  ticket):**
+  1. **The published cap is as of 2026-07-24.** The transaction history ends
+     there. One team shows $561K of room; on Fantrax's period-1 roster it
+     has about $23.5M. The gap is six claim rows that team no longer holds
+     (two of them re-priced here). Fantrax period 1 also has 65 rostered
+     players the ledger lacks. Fix: rerun `04t` (owner's login), then `02d`
+     → `02e`. Until then per-team cap room can be off by $10M–$23M.
+  2. **A re-priced claim keeps `FA`** (claims always default; `PRE` is unread
+     for contracts). Fantrax shows `1st` on four of the eight. No cap effect
+     today. A later cut would price 0 dead money under `FA` and about half
+     the salary under `1st`. Needs an owner ruling; belongs with #117's
+     "how a claim reads its own period" and #96.
+  3. **The two lower draft tiers are weak.** The capture after the pick
+     carries Fantrax's re-price ($2.0M where the roster says $2.6M–$4.7M on
+     five players), and the any-season tier gives $800K for one player,
+     below the league minimum. Today the snapshot prices all six. Auditor's
+     proposal: floor at the league minimum and drop or NA-and-warn the
+     any-season tier. That changes the approved rule, so it is the owner's.
+  4. **#117 retires the `PRE` snapshot** (`fact_roster_state` starts at
+     period 1). Picks and claims that left before period 1 then lose their
+     snapshot salary. Keep the preseason salaries somewhere before
+     `fact_roster_placement` goes.
+  5. Latent, not in the data: a claim traded away before its first snapshot
+     keeps the default; `snapshot_salary` is not bounded by season; a draft
+     row's stint ends at any departure, even one dated before the pick
+     (kept: it matches `02e`'s replay order).
+  6. Tests still missing: a `main()` smoke test (already on #117), a
+     published-ledger invariant (one salary per copy per Conference, none
+     below the minimum; fits #116).
+  7. "Stint" is not in `CONTEXT.md`. It is used in ADR-0019 and `02d`.
 - After merge, on the owner's go: a Resolution on #125; a note on #117 that
   draft and claim salary now read the snapshot (its item 4 is done for
   salary; the salary index re-points with the contract index).

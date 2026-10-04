@@ -581,6 +581,14 @@ class TestClaimSalary:
                       self._src(team="A02")).iloc[0]
         assert row["contract_value"] == 2_000_000
 
+    def test_a_repriced_claim_leaves_the_other_conferences_copy_alone(self):
+        # B01 drafted its own copy of p2 at 9.0M; A01's claim is re-priced.
+        startup = base(("B01", 2, "1st", 9_000_000))
+        legs = [leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED),
+                leg(rt.DROP_EVENT, "p2", "B01", when=pd.Timestamp("2026-07-20"))]
+        out = resolve(legs, self._src(), startup)
+        assert out["contract_value"].tolist() == [8_200_000, 9_000_000]
+
     def test_a_drop_and_a_trade_set_no_salary(self):
         # A01 drafted p2 at 9.0M; its snapshot row shows another salary. The
         # drop carries the ledger's.
@@ -745,6 +753,25 @@ class TestTransactionLegs:
         rows, _, _, sourcing, _ = resolve_all(legs, source(elig=elig))
         assert [r["contract_id"] for r in rows] == ["Minor", "Minor", "Minor"]
         assert sourcing == {"observed": 0, "after_newest": 1, "left_list": 1, "stale_capture": 1}
+
+
+class TestRepriced:
+    TERMS = dict(contract_id="1st", contract_year=1.0, contract_value=9_000_000,
+                 cap_hit=4_500_000, status="active")
+
+    def test_cap_hit_keeps_its_share_of_the_salary(self):
+        out = rt.repriced(self.TERMS, 9_500_000)
+        assert (out["contract_value"], out["cap_hit"]) == (9_500_000, 4_750_000)
+        assert out["contract_id"] == "1st"
+        assert self.TERMS["contract_value"] == 9_000_000        # the input is not mutated
+
+    def test_the_same_salary_returns_the_terms_untouched(self):
+        assert rt.repriced(self.TERMS, 9_000_000) is self.TERMS
+
+    def test_an_unknown_share_leaves_cap_hit_unknown(self):
+        for old, hit in ((pd.NA, pd.NA), (9_000_000, pd.NA), (0, 0)):
+            out = rt.repriced({**self.TERMS, "contract_value": old, "cap_hit": hit}, 8_200_000)
+            assert out["contract_value"] == 8_200_000 and pd.isna(out["cap_hit"])
 
 
 @pytest.fixture(scope="module")
