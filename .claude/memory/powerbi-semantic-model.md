@@ -193,8 +193,9 @@ diff.
 
 **Composite relationship keys** (new pattern, Slice D): `Dim_FantasyTeams` →
 `Dim_Division` used to join on `Conference` alone, which is cardinality-valid
-only while `dim_division` holds a single season's rows — `01g`'s documented
-intent is to append future seasons, which would make that join ambiguous the
+only while `dim_division` holds a single season's rows — its loader (`01g`
+then, `04p` since #117, which replaces only its own season's rows) is meant
+to append future seasons, which would make that join ambiguous the
 moment a second season lands. Fixed with a hidden **calculated column**
 `DivisionKey` on both sides (`Dim_FantasyTeams`: `LOOKUPVALUE(Dim_Season[
 season_id], Dim_Season[relative_nfl_season_number], 0) & "|" &

@@ -24,6 +24,7 @@ graph LR
     fact_draft_pick_future[(fact_draft_pick_future)]
     dim_season[dim_season]
     dim_division[dim_division]
+    dim_scoring_period[dim_scoring_period]
     dim_fantrax_crosswalk{{dim_fantrax_crosswalk}}
     dim_dynasty_crosswalk{{dim_dynasty_crosswalk}}
     dim_player_alias{{dim_player_alias}}
@@ -46,6 +47,7 @@ graph LR
     fact_draft_pick_future --> dim_season
     fact_draft_pick_future --> dim_fantasy_teams
     dim_division --> dim_season
+    dim_scoring_period --> dim_season
     dim_fantrax_crosswalk --> dim_nfl_players
     dim_fantrax_crosswalk --> dim_rookie_prospect
     dim_dynasty_crosswalk --> dim_nfl_players
@@ -100,6 +102,7 @@ graph LR
     class fact_draft_pick_future fact;
     class dim_season dim;
     class dim_division dim;
+    class dim_scoring_period dim;
     class dim_fantrax_crosswalk resolver;
     class dim_dynasty_crosswalk resolver;
     class dim_player_alias resolver;

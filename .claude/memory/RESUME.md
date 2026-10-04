@@ -11,10 +11,9 @@ reconcile); then `main` = 9458c9d (PR #114, #88 test strategy: ADR-0008
 amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
 place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
-493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass). Working branch:
-`fix/125-salary-sourcing` (#125, PR #126; `cap-ledger-auditor` done, no
-defect). Owner's instruction, 2026-10-03: merge once CI is green and the
-auditor is done.
+493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass); then `main` =
+376a842 (PR #126, #125 salary sourcing; 225 tests pass). Working branch:
+`feat/117-league-info` (#117 PR 1 = PR #127, open; see below).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -197,11 +196,116 @@ The owner chose to amend ADR-0016 in place.
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
   ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
-Next: merge PR #126 on green CI (squash, `--delete-branch`), then the
-after-merge items below on the owner's go, then #117 → #118.
+**#117 grilled ✅ 2026-10-03 (Q1–Q8, every answer the recommended option).**
+Nothing is built. The plan is in
+`C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`; **the owner
+approved it 2026-10-03**, including its "My defaults" list (two new scripts
+`04p_fantrax_league_info.py` and `04r_fantrax_roster_state.py`; `start_at` /
+`end_at` on `dim_scoring_period`; `capture_date` on `fact_roster_state`; the
+division Gate in the parser; the `Stint` glossary text). One PR per window,
+compact between them, commit and PR only when asked.
+1. **Period day.** A closing or closed period's Roster State counts as its
+   `end_date`; the open period counts as the day it was captured. Test it on
+   a real in-period claim once `04t` is rerun, and report.
+2. **Stint start.** A draft pick and a claim read contract *and* salary off
+   the first Roster State inside the stint they start, else the default.
+   Amends ADR-0019 decision 6. The preseason capture is still never read for
+   a contract.
+3. **Preseason salaries.** A frozen `fact_preseason_salary`, keyed
+   `(season_id, team_key, scorer_id)`, with `salary` and `capture_date`
+   only, written once from today's `fact_roster_placement`. `02d` reads it
+   for salary beside `fact_roster_state`.
+4. **Update-Set state.** #117 writes `open` and `closing` only. The
+   transition function is built and tested for all three states; `closed`
+   waits for the scoring Close checks (#118, #116).
+5. **`02e` slots.** Stamped from the newest period in `fact_roster_state`.
+   `roster_status` keeps today's values (`Active` / `Reserve` / `Inj Res` /
+   `Minors`) until #110. Flag the post-period-12 gap on #97.
+6. **Draft tiers.** Both ADP tiers get a league-minimum floor; the
+   any-season tier becomes "league minimum, with a warning".
+7. **`04t`.** The owner reruns it before the window that repoints `02d`.
+   The table-building PRs do not wait.
+8. **Three PRs.** (1) `getLeagueInfo` capture, `dim_scoring_period`,
+   `dim_division` from Fantrax, `01g` retired. (2) `fact_roster_state`,
+   `fact_preseason_salary`, Gates, the pipeline step. (3) Retire
+   `fact_roster_placement`: `02d` repoint, `02e` slots, `04v` cut down,
+   other readers, republished ledger and roster, auditor. (3) closes #117.
+- Payload facts probed 2026-10-03 (public, no login):
+  - `getLeagueInfo.scoringPeriods` is a list of 17 `{number, startDate,
+    endDate}` with Eastern-offset timestamps; periods turn over Thursdays
+    at 20:15 ET. `playoffs.firstPlayoffPeriod` is `'13'`.
+  - `teamInfo` is a dict of 28 `{id, name, division}`; one division name
+    has a trailing space, so strip it.
+  - `getTeamRosters` echoes `period`; with none it returns the current one
+    (4 today). **A future period returns the current roster under the
+    future number**, so never request past the current period.
+  - `getLeagueInfo.matchups` lists 14 matchups for each of the 17 periods
+    (useful to #118).
+- Measured: salary and contract are identical on all 1,054 copies shared by
+  periods 1 and 3. Dropping the preseason capture would un-price 14
+  stint-starting rows (8 picks, 6 claims; 9 above the minimum).
+- `04u` and `dim_division` are not in the scheduled pipeline today
+  (`dim_division` has no `chain`). `04e` reads `fact_roster_placement` for
+  who is rostered per Conference.
 
-**#125 salary sourcing — BUILT 2026-10-03 on `fix/125-salary-sourcing`;
-committed and PR opened on the owner's go. Merge only when asked.**
+**#117 PR 1 BUILT 2026-10-03: PR #127 (branch `feat/117-league-info`),
+open, waiting for CI and the owner's merge.** "Part of #117".
+- `notebooks/04p_fantrax_league_info.py` (new, pipeline step
+  `04p_league_info`, `fantrax_core`, group `regular_season`, after `01f`,
+  all phases): one public `getLeagueInfo` call → `dim_scoring_period` and
+  `dim_division`, both replace-by-`season_id`. Raw to
+  `data/raw/fantrax_public_leagueinfo.json`.
+- `etl_helpers.fantrax_public_get(method, league_id, expect=(), **params)`:
+  raises on a non-200, an `error` body (Fantrax sends errors as HTTP 200),
+  a non-JSON body, or a missing `expect` key. PR 2's `04r` uses it for
+  `getTeamRosters`.
+- `parse_scoring_periods(info, now, prior=None, checks_passed=frozenset())`
+  and `update_set_state(start_at, end_at, next_end_at, now, is_playoff,
+  prior=None, checks_pass=False)`. `checks_passed` is the seam for #118 /
+  #116; #117 passes none, so no period closes. A closed period is carried
+  forward from the published table, with its `closed_at`.
+- `dim_scoring_period` columns: `season_id`, `period`, `start_date`,
+  `end_date` (`datetime64[us]`, Eastern days), `start_at`, `end_at`
+  (`datetime64[us, UTC]`), `is_playoff`, `update_set_state`, `closed_at`.
+  Written: 17 rows, 12 regular season; period 4 `open`, 1–3 `closing`.
+  Period 11 ends Wed 2026-11-25 19:59:59 ET (Thanksgiving week).
+- `dim_division`: the Fantrax load is byte-identical to `main`, so the
+  parquet is not in the diff. `01g` moved to `archive/` (`git mv`).
+- Fixture `tests/fixtures/fantrax/league_info.json`: `seasonYear`, the two
+  `playoffs` keys, four teams' `id` and `division`, and **all 17 periods**
+  (the plan said four; the parser requires periods numbered 1..n).
+- Verified: `pytest tests/` 269 pass (44 new); `check_data_model.py` (28
+  tables) and `--check`; `check_sources.py` (14 sources) and `--check`;
+  `--check-only` 142 checks, 0 Gate failures, 2 review findings
+  (`grain_null_key`: dynasty 1,812, trade_log 125); `--dry-run` shows
+  `01f → 04p → 01e → 04a …`; a second `04p` run is byte-identical;
+  `check_pii.py` clean on all 24 changed files. Bot suite not run (no bot
+  code or bot-read data changed).
+- Changed files: `04p` (new), `etl_helpers.py`, `run_pipeline.py`,
+  `make_fixtures.py`, `data_model.yml` + `DATA_MODEL.md`, `sources.yml` +
+  `SOURCES.md`, `notebooks/README.md`, `data/README.md`, ADR-0005 and
+  ADR-0016 amend notes, `docs/research/storage-seam-inventory.md`, three
+  memory files, `PLAN.md`, this file, three test files, the fixture,
+  `data/dim_scoring_period.parquet` (new).
+
+**NEXT: merge PR #127 on the owner's go (squash, `--delete-branch`). Then,
+after a compact, PR 2 (`feat/117-roster-state`):** `04r_fantrax_roster_state.py`,
+`fact_roster_state`, `fact_preseason_salary`, the coverage and contract
+Gates. PR 3 (`feat/117-retire-placement`) waits for the owner's `04t`
+rerun; its window starts by checking the history runs past 2026-07-24. Then
+#118, which is plan-gated: grill and plan first, in its own window. Read
+the #117 issue and its hand-on comments (from #115, #113 and #125) before
+building.
+- Scratchpad for #117: `g117_facts.py` (table counts), `g117_probe.py` and
+  `g117_probe2.py` (public payload shapes, keys and counts only).
+- Owner calls still open from the #125 audit (see "Open after the audit"
+  below; items 1–3 need the owner): the stale cap (rerun `04t`, owner's
+  login), the `FA` contract on a re-priced claim, the lower draft tiers.
+- The post-#125 RESUME and PLAN.md edits ride on the PR 1 branch.
+
+**#125 DONE 2026-10-03 — merged as PR #126 (`376a842`), branch deleted; the
+PR closed #125.** The ledger and roster on `main` are now the `02d` → `02e`
+rerun, so a pipeline run may include `02d` and `02e` again.
 Plan (approved): `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
 Issue #125 is a sub-issue of map #70.
 - Owner decisions, grilled 2026-10-03 (both the recommended option):
@@ -294,9 +398,17 @@ Issue #125 is a sub-issue of map #70.
      published-ledger invariant (one salary per copy per Conference, none
      below the minimum; fits #116).
   7. "Stint" is not in `CONTEXT.md`. It is used in ADR-0019 and `02d`.
-- After merge, on the owner's go: a Resolution on #125; a note on #117 that
-  draft and claim salary now read the snapshot (its item 4 is done for
-  salary; the salary index re-points with the contract index).
+- **After-merge items DONE 2026-10-03 on the owner's go:** a Resolution on
+  #125, and a hand-on note on #117 (re-point the salary index with the
+  contract index, keep the preseason salaries, "first snapshot" against an
+  open period, bound the lookup by season, `FA` on a re-priced claim, a
+  claim traded before its first snapshot, the ledger's 2026-07-24 as-of).
+  Nothing was posted on #96 or #97; the `FA`-vs-`1st` cut cost is raised in
+  the #117 note only.
+- Gotcha: `scripts/check_pii.py` raises on a path outside the repo. Copy a
+  scratchpad draft into `workspace/` to scan it, then delete the copy. And
+  do not pipe a check through `tail` in an `&&` chain: the pipe hides the
+  failure.
 
 **#113 DONE 2026-10-03 — merged as PR #124 (`493a6d7`), branch deleted; the
 PR closed #113.**

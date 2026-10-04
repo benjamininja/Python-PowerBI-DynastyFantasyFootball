@@ -208,6 +208,35 @@ def _make_session(timeout_sec: int = 30, retries: int = 3, backoff: float = 2.0)
     session.mount("http://",  adapter)
     return session
 
+
+FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
+
+
+def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
+                       timeout_sec: int = 30, **params) -> dict:
+    # Fantrax's public, no-login REST API (fxea/general). Every error comes
+    # back as HTTP 200 with an `error` object, so the body is checked too:
+    # raises on a non-200, an `error` body, or a body missing any `expect` key.
+    try:
+        resp = _make_session().get(f"{FANTRAX_PUBLIC_API}/{method}",
+                                   params={"leagueId": league_id, **params},
+                                   timeout=timeout_sec)
+    except requests.RequestException as e:
+        raise RuntimeError(f"Fantrax public {method}: request failed ({type(e).__name__}: {e})") from e
+    if resp.status_code != 200:
+        raise RuntimeError(f"Fantrax public {method}: HTTP {resp.status_code}")
+    try:
+        body = resp.json()
+    except ValueError as e:
+        raise RuntimeError(f"Fantrax public {method}: body is not JSON") from e
+    if not isinstance(body, dict) or "error" in body:
+        raise RuntimeError(f"Fantrax public {method}: error body "
+                           f"({body.get('error') if isinstance(body, dict) else type(body).__name__})")
+    missing = [k for k in expect if k not in body]
+    if missing:
+        raise RuntimeError(f"Fantrax public {method}: body has no {missing}")
+    return body
+
 def _parse_rank_date(raw: str | None) -> str | None:
     # Parse the source-published "last updated" date into ISO format.
     # Returns None if raw is empty or unparseable (caller stores NULL).

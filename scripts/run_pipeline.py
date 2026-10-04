@@ -123,6 +123,11 @@ def build_steps(profile: str | None) -> list[dict]:
     steps = [
         {"name": "01f_dim_season", "cmd": _nbconvert("01f_dim_season_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "pre_season"},
+        # Public getLeagueInfo (no login): dim_scoring_period with the
+        # Update-Set states, and dim_division. It checks the season against
+        # dim_season, so it follows 01f.
+        {"name": "04p_league_info", "cmd": _script("04p_fantrax_league_info.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["01f_dim_season"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),

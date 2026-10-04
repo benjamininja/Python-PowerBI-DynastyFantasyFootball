@@ -85,4 +85,9 @@ by `(season_id, conference)` join — no downstream conditional.
   (the Sheet's `Division`, ingested by 01c) rather than hardcoded, then stamped with
   the current `season_id`. v1 seeds only the known season (2026-2027: `A`→Riddell,
   `B`→Wilson, 2 rows); append future seasons as they gain themed names.
+  *Amended 2026-10-03 (#117, [ADR-0016's amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81)
+  decision 12): `dim_division` is now loaded from public
+  `getLeagueInfo.teamInfo[].division` by `04p_fantrax_league_info.py`, on every
+  pipeline run. `01g` is retired to `archive/`. The grain and columns are
+  unchanged, and the first load equals the Sheet-derived rows.*
 - **Still deferred**: the Sheet **write**-sync (Sheets-API auth + PII go-ahead).

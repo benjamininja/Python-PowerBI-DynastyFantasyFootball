@@ -305,12 +305,51 @@ tables:
   - name: dim_division
     type: dim
     grain: "(season_id, conference)"
+    chain: fantrax_core
+    required_keys: [season_id, conference, division_name]
     columns:
       - { name: season_id, dtype: str }
       - { name: conference, dtype: str }
       - { name: division_name, dtype: str }
     edges:
       - { to: dim_season, via: direct, on: season_id }
+    notes: >
+      The season's Division name per Conference, from public
+      getLeagueInfo.teamInfo[].division (04p; ADR-0016 amendment decision
+      12). Each team's Conference comes from dim_fantasy_teams by
+      fantrax_team_id. 04p fails, and the Chain is held, unless each Fantrax
+      division maps to exactly one Conference and each Conference to one
+      division. A run replaces its own season's rows only.
+
+  - name: dim_scoring_period
+    type: dim
+    grain: "(season_id, period)"
+    chain: fantrax_core
+    required_keys: [season_id, period, start_date, end_date, start_at, end_at, is_playoff]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: period, dtype: int64 }
+      - { name: start_date, dtype: "datetime64[us]" }
+      - { name: end_date, dtype: "datetime64[us]" }
+      - { name: start_at, dtype: "datetime64[us, UTC]" }
+      - { name: end_at, dtype: "datetime64[us, UTC]" }
+      - { name: is_playoff, dtype: bool }
+      - { name: update_set_state, dtype: str }
+      - { name: closed_at, dtype: "datetime64[us, UTC]" }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+    notes: >
+      Every Scoring Period of the season (17 in 2026-2027), from public
+      getLeagueInfo.scoringPeriods (04p; ADR-0016 amendment decisions 2 and
+      14). start_at / end_at are the exact bounds Fantrax serves, stored in
+      UTC; start_date / end_date are the same instants as days on the
+      league's Eastern clock. Periods turn over on a Thursday evening, so a
+      period's end_date equals the next period's start_date: use the
+      timestamps to place an instant in a period. is_playoff is true from
+      playoffs.firstPlayoffPeriod on. update_set_state is open | closing |
+      closed, and null for a playoff period or one that has not started.
+      Until the scoring Close checks land (#118, #116) no period is closed,
+      so closed_at is all null.
 
   # ----------------------------------------------------------- resolvers
   - name: dim_fantrax_crosswalk

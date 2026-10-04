@@ -5,10 +5,10 @@ Fixtures in tests/fixtures/fantrax/ are cut from real data/raw payloads by
 scripts/make_fixtures.py (allowlisted keys only). When Fantrax changes shape,
 regenerate them in a PR; a failure here is the shape drift showing up.
 
-Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04s
-schedule helpers, 04v rosters_to_frame, 02d draft results + transaction
-history. Later builds add getLeagueInfo (#117), live scoring + standings
-(#118).
+Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04p
+getLeagueInfo (periods + divisions), 04s schedule helpers, 04v
+rosters_to_frame, 02d draft results + transaction history. Later builds add
+the public rosters (#117), live scoring + standings (#118).
 """
 import copy
 import importlib
@@ -27,6 +27,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "fantrax"
 fx = importlib.import_module("04a_fantrax_weekly_scrape")
 fs = importlib.import_module("04s_fantrax_inseason_capture")
 fu = importlib.import_module("04u_fantrax_public_api")
+lg = importlib.import_module("04p_fantrax_league_info")
 mv = importlib.import_module("04v_minor_contracts")
 rt = importlib.import_module("02d_fact_roster_transactions")
 
@@ -111,6 +112,74 @@ class TestFuturePicks:
         assert set(df["divisionId"]) == set(fu.DIVISION_ID_BY_NAME.values())
         assert not df["is_slotted"].any() and not df["is_made"].any()
         assert set(df["draft_season"]) == {"2027-2028", "2028-2029"}
+
+
+class TestLeagueInfo:
+    NOW = pd.Timestamp("2026-10-03T12:00:00Z")           # inside period 4
+
+    @pytest.fixture
+    def raw(self):
+        return _load("league_info.json")
+
+    @pytest.fixture
+    def periods(self, raw):
+        return lg.parse_scoring_periods(raw, self.NOW).set_index("period")
+
+    @pytest.fixture
+    def teams(self, raw):
+        info = raw["teamInfo"]
+        return pd.DataFrame({
+            "fantrax_team_id": list(info),
+            "conference": ["A" if t["division"].strip() == "Riddell" else "B"
+                           for t in info.values()]})
+
+    def test_every_period_of_the_season(self, periods):
+        assert list(periods.index) == list(range(1, 18))
+        assert (periods["season_id"] == "2026-2027").all()
+
+    def test_bounds_and_league_days(self, periods):
+        p1 = periods.loc[1]
+        assert p1["start_at"] == pd.Timestamp("2026-09-10T00:20:00Z")
+        assert p1["end_at"] == pd.Timestamp("2026-09-18T00:14:59Z")
+        # The dates are days on the Eastern clock, not UTC days.
+        assert (p1["start_date"], p1["end_date"]) == (
+            pd.Timestamp("2026-09-09"), pd.Timestamp("2026-09-17"))
+        # Period 8 ends after the clocks go back: 20:14:59 at -0500.
+        assert periods.loc[8, "end_at"] == pd.Timestamp("2026-11-06T01:14:59Z")
+        assert periods.loc[8, "end_date"] == pd.Timestamp("2026-11-05")
+
+    def test_neighbours_share_a_day_but_not_an_instant(self, periods):
+        assert periods.loc[1, "end_date"] == periods.loc[2, "start_date"]
+        assert periods.loc[1, "end_at"] < periods.loc[2, "start_at"]
+
+    def test_is_playoff_from_the_first_playoff_period(self, periods):
+        assert not periods.loc[:12, "is_playoff"].any()
+        assert periods.loc[13:, "is_playoff"].all()
+
+    def test_states_at_a_fixed_instant(self, periods):
+        state = periods["update_set_state"]
+        assert list(state.loc[1:3]) == ["closing"] * 3 and state.loc[4] == "open"
+        assert state.loc[5:].isna().all()                 # not started, or playoff
+        assert periods["closed_at"].isna().all()
+
+    def test_schema_matches_the_registry(self, raw):
+        import etl_checks as ec
+        declared = {c["name"]: c["dtype"]
+                    for c in ec.load_registry()["dim_scoring_period"]["columns"]}
+        df = lg.parse_scoring_periods(raw, self.NOW)
+        assert {c: str(t) for c, t in df.dtypes.items()} == declared
+
+    def test_divisions_strip_fantrax_padding(self, raw, teams):
+        assert any(t["division"] != t["division"].strip() for t in raw["teamInfo"].values())
+        df = lg.parse_divisions(raw, teams, "2026-2027")
+        assert df.to_dict("records") == [
+            {"season_id": "2026-2027", "conference": "A", "division_name": "Riddell"},
+            {"season_id": "2026-2027", "conference": "B", "division_name": "Wilson"}]
+
+    def test_division_in_two_conferences_raises(self, raw, teams):
+        teams.loc[0, "conference"] = "B" if teams.loc[0, "conference"] == "A" else "A"
+        with pytest.raises(ValueError, match="not one-to-one"):
+            lg.parse_divisions(raw, teams, "2026-2027")
 
 
 class TestSchedule:

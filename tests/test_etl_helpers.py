@@ -5,6 +5,8 @@ multiple notebooks lives in etl_helpers.py, which makes it unit-testable in
 isolation. This covers the first-pass pure-function candidates only —
 add_players_from_source/ingest_ranking_source/resolve_dynasty_crosswalk/
 _make_session are I/O-heavy integration-test candidates, out of scope here.
+fantrax_public_get is covered with a canned session (no network), because
+its job is to turn Fantrax's 200-with-an-error replies into failures.
 """
 import sys
 from pathlib import Path
@@ -14,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
 import pandas as pd
 import pytest
 
+import etl_helpers as etl
 from etl_helpers import (
     clean_name_for_match,
     clean_player_name,
@@ -107,3 +110,71 @@ class TestFoldRanksLong:
         assert not long[
             (long["metric_key"] == "ds_overall_rank")
         ].shape[0]
+
+
+class _FakeResponse:
+    def __init__(self, status_code=200, body=None, text=None):
+        self.status_code, self._body, self._text = status_code, body, text
+
+    def json(self):
+        if self._text is not None:
+            raise ValueError("not JSON")
+        return self._body
+
+
+class TestFantraxPublicGet:
+    """No network: the session is swapped for one that returns a canned reply."""
+
+    @pytest.fixture
+    def reply(self, monkeypatch):
+        calls = []
+
+        def install(response):
+            class Session:
+                def get(self, url, params=None, timeout=None):
+                    calls.append((url, params, timeout))
+                    if isinstance(response, Exception):
+                        raise response
+                    return response
+            monkeypatch.setattr(etl, "_make_session", lambda: Session())
+            return calls
+        return install
+
+    def test_returns_the_body_and_sends_the_league_and_params(self, reply):
+        calls = reply(_FakeResponse(body={"period": 3, "rosters": {}}))
+        body = etl.fantrax_public_get("getTeamRosters", "LG", expect=("rosters",), period=3)
+        assert body == {"period": 3, "rosters": {}}
+        url, params, timeout = calls[0]
+        assert url.endswith("/fxea/general/getTeamRosters")
+        assert params == {"leagueId": "LG", "period": 3} and timeout == 30
+
+    def test_non_200_raises(self, reply):
+        reply(_FakeResponse(status_code=503, body={}))
+        with pytest.raises(RuntimeError, match="HTTP 503"):
+            etl.fantrax_public_get("getLeagueInfo", "LG")
+
+    def test_error_body_on_a_200_raises(self, reply):
+        reply(_FakeResponse(body={"error": "League not found"}))
+        with pytest.raises(RuntimeError, match="error body"):
+            etl.fantrax_public_get("getLeagueInfo", "LG")
+
+    def test_missing_expected_key_raises(self, reply):
+        reply(_FakeResponse(body={"scoringPeriods": []}))
+        with pytest.raises(RuntimeError, match="teamInfo"):
+            etl.fantrax_public_get("getLeagueInfo", "LG", expect=("scoringPeriods", "teamInfo"))
+
+    def test_non_json_body_raises(self, reply):
+        reply(_FakeResponse(text="<html>"))
+        with pytest.raises(RuntimeError, match="not JSON"):
+            etl.fantrax_public_get("getLeagueInfo", "LG")
+
+    def test_non_object_body_raises(self, reply):
+        reply(_FakeResponse(body=[]))
+        with pytest.raises(RuntimeError, match="error body"):
+            etl.fantrax_public_get("getLeagueInfo", "LG")
+
+    def test_request_failure_raises(self, reply):
+        import requests
+        reply(requests.ConnectionError("down"))
+        with pytest.raises(RuntimeError, match="request failed"):
+            etl.fantrax_public_get("getLeagueInfo", "LG")
