@@ -176,3 +176,35 @@ def test_capmath_dead_money_computed():
     # known open item pending drop events — parity with the DAX measure).
     assert row["active_roster_salary"] == 28_000_000.0
     assert row["remaining_cap_current_yr"] == 300_000_000.0 - 28_000_000.0 - 4_000_000.0
+
+
+def test_capmath_minor_cut_costs_no_dead_money():
+    """ADR-0019: a Minor drop costs no dead money. dim_contract's Minor row is
+    cap_hit_pct 0 and not guaranteed, so a Cut player on Minor prices 0 while
+    the Cut 1st beside it still prices in."""
+    frames = {
+        "dim_fantasy_teams.parquet": pd.DataFrame({
+            "team_key":         ["A01"],
+            "original_cap":     [300_000_000.0],
+            "reinvestment_cap": [0.0],
+        }),
+        "fact_fantasy_teams.parquet": pd.DataFrame({
+            "team_key":       ["A01", "A01"],
+            "contract_id":    ["Minor", "1st"],
+            "contract_value": [5_000_000.0, 8_000_000.0],
+            "status":         ["Cut", "Cut"],
+            "roster_status":  [None, None],
+        }),
+        "dim_contract.parquet": pd.DataFrame({
+            "contract_id": ["Minor", "1st"],
+            "cap_hit_pct": [0.0, 0.5],
+            "guaranteed":  [False, True],
+        }),
+    }
+    orig = capmath.fetch_parquet
+    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
+    try:
+        t = capmath.teams_with_cap(CFG)
+    finally:
+        capmath.fetch_parquet = orig
+    assert t.iloc[0]["dead_money"] == 4_000_000.0      # the 1st alone: 8M x 0.5

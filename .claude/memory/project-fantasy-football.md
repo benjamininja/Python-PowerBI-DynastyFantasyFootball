@@ -110,22 +110,27 @@ rookie table renders client-side only. Must be manually extracted into the Excel
 
 ## Contract Types (dim_contract)
 
-All 10 rows unique — `contract_id` is the PK:
+All 11 rows unique — `contract_id` is the PK (seeded by `01b`; truth-up
+2026-10-03, #113):
 
-| contract_id   | salary_type           | years | cap_hit_pct | guaranteed |
-|---------------|-----------------------|-------|-------------|------------|
-| 1st           | Fixed Salary          | 1/3   | 50%         | Yes        |
-| 2nd           | Fixed Salary          | 2/3   | 40%         | Yes        |
-| 3rd           | Fixed Salary          | 3/3   | 0%          | No         |
-| 4th           | New Value             | 1/3   | 50%         | Yes        |
-| 5th           | New Value             | 2/3   | 40%         | Yes        |
-| 6th           | New Value             | 3/3   | 0%          | No         |
-| Franchise Tag | New Salary            | 1     | 50%         | Yes        |
-| X             | Fixed Salary          | 1     | 50%         | No         |
-| Minor         | Fixed Salary          | 1     | 0%          | No (exempt)|
-| FA            | League Minimum Salary | 1     | 0%          | No (exempt)|
+| contract_id | salary_type           | years | cap_hit_pct | guaranteed |
+|-------------|-----------------------|-------|-------------|------------|
+| Minor       | Fixed Salary          | none  | 0%          | No         |
+| 1st         | Fixed Salary          | 1/3   | 50%         | Yes        |
+| 2nd         | Fixed Salary          | 2/3   | 40%         | Yes        |
+| 3rd         | Fixed Salary          | 3/3   | 0%          | No         |
+| 4th         | New Value             | 1/3   | 50%         | Yes        |
+| 5th         | New Value             | 2/3   | 40%         | Yes        |
+| 6th         | New Value             | 3/3   | 0%          | No         |
+| Tag         | New Salary            | 1     | 50%         | Yes        |
+| X           | Fixed Salary          | 1     | 50%         | No         |
+| FA          | League Minimum Salary | 1     | 0%          | No         |
+| Pick        | N/A                   | 1     | 0%          | No         |
 
 `contract_year` (1/2/3) tracks position within term for ETL advancement.
+`Minor` is the stage before `1st` (ADR-0019): no term, so its year columns
+are null. `cap_exempt` (True on FA and Pick) is descriptive only — nothing
+reads it; the one cap exemption is the Minors Roster Slot.
 
 ## Notebook Inventory
 

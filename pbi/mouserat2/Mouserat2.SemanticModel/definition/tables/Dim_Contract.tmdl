@@ -1,4 +1,4 @@
-/// Contract rule dimension (10 rows): drives cap-hit % and dead money by contract type and year. Join on contract_id at ETL; never hardcode cap math.
+/// Contract rule dimension (11 rows): drives cap-hit % and dead money by contract type and year. Join on contract_id at ETL; never hardcode cap math.
 table Dim_Contract
 	lineageTag: c2dbc871-6ada-4db5-be66-173de0ff79b0
 
@@ -110,7 +110,7 @@ table Dim_Contract
 
 		annotation SynonymCollection = ["guaranteed","guarantee","is guaranteed"]
 
-	/// Whether the contract is exempt from the cap.
+	/// Descriptive flag, true on FA and Pick rows. No measure reads it: cap exemption follows the Minors roster slot (Fact_FantasyTeams[RosterStatus]), not this column.
 	column CapExempt
 		dataType: boolean
 		formatString: """TRUE"";""TRUE"";""FALSE"""
