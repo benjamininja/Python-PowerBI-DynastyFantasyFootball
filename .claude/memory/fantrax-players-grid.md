@@ -1,6 +1,6 @@
 ---
 name: fantrax-players-grid
-description: getDraftRanks is retired post-draft; the Players grid (getPlayerStats) is the live Fantrax universe source, and the old board truncated offense 3-5x
+description: getDraftRanks is retired post-draft; the Players grid (getPlayerStats) is the live Fantrax universe source, and the old board truncated offense 3-5x; Rk is served per request timeframe (BY_DATE has none, so overall_rank is derived there)
 metadata:
   type: project
 ---
@@ -46,5 +46,44 @@ Because of that, `discord_bot/adp.py` and `discord_bot/player.py` must select
 the newest capture **that carries ADP**, not simply the newest capture — an
 unconditional `capture_date.max()` sorts the whole board on an all-null column.
 Both were patched; keep the pattern if a third consumer appears.
+
+## Rk depends on the request timeframe (2026-10-03)
+
+`getPlayerStats` serves Fantrax's Rk in two places: `statsTable[].scorer.rank`
+and a first header column (`shortName` `Rk`, key `rankOv`, index 0). **A
+`BY_DATE` request gets neither.** The split is by timeframe, not by preseason
+vs in-season.
+
+| Raw capture (`data/raw/fantrax_playerstats_*`) | Built by | `seasonOrProjection` | Rk | Header cols | `statsTable` rows |
+|---|---|---|---|---|---|
+| `2025_YTD` | season-actuals backfill | `SEASON_23j_YEAR_TO_DATE` | yes | 27 (incl. `%D`, `ADP`) | 8,651 |
+| `2026_wkPRE` | weekly snapshot, preseason | `PROJECTION_0_23l_SEASON` | yes | 26 | 8,633 |
+| `2026_01`, `2026_02` | `--rebuild-week` | `SEASON_23l_BY_DATE` | **no** | 25 | 6,213 |
+
+- **What 04a does**: `player_stats_to_frame` keeps `scorer.rank` when any row
+  of the pull has one. Otherwise it ranks the whole pool (before the
+  active-roster filter) by that pull's FPts via `_fpts_rank`: FPts > 0 only,
+  ties in response order, zero-FPts null. The switch is all-or-nothing per
+  pull, so one partition never mixes the two scales.
+- **The derived rank is a stand-in, not Fantrax's Rk.** Against PRE's served
+  rank it is exact for 98.5% of scored players (every miss inside a tied-FPts
+  block, max difference 2). Against 2025 YTD it is exact for only 40%: tie
+  blocks are larger, and a dual-eligible player has one Fantrax rank but
+  different FPts on the offense and defense pages. Fantrax also ranks
+  zero-FPts players in an alphabetical tail; the derived rank leaves them
+  null.
+- **Which partition holds which**: `2025/YTD` and `2026/PRE` = served.
+  `2026/01` and `2026/02` = derived (857 and 1,078 of 1,956 rows; filled
+  2026-10-03 by offline replay of the raw captures, PR #122). `2026/DRAFT` =
+  the retired board's own computed rank (1,250 of 1,656).
+- **Unconfirmed**: that the in-season `YEAR_TO_DATE` weekly pull still serves
+  Rk. No weekly capture exists after week 02; check `scorer.rank` on the
+  first one.
+- **Fixtures**: `playerstats_page.json` is the `BY_DATE` shape (no rank);
+  `playerstats_page_ranked.json` is the 2025 YTD shape (served rank, `Rk` at
+  header index 0).
+- **Briefing `fantrax-payload-analyst`**: say which request built each file
+  (the table above). Without that, its first report on this bug blamed
+  "in-season" for what was a `BY_DATE` effect.
 
 Related: [[trade-bud-valuation]], [[data-model]].
