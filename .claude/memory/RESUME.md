@@ -10,9 +10,10 @@ docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then `main` =
 reconcile); then `main` = 9458c9d (PR #114, #88 test strategy: ADR-0008
 amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
 place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
-`main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix). Working branch:
-`feat/113-minor-contract-sourcing`, on 3ac5fed, pushed as **PR #124**
-(opened 2026-10-03; 188 tests pass). Merge only when the owner asks.
+`main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
+493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass). Working branch:
+`fix/125-salary-sourcing` (#125, committed, PR open; the
+`cap-ledger-auditor` review was still running at commit time).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -195,16 +196,82 @@ The owner chose to amend ADR-0016 in place.
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
   ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
-Next: merge #113 (PR #124) on the owner's go, then the draft-pricing fix,
-then #117 → #118.
+Next: resolve the auditor's findings on the #125 PR (fix or report each),
+merge on the owner's go, then #117 → #118.
 
-**#113 BUILT 2026-10-03 — PR #124, opened 2026-10-03 from
-`feat/113-minor-contract-sourcing`.**
+**#125 salary sourcing — BUILT 2026-10-03 on `fix/125-salary-sourcing`;
+committed and PR opened on the owner's go. Merge only when asked.**
+Plan (approved): `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
+Issue #125 is a sub-issue of map #70.
+- Owner decisions, grilled 2026-10-03 (both the recommended option):
+  1. A drafted player's salary comes from the roster snapshot first, then
+     draft-time ADP.
+  2. Claims too: one rule for both moves that start a stint.
+- The rule as built (`02d`, "Salary sourcing" block): a draft pick or a
+  claim takes `contract_value` from the first `fact_roster_placement`
+  snapshot with `move day < capture day < the day the copy next left that
+  team`. The `PRE` snapshot is read for salary (not for contracts). Else: a
+  pick → `fact_fantrax_adp` of `season == CFG.draft_year`, latest capture on
+  or before the pick, else the earliest after, else the latest of any
+  season; a claim → inherited salary, else the league minimum. Trades and
+  drops carry the copy's salary.
+- My choices, not ruled on by the owner (flagged in the report):
+  - a draft row's stint ends at the copy's first departure from the drafting
+    team, whatever its date (draft `event_date` is a UTC date; transaction
+    dates are local);
+  - a claim's stint end is the first departure strictly after its timestamp;
+  - `repriced()` scales the ledger's unread `cap_hit` by the share it had of
+    the old salary;
+  - a pick with no date reads the draft season's earliest capture.
+- API changes: `build_startup_rows(made, team_lut, sid2aid, gsis_lut,
+  draft_salaries, src, departs)` returns `(fact, tally, priced)`;
+  `resolve_legs` returns a fifth value, `snapshot_priced`; `ContractSource`
+  has `salaries`; `main()` parses the transaction legs before the draft rows.
+- Measured on the rerun (`02d` → `02e`), against a baseline rerun of the
+  pre-change code:
+  - Ledger differs only in `contract_value` (44 rows: 36 draft, 8 claim, all
+    upward, +$176.0M) and `cap_hit` (29 rows). Roster differs only in
+    `contract_value` (44 rows). `contract_id` counts unchanged (354 draft, 14
+    trade, 11 claim on `Minor`).
+  - Draft salaries read off: 946 roster snapshot, 27 ADP on or before the
+    pick, 2 ADP after the pick. Claims: 16 off the snapshot, 37 at the
+    league minimum.
+  - Against Fantrax period 1: all 1,006 active roster rows found there match
+    (baseline 964: draft 904 of 940, claim 31 of 37, trade 29 of 29). Period
+    3: all 995 match (baseline 954).
+  - Cap totals vs baseline: 13 of 28 teams move, active roster salary
+    +$170.7M, dead money 0. Vs `main`'s published roster: 23 teams move,
+    +$276.6M. Lowest remaining cap is now $561K; no team is over.
+  - `pytest tests/` 221 pass (33 new); bot suite 8 pass; `check_data_model.py
+    --check`, `check_sources.py --check` pass; `--check-only` 137 checks, 0
+    Gate failures.
+- The commit carries: `02d`, `tests/test_02d_contract_sourcing.py`,
+  `docs/data_model.yml`, `notebooks/README.md`,
+  `.claude/memory/data-model.md`, `PLAN.md`, this file, and the two
+  regenerated tables (`fact_roster_transactions`, `fact_fantasy_teams`).
+  The other three `02d` outputs are identical to `main`.
+- Scratchpad: `baseline125/` (pre-change rerun), `baseline_main/` (`main`'s
+  tables), `vs_fantrax.py`, `cap125.py`, `issue_salary.md`.
+- After merge, on the owner's go: a Resolution on #125; a note on #117 that
+  draft and claim salary now read the snapshot (its item 4 is done for
+  salary; the salary index re-points with the contract index).
+
+**#113 DONE 2026-10-03 — merged as PR #124 (`493a6d7`), branch deleted; the
+PR closed #113.**
 Plan: `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
 
-**NEXT: on the owner's go, squash-merge PR #124 with `--delete-branch`, then
-the after-merge items (a Resolution on #113; comments on #117, #96 and #77 —
-listed under the auditor notes below).** The auditor fixes went in before
+**After-merge items DONE 2026-10-03 on the owner's go:** a Resolution on
+#113; comments on #117 (re-point the lookup, the claim's own period, `FA` on
+eligible claims, claim pricing, `PRE` by label, season scope, `04v`'s two
+dates, missing tests), #96 (`Minor` drops price zero) and #77 (`Int64`
+columns). The #97 note (ledger `cap_hit` not recomputed on a relabel) is in
+the #113 Resolution only; no comment on #97.
+- Correction: `dim_contract` is not the only `Int64` table.
+  `fact_rookie_rankings` has three `Int64` columns. The #77 comment says so;
+  PR #124's body still has the old wording.
+
+This RESUME edit and the matching PLAN.md lines are uncommitted on `main` —
+fold both into the salary-sourcing branch (see NEXT above). The auditor fixes went in before
 the PR. Owner answers, grilled 2026-10-03 (all four the
 recommended option), and how each landed in `02d`:
 - Item 2 → a move reads only snapshots captured **strictly before** its day.

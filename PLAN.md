@@ -91,7 +91,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     to a default.
   - The Minors slot stays the only cap exemption.
   - Build: the `dim_contract` row + `02d` sourcing (#113) — **built
-    2026-10-03**, PR #124 from `feat/113-minor-contract-sourcing`. The
+    2026-10-03**, merged as PR #124. The
     preseason snapshot is not read; 354 draft rows, 14 trades and 11 claims
     are `Minor`; cap totals unchanged. `02d` now runs behind `main()`.
     A move reads a snapshot only from inside the copy's stint and before
@@ -143,10 +143,12 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Builds: #117 Roster State (← #113), then #118 Scoring (← #117).
     #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #113 (PR #124, opened 2026-10-03 with the auditor
-  fixes in; it carries no `fact_*` parquet) → a draft-pricing fix that
-  publishes the ledger and roster (not ticketed; `02d` prices draft rows
-  from the latest salary capture, 30 players wrong) → #117 → #118
+- Build, plan-gated: #113 ✅ PR #124 (it carries no `fact_*` parquet;
+  Resolution and hand-on comments posted) → #125 salary sourcing (built
+  2026-10-03 on `fix/125-salary-sourcing`, PR open: draft picks and
+  claims take their salary from the roster snapshot, then draft-time ADP;
+  all 1,006 roster rows on Fantrax period 1 now match; the PR publishes the
+  ledger and roster) → #117 → #118
   (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
