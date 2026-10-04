@@ -92,6 +92,7 @@
    - `fact_period_scoring` stores `fpts` (Fantrax's player total) and `fpts_offense`, `fpts_defense` and `fpts_special_teams`, summed from the per-stat `fpts` by Unit (ADR-0017 decision 2).
    - Per-stat values are not kept.
    - A Gate check requires the three Units to sum to `fpts`, to 0.01.
+   - *Built in #118 (`04s`). A stat id is `<group>#<category>#<pos>`: group `1010` is Offense and `1020` Defense, and categories `3218` (return yards) and `256g` (blocked kicks) are Special Teams in either group. An id with another group fails the load. `fpts` is stored as served; a Unit's sum is rounded to the cent, which changes no served value (Fantrax serves points to the cent) and only drops float-addition noise.*
 2. **`dim_scoring_period`**, keyed `(season_id, period)`, from public `getLeagueInfo.scoringPeriods`.
    - Columns: `start_date`, `end_date`, `is_playoff`, plus the Update-Set state (decision 14).
    - It lists all 17 periods. `is_playoff` marks every period after the last scheduled week.
@@ -122,6 +123,7 @@
    - One row per rostered player with a live-scoring entry, Starters and non-starters alike.
    - A team's score is the sum of its Starter rows.
    - A player with no entry gets no row, not a zero.
+   - *Built in #118 (`04s`), with two more columns: `is_starter` (owner's decision, 2026-10-04), true when Fantrax lists the player under `ACTIVE`, and `capture_date`, the Eastern day the raw capture was written. A Gate requires every row to be on that period's `fact_roster_state`, with `is_starter` true exactly when its Roster Slot is Starter. The load fails unless every team's Starter rows sum to the `totalFpts` Fantrax serves. Measured on periods 1–3 (2026-10-04): 9 to 15 rostered players a period have no entry, never a Starter; no entry is off the roster.*
 6. **Players are identified by `scorer_id` only**, plus `team_key`. `gsis_id` and `player_key` come through `dim_fantrax_crosswalk`, and the #88 dirty-edge check covers orphans.
 7. **Age is derived** from `dim_nfl_players.birth_date`, at whatever date a consumer needs. No age column.
 8. **No year-to-date columns.**
@@ -131,6 +133,7 @@
    - Columns: `opponent_team_key`, `is_home`, `fpts_for`, `fpts_against`. Each matchup is two mirrored rows.
    - Win, loss and tie are derived from the scores, not stored.
    - A Gate check requires every pair to mirror.
+   - *Built in #118 (`04s`), with one more column, `capture_date`. It holds loaded periods only: a period arrives with its Period Scoring, and the future schedule is not stored. The load fails unless the week's matchups hold every team once.*
 10. **The matchup Close check** (deferred by [ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88), decision 7) passes only if:
     - all 14 matchups are present;
     - each pair mirrors;
@@ -151,6 +154,8 @@
     - *Built in #117 (owner's decision, 2026-10-03): the build writes `open` and `closing` only. The transition to `closed` is coded and tested, but it needs the scoring Close checks, which arrive with #118 and #116; until then no period closes and `closed_at` is null. A period already `closed` stays closed.*
 15. **Scoring loads once final.**
     - A period's scoring, matchup and standings rows first load when `allEventsFinished` is true, as its Update-Set enters closing.
+    - *Amended 2026-10-04 (owner's decision, #118): a period loads as soon as `allEventsFinished` is true, even while its Update-Set is still open. Games end Monday night and the Update-Set turns closing on Thursday, so waiting would hold final scores back for three days. The last bullet below still holds until the games are final.*
+    - *Fantrax answers for a period that has not started with 28 teams and no entries, not an error (measured 2026-10-04). `04s` never loads a period that has not started, is closed, or is a playoff period, whatever was captured.*
     - They refresh through closing, so corrections land, and freeze at closed.
     - An open period has only `fact_roster_state` rows.
 16. **`fact_fantasy_teams.roster_status` becomes `roster_slot`**, with Starter / Bench / IR / Minors, the same vocabulary as `fact_roster_state`.

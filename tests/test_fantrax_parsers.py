@@ -7,8 +7,8 @@ regenerate them in a PR; a failure here is the shape drift showing up.
 
 Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04p
 getLeagueInfo (periods + divisions), 04r public getTeamRosters, 04s schedule
-helpers and per-period requests, 02d draft results + transaction history.
-Later builds add live scoring + standings (#118).
+helpers, per-period requests, live scoring and matchups, 02d draft results +
+transaction history. A later build adds standings (#118).
 """
 import copy
 import importlib
@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
 
 import pandas as pd
 import pytest
+
+import etl_checks as ec
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "fantrax"
 
@@ -248,6 +250,109 @@ class TestSchedule:
         assert fs.page_error(_load("schedule.json")) is None
         assert fs.page_error({"pageError": {"code": "X"}}) == {"code": "X"}
         assert fs.page_error({"responses": [{"pageError": {"code": "Y"}}]}) == {"code": "Y"}
+
+
+def _schema(table):
+    return {c["name"]: c["dtype"] for c in ec.load_registry()[table]["columns"]}
+
+
+class TestLiveScoring:
+    """04s on one final period's live scoring: the two teams of the schedule
+    fixture's first matchup, every Starter and three non-starters each (#118)."""
+
+    DAY = pd.Timestamp("2026-10-04")
+
+    @pytest.fixture
+    def raw(self):
+        return _load("live_scoring.json")
+
+    @pytest.fixture
+    def teams(self, raw):
+        ids = list(raw["responses"][0]["data"]["statsPerTeam"]["allTeamsStats"])
+        return pd.DataFrame({"fantrax_team_id": ids, "team_key": ["T1", "T2"]})
+
+    @pytest.fixture
+    def df(self, raw, teams):
+        return fs.scoring_to_frame(raw, teams, "2026-2027", 1, self.DAY)
+
+    def test_final_flag(self, raw):
+        assert fs.is_final(raw)
+        raw["responses"][0]["data"]["allEventsFinished"] = False
+        assert not fs.is_final(raw)
+        assert not fs.is_final({"responses": [{"data": {}}]})
+
+    def test_rows_and_grain(self, df):
+        assert df.groupby(["team_key", "is_starter"]).size().to_dict() == {
+            ("T1", False): 3, ("T1", True): 15, ("T2", False): 3, ("T2", True): 15}
+        assert not df.duplicated(["team_key", "scorer_id"]).any()
+        assert (df["season_id"] == "2026-2027").all() and (df["period"] == 1).all()
+        assert (df["capture_date"] == self.DAY).all()
+
+    def test_group_totals_are_not_players(self, raw, df):
+        groups = raw["responses"][0]["data"]["statsPerTeam"]["allTeamsStats"].values()
+        assert all("_1010" in g["ACTIVE"]["statsMap"] for g in groups)   # the fixture holds them
+        assert not df["scorer_id"].str.startswith("_").any()
+
+    def test_starters_sum_to_the_team_score(self, df):
+        # The schedule fixture's first matchup: away 259.1, home 294.4.
+        starters = df[df["is_starter"]].groupby("team_key")["fpts"].sum().round(2)
+        assert starters.to_dict() == {"T1": 259.1, "T2": 294.4}
+
+    def test_units_sum_to_fpts(self, df):
+        assert ec.unit_sum_errors(df) == []
+        # Offense and Defense both score in the fixture; a player with no
+        # scoring stat is a row of zeros.
+        assert (df[["fpts_offense", "fpts_defense"]] != 0).any().all()
+        assert (df["fpts"] == 0).any()
+
+    def test_a_starter_total_off_the_sum_raises(self, raw, teams):
+        team = next(iter(raw["responses"][0]["data"]["statsPerTeam"]["allTeamsStats"].values()))
+        team["ACTIVE"]["totalFpts"] += 1
+        with pytest.raises(ValueError, match="Starters sum to"):
+            fs.scoring_to_frame(raw, teams, "2026-2027", 1, self.DAY)
+
+    def test_schema_matches_the_registry(self, df):
+        assert {c: str(t) for c, t in df.dtypes.items()} == _schema("fact_period_scoring")
+
+
+class TestMatchups:
+    """04s on the schedule fixture: week 1, two matchups (#118)."""
+
+    DAY = pd.Timestamp("2026-10-04")
+
+    @pytest.fixture
+    def teams(self):
+        week1 = _load("schedule.json")["responses"][0]["data"]["tableList"][0]
+        ids = [c["teamId"] for r in week1["rows"] for c in r["cells"] if "teamId" in c]
+        return pd.DataFrame({"fantrax_team_id": ids, "team_key": ["T1", "T2", "T3", "T4"]})
+
+    @pytest.fixture
+    def df(self, teams):
+        return fs.matchups_to_frame(_load("schedule.json"), teams, "2026-2027", 1, self.DAY)
+
+    def test_two_mirrored_rows_per_matchup(self, df):
+        by = df.set_index("team_key")[["opponent_team_key", "is_home", "fpts_for", "fpts_against"]]
+        assert by.loc["T1"].tolist() == ["T2", False, 259.1, 294.4]      # row cells: away first
+        assert by.loc["T2"].tolist() == ["T1", True, 294.4, 259.1]
+        assert by.loc["T3"].tolist() == ["T4", False, 227.18, 215.83]
+        assert len(df) == 4 and ec.mirror_errors(df) == []
+        assert (df["period"] == 1).all() and (df["capture_date"] == self.DAY).all()
+
+    def test_the_live_fixture_is_the_first_matchup(self, teams):
+        live = _load("live_scoring.json")["responses"][0]["data"]["statsPerTeam"]["allTeamsStats"]
+        assert list(live) == teams["fantrax_team_id"].tolist()[:2]
+
+    def test_a_week_that_misses_a_team_raises(self, teams):
+        more = pd.concat([teams, pd.DataFrame({"fantrax_team_id": ["zz"], "team_key": ["T5"]})])
+        with pytest.raises(ValueError, match="4 teams, expected 5"):
+            fs.matchups_to_frame(_load("schedule.json"), more, "2026-2027", 1, self.DAY)
+
+    def test_a_week_the_schedule_lacks_raises(self, teams):
+        with pytest.raises(ValueError, match="0 tables for week 9"):
+            fs.matchups_to_frame(_load("schedule.json"), teams, "2026-2027", 9, self.DAY)
+
+    def test_schema_matches_the_registry(self, df):
+        assert {c: str(t) for c, t in df.dtypes.items()} == _schema("fact_matchup")
 
 
 class TestCaptureRequests:

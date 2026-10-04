@@ -14,9 +14,8 @@ shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py public_rosters.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
-To cover a new parser (#118 live scoring + standings): add an ALLOWLIST spec,
-a trimmer and a SOURCES row, regenerate, and test the parser against the new
-file.
+To cover a new parser (#118 standings): add an ALLOWLIST spec, a trimmer and
+a SOURCES row, regenerate, and test the parser against the new file.
 """
 from __future__ import annotations
 
@@ -52,6 +51,10 @@ _PLAYERSTATS = [{"responses": [{"data": {
                                              "maxResultsPerPage", "totalNumResults")},
 }}]}]
 
+# One statsMap entry of getLiveScoringStats: a player's points and the stats
+# that scored them.
+_LIVE_ENTRY = {"object1": KEEP, "object2": [{"scipId": KEEP, "fpts": KEEP}]}
+
 ALLOWLIST: dict[str, object] = {
     # BY_DATE pull (--rebuild-week): Fantrax serves no Rk, the parser derives it.
     "playerstats_page.json": _PLAYERSTATS,
@@ -72,11 +75,22 @@ ALLOWLIST: dict[str, object] = {
     # A roster's `teamName` is the team's display name and is not listed.
     "public_rosters.json": {"period": KEEP, "rosters": {ANY: {"rosterItems": [{
         "id": KEEP, "status": KEEP, "salary": KEEP, "contract": {"name": KEEP}}]}}},
-    # 04s schedule_periods / schedule_team_ids: getStandings view=SCHEDULE.
+    # 04s schedule_periods / schedule_team_ids / matchups_to_frame: getStandings
+    # view=SCHEDULE. `content` is listed for the score cells only --
+    # trim_schedule drops it from the team cells, where it is the fantasy
+    # team's display name.
     "schedule.json": {"responses": [{"data": {"tableList": [{
         "caption": KEEP, "subCaption": KEEP,
-        "rows": [{"cells": _cells("teamId")}],
+        "rows": [{"cells": _cells("teamId", "content")}],
     }]}}]},
+    # 04s is_final / scoring_to_frame: getLiveScoringStats with the bench view.
+    "live_scoring.json": {"responses": [{"data": {
+        "allEventsFinished": KEEP,
+        "statsPerTeam": {"allTeamsStats": {ANY: {
+            "ACTIVE": {"totalFpts": KEEP, "statsMap": {ANY: _LIVE_ENTRY}},
+            "BENCH": {"statsMap": {ANY: _LIVE_ENTRY}},
+        }}},
+    }}]},
     # 02d parse_draft_results / build_draft_picks: one Division's getDraftResults.
     "draft_results.json": {"responses": [{"data": {"draftPicksOrdered": [{k: KEEP for k in (
         "divisionId", "round", "pickNumber", "teamId", "scorerId", "modifiedDate")}]}}]},
@@ -192,10 +206,50 @@ def trim_public_rosters(raw: dict) -> dict:
         rosters[tid]["rosterItems"])} for tid in picked}}
 
 
+def _scrub_schedule_row(row: dict) -> dict:
+    """Drop team display names: a cell that carries a `teamId` loses its
+    `content`; a score cell keeps it."""
+    return {**row, "cells": [{k: v for k, v in c.items() if k != "content" or "teamId" not in c}
+                             for c in row["cells"]]}
+
+
 def trim_schedule(raw: dict) -> dict:
     """Two schedule weeks, two matchups each."""
-    tables = [{**t, "rows": t.get("rows", [])[:2]} for t in _data(raw)["tableList"][:2]]
+    tables = [{**t, "rows": [_scrub_schedule_row(r) for r in t.get("rows", [])[:2]]}
+              for t in _data(raw)["tableList"][:2]]
     return {"responses": [{"data": {"tableList": tables}}]}
+
+
+LIVE_BENCH_KEPT = 3
+
+
+def _trim_live_group(stats_map: dict, limit: int | None = None) -> dict:
+    """The group-total keys (`_1010`, `_1020`) and the first `limit` players,
+    each without the stats that scored nothing."""
+    totals = [(k, v) for k, v in stats_map.items() if k.startswith("_")]
+    players = [(k, v) for k, v in stats_map.items() if not k.startswith("_")][:limit]
+    return {k: {**v, "object2": [s for s in v["object2"] if s.get("fpts")]}
+            for k, v in totals + players}
+
+
+def trim_live_scoring(period_file: dict, schedule: dict) -> dict:
+    """One final period's live scoring for the two teams of the schedule
+    fixture's first matchup: every Starter (their points must sum to the
+    team's totalFpts) and three non-starters each."""
+    first = _data(schedule)["tableList"][0]["rows"][0]["cells"]
+    live = _data(period_file["live_scoring"])
+    if live.get("allEventsFinished") is not True:
+        raise ValueError("the period is not final -- cut from a finished period")
+    all_teams = live["statsPerTeam"]["allTeamsStats"]
+    kept = {}
+    for team_id in (first[0]["teamId"], first[2]["teamId"]):
+        groups = all_teams[team_id]
+        kept[team_id] = {
+            "ACTIVE": {**groups["ACTIVE"], "statsMap": _trim_live_group(groups["ACTIVE"]["statsMap"])},
+            "BENCH": {**groups["BENCH"], "statsMap": _trim_live_group(
+                groups["BENCH"]["statsMap"], LIVE_BENCH_KEPT)},
+        }
+    return {"responses": [{"data": {**live, "statsPerTeam": {"allTeamsStats": kept}}}]}
 
 
 DRAFT_FIXTURE_ROUNDS = 2
@@ -272,15 +326,22 @@ SOURCES = {
     "league_info.json": ("fantrax_public_leagueinfo.json", trim_league_info),
     "public_rosters.json": ("fantrax_public_rosters_2026_p01.json", trim_public_rosters),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
+    "live_scoring.json": (("fantrax_inseason_2026_p01.json",
+                           "fantrax_inseason_2026_schedule.json"), trim_live_scoring),
     "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),
     "txn_history.json": ("fantrax_txn_history_2026.json", trim_txn_history),
 }
 
 
+def _source_files(name: str) -> tuple[str, ...]:
+    src = SOURCES[name][0]
+    return (src,) if isinstance(src, str) else src
+
+
 def build(name: str, raw_dir: Path = RAW):
-    src, trim = SOURCES[name]
-    raw = json.loads((raw_dir / src).read_text(encoding="utf-8"))
-    return prune(trim(raw), ALLOWLIST[name])
+    """A trimmer takes one argument per raw source file, in order."""
+    raws = [json.loads((raw_dir / f).read_text(encoding="utf-8")) for f in _source_files(name)]
+    return prune(SOURCES[name][1](*raws), ALLOWLIST[name])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -298,7 +359,7 @@ def main(argv: list[str] | None = None) -> int:
         out = OUT / name
         out.write_text(json.dumps(fixture, indent=1, ensure_ascii=False) + "\n",
                        encoding="utf-8", newline="\n")
-        print(f"[ok] {name}: {out.stat().st_size:,} bytes <- {SOURCES[name][0]}")
+        print(f"[ok] {name}: {out.stat().st_size:,} bytes <- {', '.join(_source_files(name))}")
     return 0
 
 

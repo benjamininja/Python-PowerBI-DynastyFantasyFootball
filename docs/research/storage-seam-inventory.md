@@ -94,6 +94,8 @@ cover them:
 | fact_draft_pick_future | 04u via `load_replace_partition(draft_season,)` | replace-by-draft_season | `replace_partition` |
 | dim_fantrax_crosswalk | 04z c5; `apply_fantrax_crosswalk_review` | 04z full; apply = read, patch rows, full write | `replace` (or `upsert keys=scorer_id` for the patch) |
 | fact_roster_state | 04r via `load_replace_partition(season_id, period)` (added by #117) | replace-by-`(season_id, period)`; a run replaces every period it read | `replace_partition keys=(season_id, period)` |
+| fact_period_scoring | 04s via `load_replace_partition(season_id, period)` (added by #118) | replace-by-`(season_id, period)`; a run replaces every final period it loaded | `replace_partition keys=(season_id, period)` |
+| fact_matchup | 04s via `load_replace_partition(season_id, period)` (added by #118) | replace-by-`(season_id, period)`; loaded with its Period Scoring | `replace_partition keys=(season_id, period)` |
 | fact_preseason_salary | none (written once by a one-off script, #117) | frozen | none: one-time load |
 | fact_minor_eligibility | 04v `load_eligibility` | hand-rolled replace-by-`(season, week)` + dedup `(scorer_id, season, week)` | `replace_partition keys=(season, week)` |
 

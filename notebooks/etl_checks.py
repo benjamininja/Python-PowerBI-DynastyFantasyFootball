@@ -9,8 +9,9 @@ Two tiers (decision 2):
 
 Table Gates take their parameters from docs/data_model.yml (decision 16):
 grain uniqueness, required keys, schema (columns + dtypes) and shrink limit.
-Domain checks (coverage and known contracts today; Close checks, drift, dirty
-edges and replay with #116) are functions here, registered in DOMAIN_CHECKS.
+Domain checks (coverage, known contracts, Unit sums, Starter slots and
+matchup mirrors today; Close checks with #118; drift, dirty edges and replay
+with #116) are functions here, registered in DOMAIN_CHECKS.
 
 The gate functions are pure (DataFrame + registry entry in, verdict out) so
 tests drive them without parquet. `run_suite` does the I/O; `file_review`
@@ -42,6 +43,9 @@ REVIEW_CSV = REVIEW / "review_check.csv"
 DEFAULT_SHRINK_LIMIT = 0.20   # decision 6: >20% drop vs last published snapshot
 TEAMS_TOTAL = 28
 TEAMS_PER_CONFERENCE = 14
+UNIT_COLUMNS = ["fpts_offense", "fpts_defense", "fpts_special_teams"]
+POINTS_TOLERANCE = 0.01       # Fantrax serves points to the cent
+STARTER_SLOT = "Starter"
 
 # ops.review_check columns (ADR-0018 decision 11, as amended by ADR-0008 d8/d9).
 FILING_COLUMNS = ["check_name", "table_name", "row_key", "detail", "run_id",
@@ -179,6 +183,52 @@ def contract_errors(rows: pd.DataFrame, contracts: pd.DataFrame) -> list[str]:
     return [f"contract_id not in dim_contract: {unknown}"] if unknown else []
 
 
+def unit_sum_errors(scoring: pd.DataFrame) -> list[str]:
+    """Every Period Scoring row's three Units sum to its fpts (ADR-0016
+    amendment decision 1)."""
+    off = (scoring[UNIT_COLUMNS].sum(axis=1) - scoring["fpts"]).abs() > POINTS_TOLERANCE
+    return [f"{int(off.sum())} rows whose Units do not sum to fpts"] if off.any() else []
+
+
+def starter_slot_errors(scoring: pd.DataFrame, state: pd.DataFrame) -> list[str]:
+    """Every Period Scoring row is on that period's Roster State, and its
+    is_starter is true exactly when its Roster Slot is Starter (#118)."""
+    key = ["season_id", "period", "team_key", "scorer_id"]
+    m = scoring.merge(state[key + ["roster_slot"]], on=key, how="left")
+    off_roster = m["roster_slot"].isna()
+    wrong = ~off_roster & (m["is_starter"] != m["roster_slot"].eq(STARTER_SLOT))
+    errs = []
+    if off_roster.any():
+        errs.append(f"{int(off_roster.sum())} rows not on that period's fact_roster_state "
+                    f"(periods {sorted(set(m.loc[off_roster, 'period']))})")
+    if wrong.any():
+        errs.append(f"{int(wrong.sum())} rows whose is_starter disagrees with the Roster Slot "
+                    f"(periods {sorted(set(m.loc[wrong, 'period']))})")
+    return errs
+
+
+def mirror_errors(matchup: pd.DataFrame) -> list[str]:
+    """Every matchup row has its mirror: the opponent's row for the same
+    period, naming this team, on the other side, with the two scores swapped.
+    With the grain Gate that puts each team in one matchup per period."""
+    key = ["season_id", "period"]
+    m = matchup.merge(matchup, left_on=key + ["opponent_team_key"], right_on=key + ["team_key"],
+                      how="left", suffixes=("", "_opp"))
+    alone = m["team_key_opp"].isna()
+    wrong = ~alone & ((m["opponent_team_key_opp"] != m["team_key"])
+                      | (m["is_home_opp"] == m["is_home"])
+                      | ((m["fpts_for"] - m["fpts_against_opp"]).abs() > POINTS_TOLERANCE)
+                      | ((m["fpts_against"] - m["fpts_for_opp"]).abs() > POINTS_TOLERANCE))
+    errs = []
+    if alone.any():
+        errs.append(f"{int(alone.sum())} rows whose opponent has no row that period "
+                    f"(periods {sorted(set(m.loc[alone, 'period']))})")
+    if wrong.any():
+        errs.append(f"{int(wrong.sum())} rows that do not mirror their opponent's row "
+                    f"(periods {sorted(set(m.loc[wrong, 'period']))})")
+    return errs
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -199,6 +249,13 @@ DOMAIN_CHECKS = [
     DomainCheck("contract", "gate", "fact_roster_state",
                 lambda load: contract_errors(load("fact_roster_state"),
                                              load("dim_contract"))),
+    DomainCheck("unit_sum", "gate", "fact_period_scoring",
+                lambda load: unit_sum_errors(load("fact_period_scoring"))),
+    DomainCheck("starter_slot", "gate", "fact_period_scoring",
+                lambda load: starter_slot_errors(load("fact_period_scoring"),
+                                                 load("fact_roster_state"))),
+    DomainCheck("mirror", "gate", "fact_matchup",
+                lambda load: mirror_errors(load("fact_matchup"))),
 ]
 
 

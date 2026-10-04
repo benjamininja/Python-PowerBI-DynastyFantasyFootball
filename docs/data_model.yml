@@ -605,6 +605,79 @@ tables:
       salary), 02e (roster_status, from the newest period) and 04e (who is
       rostered).
 
+  - name: fact_period_scoring
+    type: fact
+    grain: "(season_id, period, team_key, scorer_id)"
+    chain: fantrax_core
+    required_keys: [season_id, period, team_key, scorer_id, is_starter, fpts, fpts_offense, fpts_defense, fpts_special_teams, capture_date]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: period, dtype: int64 }
+      - { name: team_key, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: is_starter, dtype: bool }
+      - { name: fpts, dtype: float64 }
+      - { name: fpts_offense, dtype: float64 }
+      - { name: fpts_defense, dtype: float64 }
+      - { name: fpts_special_teams, dtype: float64 }
+      - { name: capture_date, dtype: "datetime64[us]" }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_scoring_period, via: direct, on: "season_id, period" }
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: fact_roster_state, via: direct, on: "season_id, period, team_key, scorer_id" }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      Period Scoring: the fantasy points of each rostered player in each
+      regular-season Scoring Period, per team, split by Unit (04s, from the
+      logged-in getLiveScoringStats with the bench view; ADR-0016 amendment
+      decisions 1 and 5, ADR-0017 decision 2). One row per player with a
+      live-scoring entry; a rostered player with no entry gets no row (no
+      zero-fill). fpts is the player's total as Fantrax serves it. The three
+      Unit columns are his stats' points summed by Unit: a stat's group is
+      Offense or Defense, and the return-yards and blocked-kick categories
+      are Special Teams in either group. is_starter is true when Fantrax
+      lists the player under ACTIVE; only Starters count toward the Team
+      Score. A period loads once its games are final (allEventsFinished),
+      even while its Update-Set is still open, and is replaced whole on
+      every run until it is closed. capture_date is the Eastern day the raw
+      capture was written. The load fails unless every team's Starter points
+      sum to the totalFpts Fantrax serves. Gates: the Units sum to fpts
+      (0.01); every row is on that period's fact_roster_state, with
+      is_starter true exactly when its Roster Slot is Starter.
+
+  - name: fact_matchup
+    type: fact
+    grain: "(season_id, period, team_key)"
+    chain: fantrax_core
+    required_keys: [season_id, period, team_key, opponent_team_key, is_home, fpts_for, fpts_against, capture_date]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: period, dtype: int64 }
+      - { name: team_key, dtype: str }
+      - { name: opponent_team_key, dtype: str }
+      - { name: is_home, dtype: bool }
+      - { name: fpts_for, dtype: float64 }
+      - { name: fpts_against, dtype: float64 }
+      - { name: capture_date, dtype: "datetime64[us]" }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_scoring_period, via: direct, on: "season_id, period" }
+      - { to: dim_fantasy_teams, via: direct, on: "team_key, opponent_team_key -> team_key" }
+    notes: >
+      Matchups: one row per team per regular-season Scoring Period, so each
+      matchup is two mirrored rows (04s, from the logged-in getStandings
+      view=SCHEDULE; ADR-0016 amendment decision 9). fpts_for and
+      fpts_against are the two Team Scores as the schedule shows them; win,
+      loss or tie is derived from them, not stored. is_home is the side the
+      schedule lists the team on. Holds loaded periods only: a period loads
+      with its Period Scoring, once its games are final, and is replaced
+      whole on every run until it is closed. The future schedule is not
+      stored. The load fails unless the week's matchups hold every team
+      once. Gate: every row mirrors its opponent's row (sides and scores
+      swapped).
+
   - name: fact_preseason_salary
     type: fact
     grain: "(season_id, team_key, scorer_id)"

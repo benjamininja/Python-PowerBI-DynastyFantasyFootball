@@ -12,11 +12,15 @@
          {
           "teamId": "brkcyuhbmmyzna5f"
          },
-         {},
+         {
+          "content": "259.1"
+         },
          {
           "teamId": "b3l7iznmmoboq9lg"
          },
-         {}
+         {
+          "content": "294.4"
+         }
         ]
        },
        {
@@ -24,11 +28,15 @@
          {
           "teamId": "s5bodsc1mn6pjqtc"
          },
-         {},
+         {
+          "content": "227.18"
+         },
          {
           "teamId": "66ao8djmmn0kdqp0"
          },
-         {}
+         {
+          "content": "215.83"
+         }
         ]
        }
       ]
@@ -42,11 +50,15 @@
          {
           "teamId": "b3l7iznmmoboq9lg"
          },
-         {},
+         {
+          "content": "225.3"
+         },
          {
           "teamId": "s5bodsc1mn6pjqtc"
          },
-         {}
+         {
+          "content": "197.5"
+         }
         ]
        },
        {
@@ -54,11 +66,15 @@
          {
           "teamId": "brkcyuhbmmyzna5f"
          },
-         {},
+         {
+          "content": "240.25"
+         },
          {
           "teamId": "6nhnbkuqmmwi166w"
          },
-         {}
+         {
+          "content": "208.89"
+         }
         ]
        }
       ]

@@ -112,7 +112,7 @@ plan-gated code change.
   #76 provision (HITL) · #77 build seam (task, ←110) · #108 migrations
   (←76,109,110) · #109 pick legs · #110 grain fixes · #111 orphans (←108).
 - **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 ✅ (ADR-0016
-  amendment) · #117 ✅ Roster State build (PRs #127–#129) · **#118** Scoring build (←117; planned 2026-10-04, PR 1 of 3 built)
+  amendment) · #117 ✅ Roster State build (PRs #127–#129) · **#118** Scoring build (←117; PR 1 of 3 ✅ PR #131; PR 2 open)
   · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   ✅ (ADR-0008 amendment) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
   (←92,77,75,76,115,117; now also 04t orchestration + poll-writes-snapshot) ·
@@ -500,9 +500,9 @@ roster parser and its fixture are gone.
     notes on #97, #118 and #93; a Resolution on #117; and new grilling
     issue **#130** (the claim default, ADR-0019 decision 6), labelled
     `wayfinder:grilling` and linked as a sub-issue of map #70.
-- This file and `PLAN.md` were left uncommitted after the merge and ride
-  with #118 PR 1 (now in the working tree of `feat/118-capture`).
-  `.agents/` and `GEMINI.md` are untracked and not ours.
+- This file and `PLAN.md` were left uncommitted after the merge and rode
+  with #118 PR 1 (PR #131). `.agents/` and `GEMINI.md` are untracked and
+  not ours.
 - Scratchpad (session `2a09ea7e…`, may not survive): `post117_*.md` (the
   five post texts), `pr3_edit_*.py`, `pr3_verify.py`, `pr3_rerun_cmp.py`,
   `pr3_ceiling_cmp.py`, table copies `main117/`, `baseline117/`, `new117/`,
@@ -561,8 +561,8 @@ the block after this one).
   loaded periods only; no re-open command until #93's `--reclose`; no
   Power BI or bot changes; decision 11's Review check waits for #97.
 
-**#118 PR 1 BUILT 2026-10-04 on branch `feat/118-capture`; not committed
-yet** (commit and PR only when the owner asks). No table changed.
+**#118 PR 1 DONE 2026-10-04 — merged as PR #131 (`6280c2e`), branch
+deleted.** "Part of #118"; the issue stays open. No table changed.
 - `notebooks/04s_fantrax_inseason_capture.py`:
   - `period_requests(n)` (pure): raw-file key → `(method, data, ref)`.
     `live_scoring` sends `playerViewType: "2"`; `standings` is today's
@@ -599,16 +599,94 @@ yet** (commit and PR only when the owner asks). No table changed.
   `YEAR_TO_DATE/…` means the key was ignored and the probe is inconclusive,
   not negative.
 
-**NEXT: commit and PR for PR 1 when the owner asks** ("Part of #118"), then
-the owner's capture from `main`:
-`.\run.ps1 notebooks\04s_fantrax_inseason_capture.py --periods 1-5`
-(period 5 has not started; it is asked once on purpose, and may end as a
-`[fail]` line with exit 1: that line is the answer). **Then PR 2** (branch
-`feat/118-period-scoring`), in its own window. It opens with a counts-only
-read of the capture: `BENCH` present, the probe echoes and whether the
-by-period tables differ per period, the future-period reply.
-- The 2026-09-26 raw files have no `captured_at`; the owner's capture
-  overwrites p01–p03. PR 2's loader should fail on a file without the stamp.
+**The owner's capture, 2026-10-04 22:59 UTC (`04s --periods 1-5`, from
+`main`), read with counts-only scripts (`pr2s_capture.py`,
+`pr2s_standings.py`, `pr2s_shapes.py` in the scratchpad):**
+- **Bench view works.** `ACTIVE` / `BENCH` entries: 420 / 634, 419 / 663,
+  420 / 670, 371 / 588 (period 4, in progress), 0 / 0 (period 5). `BENCH`
+  holds Bench, IR and Minors. No entry is off that period's Roster State; no
+  player is in both groups. Rostered players with no entry: 15 / 10 / 9
+  (never a Starter).
+- Periods 1–3 are final (`allEventsFinished`); 4 and 5 are not.
+- **A future period does not fail.** Period 5 returns 28 teams with no
+  entries, `allEventsFinished: false`, no `pageError`.
+- Periods 1–3: `ACTIVE` = Roster State Starters for 28 of 28 teams; Starter
+  sum = `totalFpts` = schedule FPts for 28 of 28; `sum(object2.fpts) =
+  object1` on every entry. Points carry at most 2 decimals.
+- **Standings probe: Fantrax took the selection** (echo
+  `BY_PERIOD/FROM_SEASON_START/N` and `BY_PERIOD/PERIOD_ONLY/N`).
+  - `FROM_SEASON_START` serves a real past period: W+L+T = N, and W, FPtsF
+    and FPtsA equal the schedule through week N for 28 of 28 teams (periods
+    1–3). Rank differs by period. For a period in progress or not started it
+    equals the latest final period (4 and 5 = 3 games).
+  - `PERIOD_ONLY` is one period's results alone (1 game; 0 for periods 4, 5).
+  - The plain `COMBINED` reply is identical for all five periods.
+  - **`Salary Remaining` (`SR`) is identical in every reply and period:
+    current only. `% Playoffs` is blank in both by-period replies, and
+    filled for 14 of 28 teams in the plain one: current only.**
+  - Column keys: `win`, `loss`, `tie`, `winpc`, `div`, `gamesback`,
+    `salaryRem`, `pointsFor`, `pointsAgainst`, `streak`, `playoffOdds`.
+  - So `rank` has history; `playoff_odds` and `salary_remaining` do not.
+    **That is the open decision for the short grill before PR 3.**
+- Schedule rows are 4 cells: away team (`teamId` + name), away score, home
+  team, home score. An unplayed week's score is `"0"`.
+
+**#118 PR 2 BUILT 2026-10-04 on branch `feat/118-period-scoring`; the
+owner approved it and the PR is open. Merge only when the owner asks.**
+"Part of #118".
+- `notebooks/04s_fantrax_inseason_capture.py`: `is_final`, `unit_of`,
+  `periods_to_load(periods, now)`, `scoring_to_frame`, `matchups_to_frame`,
+  `read_raw(suffix)` → `(body, league day)`, `parse_raw(periods, teams,
+  season_id)` → `(scoring, matchups, periods not final)`, `load(...)`,
+  `main(argv)`. New flag `--from-raw`. `capture(periods)` now always gets a
+  list; the default list is `periods_to_load` (was: schedule weeks whose
+  start ≤ today).
+- Tables (both `fantrax_core`, replace-by-`(season_id, period)`):
+  - `fact_period_scoring`: `season_id, period, team_key, scorer_id,
+    is_starter, fpts, fpts_offense, fpts_defense, fpts_special_teams,
+    capture_date`. 3,226 rows (1,054 / 1,082 / 1,090), 1,259 Starters.
+  - `fact_matchup`: `season_id, period, team_key, opponent_team_key,
+    is_home, fpts_for, fpts_against, capture_date`. 84 rows.
+- Gates in `etl_checks.py`: `unit_sum`, `starter_slot`
+  (`fact_period_scoring`), `mirror` (`fact_matchup`).
+- Fixtures: `live_scoring.json` (new; the two teams of the schedule
+  fixture's first matchup, every Starter, 3 non-starters each, zero-point
+  stats dropped), `schedule.json` (score cells kept, team-name `content`
+  dropped). `make_fixtures.py`: a `SOURCES` entry may name several raw files
+  (the trimmer gets one argument per file).
+- Tests: `tests/test_04s_scoring.py` (new), `TestLiveScoring` and
+  `TestMatchups` in `test_fantrax_parsers.py`, `TestScoringChecks` in
+  `test_etl_checks.py`, `test_schedule_holds_no_team_names`. `pytest tests/`
+  442 pass.
+- **My choices inside the plan (to report to the owner):**
+  - The season comes from a public `getLeagueInfo` call, as in `04r`, also
+    with `--from-raw` (no login, no browser). It must equal `04a`'s
+    `snapshot_season`, which names the raw files, or the run raises.
+  - A Unit's sum is rounded to the cent. Fantrax serves points to the cent,
+    so no served value changes; it only drops float-addition noise. `fpts`
+    is stored as served.
+  - A due period with no raw file, a file with no `captured_at`, or a file
+    holding another period raises and writes nothing.
+  - `--periods` captures whatever is asked, but a period that has not
+    started, is closed, or is a playoff period is never loaded.
+  - A reply with no `BENCH` group raises (a capture without the bench view).
+  - The matchup-to-scoring cross-check (`fpts_for` = Starter sum) is not a
+    load check; it is PR 3's Close check. Verified by hand: 28 of 28 in
+    periods 1–3.
+- Verified: both tables against the raw capture, Roster State and each
+  other (`pr2s_verify.py`); a second `--from-raw` run is byte-identical;
+  period 4 writes no rows; `check_data_model.py` (31 tables) and `--check`;
+  `check_sources.py` (16 sources) and `--check`; `--check-only` 161 checks,
+  0 Gate failures, the same 3 Review findings.
+- **Churn to expect:** like `fact_roster_state`, a loaded period is
+  rewritten on every run until it is `closed`, so `capture_date` moves.
+
+**NEXT: the owner's go to merge PR 2.** After the merge:
+a **short grill window before PR 3** on `fact_standings` (`rank` has
+history through the by-period reply; `playoff_odds` and `salary_remaining`
+are current-only, and `% Playoffs` shows for 14 of 28 teams). **Then PR 3**
+(`feat/118-close`): standings per the grill, `close_errors`, `04p` closes a
+period, the coverage Gate, the `04s_scoring` pipeline step. PR 3 closes #118.
 - No Fantrax login by an agent: the capture is the owner's to run. I build
   and verify with `--from-raw` and counts-only scripts.
 - The three owner calls the #125 audit left open are settled by #117 (the
