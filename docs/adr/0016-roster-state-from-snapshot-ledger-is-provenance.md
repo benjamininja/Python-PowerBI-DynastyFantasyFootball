@@ -65,7 +65,7 @@
 ## Amendment 2026-10-03: in-season fact model (#81)
 
 - Amends decisions 1 (the Period Scoring grain), 4 (where current and per-period Roster State live) and 8 (`fact_fantasy_teams`).
-- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3's table is loaded but not yet read, and `fact_roster_placement` is not yet retired (#117's second PR); the rest are not yet.
+- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3 is built and `fact_roster_placement` is retired (#117's last PR); the rest are not yet.
 - Scope:
   - new tables `dim_scoring_period`, `fact_roster_state`, `fact_period_scoring`, `fact_matchup`, `fact_standings`
   - `dim_division` (its source moves to Fantrax) and `fact_fantasy_teams.roster_status`
@@ -101,9 +101,20 @@
    - Columns: `roster_slot` (Starter / Bench / IR / Minors), `salary`, `contract_id`.
    - One Roster State per regular-season Scoring Period (1–12).
    - It **retires `fact_roster_placement`**. `02d` reads it for asset minting and for the contract at the time of a move ([ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md) decision 6). `04v` keeps only `fact_minor_eligibility`.
-   - *Table built in #117 (`04r_fantrax_roster_state.py`), with one more column: `capture_date`, the day on the league's Eastern clock the period was last read. A period that has ended shows its final roster; the period in play shows the roster on that day, so a reader takes a period's day as the earlier of its `end_date` and its `capture_date` (owner's decision, 2026-10-03). Each run re-reads every period that has started and is not `closed`, and replaces it whole. Fantrax answers a request for a future period with the current roster under the future number, so a period is read only when the calendar and Fantrax both say it has started.*
+   - *Table built in #117 (`04r_fantrax_roster_state.py`), with one more column: `capture_date`, the day on the league's Eastern clock the period was last read. (Two 2026-10-03 statements are replaced by the 2026-10-04 notes below: that a period that has ended shows its final roster, and that a reader takes a period's day as the earlier of its `end_date` and its `capture_date`.) Each run re-reads every period that has started and is not `closed`, and replaces it whole. Fantrax answers a request for a future period with the current roster under the future number, so a period is read only when the calendar and Fantrax both say it has started.*
    - *The preseason salaries are kept (owner's decision, 2026-10-03): `fact_preseason_salary`, keyed `(season_id, team_key, scorer_id)`, holds `salary` and `capture_date` from the one preseason capture, copied once from `fact_roster_placement`. Without it a draft pick or a claim that left its team before period 1 would lose its observed salary. It is frozen, has no writer, and is never read for a contract.*
-   - *Not yet done: the retirement itself. `02d`, `02e` and `04e` still read `fact_roster_placement`; #117's last PR moves them.*
+   - *Retired 2026-10-04 (#117's last PR). `02d`, `02e` and `04e` read `fact_roster_state`; `04v` writes `fact_minor_eligibility` only; the parquet, its registry entry and its coverage Gate are gone.*
+   - *A period's roster is the roster at that period's lineup lock (measured 2026-10-04 on the first in-season transaction history). A past period does not show its final roster: of 54 in-season claims, the 49 made from Tuesday on are missing from the roster of the period they were made in, and 21 of 23 dropped copies still show on it. Fantrax stamps every Roster Move with the Scoring Period it takes effect in (the `week` cell of the transaction history). Replaying the draft and every move by that stamp reproduces periods 1–4 of `fact_roster_state` row for row.*
+   - *So a move reads Roster State by the period it takes effect in, not by day (owner's decision, 2026-10-04, replacing the `end_date` rule):*
+     - *A draft pick (period 1) and a claim start a stint and read the first Roster State inside it: move period ≤ p < the period the copy next leaves that team in.*
+     - *A trade and a drop read the latest Roster State inside the stint, before the move takes effect: stint-start period ≤ p < move period.*
+     - *A stint-starting move reads a Roster State only when it was captured after the move day. The period in play keeps changing until its lock, and a capture dated the move day may predate the move.*
+     - *A move of another season reads none and takes its default, and a departure of another season does not bound a stint by its period number.*
+     - *A move of the rosters' season with no readable period fails the step, and the Chain holds (owner's decision, 2026-10-04). It cannot be placed in a stint, and its neighbours would read another stint's row.*
+     - *A trade or a drop of a copy the ledger never saw join the team has no terms to inherit. It takes its salary, as well as its contract, off the Roster State row it reads (owner's decision, 2026-10-04).*
+     - *`fact_preseason_salary` belongs to no period and stays day-based: move day < capture day < the day the copy next left the team.*
+   - *`02e` stamps `roster_status` from the newest period, mapped back to the values the column has always carried (Starter → `Active`, Bench → `Reserve`, IR → `Inj Res`, Minors → `Minors`) until #110 renames it (owner's decision, 2026-10-03). `04r` reads regular-season periods only, so the stamp stops moving after the last one.*
+   - *`salary` is rounded to the cent: the public API serves some whole-dollar salaries a float hair off.*
 4. **The current Roster State is `fact_fantasy_teams`, all year** (decision 8).
    - The Change Poll and the daily run refresh it through the playoffs and the off-season.
    - While a regular-season period is open, its `fact_roster_state` rows mirror the current state. They freeze with the Update-Set.

@@ -140,7 +140,8 @@ dead-money-only, never applied to an active player) — `capmath` and `02e`
 had been multiplying by it, a 2x understatement flagged by the
 `cap-ledger-auditor` gate before merge. Same session added
 `Fact_FantasyTeams.RosterStatus` (Active/Reserve/Minors, stamped by `02e`
-from the weekly `fact_roster_placement` snapshot) and gated `'Active Roster
+from the weekly `fact_roster_placement` snapshot; since #117, 2026-10-04,
+from the newest Scoring Period in `fact_roster_state`) and gated `'Active Roster
 Salary'`/`'Remaining Salary Cap'` on `RosterStatus <> "Minors"` — cap
 exemption follows Minors **squad placement**, not the Minor **contract
 type**; the two are independent levers (see project-fantasy-football.md).

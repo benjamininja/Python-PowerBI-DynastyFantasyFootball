@@ -136,10 +136,6 @@ class TestCoverage:
         roster = pd.DataFrame({"team_key": [*_teams()["team_key"], "ZZ"]})
         assert any("not in dim_fantasy_teams" in e for e in ec.coverage_errors(roster, _teams()))
 
-    def test_latest_partition(self):
-        df = pd.DataFrame({"capture_date": ["2026-07-01", "2026-07-08", "2026-07-08"]})
-        assert len(ec.latest_partition(df)) == 2
-
 
 def _roster_state(periods=(("2026-2027", 1), ("2026-2027", 2)), contract="1st"):
     """One player per team in each (season_id, period)."""

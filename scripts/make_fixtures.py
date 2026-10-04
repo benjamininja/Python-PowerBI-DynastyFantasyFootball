@@ -11,7 +11,7 @@ pruned (prune(f) == f), so a hand edit can't sneak a field back in.
 Regenerate when Fantrax changes shape (a deliberate PR — the fixture diff
 shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py            # all fixtures
-    .\\run.ps1 scripts\\make_fixtures.py roster_info.json
+    .\\run.ps1 scripts\\make_fixtures.py public_rosters.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
 To cover a new parser (#118 live scoring + standings): add an ALLOWLIST spec,
@@ -77,17 +77,6 @@ ALLOWLIST: dict[str, object] = {
         "caption": KEEP, "subCaption": KEEP,
         "rows": [{"cells": _cells("teamId")}],
     }]}}]},
-    # 04v rosters_to_frame: {teamId: getTeamRosterInfo} from 04s's p01 capture.
-    "roster_info.json": {ANY: {"responses": [{"data": {"tables": [{
-        "statusTotals": [{"id": KEEP, "name": KEEP}],
-        "header": {"cells": _cells("shortName")},
-        "rows": [{
-            "statusId": KEEP,
-            "scorer": {k: KEEP for k in ("scorerId", "name", "posShortNames",
-                                         "minorsEligible")},
-            "cells": _cells("content"),
-        }],
-    }]}}]}},
     # 02d parse_draft_results / build_draft_picks: one Division's getDraftResults.
     "draft_results.json": {"responses": [{"data": {"draftPicksOrdered": [{k: KEEP for k in (
         "divisionId", "round", "pickNumber", "teamId", "scorerId", "modifiedDate")}]}}]},
@@ -209,51 +198,6 @@ def trim_schedule(raw: dict) -> dict:
     return {"responses": [{"data": {"tableList": tables}}]}
 
 
-ROSTER_SECTIONS = {"1", "2", "3", "9"}    # Active, Reserve, IR, Minors
-
-
-def _roster_rows(raw: dict) -> list[dict]:
-    return [r for t in _data(raw).get("tables", []) for r in t.get("rows", [])]
-
-
-def _covers(raw: dict) -> bool:
-    rows = [r for r in _roster_rows(raw) if r.get("scorer")]
-    return (ROSTER_SECTIONS <= {str(r.get("statusId")) for r in rows}
-            and any(r["scorer"].get("minorsEligible") for r in rows))
-
-
-def _trim_table(tbl: dict) -> dict:
-    """Up to two players per section, one empty slot, and a minorsEligible row."""
-    keep, per_section = set(), {}
-    for i, r in enumerate(tbl.get("rows", [])):
-        if not r.get("scorer"):
-            if "empty" not in per_section:
-                per_section["empty"] = 1
-                keep.add(i)
-            continue
-        s = str(r.get("statusId"))
-        if per_section.get(s, 0) < 2:
-            per_section[s] = per_section.get(s, 0) + 1
-            keep.add(i)
-    rows = tbl.get("rows", [])
-    if rows and not any((rows[i].get("scorer") or {}).get("minorsEligible") for i in keep):
-        keep |= {next((i for i, r in enumerate(rows)
-                       if (r.get("scorer") or {}).get("minorsEligible")), 0)}
-    return {**tbl, "rows": [r for i, r in enumerate(rows) if i in keep]}
-
-
-def trim_rosters(p01: dict) -> dict:
-    """Two teams whose rosters cover Active, Reserve, IR and Minors rows plus
-    a minorsEligible player."""
-    rosters = p01["rosters"]
-    picked = [tid for tid in sorted(rosters) if _covers(rosters[tid])][:2]
-    if len(picked) < 2:
-        raise ValueError("fewer than two teams cover every roster section")
-    return {tid: {"responses": [{"data": {
-        "tables": [_trim_table(t) for t in _data(rosters[tid]).get("tables", [])]}}]}
-        for tid in picked}
-
-
 DRAFT_FIXTURE_ROUNDS = 2
 
 
@@ -328,7 +272,6 @@ SOURCES = {
     "league_info.json": ("fantrax_public_leagueinfo.json", trim_league_info),
     "public_rosters.json": ("fantrax_public_rosters_2026_p01.json", trim_public_rosters),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
-    "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
     "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),
     "txn_history.json": ("fantrax_txn_history_2026.json", trim_txn_history),
 }

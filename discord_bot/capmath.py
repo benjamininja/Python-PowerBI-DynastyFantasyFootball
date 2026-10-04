@@ -37,11 +37,11 @@ def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
     cap_hit is needed.
 
     Minors-squad placement is CAP-EXEMPT (roster_status == "Minors", stamped by
-    02e from the latest fact_roster_placement snapshot): those rows keep their
-    contract_value but get cap_hit 0 and cap_exempt True. Placement is the ONLY
-    exemption lever -- a Minor-CONTRACT player kept on the active roster is
-    charged in full. A null/absent roster_status charges normally — the safe
-    default."""
+    02e from the newest Scoring Period in fact_roster_state): those rows keep
+    their contract_value but get cap_hit 0 and cap_exempt True. Placement is
+    the ONLY exemption lever -- a Minor-CONTRACT player kept on the active
+    roster is charged in full. A null/absent roster_status charges normally —
+    the safe default."""
     roster = fetch_parquet(_ROSTER_PATH, cfg)
     if roster.empty:
         return roster

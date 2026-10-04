@@ -51,14 +51,13 @@ sources:
     match: ["getPlayerStats"]
 
   - id: fantrax_minor_contracts
-    name: "Fantrax — getPlayerStats (MINOR_FANTASY filters) + getTeamRosterInfo"
+    name: "Fantrax — getPlayerStats (MINOR_FANTASY filters)"
     status: live
-    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN; getTeamRosterInfo per team)"
-    purpose: "Minors system inputs (read-only): site's minors-eligibility verdict (GP<=19) + per-team squad placement (Active/Reserve/Minors). Placement drives roster_status and the cap exemption (ADR-0011). The roster rows also carry each player's contract, which 02d reads; `Minor` is the stage before `1st` (ADR-0019)"
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN)"
+    purpose: "Minors eligibility (read-only): the site's own verdict on who is minors-eligible (GP<=19). 02d reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from the public getTeamRosters entry below, not from here"
     auth: "Same Fantrax session as the Players-grid source (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
     cadence: "Weekly (Windows Task Scheduler, after 04a)"
     feeds:
-      - { notebook: 04v_minor_contracts.py, table: fact_roster_placement }
       - { notebook: 04v_minor_contracts.py, table: fact_minor_eligibility }
     # 04v reuses 04a's CFG, so the league id never appears in its source —
     # match on the filter enum that defines this feed instead.
@@ -96,15 +95,15 @@ sources:
     match: ["getTransactionDetailsHistory"]
 
   - id: fantrax_public_fxea
-    name: "Fantrax — public fxea API (getDraftPicks + getTeamRosters)"
+    name: "Fantrax — public fxea API (getDraftPicks)"
     status: live
-    locator: "https://www.fantrax.com/fxea/general/{getDraftPicks,getTeamRosters}?leagueId=v744203wmmvjqzv6"
-    purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades). 04u's own getTeamRosters call is a print-only reconciliation check against fact_roster_placement — never written (fact_fantasy_teams stays ledger-replay-only, ADR-0003). The stored per-period Roster State is 04r's (the getTeamRosters entry below)"
+    locator: "https://www.fantrax.com/fxea/general/getDraftPicks?leagueId=v744203wmmvjqzv6"
+    purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades)"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
     cadence: "Manual run (not in run_pipeline.py)"
     feeds:
       - { notebook: 04u_fantrax_public_api.py, table: fact_draft_pick_future }
-    match: ["fxea/general"]
+    match: ["getDraftPicks"]
 
   - id: fantrax_public_league_info
     name: "Fantrax — public fxea API (getLeagueInfo)"
@@ -122,7 +121,7 @@ sources:
     name: "Fantrax — public fxea API (getTeamRosters per period)"
     status: live
     locator: "https://www.fantrax.com/fxea/general/getTeamRosters?leagueId=v744203wmmvjqzv6&period=N"
-    purpose: "The Roster State of each regular-season Scoring Period: every player copy's Roster Slot (`status`), salary and contract, per team (ADR-0016 decision 3 and its amendment). A call with no period returns the current one and echoes its number. A past period returns its real roster; a FUTURE period returns the current roster under the future number, so 04r never asks past the current period. One call per period that has started and is not closed. The season comes from a getLeagueInfo call, so a league id carried into a new season cannot write under the old one"
+    purpose: "The Roster State of each regular-season Scoring Period: every player copy's Roster Slot (`status`), salary and contract, per team (ADR-0016 decision 3 and its amendment). A call with no period returns the current one and echoes its number. A past period returns its roster as it stood at that period's lineup lock; a FUTURE period returns the current roster under the future number, so 04r never asks past the current period. One call per period that has started and is not closed. The season comes from a getLeagueInfo call, so a league id carried into a new season cannot write under the old one"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
     cadence: "Every pipeline run, all phases (`04r_roster_state` step, fantrax_core Chain); nothing is read before Scoring Period 1 starts"
     feeds:

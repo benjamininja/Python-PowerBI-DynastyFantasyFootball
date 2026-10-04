@@ -160,6 +160,10 @@ class TestRostersToState:
         df = state({"fa": [item(salary=2500000.5)], "fb": [item(salary=3000000)]})
         assert df["salary"].tolist() == [2500000.5, 3000000.0]
 
+    def test_float_noise_on_a_whole_dollar_salary_is_rounded_off(self):
+        df = state({"fa": [item(salary=14266999.999999998)], "fb": [item(salary=3000000)]})
+        assert df["salary"].tolist() == [14267000.0, 3000000.0]
+
     @pytest.mark.parametrize("bad, message", [
         (item(status="TAXI"), "unknown roster status 'TAXI'"),
         (item(contract="7th"), "contract '7th' is not in dim_contract"),

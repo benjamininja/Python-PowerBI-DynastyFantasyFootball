@@ -512,24 +512,25 @@ tables:
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
       contract_id is observed, never derived (ADR-0019 decision 6): 02d reads
-      it off the latest in-season fact_roster_placement snapshot that shows
-      the copy on the move's team, captured before the move day and no
-      earlier than the day the copy joined that team. With no such snapshot
-      (always the case for a draft pick and a claim) it defaults to `Minor`
-      for a player listed in the fact_minor_eligibility capture on either
-      side of the move, else the contract the copy already held, else `1st`
-      (draft) or `FA` (claim). The preseason snapshot is not read for a
-      contract. contract_year follows dim_contract, so it is null on a
-      `Minor` row.
-      contract_value on a draft pick or a claim is the salary on the first
-      fact_roster_placement snapshot inside the stint the move starts:
-      captured after the move day and before the copy next left that team.
-      For a salary the preseason snapshot is read. With no such snapshot a draft
-      pick takes the fact_fantrax_adp salary of the draft's own season (the
-      latest capture on or before the pick day, else the earliest after
-      it), and a claim takes the salary the copy held this season in this
-      Conference, else the league minimum. A trade and a drop carry the
-      copy's salary (#125).
+      it off fact_roster_state, by the Scoring Period Fantrax says the move
+      takes effect in. A draft pick (period 1) and a claim read the first
+      Roster State inside the stint they start: from the move's period up to
+      the period the copy next leaves that team in. A trade and a drop read
+      the latest one inside the stint, before the move's period. With no such
+      row the contract defaults to `Minor` for a player listed in the
+      fact_minor_eligibility capture on either side of the move, else the
+      contract the copy already held, else `1st` (draft) or `FA` (claim).
+      contract_year follows dim_contract, so it is null on a `Minor` row.
+      contract_value on a draft pick or a claim is the salary on the
+      fact_preseason_salary capture when it was taken inside the stint the
+      move starts (after the move day, before the copy next left that team),
+      else the salary on that first Roster State. With neither, a draft pick
+      takes the fact_fantrax_adp salary of the draft's own season (the latest
+      capture on or before the pick day, else the earliest after it, never
+      below the league minimum; the league minimum when the season has no
+      capture), and a claim takes the salary the copy held this season in
+      this Conference, else the league minimum. A trade and a drop carry the
+      copy's salary (#125, #117).
       cap_hit is read by nothing (#97 replaces it).
 
   - name: fact_trade_log
@@ -590,15 +591,19 @@ tables:
       IR | Minors (Fantrax ACTIVE | RESERVE | INJURED_RESERVE | MINORS).
       salary and contract_id are what Fantrax shows on the roster row.
       capture_date is the day, on the league's Eastern clock, the period was
-      last read: a period that has ended shows its final roster, the period
-      in play shows the roster on that day. A run reads every period that
+      last read; a period moves until its lineup lock and is frozen after.
+      A run reads every period that
       has started and is not closed, up to the period Fantrax calls current,
       and replaces each one whole. Fantrax answers a request for a future
       period with the current roster, so no period is read before the
       calendar and Fantrax both say it has started. Gates: all 28 teams (14
       per Conference) in the newest period, and every contract_id in
-      dim_contract. Nothing reads this table yet: 02d, 02e and 04e move to it
-      when fact_roster_placement is retired (#117).
+      dim_contract. salary is rounded to the cent (the API serves some
+      whole-dollar salaries a float hair off). A period's roster is the
+      roster at that period's lineup lock: it shows every move Fantrax stamps
+      for that period or earlier. Read by 02d (each move's contract and
+      salary), 02e (roster_status, from the newest period) and 04e (who is
+      rostered).
 
   - name: fact_preseason_salary
     type: fact
@@ -617,38 +622,12 @@ tables:
       - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
       Frozen. The salary of every player copy on a roster in the 2026-07-18
-      preseason capture, copied once from fact_roster_placement's preseason
-      snapshot (#117). It keeps the salary of a draft pick or a claim that
+      preseason capture, copied once from the retired fact_roster_placement
+      (#117). It keeps the salary of a draft pick or a claim that
       left its team before Scoring Period 1, which fact_roster_state cannot
       show. Salary only: the preseason capture is never read for a contract
       (ADR-0019 decision 6). No step writes it and it has no Chain; a later
       season's rows would arrive by PR.
-
-  - name: fact_roster_placement
-    type: fact
-    grain: "(team_id, scorer_id, season, week)"
-    chain: fantrax_core
-    required_keys: [scorer_id, team_key, week]
-    columns:
-      - { name: season, dtype: int64 }
-      - { name: week, dtype: str }
-      - { name: capture_date, dtype: str }
-      - { name: team_id, dtype: str }
-      - { name: team_key, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: roster_section, dtype: str }
-      - { name: salary, dtype: float64 }
-      - { name: contract, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: status_id, dtype: str }
-      - { name: minors_eligible, dtype: bool }
-    edges:
-      - { to: dim_fantasy_teams, via: direct, on: team_key }
-      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
-      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
 
   - name: fact_minor_eligibility
     type: fact

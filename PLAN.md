@@ -152,14 +152,29 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   (2026-10-03):** `04p` reads public
   `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
   exact bounds, Update-Set state `open` / `closing`) and `dim_division`
-  (same two rows, now from Fantrax); `01g` is in `archive/`. **PR 2 is PR #128
-  (opened 2026-10-04, branch `feat/117-roster-state`):** `04r` reads
+  (same two rows, now from Fantrax); `01g` is in `archive/`. **PR 2 ✅ merged as PR #128
+  (2026-10-04):** `04r` reads
   public `getTeamRosters?period=N` on every run and writes
   `fact_roster_state` (periods 1–4 today, 4,360 rows; Roster Slot, salary,
   contract, `capture_date`), with coverage and contract Gates;
   `fact_preseason_salary` (992 rows, frozen) keeps the preseason salaries.
-  Nothing reads either table yet. Next: PR 3, the `fact_roster_placement`
-  retirement, which waits for the owner's `04t` rerun
+  Nothing reads either table yet. **PR 3 in progress (2026-10-04, branch
+  `feat/117-retire-placement`):** the `fact_roster_placement` retirement.
+  `04t` was recaptured (history to 2026-10-01). Decision 1 was re-ruled
+  after its test: a move reads Roster State by the Scoring Period it takes
+  effect in (Fantrax's `week` stamp), not by day. `02d`, `02e`, the
+  registry and the docs are edited, and the rerun ledger and roster match
+  Roster State period 4 on all 1,100 copies. The test rework and the
+  `04v` / `04u` / `04e` retirement edits are reviewed, and the
+  `cap-ledger-auditor` found no wrong figure on today's data. Two more
+  owner rulings came out of the audit and are built: an in-season move with
+  no readable period fails the step, and a trade or drop with no ledger
+  terms is priced off the Roster State row it reads. `pytest tests/` 359
+  pass, bot suite 8 pass, registry and source checks pass, `--check-only`
+  0 Gate failures, a `02d` → `02e` rerun is byte-identical. `04e` is edited
+  but not rerun (`dim_position_ceiling` is unchanged). Open: the owner's
+  "commit and open the PR". Nothing is committed. Detail in
+  `.claude/memory/RESUME.md`
   → #118 (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76

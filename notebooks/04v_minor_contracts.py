@@ -1,23 +1,24 @@
 # %% [markdown]
-# # 04v_minor_contracts  (Playwright, weekly — Minors eligibility + roster placement)
+# # 04v_minor_contracts  (Playwright, weekly — Minors eligibility)
 #
-# **Purpose:** Weekly read-only snapshot of the two things the Minors system is
-# actually made of (ADR-0011): **eligibility** and **placement**.
+# **Purpose:** Weekly read-only snapshot of Minors **eligibility**. The Minors
+# system is made of two things (ADR-0011), eligibility and placement, and this
+# script captures the first only.
 #
 # - *Eligibility* — career+current regular-season GP <= 19, computed by Fantrax
 #   itself (league setting: "Career+Current regular season total GP <= 19", both
 #   Offense and Individual Defense). This script READS the site's verdict; it
 #   does not re-derive it.
-# - *Placement* — which squad section each roster copy sits in this week
-#   (Active / Reserve / Minors). Placement is the team's own lever and is what
-#   the cap exemption follows.
+# - *Placement* — the Roster Slot each roster copy sits in (Starter / Bench /
+#   IR / Minors). Placement is the team's own lever and is what the cap
+#   exemption follows. Not captured here: `04r` reads it from the public API
+#   into `fact_roster_state`, along with each copy's contract and salary.
 #
 # **`Minor` is a contract stage, and it is read, never derived (ADR-0019).** A
 # minors-eligible player holds `Minor`, the stage before `1st`; Fantrax moves
-# them to `1st` once they pass the games-played limit. This script records the
-# contract Fantrax shows on each roster row and never works one out. Placement
-# is a separate lever: eligibility permits a team to *place* a player in the
-# Minors squad, and only that placement is cap-exempt.
+# them to `1st` once they pass the games-played limit. This script never works
+# a contract out. Placement is a separate lever: eligibility permits a team to
+# *place* a player in the Minors squad, and only that placement is cap-exempt.
 #
 # An earlier design gave this script an eligibility-vs-contract diff, a
 # commissioner worklist and a write-side `--apply` path. All three were retired
@@ -26,33 +27,19 @@
 #
 # This script is therefore READ-ONLY and makes no write-side calls to Fantrax.
 #
-# **Three pulls per run (all via 04a's authenticated scraper):**
-# 1. Eligibility — `getPlayerStats` with `statusOrTeamFilter=
-#    MINOR_FANTASY_AVAILABLE|MINOR_FANTASY_TAKEN` (the players-page filter):
-#    Fantrax's own list of minors-eligible players, split FA vs rostered.
-# 2. Roster placement — `getTeamRosterInfo` per fantasy team: who sits in the
-#    Minors squad vs active roster vs IR this week (cap exemption follows
-#    placement, not contract type — team's choice, salary charged otherwise).
-# 3. (implicit in 2) the contract Fantrax shows on each roster row. `02d` reads
-#    it as that Roster Move's contract (ADR-0019 decision 6).
+# **One pull per run (via 04a's authenticated scraper):** `getPlayerStats` with
+# `statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|MINOR_FANTASY_TAKEN` (the
+# players-page filter): Fantrax's own list of minors-eligible players, split
+# FA vs rostered.
 #
 # **Outputs:**
 # - `data/raw/fantrax_minor_eligibility_{season}_wk{NN}.json` — raw filter pulls
-# - `data/raw/fantrax_rosters_{season}_wk{NN}.json` — raw per-team roster pulls
-# - `data/fact_roster_placement.parquet` — weekly placement snapshot,
-#   replace-by-(season, week). Deliberately NOT ledger events: stash/activate
-#   churn is not an acquisition (ADR-0003 scope).
-# - `data/fact_minor_eligibility.parquet` — weekly eligibility snapshot, for
-#   week-over-week history of the eligible population.
+# - `data/fact_minor_eligibility.parquet` — weekly eligibility snapshot,
+#   replace-by-(season, week), for week-over-week history of the eligible
+#   population. Every row of a run carries the same `capture_date`.
 #
-# **Load-bearing:** this script is the SOLE writer of `fact_roster_placement`.
-# `02e` stamps `roster_status` onto `fact_fantasy_teams` from its latest
-# snapshot, and capmath/the PBI measures exempt `roster_status == "Minors"`
-# from the cap charge. If 04v stops running, `roster_status` goes null
-# league-wide and every Minors-placed player starts charging salary.
-# `02d` reads both outputs to source each Roster Move's contract: the in-season
-# placement snapshots for the contract Fantrax showed, and the eligibility
-# snapshot for the `Minor` default when no snapshot covers the move.
+# **Read by:** `02d`, for the `Minor` default on a Roster Move that no Roster
+# State row covers (ADR-0019 decision 6).
 #
 # **Run:**  .\run.ps1 notebooks\04v_minor_contracts.py
 # Scheduled right after 04a (same Task Scheduler cadence).
@@ -89,26 +76,15 @@ ELIGIBILITY_FILTERS = {
     "MINOR_FANTASY_TAKEN": "taken",           # minors-eligible, on a fantasy roster
 }
 
-# Header shortNames that may carry the contract type on grid/roster tables.
-# "Con" verified against the first real payloads (both grid and roster tables).
+# Header shortNames that may carry the contract type on the players grid.
+# "Con" verified against the first real payloads.
 CONTRACT_HEADER_CANDIDATES = ("Con", "Contract", "Ctr", "Ct")
 
-# Roster placement is per-ROW (statusId), not per-table — the roster response's
-# tables split by stat group (offense/defense), and their captions are empty.
-# The live map is read from each response's statusTotals (Fantrax's own id->name
-# list); this fallback is the vocabulary observed 2026-07-12, plus "3" = IR
-# ("Inj Res" in the in-season statusTotals; absent from preseason ones). Unknown
-# ids pass through raw so new sections surface instead of silently binning.
-# Cap logic downstream keys on "Minors" (exempt); Active/Reserve/IR charge
-# (ADR-0011).
-STATUS_TO_SECTION_FALLBACK = {"1": "Active", "2": "Reserve", "3": "Inj Res", "9": "Minors"}
-
-PLACEMENT_FACT = "fact_roster_placement"
 ELIGIBILITY_FACT = "fact_minor_eligibility"
 
 # Pacing: jittered sleeps so the run reads like a human clicking through pages,
 # not a burst (there is no other rate limiting anywhere in the Fantrax path).
-PULL_DELAY_S = (0.5, 1.5)     # between read pulls (roster teams, filter pages)
+PULL_DELAY_S = (0.5, 1.5)     # between read pulls (filter pages)
 
 
 def _pause(bounds: tuple) -> None:
@@ -134,7 +110,7 @@ def _post_healed(scraper, ctx, page, payload: dict, what: str) -> dict:
 
 
 # %%
-# ---- Pull 1: minors-eligibility filter (players grid) --------------------------
+# ---- Pull: minors-eligibility filter (players grid) ----------------------------
 def eligibility_payload(filter_value: str, page_no: int) -> dict:
     """getPlayerStats scoped to a minors-eligibility filter. positionOrGroup=ALL
     is fine here (its known GP-column gap doesn't matter — eligibility IS the
@@ -178,9 +154,8 @@ def fetch_eligibility(scraper, ctx, page) -> dict:
 
 
 def _header_index(data: dict) -> dict:
-    """shortName -> cell index. Grid responses carry `tableHeader`; roster
-    tables carry `header` (same cells shape)."""
-    hdr = data.get("tableHeader") or data.get("header") or {}
+    """shortName -> cell index, off the grid response's `tableHeader`."""
+    hdr = data.get("tableHeader") or {}
     return {c.get("shortName"): i for i, c in enumerate(hdr.get("cells", []))}
 
 
@@ -224,127 +199,14 @@ def eligibility_to_frame(pulls: dict) -> pd.DataFrame:
 
 
 # %%
-# ---- Pull 2: per-team roster placement ------------------------------------------
-def _team_ids(cfg) -> pd.DataFrame:
-    """fantrax_team_id -> team_key/team_name from dim_fantasy_teams (01c)."""
-    path = Path(cfg.data_dir) / "dim_fantasy_teams.parquet"
-    df = pd.read_parquet(path)
-    cols = [c for c in ("fantrax_team_id", "team_key", "team_name") if c in df.columns]
-    return df[cols].dropna(subset=["fantrax_team_id"])
-
-
-def roster_payload(team_id: str) -> dict:
-    """getTeamRosterInfo for one fantasy team (the roster-page fxpa method)."""
-    return {
-        "msgs": [{"method": "getTeamRosterInfo", "data": {"teamId": team_id}}],
-        "uiv": CFG.ui_version,
-        "refUrl": f"https://www.fantrax.com/fantasy/league/{CFG.league_id}/team/roster",
-        "dt": 0, "at": 0, "tz": CFG.timezone, "v": CFG.api_version,
-    }
-
-
-def fetch_rosters(scraper, ctx, page, teams: pd.DataFrame) -> dict:
-    """One getTeamRosterInfo call per team. Returns {fantrax_team_id: raw}."""
-    out = {}
-    for t in teams.itertuples():
-        if out:
-            _pause(PULL_DELAY_S)
-        raw = _post_healed(scraper, ctx, page,
-                           roster_payload(t.fantrax_team_id), "getTeamRosterInfo")
-        out[t.fantrax_team_id] = raw
-        name = getattr(t, "team_name", t.fantrax_team_id)
-        print(f"[info] roster {getattr(t, 'team_key', '?')} {name}")
-    return out
-
-
-def rosters_to_frame(rosters: dict, teams: pd.DataFrame,
-                     season: int, week: str) -> pd.DataFrame:
-    """Flatten per-team roster responses into placement rows. Placement is the
-    per-row statusId (1=Starter, 2=Bench, 3=IR, 9=Minors squad; see
-    STATUS_TO_SECTION_FALLBACK); the response's tables split by stat group, not placement. Header-based cell
-    lookup, like 04a's grid parser. scorer.minorsEligible rides along as
-    Fantrax's row-level eligibility/placement flag."""
-    key_by_id = {t.fantrax_team_id: getattr(t, "team_key", None)
-                 for t in teams.itertuples()}
-    today = date.today().isoformat()
-    xwalk = fx._load_crosswalk(CFG)
-    recs = []
-    for team_id, raw in rosters.items():
-        d = raw["responses"][0]["data"]
-        tables = d.get("tables") or d.get("rosterTables") or []
-        if not tables:
-            print(f"[warn] no roster tables for team {team_id} — schema drift? "
-                  f"keys: {list(d.keys())[:12]}")
-            continue
-        # Fantrax's own statusId -> section-name map rides on each table.
-        status_map = dict(STATUS_TO_SECTION_FALLBACK)
-        for tbl in tables:
-            for st in tbl.get("statusTotals", []):
-                if st.get("id") and st.get("name"):
-                    status_map[st["id"]] = st["name"]
-        for tbl in tables:
-            hdr = _header_index(tbl)
-            con_col = _find_contract_col(hdr)
-            for r in tbl.get("rows", []):
-                s = r.get("scorer") or {}
-                sid = s.get("scorerId")
-                if not sid:   # empty roster slot (any section)
-                    continue
-                status_id = r.get("statusId")
-                section = status_map.get(status_id, str(status_id))
-                cells = r.get("cells", [])
-
-                def col(name):
-                    i = hdr.get(name)
-                    return cells[i].get("content") if (i is not None and i < len(cells)) else None
-
-                gsis, pkey = xwalk.get(sid, (None, None))
-                recs.append({
-                    "season":          season,
-                    "week":            week,
-                    "capture_date":    today,
-                    "team_id":         team_id,
-                    "team_key":        key_by_id.get(team_id),
-                    "scorer_id":       sid,
-                    "player_name":     s.get("name"),
-                    "position_raw":    re.sub(r"<[^>]+>", "", s.get("posShortNames", "")).strip(),
-                    "roster_section":  section,
-                    "status_id":       status_id,
-                    "minors_eligible": bool(s.get("minorsEligible")),
-                    "salary":          fx._cell_num(col("Sal")),
-                    "contract":        (col(con_col) or "").strip() if con_col else None,
-                    "gsis_id":         gsis,
-                    "player_key":      pkey,
-                })
-    df = pd.DataFrame.from_records(recs)
-    # Grain: one row per (team, scorer). NOT per scorer — this is a
-    # duplicate-player league (each conference drafts its own copy), so the
-    # same scorer_id legitimately appears on one team per conference.
-    return df.drop_duplicates(subset=["team_id", "scorer_id"], keep="first")
-
-
-def load_placement(df: pd.DataFrame, cfg) -> str:
-    """Replace-by-(season, week) into fact_roster_placement.parquet — same
-    idempotent pattern as 04a.load_fact."""
-    path = f"{cfg.data_dir}/{PLACEMENT_FACT}.parquet"
-    if Path(path).exists():
-        old = pd.read_parquet(path)
-        keys = set(map(tuple, df[["season", "week"]].drop_duplicates().to_numpy()))
-        mask = old[["season", "week"]].apply(tuple, axis=1).isin(keys)
-        df = pd.concat([old[~mask], df], ignore_index=True)
-    df = df.drop_duplicates(subset=["team_id", "scorer_id", "season", "week"],
-                            keep="last")
-    df.to_parquet(path, index=False)
-    return path
-
-
-# %%
 # ---- Durable eligibility snapshot (fact_minor_eligibility) ---------------------
-def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str) -> str:
+def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str,
+                     capture_date: str) -> str:
     """Land the eligibility pull as a parquet fact (replace-by-(season, week)),
     so the eligible population has queryable week-over-week history — the raw
-    JSON alone can't answer 'when did this player cross 20 GP'."""
-    df = df.assign(season=season, week=week, capture_date=date.today().isoformat())
+    JSON alone can't answer 'when did this player cross 20 GP'. `capture_date`
+    is the run's ISO day, read once by run() and stamped on every row."""
+    df = df.assign(season=season, week=week, capture_date=capture_date)
     path = f"{cfg.data_dir}/{ELIGIBILITY_FACT}.parquet"
     if Path(path).exists():
         old = pd.read_parquet(path)
@@ -358,14 +220,17 @@ def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str) -> str:
 
 # ---- Main -----------------------------------------------------------------------
 def run() -> pd.DataFrame:
-    """Pull eligibility + per-team placement, land both facts. Read-only."""
+    """Pull the eligibility lists and land the snapshot. Read-only."""
     from playwright.sync_api import sync_playwright
 
-    week = fx.derive_week_label(CFG)
+    # Read the day once: the week label and every row's capture_date come from
+    # it, so a run that crosses midnight still lands one capture_date.
+    today = date.today()
+    week = fx.derive_week_label(CFG, today)
     season = CFG.snapshot_season
+    capture_date = today.isoformat()
     scraper = fx.FantraxScraper(CFG)
-    teams = _team_ids(CFG)
-    print(f"[info] season={season} week={week} teams={len(teams)}")
+    print(f"[info] season={season} week={week} capture_date={capture_date}")
 
     with sync_playwright() as p:
         ctx = p.chromium.launch_persistent_context(
@@ -374,32 +239,20 @@ def run() -> pd.DataFrame:
         page = ctx.new_page()
         page.set_default_timeout(CFG.nav_timeout_ms)
         elig_pulls = fetch_eligibility(scraper, ctx, page)
-        rosters = fetch_rosters(scraper, ctx, page, teams)
         ctx.close()
 
-    # Raw audit files (data/raw is gitignored).
+    # Raw audit file (data/raw is gitignored).
     elig_path = Path(CFG.raw_dir) / f"fantrax_minor_eligibility_{season}_wk{week}.json"
     elig_path.write_text(json.dumps(elig_pulls, indent=2), encoding="utf-8")
-    roster_path = Path(CFG.raw_dir) / f"fantrax_rosters_{season}_wk{week}.json"
-    roster_path.write_text(json.dumps(rosters, indent=2), encoding="utf-8")
-    print(f"[ok] raw -> {elig_path.name}, {roster_path.name}")
+    print(f"[ok] raw -> {elig_path.name}")
 
     elig = eligibility_to_frame(elig_pulls)
-    placement = rosters_to_frame(rosters, teams, season, week)
-    if len(placement):
-        path = load_placement(placement, CFG)
-        print(f"[ok] placement snapshot {len(placement)} rows -> {path}")
-        sections = placement["roster_section"].value_counts().to_dict()
-        print(f"[info] roster sections seen: {sections}")
-    else:
-        print("[warn] placement frame empty — inspect the raw roster JSON schema")
-
     n_av = (elig["fa_status"] == "available").sum() if len(elig) else 0
     print(f"[info] minors-eligible: {len(elig)} ({n_av} FA, {len(elig) - n_av} rostered)")
 
-    elig_fact_path = load_eligibility(elig, CFG, season, week)
+    elig_fact_path = load_eligibility(elig, CFG, season, week, capture_date)
     print(f"[ok] eligibility snapshot -> {elig_fact_path}")
-    return placement
+    return elig
 
 
 if __name__ == "__main__":

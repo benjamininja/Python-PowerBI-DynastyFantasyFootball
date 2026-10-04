@@ -5,7 +5,10 @@
   Fantrax now reports a `Minor` contract held while minors-eligible, so "there
   is no Minor contract type" no longer holds. Everything else here stands:
   `04v` read-only, no Fantrax write path, IR charged, and only the Minors slot
-  cap-exempt.
+  cap-exempt. *2026-10-04 (#117): `fact_roster_placement` is retired. The
+  slot now comes from `fact_roster_state`
+  ([ADR-0016](0016-roster-state-from-snapshot-ledger-is-provenance.md)), and
+  `04v` captures eligibility only.*
 - Date: 2026-07-26
 - **Supersedes** [ADR-0010](0010-minors-stash-season-boundary.md) (stash
   durability across season boundaries), which modelled protection for a

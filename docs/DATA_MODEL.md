@@ -35,7 +35,6 @@ graph LR
     fact_trade_log[(fact_trade_log)]
     fact_roster_state[(fact_roster_state)]
     fact_preseason_salary[(fact_preseason_salary)]
-    fact_roster_placement[(fact_roster_placement)]
     fact_minor_eligibility[(fact_minor_eligibility)]
     fact_rookie_rankings[(fact_rookie_rankings)]
     fact_fantrax_adp[(fact_fantrax_adp)]
@@ -84,9 +83,6 @@ graph LR
     fact_preseason_salary --> dim_fantasy_teams
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_rookie_prospect
-    fact_roster_placement --> dim_fantasy_teams
-    fact_roster_placement -.via dim_fantrax_crosswalk.-> dim_nfl_players
-    fact_roster_placement -.via dim_fantrax_crosswalk.-> dim_rookie_prospect
     fact_minor_eligibility -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_rookie_rankings --> dim_rookie_prospect
     fact_rookie_rankings --> dim_nfl_players
@@ -125,7 +121,6 @@ graph LR
     class fact_trade_log fact;
     class fact_roster_state fact;
     class fact_preseason_salary fact;
-    class fact_roster_placement fact;
     class fact_minor_eligibility fact;
     class fact_rookie_rankings fact;
     class fact_fantrax_adp fact;

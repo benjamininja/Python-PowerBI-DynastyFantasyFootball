@@ -64,7 +64,8 @@ _Avoid_: swap, deal
 Who is on each team right now: every player, their Roster Slot, salary and
 contract, as the team's Fantrax roster shows it. Read directly, never rebuilt by
 replaying Roster Moves. The current one is kept all year; one per regular-season
-Scoring Period is kept alongside it.
+Scoring Period is kept alongside it. A Scoring Period's Roster State is the
+roster as it stood when that period's lineups locked, not at the period's end.
 _Avoid_: current roster derived from the ledger, lineup
 
 **Roster Slot**:
@@ -93,8 +94,17 @@ _Avoid_: Minors (that's the slot), stash, minor-league contract
 **Roster Move**:
 One team gaining or losing one player — a claim, a drop, or one leg of a Trade.
 The record of *how* and *when* a player arrived or left. Identified by the
-Fantrax transaction it came from plus the player, team and kind of move.
+Fantrax transaction it came from plus the player, team and kind of move. Each
+takes effect in one Scoring Period, which Fantrax records: a move made after a
+period's lineups lock takes effect in the next one.
 _Avoid_: transaction (Fantrax groups several moves under one), event
+
+**Stint**:
+One unbroken stay of a player copy on a team. It starts with the Roster Move
+that brings the copy in (a draft pick, a claim or a trade) and ends with the
+next one that takes it out (a drop or a trade away). A re-claim by the same
+team starts a new stint.
+_Avoid_: tenure, ownership period
 
 **Period Scoring**:
 The points a player earned in a Scoring Period while on a team. The team is

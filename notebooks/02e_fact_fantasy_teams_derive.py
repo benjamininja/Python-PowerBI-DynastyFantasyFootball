@@ -22,8 +22,9 @@
 # `dead_money` is NOT stored (dropped 2026-07-13): it's computed from
 # status/Dim_Contract (Cut + Guaranteed -> contract_value x cap_hit_pct)
 # wherever it's consumed, like cap_hit before it.
-# `roster_status` (added 2026-07-13) is OBSERVED state stamped from the latest
-# `fact_roster_placement` snapshot — Minors placement is cap-exempt downstream.
+# `roster_status` (added 2026-07-13) is OBSERVED state stamped from the newest
+# Scoring Period in `fact_roster_state` — Minors placement is cap-exempt
+# downstream.
 # `conference` and
 # `cap_hit` are NOT stored (removed 2026-07-11) -- both are 100% derivable
 # (`TeamKey`->`Dim_FantasyTeams`; a kept player's charge is the full
@@ -51,7 +52,11 @@ from etl_helpers import CFG, DATA
 LEDGER_PATH    = DATA / "fact_roster_transactions.parquet"
 FFT_PATH       = DATA / "fact_fantasy_teams.parquet"
 TEAMS_PATH     = DATA / "dim_fantasy_teams.parquet"
-PLACEMENT_PATH = DATA / "fact_roster_placement.parquet"
+STATE_PATH     = DATA / "fact_roster_state.parquet"
+
+# fact_roster_state.roster_slot -> the roster_status values this fact has always
+# carried. They stay until #110 renames the column to roster_slot.
+SLOT_TO_STATUS = {"Starter": "Active", "Bench": "Reserve", "IR": "Inj Res", "Minors": "Minors"}
 
 TERMINAL = {"drop", "trade_away"}   # event_types that REMOVE a player from the active roster
 
@@ -77,39 +82,46 @@ first = (ledger.sort_values("event_seq")
          [["team_key", "asset_id", "acquired_method"]])
 active = active.merge(first, on=["team_key", "asset_id"], how="left")
 
-# roster_status: OBSERVED squad placement (Active/Reserve/Inj Res/Minors) stamped from
-# the latest fact_roster_placement snapshot (04v), keyed exactly on
+# roster_status: OBSERVED Roster Slot (Active/Reserve/Inj Res/Minors) stamped
+# from the newest Scoring Period in fact_roster_state (04r), keyed exactly on
 # (team_key, scorer_id) — the ledger rows carry scorer_id, no gsis fallback
 # needed. Not a derived rollup (allowed to live on the fact): cap exemption
-# follows Minors PLACEMENT, not Minor contract type, so consumers (capmath,
-# PBI measures) exclude roster_status == "Minors" salaries from the charge.
-# Null = not in the latest snapshot (e.g. before 04v's first run) -> charged,
-# the safe default.
-if PLACEMENT_PATH.exists():
-    _pl = pd.read_parquet(PLACEMENT_PATH)
-    _pl = _pl[_pl["capture_date"] == _pl["capture_date"].max()]
-    _pl = (_pl[["team_key", "scorer_id", "roster_section"]]
-           .rename(columns={"roster_section": "roster_status"})
+# follows the Minors SLOT, not the Minor contract, so consumers (capmath, PBI
+# measures) exclude roster_status == "Minors" salaries from the charge.
+# Null = not on that roster (e.g. before 04r's first run) -> charged, the safe
+# default. 04r reads regular-season periods only, so the stamp stops moving
+# after the last one (#97).
+if STATE_PATH.exists():
+    _st = pd.read_parquet(STATE_PATH)
+    _st = _st[_st["season_id"] == _st["season_id"].max()]
+    _period = int(_st["period"].max())
+    _st = _st[_st["period"] == _period]
+    _st = (_st.assign(roster_status=_st["roster_slot"].map(SLOT_TO_STATUS))
+           [["team_key", "scorer_id", "roster_status"]]
            .drop_duplicates(subset=["team_key", "scorer_id"]))
-    active = active.merge(_pl, on=["team_key", "scorer_id"], how="left")
+    active = active.merge(_st, on=["team_key", "scorer_id"], how="left")
     n_minor = (active["roster_status"] == "Minors").sum()
-    print(f"[info] roster_status stamped from placement snapshot "
-          f"({_pl.shape[0]} placement rows; {n_minor} Minors-placed, cap-exempt)")
-    # Reverse check: placement rows with no matching active ledger row are
-    # observed ownership the ledger doesn't know about (e.g. an on-site trade —
-    # no trade event type exists yet). Surface them; the ledger side of such a
+    print(f"[info] roster_status stamped from Roster State, Scoring Period {_period} "
+          f"({_st.shape[0]} roster rows; {n_minor} in the Minors slot, cap-exempt)")
+    # Reverse check: roster rows with no matching active ledger row are
+    # observed ownership the ledger doesn't know about (a move made after the
+    # newest transaction capture). Surface them; the ledger side of such a
     # pair keeps roster_status null and is charged (safe default).
     _led_keys = set(zip(active["team_key"], active["scorer_id"]))
-    _orphans = _pl[[k not in _led_keys
-                    for k in zip(_pl["team_key"], _pl["scorer_id"])]]
+    _orphans = _st[[k not in _led_keys
+                    for k in zip(_st["team_key"], _st["scorer_id"])]]
     if len(_orphans):
-        print(f"[warn] {len(_orphans)} placement row(s) have no active ledger "
+        print(f"[warn] {len(_orphans)} roster row(s) have no active ledger "
               f"row for that (team, scorer) — ledger gap (trade/FA move not in "
               f"ledger?). Examples:")
         print(_orphans.head(8).to_string(index=False))
+    _unseen = int(active["roster_status"].isna().sum())
+    if _unseen:
+        print(f"[warn] {_unseen} active ledger row(s) are not on that roster — "
+              f"roster_status null (charged)")
 else:
     active["roster_status"] = pd.NA
-    print("[warn] no fact_roster_placement.parquet — roster_status all null "
+    print("[warn] no fact_roster_state.parquet — roster_status all null "
           "(every salary charged)")
 
 # resolve asset_id -> gsis_id / player_key via the polymorphic bridge.
@@ -143,7 +155,7 @@ print(f"[ok] fact_fantasy_teams: {len(fact_fantasy_teams)} active roster rows ->
 # summary used to multiply by cap_hit_pct, a 2x understatement that also
 # silently zero-charged Minor-CONTRACT players kept active).
 fact_fantasy_teams["cap_hit"] = fact_fantasy_teams["contract_value"]
-# Minors-squad PLACEMENT is the only cap exemption (roster_status == "Minors");
+# The Minors Roster Slot is the only cap exemption (roster_status == "Minors");
 # null roster_status charges — same rule as capmath / DAX.
 fact_fantasy_teams.loc[
     fact_fantasy_teams["roster_status"] == "Minors", "cap_hit"] = 0.0
