@@ -6,9 +6,11 @@ scripts/make_fixtures.py (allowlisted keys only). When Fantrax changes shape,
 regenerate them in a PR; a failure here is the shape drift showing up.
 
 Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04s
-schedule helpers, 04v rosters_to_frame. Later builds add 02d (#113),
-getLeagueInfo (#117), live scoring + standings (#118).
+schedule helpers, 04v rosters_to_frame, 02d draft results + transaction
+history. Later builds add getLeagueInfo (#117), live scoring + standings
+(#118).
 """
+import copy
 import importlib
 import json
 import sys
@@ -26,6 +28,7 @@ fx = importlib.import_module("04a_fantrax_weekly_scrape")
 fs = importlib.import_module("04s_fantrax_inseason_capture")
 fu = importlib.import_module("04u_fantrax_public_api")
 mv = importlib.import_module("04v_minor_contracts")
+rt = importlib.import_module("02d_fact_roster_transactions")
 
 
 def _load(name):
@@ -145,3 +148,117 @@ class TestRosterInfo:
         assert df.loc[df["roster_section"] == "Minors", "minors_eligible"].all()
         row = df.set_index("scorer_id").loc["060tq"]
         assert (row["salary"], row["contract"], row["position_raw"]) == (17118000.0, "1st", "QB")
+
+
+def _team_lut(team_ids):
+    return {t: f"T{i:02d}" for i, t in enumerate(sorted(set(team_ids)), 1)}
+
+
+class TestDraftResults:
+    @pytest.fixture
+    def raw(self):
+        return _load("draft_results.json")
+
+    @staticmethod
+    def _slots(raw):
+        return raw["responses"][0]["data"]["draftPicksOrdered"]
+
+    def _grid(self, raw):
+        lut = _team_lut(p["teamId"] for p in self._slots(raw))
+        return rt.build_draft_picks(rt.parse_draft_results([raw]), lut, "2026-2027")
+
+    def test_slots(self, raw):
+        picks = rt.parse_draft_results([raw])
+        assert len(picks) == 28                               # rounds 1-2, 14 teams
+        assert sorted(picks["overall_slot"]) == list(range(1, 29))
+        slot = picks[(picks["round"] == 2) & (picks["pickNumber"] == 3)]
+        assert slot["overall_slot"].tolist() == [17]
+
+    def test_dedupe_keeps_latest_capture(self, raw):
+        later = copy.deepcopy(raw)
+        self._slots(later)[0]["teamId"] = "recaptured"
+        picks = rt.parse_draft_results([raw, later])          # oldest first
+        assert len(picks) == 28
+        first = picks[(picks["round"] == 1) & (picks["pickNumber"] == 1)]
+        assert first["teamId"].tolist() == ["recaptured"]
+
+    def test_grid(self, raw):
+        grid = self._grid(raw)
+        assert grid["pick_ref"].is_unique and grid["is_made"].all()
+        assert grid["pick_ref"].iloc[0] == "2026-2027|svxeyvvgmmvk3jnh|S001"
+        assert grid["current_owner"].notna().all()
+
+    def test_traded_slot_keeps_its_original_owner(self, raw):
+        grid = self._grid(raw)
+        r1 = grid[grid["round"] == 1].set_index("pick_in_round")["current_owner"]
+        r2 = grid[grid["round"] == 2]
+        assert (grid.loc[grid["round"] == 1, "original_owner"] == r1.to_numpy()).all()
+        # Snake: round 2's slot k first belonged to round 1's slot 15 - k.
+        assert (r2["original_owner"].to_numpy()
+                == r1.loc[15 - r2["pick_in_round"]].to_numpy()).all()
+        traded = grid[grid["current_owner"] != grid["original_owner"]]
+        assert sorted(zip(traded["round"], traded["pick_in_round"])) == [(2, 3), (2, 10)]
+
+    def test_slot_not_yet_picked(self, raw):
+        del self._slots(raw)[-1]["scorerId"]
+        grid = self._grid(raw)
+        assert int((~grid["is_made"]).sum()) == 1
+
+
+class TestTxnHistory:
+    @pytest.fixture
+    def rows(self):
+        return rt.rows_from_pages(_load("txn_history.json"))
+
+    @staticmethod
+    def _lut(rows):
+        return _team_lut(c["teamId"] for r in rows for c in r["cells"] if "teamId" in c)
+
+    @pytest.fixture
+    def parsed(self, rows):
+        return rt.parse_txn_rows(rows, self._lut(rows), {"06an4": "00-TEST"})
+
+    def test_counts(self, parsed):
+        log, legs, stats = parsed
+        assert stats == {"trade_rows": 4, "claim_drop_rows": 4, "no_player": 0, "no_team": 0}
+        assert len(log) == 4 and log["transaction_id"].nunique() == 1
+        assert [l["kind"] for l in legs] == ["trade", "trade", "claim", "drop", "claim", "drop"]
+
+    def test_trade_date_carried_across_the_set(self, parsed):
+        # Only the first row of a trade carries the date cell.
+        log = parsed[0]
+        assert (log["event_date"] == pd.Timestamp("2026-07-13 16:24")).all()
+
+    def test_pick_legs(self, parsed):
+        picks = parsed[0][parsed[0]["asset_kind"] == "pick"]
+        assert picks["draft_round"].tolist() == [1, 1]
+        assert picks["draft_year"].tolist() == [2027, 2028]
+        assert picks["pick_in_round"].isna().all()            # future pick: no slot yet
+        assert picks["pick_owner_hint"].tolist() == ["Team (X)", "Team (X)"]
+        assert picks["scorer_id"].isna().all() and picks["gsis_id"].isna().all()
+
+    def test_player_legs(self, parsed):
+        log, legs, _ = parsed
+        players = log[log["asset_kind"] == "player"]
+        assert players["scorer_id"].tolist() == ["06an4", "06jeb"]
+        assert players["gsis_id"].iloc[0] == "00-TEST" and pd.isna(players["gsis_id"].iloc[1])
+        a, b = legs[0], legs[1]                               # the two legs go opposite ways
+        assert (a["team_from"], a["team_to"]) == (b["team_to"], b["team_from"])
+
+    def test_drop_inherits_its_claims_team_and_date(self, parsed):
+        claim, drop = parsed[1][2], parsed[1][3]
+        assert (claim["kind"], drop["kind"]) == ("claim", "drop")
+        assert drop["team_to"] == claim["team_to"]
+        assert drop["event_dt"] == claim["event_dt"] == pd.Timestamp("2026-07-24 16:24")
+
+    def test_unmapped_team_is_skipped(self, rows):
+        lut = self._lut(rows)
+        lut.pop("66ao8djmmn0kdqp0")                           # the lone drop's team
+        _, legs, stats = rt.parse_txn_rows(rows, lut, {})
+        assert stats["no_team"] == 1 and len(legs) == 5
+
+    def test_legs_resolve_in_time_order(self, parsed):
+        # Same timestamp: the drop frees the spot its paired claim fills.
+        order = [(l["kind"], l["scorer_id"]) for l in rt.sort_legs(parsed[1])]
+        assert order == [("drop", "06anf"), ("trade", "06an4"), ("trade", "06jeb"),
+                         ("drop", "05jel"), ("claim", "05rll"), ("claim", "07521")]

@@ -1,0 +1,234 @@
+{
+ "responses": [
+  {
+   "data": {
+    "draftPicksOrdered": [
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 1,
+      "teamId": "s5bodsc1mn6pjqtc",
+      "scorerId": "06anf",
+      "modifiedDate": 1781975998000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 2,
+      "teamId": "va7pi5bimocarcvi",
+      "scorerId": "04mnz",
+      "modifiedDate": 1781977314000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 3,
+      "teamId": "iud32x7mmpj9c9ev",
+      "scorerId": "06anq",
+      "modifiedDate": 1781977999000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 4,
+      "teamId": "cyq413lymnum51np",
+      "scorerId": "06jdy",
+      "modifiedDate": 1781984643000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 5,
+      "teamId": "6wmapyeymntmhosz",
+      "scorerId": "048xf",
+      "modifiedDate": 1781987209000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 6,
+      "teamId": "i0bvcjk8mo31l0cs",
+      "scorerId": "05rlf",
+      "modifiedDate": 1781989031000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 7,
+      "teamId": "b3l7iznmmoboq9lg",
+      "scorerId": "06jdx",
+      "modifiedDate": 1781989354000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 8,
+      "teamId": "mvg3okqimod4pn38",
+      "scorerId": "05gtw",
+      "modifiedDate": 1782000711000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 9,
+      "teamId": "brkcyuhbmmyzna5f",
+      "scorerId": "04mog",
+      "modifiedDate": 1782001044000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 10,
+      "teamId": "6nhnbkuqmmwi166w",
+      "scorerId": "060tq",
+      "modifiedDate": 1782001416000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 11,
+      "teamId": "66ao8djmmn0kdqp0",
+      "scorerId": "05gv4",
+      "modifiedDate": 1782003121000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 12,
+      "teamId": "s6y6g0eamo6p5bqg",
+      "scorerId": "06an9",
+      "modifiedDate": 1782003122000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 13,
+      "teamId": "koqir027mo31l0cn",
+      "scorerId": "05gtu",
+      "modifiedDate": 1782004141000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 1,
+      "pickNumber": 14,
+      "teamId": "886rcw25mo31l0cy",
+      "scorerId": "06s4q",
+      "modifiedDate": 1782055333000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 1,
+      "teamId": "886rcw25mo31l0cy",
+      "scorerId": "06b03",
+      "modifiedDate": 1782055339000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 2,
+      "teamId": "koqir027mo31l0cn",
+      "scorerId": "04ca6",
+      "modifiedDate": 1782056058000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 3,
+      "teamId": "va7pi5bimocarcvi",
+      "scorerId": "05roj",
+      "modifiedDate": 1782056424000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 4,
+      "teamId": "66ao8djmmn0kdqp0",
+      "scorerId": "06je0",
+      "modifiedDate": 1782057705000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 5,
+      "teamId": "6nhnbkuqmmwi166w",
+      "scorerId": "05gu5",
+      "modifiedDate": 1782064169000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 6,
+      "teamId": "brkcyuhbmmyzna5f",
+      "scorerId": "060qz",
+      "modifiedDate": 1782065365000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 7,
+      "teamId": "mvg3okqimod4pn38",
+      "scorerId": "05rlt",
+      "modifiedDate": 1782072606000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 8,
+      "teamId": "b3l7iznmmoboq9lg",
+      "scorerId": "05gu7",
+      "modifiedDate": 1782073515000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 9,
+      "teamId": "i0bvcjk8mo31l0cs",
+      "scorerId": "06s74",
+      "modifiedDate": 1782073578000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 10,
+      "teamId": "brkcyuhbmmyzna5f",
+      "scorerId": "05gu3",
+      "modifiedDate": 1782074001000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 11,
+      "teamId": "cyq413lymnum51np",
+      "scorerId": "060tt",
+      "modifiedDate": 1782074745000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 12,
+      "teamId": "iud32x7mmpj9c9ev",
+      "scorerId": "06app",
+      "modifiedDate": 1782075466000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 13,
+      "teamId": "va7pi5bimocarcvi",
+      "scorerId": "060ts",
+      "modifiedDate": 1782075557000
+     },
+     {
+      "divisionId": "svxeyvvgmmvk3jnh",
+      "round": 2,
+      "pickNumber": 14,
+      "teamId": "s5bodsc1mn6pjqtc",
+      "scorerId": "060rf",
+      "modifiedDate": 1782078644000
+     }
+    ]
+   }
+  }
+ ]
+}

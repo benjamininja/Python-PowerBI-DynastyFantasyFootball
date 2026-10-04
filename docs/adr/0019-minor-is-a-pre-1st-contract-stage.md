@@ -1,6 +1,6 @@
 # `Minor` is a pre-1st contract stage
 
-- Status: accepted. Designed through HITL grilling on 2026-10-02; not yet built.
+- Status: accepted. Designed through HITL grilling on 2026-10-02. Built 2026-10-03 (#113): the `dim_contract` row and `02d` contract sourcing. The drift check (decision 4) and the `contract_year` clock are still unbuilt.
 - Date: 2026-10-02
 - **Supersedes the headline of** [ADR-0011](0011-minors-is-placement-not-contract.md) ("there is no Minor contract type"). The rest of ADR-0011 stands: `04v` is read-only, the repo has no Fantrax write path, IR charges full salary, and only the Minors slot is cap-exempt.
 - [ADR-0010](0010-minors-stash-season-boundary.md) stays superseded. Its stash rule does not come back (decision 5).
@@ -37,6 +37,22 @@
 6. **`02d` takes each Roster Move's contract from the latest Roster State at or before the move.** A default applies only when there is no snapshot to read: the preseason draft history, or a claim and drop inside one period. *The per-period Roster State is `fact_roster_state` ([ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81), decision 3), which replaces `fact_roster_placement`.*
    - Default: `Minor` if the player is eligible. Otherwise `1st` for a drafted player, or `FA`/the inherited contract for a claim.
    - The hard-coded `CONTRACT_ID = "1st"` becomes that fallback.
+   - *Built in #113, with these rules settled on 2026-10-03:*
+     - *The preseason snapshot is not read (owner's decision). It was taken before Fantrax moved eligible players to `Minor`, so it shows `1st` on players who were `Minor` by week 1. Only in-season snapshots count, and every preseason move takes the default.*
+     - *A move reads only snapshots captured before its own day and inside the copy's current stint on the team: stint start ≤ capture day < move day (owner's decisions, after the `cap-ledger-auditor` review).*
+       - *`04v` stamps a snapshot with the day it ran, so a capture dated the move day may have been taken after the move.*
+       - *A copy dropped and claimed back starts a new stint. A snapshot from the old one can show a contract the player has since left.*
+       - *A draft pick and a claim start a stint, so both always take the default.*
+       - *A copy with no stint on record (the ledger never saw it join the team) reads any snapshot before the move day.*
+     - *A snapshot row with a blank contract or no capture date is not an observation.*
+     - *A player is eligible on the day of a move if either neighbouring eligibility snapshot lists them: the first one on or after the move day, or the last one before it (owner's decision).*
+       - *Games played only grow, so a player eligible later was eligible that day.*
+       - *A player listed before the move and not after it graduated in between, on an unknown side of the move. The earlier list stands.*
+       - *`02d` prints how many moves the earlier list decided, in two counts: moves made after the newest snapshot, and moves by a player who had dropped off the next one.*
+     - *`02d` warns when a move takes the default more than 8 days after the newest eligibility snapshot. The label is kept (owner's decision).*
+     - *An ineligible player whose inherited contract is `Minor` gets `1st`: they graduated (decision 3).*
+     - *A trade with no source row and an ineligible player keeps an unknown contract. Nothing is invented.*
+     - *Until #117 builds `fact_roster_state`, the lookup reads `fact_roster_placement` by capture date and needs the copy on the move's team (the "from" team for a trade). #117 settles how a claim reads its own period.*
 7. **`dim_contract` gains one row:**
 
    | contract_id | contract_type | contract_label | salary_type | contract_year | total_years | cap_hit_pct | guaranteed | cap_exempt | min_salary |
@@ -45,6 +61,8 @@
 
    - NULL years mean open-ended and off the clock. A player can stay on `Minor` across seasons, for example a rookie who is injured.
    - `cap_exempt = False` because the contract never exempts anyone; only the Minors slot does.
+   - *Built in #113. Both year columns are nullable integers (`Int64`), so the NULLs do not turn them into floats.*
+   - *`dim_contract.cap_exempt` is True on `FA` and `Pick` and read by nothing. The owner chose to document it as a descriptive flag rather than drop it (2026-10-03).*
 
 ## Alternatives considered
 
@@ -62,8 +80,8 @@
 ## Consequences
 
 - **The cap path is unchanged.** Only the Minors slot is exempt, in the same four places ADR-0011 lists: `capmath.py`, `02e`, and the `Active Roster Salary` and `Remaining Salary Cap` measures.
-- **Dead money (#96) needs no special case.** `capmath` prices only Cut players on Guaranteed contracts, and `Minor` is not guaranteed.
-- **Build work, in one issue under #70:**
+- **Dead money (#96) needs no special case.** `capmath` prices only Cut players on Guaranteed contracts, and `Minor` is not guaranteed. *The ledger's own `cap_hit` column, which nothing reads and #97 replaces, shows 0 on a `Minor` draft row.*
+- **Build work, in one issue under #70** *(#113, built 2026-10-03)*:
   - the `01b` seed row;
   - `02d` contract sourcing with the eligibility-aware fallback, where `Minor` writes a NULL `contract_year`;
   - tests;

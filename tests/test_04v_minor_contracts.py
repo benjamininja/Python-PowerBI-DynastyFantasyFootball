@@ -4,12 +4,12 @@ Per ADR-0008: eligibility_to_frame, rosters_to_frame, and _header_index are
 I/O-free (the Playwright pulls are separate functions), so they get
 fixture-driven unit tests.
 
-The former TestBuildWorklist class is gone: ADR-0011 retired the Minor
-contract type, and with it 04v's eligibility-vs-contract diff and its
-write-side apply path. Minors is placement + eligibility only, so there is no
-contract worklist left to reconcile. What survives is the parse layer that
-produces fact_roster_placement — which is load-bearing (02e stamps
-roster_status from it, and the cap exemption follows that).
+The former TestBuildWorklist class is gone: ADR-0011 retired 04v's
+eligibility-vs-contract diff and its write-side apply path, and ADR-0019 kept
+them retired (Fantrax sets the `Minor` contract itself; 04v only records what
+it shows). What survives is the parse layer that produces
+fact_roster_placement — which is load-bearing (02e stamps roster_status from
+it, the cap exemption follows that, and 02d reads its contract column).
 """
 import importlib
 import sys
@@ -50,8 +50,9 @@ class TestRostersToFrame:
 
     @staticmethod
     def _row(sid, name, status_id, contract="1st"):
-        # Contract is ordinary (generally "1st") regardless of placement --
-        # Minors placement does not imply a distinct contract type (ADR-0011).
+        # The contract is whatever Fantrax shows; placement does not set it. A
+        # player in the Minors slot can be on "1st", and a "Minor" player can
+        # sit Active (ADR-0019).
         return {"scorer": {"scorerId": sid, "name": name, "posShortNames": "RB"},
                 "statusId": status_id,
                 "cells": [{"content": "2,000,000"}, {"content": contract}]}
@@ -106,7 +107,8 @@ class TestRostersToFrame:
         assert df.iloc[0].roster_section == "IR"
 
     def test_minors_placement_keeps_ordinary_contract(self):
-        # ADR-0011: placement in the Minors squad does not change the contract.
+        # Placement in the Minors squad does not change the contract (ADR-0011,
+        # kept by ADR-0019): the parser records what Fantrax shows.
         raw = self._raw({"t1": [self._row("x1", "Guy A", "9", "1st")]})
         df = mv.rosters_to_frame(raw, self._teams(["t1"]), 2026, "PRE")
         assert df.iloc[0].roster_section == "Minors"

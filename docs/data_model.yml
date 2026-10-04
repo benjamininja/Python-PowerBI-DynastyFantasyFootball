@@ -142,14 +142,21 @@ tables:
       - { name: contract_type, dtype: str }
       - { name: contract_label, dtype: str }
       - { name: salary_type, dtype: str }
-      - { name: contract_year, dtype: int64 }
-      - { name: total_years, dtype: int64 }
+      - { name: contract_year, dtype: Int64 }
+      - { name: total_years, dtype: Int64 }
       - { name: cap_hit_pct, dtype: float64 }
       - { name: guaranteed, dtype: bool }
       - { name: cap_exempt, dtype: bool }
       - { name: min_salary, dtype: float64 }
       - { name: notes, dtype: str }
     edges: []
+    notes: >
+      11 rows, seeded by 01b. `Minor` is the stage before `1st` (ADR-0019):
+      it has no term, so contract_year and total_years are null on that row
+      (hence the nullable Int64), and it costs no Dead Money (cap_hit_pct 0,
+      not guaranteed). `cap_exempt` is descriptive only: no consumer reads
+      it. The one cap exemption is the Minors Roster Slot
+      (fact_fantasy_teams.roster_status = "Minors", ADR-0011).
 
   - name: dim_fantasy_teams
     type: dim
@@ -464,6 +471,17 @@ tables:
       - { to: dim_contract, via: direct, on: contract_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      contract_id is observed, never derived (ADR-0019 decision 6): 02d reads
+      it off the latest in-season fact_roster_placement snapshot that shows
+      the copy on the move's team, captured before the move day and no
+      earlier than the day the copy joined that team. With no such snapshot
+      (always the case for a draft pick and a claim) it defaults to `Minor`
+      for a player listed in the fact_minor_eligibility capture on either
+      side of the move, else the contract the copy already held, else `1st`
+      (draft) or `FA` (claim). The preseason snapshot is not read.
+      contract_year follows dim_contract, so it is null on a `Minor` row.
+      cap_hit is read by nothing (#97 replaces it).
 
   - name: fact_trade_log
     type: fact

@@ -28,7 +28,7 @@ Star schema stored as local Parquet files under `data/`. Migration path to poten
 | `dim_nfl_players` | 25,036 | Full nflverse player registry; primary FK for all fact tables (`gsis_id`) |
 | `dim_rookie_prospect` | 468 | Current draft-class staging table; pre-signing proxy for `gsis_id` (`player_key`) |
 | `dim_fantasy_teams` | 28 | League teams, conferences, cap metadata (seeded from Google Sheet) |
-| `dim_contract` | 10 | Contract type definitions driving cap-hit % and dead money |
+| `dim_contract` | 11 | Contract type definitions driving cap-hit % and dead money |
 | `dim_nfl_teams` | 36 | NFL team metadata, colors, logos (nflverse) |
 | `dim_position` | 39 | Raw → canonical position transformer (covers all source variants) |
 | `dim_school` | 91 | Raw → canonical school + conference transformer |
@@ -53,7 +53,7 @@ All ETL notebooks are `.ipynb` in `notebooks/`. All notebooks execute with CWD =
 | Notebook | Output | Notes |
 |---|---|---|
 | `01a_dim_rookie_prospect` | `dim_position`, `dim_school`, `dim_rookie_prospect` | Seeds 319 base prospects from nflverse combine |
-| `01b_dim_contract_seed` | `dim_contract` | 10 contract type rows |
+| `01b_dim_contract_seed` | `dim_contract` | 11 contract type rows |
 | `01c_dim_fantasy_teams_seed` | `dim_fantasy_teams` | Reads from public Google Sheet |
 | `01d_dim_nfl_teams_seed` | `dim_nfl_teams` | nflreadpy `load_teams()` |
 | `01e_dim_nfl_players_seed` | `dim_nfl_players` | nflreadpy `load_players()`; `_COLMAP` maps nflverse → canonical names |
