@@ -46,6 +46,18 @@ class TestPrune:
             mf.prune({"nested": {"id": 1}}, self.SPEC)
 
 
+def test_schedule_holds_no_team_names():
+    """A team cell's `content` is the team's display name; trim_schedule keeps
+    `content` on the score cells only."""
+    tables = json.loads((REPO / "tests" / "fixtures" / "fantrax" / "schedule.json")
+                        .read_text(encoding="utf-8"))["responses"][0]["data"]["tableList"]
+    cells = [c for t in tables for r in t["rows"] for c in r["cells"]]
+    assert cells
+    for c in cells:
+        assert ("teamId" in c) != ("content" in c)
+        assert "content" not in c or float(c["content"]) >= 0
+
+
 def test_txn_history_holds_no_team_names():
     """prune checks keys, not values: a team's display name sits in `content`
     on the team cells and in the pick owner hint, so trim_txn_history scrubs

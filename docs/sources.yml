@@ -128,6 +128,20 @@ sources:
       - { notebook: 04r_fantrax_roster_state.py, table: fact_roster_state }
     match: ["getTeamRosters"]
 
+  - id: fantrax_inseason_scoring
+    name: "Fantrax — getLiveScoringStats + getStandings (per Scoring Period)"
+    status: live
+    locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getLiveScoringStats {period, playerViewType:'2'} and getStandings {view:'SCHEDULE'}; plus getStandings {view:'COMBINED'} three ways per period, captured raw only)"
+    purpose: "Period Scoring and Matchups (ADR-0016 amendment decisions 1, 5, 9, 15). Live scoring with the bench view lists every rostered player with an entry, Starters under `ACTIVE` and Bench, IR and Minors under `BENCH`, each with points per stat; 04s sums them by Unit. The schedule view gives every week's matchups and Team Scores. A period loads once `allEventsFinished` is true. Live scoring echoes no period, and answers for a period that has not started with 28 teams and no entries. Errors come back as HTTP 200 with a `pageError`. The plain COMBINED standings ignore `period`; with `timeframeType: BY_PERIOD` Fantrax serves a past period's record and rank, but Salary Remaining is the current value in every reply and % Playoffs is blank there (measured 2026-10-04). Standings are not loaded yet"
+    auth: "Same Fantrax session as the Players-grid source (04s imports 04a's scraper: env-stored login + persistent Playwright profile). `--from-raw` loads from the saved raw files with no browser and no login"
+    cadence: "Run by hand until #118's last PR adds it to the pipeline (INSEASON, after `04r_roster_state`, fantrax_core Chain). Every regular-season period that has started and is not closed is captured and, once final, replaced whole"
+    feeds:
+      - { notebook: 04s_fantrax_inseason_capture.py, table: fact_period_scoring }
+      - { notebook: 04s_fantrax_inseason_capture.py, table: fact_matchup }
+    # 04s reuses 04a's CFG, so the league id never appears in its source —
+    # match on the method that defines this feed instead.
+    match: ["getLiveScoringStats"]
+
   - id: google_sheet_team_manifest
     name: "Google Sheet — team manifest"
     status: live

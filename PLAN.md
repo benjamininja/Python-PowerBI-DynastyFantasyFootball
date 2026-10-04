@@ -59,7 +59,7 @@ raw points, not categories.
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
-  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; planned 2026-10-04, PR 1 of 3 built) · #130 claim
+  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; PR 1 of 3 ✅ PR #131; PR 2 open) · #130 claim
   default contract (grilling, ADR-0019 d6; filed 2026-10-04).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
@@ -122,7 +122,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   `shared.owner` lookup for the PII check; `migrate.yml` on merge. Prereqs:
   the grain fixes, trade-log pick legs resolved to Original Owners,
   `division_id`.
-- Code follow-ups from #79: `04s` sends `playerViewType:'2'` ✅ (#118 PR 1).
+- Code follow-ups from #79: `04s` sends `playerViewType:'2'` ✅ (PR #131).
   `04v` IR drop fixed ✅ (PR #106: IR kept as `"Inj Res"`, charges per
   ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
@@ -181,12 +181,20 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   checks, `closed` switched on, `04s` as a pipeline step. Found in the
   grill: `getStandings COMBINED` ignores `period` and serves the current
   standings, and the saved captures hold Starters only. A period's scoring
-  loads once its games are final. **PR 1 built 2026-10-04** (branch
-  `feat/118-capture`): `04s` asks for the bench view, saves two by-period
+  loads once its games are final. **PR 1 ✅ merged as PR #131
+  (2026-10-04, `6280c2e`):** `04s` asks for the bench view, saves two by-period
   standings probes beside the standings reply, makes no roster calls, and
   stamps `captured_at`; a period Fantrax rejects is reported and skipped.
-  No table changed. `pytest tests/` 368 pass. **Next: the owner's capture**
-  (`04s --periods 1-5`, from `main` after the merge), **then PR 2.** Detail
+  No table changed. `pytest tests/` 368 pass. **The owner's capture
+  (2026-10-04, periods 1–5):** the bench view works, a period that has not
+  started returns no entries, and Fantrax serves a past period's record and
+  rank by period; Salary Remaining and % Playoffs are current-only. **PR 2
+  built 2026-10-04 on `feat/118-period-scoring` (PR open):** `04s`
+  loads `fact_period_scoring` (points by Unit, `is_starter`) and
+  `fact_matchup` for every final period, `--from-raw` with no browser;
+  Gates `unit_sum`, `starter_slot`, `mirror`; periods 1–3 loaded (3,226 and
+  84 rows). `pytest tests/` 442 pass. **Next: the merge on the owner's go;
+  then a short grill on `fact_standings`; then PR 3.** Detail
   in `.claude/memory/RESUME.md`;
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76

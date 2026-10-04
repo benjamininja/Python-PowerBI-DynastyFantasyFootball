@@ -224,6 +224,38 @@ Also checked 2026-10-03 for #81, all from the authed captures:
   defense group totals. Skipping them, the Starters' `object1` sum equals
   `ACTIVE.totalFpts` to 0.01 for all 28 teams in period 1.
 
+Answered by the 2026-10-04 capture (`04s --periods 1-5`, with the bench
+view and the two probes; period 4 was in progress, period 5 not started):
+
+- **Fantrax takes the by-period selection.** Both probes echo
+  `timeframeType: BY_PERIOD` with the `timeStartType` and `period` asked for.
+  - `FROM_SEASON_START` is the standings through period N: every team shows
+    N games, and wins, points for and points against equal the schedule
+    through week N for 28 of 28 teams (periods 1 to 3). Rank changes by
+    period. For a period in progress or not started it equals the latest
+    final period.
+  - `PERIOD_ONLY` is that one period's results alone: 1 game per team, and
+    0 for a period that is not final.
+  - **`Salary Remaining` is the same in every reply and every period**, and
+    **`% Playoffs` is blank in both by-period replies.** In the plain reply
+    `% Playoffs` is filled for 14 of 28 teams. So rank has history; salary
+    remaining and playoff odds are current values only.
+  - Header keys: `win`, `loss`, `tie`, `winpc`, `div`, `gamesback`,
+    `salaryRem`, `pointsFor`, `pointsAgainst`, `streak`, `playoffOdds`.
+- **The bench view is complete for a final period.** `BENCH` holds Bench,
+  IR and Minors. Entries (`ACTIVE` / `BENCH`): 420 / 634, 419 / 663 and
+  420 / 670 in periods 1 to 3. No entry is off that period's Roster State
+  and no player is in both groups. 9 to 15 rostered players a period have
+  no entry, never a Starter. Both groups carry `totalFpts`, and each equals
+  the sum of its entries.
+- **A period that has not started is not an error.** Live scoring returns
+  28 teams with no entries and `allEventsFinished: false`, with no
+  `pageError`.
+- **Points carry at most two decimals**, per stat and per player.
+- **Schedule rows** are four cells: away team, away score, home team, home
+  score. A team cell carries `teamId` and the team's name; a score cell
+  carries the number only. An unplayed week shows `0`.
+
 Checked 2026-10-04 for #118, from the same 2026-09-26 captures:
 
 - **`getStandings {view: COMBINED, period}` ignores `period`.** The three
@@ -232,7 +264,8 @@ Checked 2026-10-04 for #118, from the same 2026-09-26 captures:
   points of weeks 1 to 3, period 3 in progress included. So the reply is the
   current standings, not the standings as of the period asked for. The two
   14-row tables are the week in play and the last final week.
-- **The reply names a way to ask by period, untested.** `displayedSelections`
+- **The reply names a way to ask by period** (tested since; see the list
+  above). `displayedSelections`
   echoes `timeframeType: YEAR_TO_DATE` and `timeStartType: PERIOD_ONLY`.
   `displayedLists` offers `timeframeTypes` `YEAR_TO_DATE` | `BY_PERIOD` and
   `timeStartTypes` `PERIOD_ONLY` | `FROM_SEASON_START`. `04s` now saves two

@@ -184,6 +184,92 @@ class TestRosterStateChecks:
         assert self._run("contract", state) == ["contract_id not in dim_contract: ['7th']"]
 
 
+def _scoring(rows):
+    """Period Scoring rows from (team_key, scorer_id, is_starter, offense,
+    defense, special teams), all in period 1."""
+    df = pd.DataFrame(rows, columns=["team_key", "scorer_id", "is_starter", *ec.UNIT_COLUMNS])
+    df["fpts"] = df[ec.UNIT_COLUMNS].sum(axis=1)
+    return df.assign(season_id="2026-2027", period=1)
+
+
+def _slots(rows):
+    """Roster State rows from (team_key, scorer_id, roster_slot), period 1."""
+    return pd.DataFrame(rows, columns=["team_key", "scorer_id", "roster_slot"]).assign(
+        season_id="2026-2027", period=1)
+
+
+def _matchup(rows):
+    """Matchup rows from (team_key, opponent_team_key, is_home, fpts_for,
+    fpts_against), all in period 1."""
+    return pd.DataFrame(rows, columns=["team_key", "opponent_team_key", "is_home",
+                                       "fpts_for", "fpts_against"]).assign(
+        season_id="2026-2027", period=1)
+
+
+class TestScoringChecks:
+    """The #118 Gates on fact_period_scoring and fact_matchup."""
+
+    SCORING = [("A01", "p1", True, 10.0, 0.0, 2.5), ("A01", "p2", False, 0.0, 4.0, 0.0)]
+    SLOTS = [("A01", "p1", "Starter"), ("A01", "p2", "Bench"), ("A01", "p3", "Starter")]
+    MATCHUP = [("A01", "B01", False, 12.5, 20.0), ("B01", "A01", True, 20.0, 12.5)]
+
+    def test_the_three_gates_are_registered(self):
+        gates = {(d.table, d.name) for d in ec.DOMAIN_CHECKS if d.tier == "gate"}
+        assert {("fact_period_scoring", "unit_sum"), ("fact_period_scoring", "starter_slot"),
+                ("fact_matchup", "mirror")} <= gates
+
+    def test_units_that_sum_to_fpts_pass(self):
+        assert ec.unit_sum_errors(_scoring(self.SCORING)) == []
+
+    def test_float_noise_inside_the_tolerance_passes(self):
+        scoring = _scoring(self.SCORING)
+        scoring.loc[0, "fpts"] += 0.004
+        assert ec.unit_sum_errors(scoring) == []
+
+    def test_units_off_fpts_block(self):
+        scoring = _scoring(self.SCORING)
+        scoring.loc[0, "fpts"] += 0.5
+        assert ec.unit_sum_errors(scoring) == ["1 rows whose Units do not sum to fpts"]
+
+    def test_starters_that_match_the_roster_slot_pass(self):
+        # p3 is a Starter with no entry: no row is not this Gate's failure.
+        assert ec.starter_slot_errors(_scoring(self.SCORING), _slots(self.SLOTS)) == []
+
+    def test_a_row_off_the_roster_blocks(self):
+        scoring = _scoring(self.SCORING + [("A01", "gone", False, 1.0, 0.0, 0.0)])
+        assert ec.starter_slot_errors(scoring, _slots(self.SLOTS)) == [
+            "1 rows not on that period's fact_roster_state (periods [1])"]
+
+    def test_the_roster_of_another_period_does_not_count(self):
+        slots = _slots(self.SLOTS).assign(period=2)
+        assert "2 rows not on that period's" in ec.starter_slot_errors(
+            _scoring(self.SCORING), slots)[0]
+
+    @pytest.mark.parametrize("slots", [
+        [("A01", "p1", "Bench"), ("A01", "p2", "Bench")],        # a Starter the roster benches
+        [("A01", "p1", "Starter"), ("A01", "p2", "Starter")],    # a non-starter the roster starts
+    ])
+    def test_is_starter_against_the_slot_blocks(self, slots):
+        assert ec.starter_slot_errors(_scoring(self.SCORING), _slots(slots)) == [
+            "1 rows whose is_starter disagrees with the Roster Slot (periods [1])"]
+
+    def test_mirrored_matchups_pass(self):
+        assert ec.mirror_errors(_matchup(self.MATCHUP)) == []
+
+    def test_an_opponent_with_no_row_blocks(self):
+        assert ec.mirror_errors(_matchup(self.MATCHUP[:1])) == [
+            "1 rows whose opponent has no row that period (periods [1])"]
+
+    @pytest.mark.parametrize("second, rows", [
+        (("B01", "A01", True, 20.0, 99.0), 2),      # scores not swapped
+        (("B01", "A01", False, 20.0, 12.5), 2),     # both on the away side
+        (("B01", "C01", True, 20.0, 12.5), 1),      # the opponent names another team
+    ])
+    def test_a_row_that_does_not_mirror_blocks(self, second, rows):
+        errs = ec.mirror_errors(_matchup([self.MATCHUP[0], second]))
+        assert f"{rows} rows that do not mirror their opponent's row (periods [1])" in errs
+
+
 class TestRunSuite:
     REG = {
         "t": {"name": "t", "chain": "rookie", "grain": "(k, j)", "required_keys": ["k"],
