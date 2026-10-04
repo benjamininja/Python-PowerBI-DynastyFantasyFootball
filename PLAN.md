@@ -152,8 +152,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   (2026-10-03):** `04p` reads public
   `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
   exact bounds, Update-Set state `open` / `closing`) and `dim_division`
-  (same two rows, now from Fantrax); `01g` is in `archive/`. **PR 2 built
-  2026-10-04 (branch `feat/117-roster-state`, PR pending):** `04r` reads
+  (same two rows, now from Fantrax); `01g` is in `archive/`. **PR 2 is PR #128
+  (opened 2026-10-04, branch `feat/117-roster-state`):** `04r` reads
   public `getTeamRosters?period=N` on every run and writes
   `fact_roster_state` (periods 1–4 today, 4,360 rows; Roster Slot, salary,
   contract, `capture_date`), with coverage and contract Gates;

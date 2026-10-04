@@ -14,8 +14,8 @@ place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass); then `main` =
 376a842 (PR #126, #125 salary sourcing; 225 tests pass); then `main` =
 581ae4c (PR #127, #117 PR 1 league info; 269 tests pass). Working branch
-`feat/117-roster-state` (#117 PR 2, built 2026-10-04; commit and PR only
-when the owner asks).
+`feat/117-roster-state` (#117 PR 2, opened as PR #128 on 2026-10-04; merge
+only when the owner asks).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -290,9 +290,9 @@ deleted; 6 CI checks green.** It said "Part of #117", so #117 is still open.
   memory files, `PLAN.md`, this file, three test files, the fixture,
   `data/dim_scoring_period.parquet` (new).
 
-**#117 PR 2 BUILT 2026-10-04 on branch `feat/117-roster-state`. Not
-committed, no PR yet: both wait for the owner's word.** Additive: no reader
-changed, and it did not need `04t`.
+**#117 PR 2 BUILT 2026-10-04 on branch `feat/117-roster-state`, opened as
+PR #128 on the owner's word. It says "Part of #117". The merge waits for
+the owner.** Additive: no reader changed, and it did not need `04t`.
 - `notebooks/04r_fantrax_roster_state.py` (new, pipeline step
   `04r_roster_state`, `fantrax_core`, group `regular_season`, right after
   `04p_league_info`, all phases, `needs` `04p_league_info`): public
