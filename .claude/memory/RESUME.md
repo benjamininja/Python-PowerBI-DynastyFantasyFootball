@@ -11,8 +11,8 @@ reconcile); then `main` = 9458c9d (PR #114, #88 test strategy: ADR-0008
 amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
 place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix). Working branch:
-`feat/113-minor-contract-sourcing`, fast-forwarded to 3ac5fed with the #113
-work uncommitted on top (no conflicts; 156 tests pass).
+`feat/113-minor-contract-sourcing`, on 3ac5fed, pushed as **PR #124**
+(opened 2026-10-03; 188 tests pass). Merge only when the owner asks.
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -195,14 +195,17 @@ The owner chose to amend ADR-0016 in place.
   #86 (`dim_scoring_period`); map #70 "Decisions so far" has #81, #79 and
   ADR-0019; merged as PR #119; #81 closed with a Resolution.
 
-Next: finish #113 (built, uncommitted — see below), then #117 → #118.
+Next: merge #113 (PR #124) on the owner's go, then the draft-pricing fix,
+then #117 → #118.
 
-**#113 BUILT 2026-10-03 — uncommitted on `feat/113-minor-contract-sourcing`.**
-Plan: `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`. Commit and
-PR only when asked. Nothing is staged.
+**#113 BUILT 2026-10-03 — PR #124, opened 2026-10-03 from
+`feat/113-minor-contract-sourcing`.**
+Plan: `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`.
 
-**Auditor fixes APPLIED 2026-10-03 (uncommitted). NEXT: commit and open the
-PR when the owner asks.** Owner answers, grilled 2026-10-03 (all four the
+**NEXT: on the owner's go, squash-merge PR #124 with `--delete-branch`, then
+the after-merge items (a Resolution on #113; comments on #117, #96 and #77 —
+listed under the auditor notes below).** The auditor fixes went in before
+the PR. Owner answers, grilled 2026-10-03 (all four the
 recommended option), and how each landed in `02d`:
 - Item 2 → a move reads only snapshots captured **strictly before** its day.
 - Item 3 → each copy remembers the day it joined the team (its stint); a
@@ -397,8 +400,7 @@ The side session's `overall_rank` fix merged 2026-10-03 (PRs #121–#123).
 Resolution, comments posted on #113/#117/#118. Still open: the owner makes
 `tests`/`bot-tests` required checks; the `overall_rank` bug below is
 unticketed (task chip offered). This RESUME edit and the PLAN.md "PR
-pending" wording are uncommitted/stale on `main` — fold both into the next
-branch (#113). What landed:
+pending" wording were folded into the #113 branch (PR #124). What landed:
 - `notebooks/etl_checks.py` holds the Table Gates, coverage and
   `review_check.csv` filing. `docs/data_model.yml` gains `chain` and
   `required_keys` and registers `fact_trade_log`.

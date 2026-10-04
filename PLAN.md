@@ -91,7 +91,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     to a default.
   - The Minors slot stays the only cap exemption.
   - Build: the `dim_contract` row + `02d` sourcing (#113) — **built
-    2026-10-03**, uncommitted on `feat/113-minor-contract-sourcing`. The
+    2026-10-03**, PR #124 from `feat/113-minor-contract-sourcing`. The
     preseason snapshot is not read; 354 draft rows, 14 trades and 11 claims
     are `Minor`; cap totals unchanged. `02d` now runs behind `main()`.
     A move reads a snapshot only from inside the copy's stint and before
@@ -143,8 +143,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Builds: #117 Roster State (← #113), then #118 Scoring (← #117).
     #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #113 (built; auditor fixes applied 2026-10-03,
-  uncommitted; PR carries no `fact_*` parquet) → a draft-pricing fix that
+- Build, plan-gated: #113 (PR #124, opened 2026-10-03 with the auditor
+  fixes in; it carries no `fact_*` parquet) → a draft-pricing fix that
   publishes the ledger and roster (not ticketed; `02d` prices draft rows
   from the latest salary capture, 30 players wrong) → #117 → #118
   (#115 ✅ PR #120);
