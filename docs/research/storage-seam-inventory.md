@@ -55,6 +55,11 @@ pandas after the read. **No call site filters rows at read time.**
 
 ## 2. Write inventory by table (27 tables)
 
+The counts in this document are as of the inventory. One row was added
+since: `dim_scoring_period` (#117), which the grain and dtype checks in
+section 5 did not cover. It has three timezone-aware timestamp columns
+(`start_at`, `end_at`, `closed_at`; UTC), a first for this model.
+
 | Table | Writer(s) | Write semantics today | Seam mode |
 |---|---|---|---|
 | dim_position | 01a c3 | full replace (seed) | `replace` |
@@ -65,7 +70,8 @@ pandas after the read. **No call site filters rows at read time.**
 | dim_nfl_teams | 01d | full replace | `replace` |
 | dim_nfl_players | 01e | full replace (nflverse pull) | `replace` |
 | dim_season | 01f | read existing years, union with calendar range, full write | `replace` (caller unions; unchanged) |
-| dim_division | 01g | full replace | `replace` |
+| dim_division | 04p via `load_replace_partition(season_id,)` (was 01g, full replace; changed by #117) | replace-by-season_id | `replace_partition keys=(season_id,)` |
+| dim_scoring_period | 04p via `load_replace_partition(season_id,)` (added by #117); reads the published table first, to carry a closed period forward | replace-by-season_id | `replace_partition keys=(season_id,)` |
 | fact_nfl_combine_pro_day_metrics | 02a | full replace | `replace` |
 | fact_rookie_rankings | 02c (seed); `etl.ingest_ranking_source` | seed full; helper = read, concat, **first-non-null `rank_date` coalesce**, dedup keep-last on `(player_key, source_name, phase, draft_year)`, full write | seed `replace`; helper: caller computes coalesce, then `upsert` |
 | dim_roster_asset | 02d ×3 (`mint_assets`) | read-modify-write; mints surrogate `asset_id = max+1` | `upsert keys=asset_id` (minting stays in caller) |
@@ -313,8 +319,8 @@ seam section of `etl_helpers.py`. This locks in the migration.
    `upsert_dynasty_crosswalk`, `add_players_from_source` and
    `ingest_ranking_source` internals on top of the seam, keeping their
    signatures as shims.
-2. **Partition-replace writers**: 04b, 04x, 04f, 04y, 04d, 04e, 04u and
-   02d. These are the shared idioms with the highest leverage.
+2. **Partition-replace writers**: 04b, 04x, 04f, 04y, 04d, 04e, 04u, 04p
+   and 02d. These are the shared idioms with the highest leverage.
 3. **Hand-rolled replace-by-week**: 04a `load_fact`, 04v
    `load_placement`/`load_eligibility`, and the 02d `TXN_EVENT_TYPES`
    delete. Drop the 04a `score→fpts` migration shim (the data is already
@@ -322,7 +328,7 @@ seam section of `etl_helpers.py`. This locks in the migration.
 4. **Read-modify-write / upsert**: `dim_roster_asset`, `dim_player_alias`,
    `dim_rookie_prospect`, `fact_rookie_rankings`, and the FK back-fills in
    04z and `scripts/apply_fantrax_crosswalk_review.py`.
-5. **Seeds and full rebuilds**: 01a–01g, 02a, 02c, 02e, 03y, 04c (mechanical).
+5. **Seeds and full rebuilds**: 01a–01f, 02a, 02c, 02e, 03y, 04c (mechanical).
 6. **Readers**: every remaining `read_parquet` in notebooks, 05a,
    `run_pipeline` and `check_data_model`, which should validate the registry
    against `read_table`. Then turn on the static guard test. Delete the shims.

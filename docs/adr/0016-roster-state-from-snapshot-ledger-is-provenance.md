@@ -65,7 +65,7 @@
 ## Amendment 2026-10-03: in-season fact model (#81)
 
 - Amends decisions 1 (the Period Scoring grain), 4 (where current and per-period Roster State live) and 8 (`fact_fantasy_teams`).
-- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)); not yet built.
+- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); the rest are not yet.
 - Scope:
   - new tables `dim_scoring_period`, `fact_roster_state`, `fact_period_scoring`, `fact_matchup`, `fact_standings`
   - `dim_division` (its source moves to Fantrax) and `fact_fantasy_teams.roster_status`
@@ -96,6 +96,7 @@
    - Columns: `start_date`, `end_date`, `is_playoff`, plus the Update-Set state (decision 14).
    - It lists all 17 periods. `is_playoff` marks every period after the last scheduled week.
    - Every in-season fact keys on `season_id` + `period`. #86 stamps nflverse rows from this dim.
+   - *Built in #117 (`04p_fantrax_league_info.py`), with two more columns: `start_at` and `end_at`, the exact bounds Fantrax serves, stored in UTC. Periods turn over on a Thursday at 20:15 Eastern, so a period's `end_date` equals the next period's `start_date`; the dates are days on the Eastern clock and cannot place an instant in a period alone. `is_playoff` is true from `playoffs.firstPlayoffPeriod` on.*
 3. **`fact_roster_state`**, keyed `(season_id, period, team_key, scorer_id)`, from public `getTeamRosters?period=N`.
    - Columns: `roster_slot` (Starter / Bench / IR / Minors), `salary`, `contract_id`.
    - One Roster State per regular-season Scoring Period (1–12).
@@ -128,10 +129,12 @@
     - Facts carry `team_key`. Conference comes from `dim_fantasy_teams`, and the Division name from `dim_division (season_id, conference)`.
     - `dim_division` is loaded from public `getLeagueInfo.teamInfo[].division` instead of the Sheet.
     - A Gate check requires each Fantrax division to map to exactly one Conference.
+    - *Built in #117. The check runs in `04p`'s parser, before anything is written: a division in two Conferences, or two divisions in one, fails the step, which holds the Chain. `dim_fantasy_teams.division` is still read from the Sheet by `01c`.*
 13. **Playoffs are out of scope.** Periods 13–17 get no Update-Set; no `fact_roster_state`, scoring, matchup or standings rows; and no follow-up ticket.
 14. **The Update-Set state lives on `dim_scoring_period`.**
     - Columns: `update_set_state` (open | closing | closed; null for future and playoff periods) and `closed_at`.
     - It is published with the snapshot, so consumers can tell final numbers from provisional ones.
+    - *Built in #117 (owner's decision, 2026-10-03): the build writes `open` and `closing` only. The transition to `closed` is coded and tested, but it needs the scoring Close checks, which arrive with #118 and #116; until then no period closes and `closed_at` is null. A period already `closed` stays closed.*
 15. **Scoring loads once final.**
     - A period's scoring, matchup and standings rows first load when `allEventsFinished` is true, as its Update-Set enters closing.
     - They refresh through closing, so corrections land, and freeze at closed.

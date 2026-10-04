@@ -14,7 +14,7 @@ shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py roster_info.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
-To cover a new parser (#117 getLeagueInfo, #118 live scoring + standings):
+To cover a new parser (#117 public rosters, #118 live scoring + standings):
 add an ALLOWLIST spec, a trimmer and a SOURCES row, regenerate, and test the
 parser against the new file.
 """
@@ -60,6 +60,14 @@ ALLOWLIST: dict[str, object] = {
     # 04u build_future_picks: public getDraftPicks.
     "public_draftpicks.json": {"futureDraftPicks": [{k: KEEP for k in (
         "year", "round", "originalOwnerTeamId", "currentOwnerTeamId")}]},
+    # 04p parse_scoring_periods / parse_divisions: public getLeagueInfo. A
+    # team's `name` is its display name and is not listed.
+    "league_info.json": {
+        "seasonYear": KEEP,
+        "scoringPeriods": [{k: KEEP for k in ("number", "startDate", "endDate")}],
+        "playoffs": {k: KEEP for k in ("lastRegularSeasonPeriod", "firstPlayoffPeriod")},
+        "teamInfo": {ANY: {"id": KEEP, "division": KEEP}},
+    },
     # 04s schedule_periods / schedule_team_ids: getStandings view=SCHEDULE.
     "schedule.json": {"responses": [{"data": {"tableList": [{
         "caption": KEEP, "subCaption": KEEP,
@@ -151,6 +159,18 @@ def trim_draftpicks(raw: dict) -> dict:
     teams = {traded["originalOwnerTeamId"], traded["currentOwnerTeamId"]}
     return {"futureDraftPicks": [p for p in picks if p["originalOwnerTeamId"] in teams
                                  and p["currentOwnerTeamId"] in teams]}
+
+
+def trim_league_info(raw: dict) -> dict:
+    """Every Scoring Period (the parser needs them numbered 1..n) and two
+    teams from each division."""
+    by_division: dict[str, list] = {}
+    for tid in sorted(raw["teamInfo"]):
+        by_division.setdefault(raw["teamInfo"][tid]["division"].strip(), []).append(tid)
+    if len(by_division) < 2:
+        raise ValueError("fewer than two divisions in teamInfo")
+    keep = [tid for ids in by_division.values() for tid in ids[:2]]
+    return {**raw, "teamInfo": {tid: raw["teamInfo"][tid] for tid in keep}}
 
 
 def trim_schedule(raw: dict) -> dict:
@@ -275,6 +295,7 @@ SOURCES = {
     "playerstats_page.json": ("fantrax_playerstats_2026_01.json", trim_playerstats),
     "playerstats_page_ranked.json": ("fantrax_playerstats_2025_YTD.json", trim_playerstats),
     "public_draftpicks.json": ("fantrax_public_draftpicks.json", trim_draftpicks),
+    "league_info.json": ("fantrax_public_leagueinfo.json", trim_league_info),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
     "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
     "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),

@@ -70,7 +70,6 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 01d | `01d_dim_nfl_teams_seed.ipynb` | `dim_nfl_teams` |
 | 01e | `01e_dim_nfl_players_seed.ipynb` | `dim_nfl_players` (maps nflverse names → canonical schema) |
 | 01f | `01f_dim_season_seed.ipynb` | `dim_season` (calendar spine, current+2; ADR-0004) |
-| 01g | `01g_dim_division_seed.ipynb` | `dim_division` (`(season_id, conference)` → division name; ADR-0005 read-side) |
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
 | 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `fact_draft_pick` (replay from 04w JSON). Each move's contract is read off the latest in-season roster snapshot, else defaulted (`Minor` if minors-eligible; ADR-0019). A draft pick's or a claim's salary is read off the first roster snapshot after the move, else the draft-time ADP salary (draft) or the inherited salary / league minimum (claim). The run sits behind `main()`, so tests import its parsers. (`02b`, the old fact_fantasy_teams schema seed, is retired to `archive/` — superseded by 02e's ledger replay) |
@@ -86,6 +85,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` (overall/positional rank folded in as metric_keys) + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
 | 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — KTC RDP (Early/Mid/Late tercile) + DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `fact_draft_pick` rows in that project's backend |
+| 04p | `04p_fantrax_league_info.py` | Fantrax's public no-auth `getLeagueInfo` — **scheduled script** (after 01f): `dim_scoring_period` (all 17 Scoring Periods with exact bounds, `is_playoff`, and the Update-Set state `open` / `closing` / `closed`) + `dim_division` (the season's Division name per Conference; replaces the Sheet-sourced `01g`, now in `archive/`). Fails, and holds the Chain, unless each Fantrax division maps to exactly one Conference. No period is `closed` until the scoring Close checks land (#118, #116) |
 | 04t | `04t_fantrax_transaction_history.py` | Internal `fxpa/req` RPC `getTransactionDetailsHistory` (`team="ALL"`, all pages): raw trade-history capture `data/raw/fantrax_txn_history_{season}.json` — parsed downstream by `02d` into `fact_roster_transactions` `trade`/`trade_away` events (player assets) + `fact_trade_log` (all traded assets, incl. picks; trade-activity signal for mouserat_trade-bud) |
 | 04u | `04u_fantrax_public_api.py` | Fantrax's public no-auth `fxea/general` REST API: `getDraftPicks` → `fact_draft_pick_future` (real 2027-2028 pick ownership, incl. pick-for-pick trades); `getTeamRosters` → reconciliation check only (print, not written — `fact_fantasy_teams` stays ledger-replay-only per ADR-0003) |
 | 04v | `04v_minor_contracts.py` | Minors eligibility + roster placement — **scheduled script** (after 04a), read-only: Fantrax minors-eligibility verdict + per-team squad placement → `fact_roster_placement` + `fact_minor_eligibility`. **Sole writer of `fact_roster_placement`**, which `02e` turns into `roster_status` and the cap exemption follows. The cap exemption follows Minors *placement* only (ADR-0011). The `Minor` contract tracks eligibility (ADR-0019) |
@@ -93,7 +93,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
-The `.py` rows (`02d`, `02e`, `04a`, `04v`, `04w`) are the headless Fantrax
+The `.py` rows (`02d`, `02e`, `04a`, `04p`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 
 ## Scheduled pipeline (orchestrator)
@@ -101,7 +101,7 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02e
+`01f → 04p → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02e
 → (04b, offseason)`, surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).

@@ -144,12 +144,19 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
 - Build, plan-gated: #113 ✅ PR #124 (it carries no `fact_*` parquet;
-  Resolution and hand-on comments posted) → #125 salary sourcing (built
-  2026-10-03 on `fix/125-salary-sourcing`, PR #126, auditor done: draft picks and
+  Resolution and hand-on comments posted) → #125 ✅ PR #126 (draft picks and
   claims take their salary from the roster snapshot, then draft-time ADP;
-  all 1,004 roster rows on Fantrax period 1 now match; the PR publishes the
-  ledger and roster) → #117 → #118
-  (#115 ✅ PR #120);
+  all 1,004 roster rows on Fantrax period 1 match; the ledger and roster
+  are published, as of the 2026-07-24 transaction history) → #117 (grilled
+  and planned 2026-10-03, plan approved; three PRs). **PR 1 built
+  2026-10-03 on `feat/117-league-info`, PR pending:** `04p` reads public
+  `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
+  exact bounds, Update-Set state `open` / `closing`) and `dim_division`
+  (same two rows, now from Fantrax); `01g` is in `archive/`. Next: PR 2
+  `fact_roster_state` + `fact_preseason_salary`, then PR 3, the
+  `fact_roster_placement` retirement, which waits for the owner's `04t`
+  rerun
+  → #118 (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
