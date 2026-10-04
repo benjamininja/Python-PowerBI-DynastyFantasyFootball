@@ -9,8 +9,8 @@ Two tiers (decision 2):
 
 Table Gates take their parameters from docs/data_model.yml (decision 16):
 grain uniqueness, required keys, schema (columns + dtypes) and shrink limit.
-Domain checks (coverage today; Close checks, drift, dirty edges and replay
-with #116) are functions here, registered in DOMAIN_CHECKS.
+Domain checks (coverage and known contracts today; Close checks, drift, dirty
+edges and replay with #116) are functions here, registered in DOMAIN_CHECKS.
 
 The gate functions are pure (DataFrame + registry entry in, verdict out) so
 tests drive them without parquet. `run_suite` does the I/O; `file_review`
@@ -172,6 +172,19 @@ def latest_partition(df: pd.DataFrame) -> pd.DataFrame:
     return df[df["capture_date"] == df["capture_date"].max()]
 
 
+def newest_period(df: pd.DataFrame) -> pd.DataFrame:
+    """The newest Scoring Period of the newest season in a
+    replace-by-(season_id, period) fact."""
+    season = df[df["season_id"] == df["season_id"].max()]
+    return season[season["period"] == season["period"].max()]
+
+
+def contract_errors(rows: pd.DataFrame, contracts: pd.DataFrame) -> list[str]:
+    """Every contract_id is a dim_contract row. `rows` needs contract_id."""
+    unknown = sorted(set(rows["contract_id"].dropna()) - set(contracts["contract_id"]))
+    return [f"contract_id not in dim_contract: {unknown}"] if unknown else []
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -189,6 +202,12 @@ DOMAIN_CHECKS = [
     DomainCheck("coverage", "gate", "fact_roster_placement",
                 lambda load: coverage_errors(latest_partition(load("fact_roster_placement")),
                                              load("dim_fantasy_teams"))),
+    DomainCheck("coverage", "gate", "fact_roster_state",
+                lambda load: coverage_errors(newest_period(load("fact_roster_state")),
+                                             load("dim_fantasy_teams"))),
+    DomainCheck("contract", "gate", "fact_roster_state",
+                lambda load: contract_errors(load("fact_roster_state"),
+                                             load("dim_contract"))),
 ]
 
 

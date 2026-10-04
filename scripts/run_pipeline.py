@@ -128,6 +128,11 @@ def build_steps(profile: str | None) -> list[dict]:
         # dim_season, so it follows 01f.
         {"name": "04p_league_info", "cmd": _script("04p_fantrax_league_info.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["01f_dim_season"], "chain": "fantrax_core", "group": "regular_season"},
+        # Public getTeamRosters (no login): the Roster State of every
+        # regular-season period that has started and is not closed. It reads
+        # the periods and their Update-Set states from 04p's table.
+        {"name": "04r_roster_state", "cmd": _script("04r_fantrax_roster_state.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04p_league_info"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
