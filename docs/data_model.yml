@@ -561,6 +561,69 @@ tables:
       non-null on every row: the grain Gate files every row as
       grain_null_key until #109 gives the table an asset_id key.
 
+  - name: fact_roster_state
+    type: fact
+    grain: "(season_id, period, team_key, scorer_id)"
+    chain: fantrax_core
+    required_keys: [season_id, period, team_key, scorer_id, roster_slot, salary, contract_id, capture_date]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: period, dtype: int64 }
+      - { name: team_key, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: roster_slot, dtype: str }
+      - { name: salary, dtype: float64 }
+      - { name: contract_id, dtype: str }
+      - { name: capture_date, dtype: "datetime64[us]" }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_scoring_period, via: direct, on: "season_id, period" }
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_contract, via: direct, on: contract_id }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      The Roster State of each regular-season Scoring Period: one row per
+      player copy on a team, from public getTeamRosters?period=N (04r; no
+      login; ADR-0016 decision 3 and its amendment, decisions 3 and 14).
+      Players are keyed by scorer_id only. roster_slot is Starter | Bench |
+      IR | Minors (Fantrax ACTIVE | RESERVE | INJURED_RESERVE | MINORS).
+      salary and contract_id are what Fantrax shows on the roster row.
+      capture_date is the day, on the league's Eastern clock, the period was
+      last read: a period that has ended shows its final roster, the period
+      in play shows the roster on that day. A run reads every period that
+      has started and is not closed, up to the period Fantrax calls current,
+      and replaces each one whole. Fantrax answers a request for a future
+      period with the current roster, so no period is read before the
+      calendar and Fantrax both say it has started. Gates: all 28 teams (14
+      per Conference) in the newest period, and every contract_id in
+      dim_contract. Nothing reads this table yet: 02d, 02e and 04e move to it
+      when fact_roster_placement is retired (#117).
+
+  - name: fact_preseason_salary
+    type: fact
+    grain: "(season_id, team_key, scorer_id)"
+    required_keys: [season_id, team_key, scorer_id, salary, capture_date]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: team_key, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: salary, dtype: float64 }
+      - { name: capture_date, dtype: "datetime64[us]" }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+      - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      Frozen. The salary of every player copy on a roster in the 2026-07-18
+      preseason capture, copied once from fact_roster_placement's preseason
+      snapshot (#117). It keeps the salary of a draft pick or a claim that
+      left its team before Scoring Period 1, which fact_roster_state cannot
+      show. Salary only: the preseason capture is never read for a contract
+      (ADR-0019 decision 6). No step writes it and it has no Chain; a later
+      season's rows would arrive by PR.
+
   - name: fact_roster_placement
     type: fact
     grain: "(team_id, scorer_id, season, week)"

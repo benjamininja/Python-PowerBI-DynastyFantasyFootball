@@ -55,10 +55,15 @@ pandas after the read. **No call site filters rows at read time.**
 
 ## 2. Write inventory by table (27 tables)
 
-The counts in this document are as of the inventory. One row was added
-since: `dim_scoring_period` (#117), which the grain and dtype checks in
-section 5 did not cover. It has three timezone-aware timestamp columns
-(`start_at`, `end_at`, `closed_at`; UTC), a first for this model.
+The counts in this document are as of the inventory. Three rows were added
+since, all by #117, and the grain and dtype checks in section 5 did not
+cover them:
+- `dim_scoring_period` has three timezone-aware timestamp columns
+  (`start_at`, `end_at`, `closed_at`; UTC), a first for this model.
+- `fact_roster_state` is a partition-replace table keyed on two columns of
+  different types (`season_id` text, `period` integer).
+- `fact_preseason_salary` is frozen: it has no writer, so it needs a one-time
+  load into the database and no seam call.
 
 | Table | Writer(s) | Write semantics today | Seam mode |
 |---|---|---|---|
@@ -88,6 +93,8 @@ section 5 did not cover. It has three timezone-aware timestamp columns
 | dim_position_ceiling | 04e via `load_replace_partition(snapshot_date,)` | replace-by-snapshot | `replace_partition keys=(snapshot_date,)` |
 | fact_draft_pick_future | 04u via `load_replace_partition(draft_season,)` | replace-by-draft_season | `replace_partition` |
 | dim_fantrax_crosswalk | 04z c5; `apply_fantrax_crosswalk_review` | 04z full; apply = read, patch rows, full write | `replace` (or `upsert keys=scorer_id` for the patch) |
+| fact_roster_state | 04r via `load_replace_partition(season_id, period)` (added by #117) | replace-by-`(season_id, period)`; a run replaces every period it read | `replace_partition keys=(season_id, period)` |
+| fact_preseason_salary | none (written once by a one-off script, #117) | frozen | none: one-time load |
 | fact_roster_placement | 04v `load_placement` | hand-rolled replace-by-`(season, week)` + dedup `(team_id, scorer_id, season, week)` | `replace_partition keys=(season, week)` |
 | fact_minor_eligibility | 04v `load_eligibility` | hand-rolled replace-by-`(season, week)` + dedup `(scorer_id, season, week)` | `replace_partition keys=(season, week)` |
 
@@ -319,8 +326,8 @@ seam section of `etl_helpers.py`. This locks in the migration.
    `upsert_dynasty_crosswalk`, `add_players_from_source` and
    `ingest_ranking_source` internals on top of the seam, keeping their
    signatures as shims.
-2. **Partition-replace writers**: 04b, 04x, 04f, 04y, 04d, 04e, 04u, 04p
-   and 02d. These are the shared idioms with the highest leverage.
+2. **Partition-replace writers**: 04b, 04x, 04f, 04y, 04d, 04e, 04u, 04p,
+   04r and 02d. These are the shared idioms with the highest leverage.
 3. **Hand-rolled replace-by-week**: 04a `load_fact`, 04v
    `load_placement`/`load_eligibility`, and the 02d `TXN_EVENT_TYPES`
    delete. Drop the 04a `score→fpts` migration shim (the data is already

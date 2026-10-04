@@ -148,14 +148,18 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   claims take their salary from the roster snapshot, then draft-time ADP;
   all 1,004 roster rows on Fantrax period 1 match; the ledger and roster
   are published, as of the 2026-07-24 transaction history) → #117 (grilled
-  and planned 2026-10-03, plan approved; three PRs). **PR 1 is PR #127
-  (opened 2026-10-03, branch `feat/117-league-info`):** `04p` reads public
+  and planned 2026-10-03, plan approved; three PRs). **PR 1 ✅ merged as PR #127
+  (2026-10-03):** `04p` reads public
   `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
   exact bounds, Update-Set state `open` / `closing`) and `dim_division`
-  (same two rows, now from Fantrax); `01g` is in `archive/`. Next: PR 2
-  `fact_roster_state` + `fact_preseason_salary`, then PR 3, the
-  `fact_roster_placement` retirement, which waits for the owner's `04t`
-  rerun
+  (same two rows, now from Fantrax); `01g` is in `archive/`. **PR 2 is PR #128
+  (opened 2026-10-04, branch `feat/117-roster-state`):** `04r` reads
+  public `getTeamRosters?period=N` on every run and writes
+  `fact_roster_state` (periods 1–4 today, 4,360 rows; Roster Slot, salary,
+  contract, `capture_date`), with coverage and contract Gates;
+  `fact_preseason_salary` (992 rows, frozen) keeps the preseason salaries.
+  Nothing reads either table yet. Next: PR 3, the `fact_roster_placement`
+  retirement, which waits for the owner's `04t` rerun
   → #118 (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76

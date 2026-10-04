@@ -12,8 +12,10 @@ amended in place); then PR #119 (#81 fact model: ADR-0016 amended in
 place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
 493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass); then `main` =
-376a842 (PR #126, #125 salary sourcing; 225 tests pass). Working branch:
-`feat/117-league-info` (#117 PR 1 = PR #127, open; see below).
+376a842 (PR #126, #125 salary sourcing; 225 tests pass); then `main` =
+581ae4c (PR #127, #117 PR 1 league info; 269 tests pass). Working branch
+`feat/117-roster-state` (#117 PR 2, opened as PR #128 on 2026-10-04; merge
+only when the owner asks).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -248,8 +250,8 @@ compact between them, commit and PR only when asked.
   (`dim_division` has no `chain`). `04e` reads `fact_roster_placement` for
   who is rostered per Conference.
 
-**#117 PR 1 BUILT 2026-10-03: PR #127 (branch `feat/117-league-info`),
-open, waiting for CI and the owner's merge.** "Part of #117".
+**#117 PR 1 DONE 2026-10-03: merged as PR #127 (`581ae4c`), branch
+deleted; 6 CI checks green.** It said "Part of #117", so #117 is still open.
 - `notebooks/04p_fantrax_league_info.py` (new, pipeline step
   `04p_league_info`, `fantrax_core`, group `regular_season`, after `01f`,
   all phases): one public `getLeagueInfo` call → `dim_scoring_period` and
@@ -288,20 +290,119 @@ open, waiting for CI and the owner's merge.** "Part of #117".
   memory files, `PLAN.md`, this file, three test files, the fixture,
   `data/dim_scoring_period.parquet` (new).
 
-**NEXT: merge PR #127 on the owner's go (squash, `--delete-branch`). Then,
-after a compact, PR 2 (`feat/117-roster-state`):** `04r_fantrax_roster_state.py`,
-`fact_roster_state`, `fact_preseason_salary`, the coverage and contract
-Gates. PR 3 (`feat/117-retire-placement`) waits for the owner's `04t`
-rerun; its window starts by checking the history runs past 2026-07-24. Then
+**#117 PR 2 BUILT 2026-10-04 on branch `feat/117-roster-state`, opened as
+PR #128 on the owner's word. It says "Part of #117". The merge waits for
+the owner.** Additive: no reader changed, and it did not need `04t`.
+- `notebooks/04r_fantrax_roster_state.py` (new, pipeline step
+  `04r_roster_state`, `fantrax_core`, group `regular_season`, right after
+  `04p_league_info`, all phases, `needs` `04p_league_info`): public
+  `getTeamRosters?period=N` → `fact_roster_state`, replace-by-`(season_id,
+  period)`. Raw to `data/raw/fantrax_public_rosters_{year}_p{NN}.json`,
+  saved at fetch time under the period the reply echoes.
+- Functions: `league_day(now)`, `period_in_play(periods, now)`,
+  `periods_to_pull(periods, current, now)`, `check_reply(body, period,
+  team_ids)`, `rosters_to_state(payload, teams, contract_ids, season_id,
+  period, capture_date)`, `collect(fetch, periods, teams, contract_ids,
+  season_id, now)` → `(rows, current)`, `main()`.
+- `fact_roster_state` columns: `season_id` str, `period` int64, `team_key`,
+  `scorer_id`, `roster_slot` (Starter / Bench / IR / Minors), `salary`
+  float64, `contract_id`, `capture_date` `datetime64[us]` (the Eastern-clock
+  day the period was last read; same dtype as
+  `dim_scoring_period.end_date`, so PR 3's `min(end_date, capture_date)`
+  needs no cast).
+- Payload facts (probed 2026-10-04, counts only): `rosters` is a dict of 28
+  keyed by team id; item keys `id`, `status`, `salary` (float; 84 of 1,100
+  carry cents), `position`, `contract` = `{name, smallId}`; names seen
+  `1st`, `Minor`, `FA`, all in `dim_contract`. No repeated player on a team.
+- **The echo does not catch the future-period trap**: Fantrax echoes the
+  future number it was asked for. The guard is `periods_to_pull`.
+- My choices, not ruled on by the owner (flag them in the report):
+  - A period is read only when the calendar (`start_at <= now`) **and**
+    Fantrax (`period <=` the no-period call's echo) say it has started. If
+    the two disagree on the period in play, `04r` prints a `[warn]` and
+    reads the periods both agree on. It does not fail: whether Fantrax moves
+    its current period exactly at `start_at` is unverified, and a hard
+    failure would hold the Chain every week if it does not.
+  - The season comes from a second public call (`getLeagueInfo.seasonYear`),
+    not `04a`'s `snapshot_season`, so a league id carried into a new season
+    cannot write under the old season's periods.
+  - The no-period reply is reused for the current period (one call fewer).
+  - The parser also raises on a team with no roster rows and a row with no
+    player id or no salary (the plan named the slot and the contract only).
+  - `required_keys` holds all eight columns (the plan listed seven;
+    `capture_date` is never null either).
+- **Churn to expect:** every run re-reads every period that is not
+  `closed`, and no period closes until #118, so `capture_date` moves on
+  every period each day and the parquet changes on every run.
+- `fact_preseason_salary.parquet`: 992 rows, `season_id, team_key,
+  scorer_id, salary, capture_date` (2026-07-18, `datetime64[us]`), copied
+  from the `PRE` partition by `pr2_preseason_salary.py` in the scratchpad
+  (not kept in the repo). 0 null salaries, 0 duplicates, 28 teams; its
+  salary total equals the `PRE` partition's. No `chain`.
+- `etl_checks`: `newest_period(df)`, `contract_errors(rows, contracts)`, and
+  two Gate entries for `fact_roster_state` in `DOMAIN_CHECKS` (`coverage` on
+  the newest period, `contract` on every row). The placement coverage check
+  stays until PR 3.
+- Fixture `tests/fixtures/fantrax/public_rosters.json`: period 1, two teams,
+  8 rows each, all four statuses and all three contracts; `teamName`,
+  `salaryCap`, `position` and `contract.smallId` are not in the allowlist.
+  Cut from `fantrax_public_rosters_2026_p01.json`.
+- Tests: `tests/test_04r_roster_state.py` (new, 39: which periods are read,
+  the reply checks, the parser's failure modes, `collect` with a canned
+  Fantrax, and `main()` on a temp data dir incl. a second run and a bad
+  reply writing nothing), `TestPublicRosters` in `test_fantrax_parsers.py`
+  (6, incl. schema matches the registry), `TestRosterStateChecks` in
+  `test_etl_checks.py` (5), and the new fixture's allowlist case (1).
+- Verified 2026-10-04:
+  - First load: periods 1–4, 4,360 rows (1,069 / 1,092 / 1,099 / 1,100),
+    equal to the raw replies row for row and in salary total; 28 teams and
+    full coverage in every period; no nulls; no duplicate key; contracts
+    `1st` 2,511, `Minor` 1,399, `FA` 450. Periods 1 and 3 match the
+    2026-10-03 counts.
+  - Salary and contract are identical on all 1,054 copies shared by periods
+    1 and 3 (the #125 measurement, reproduced from the table).
+  - A second run is byte-identical.
+  - `pytest tests/` 320 pass (51 new); `check_data_model.py` (30 tables)
+    and `--check`; `check_sources.py` (15 sources) and `--check`;
+    `--check-only` 154 checks, 0 Gate failures, the same 2 review findings;
+    `--dry-run` shows `01f → 04p → 04r → 01e → 04a …`.
+  - Bot suite not run (no bot code or bot-read data changed).
+- Changed files: `04r` (new), `etl_checks.py`, `run_pipeline.py`,
+  `make_fixtures.py`, `data_model.yml` + `DATA_MODEL.md`, `sources.yml` +
+  `SOURCES.md`, `notebooks/README.md`, `data/README.md`, ADR-0016 amend
+  notes, `docs/research/storage-seam-inventory.md`, `data-model.md`,
+  `MEMORY.md`, `PLAN.md`, this file, three test files, the fixture, and the
+  two new parquet (`fact_roster_state`, `fact_preseason_salary`).
+- Scratchpad for PR 2: `pr2_facts.py`, `pr2_preseason_salary.py`,
+  `pr2_verify.py`, `pr2_checkonly.log`.
+
+**NEXT (after a compact, and after the owner's `04t` rerun): #117 PR 3,
+branch `feat/117-retire-placement`,** from the approved plan's "PR 3"
+section (`C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`).
+- For PR 3: `04r`'s `capture_date` on a period that has ended is later than
+  its `end_date`, so `min(end_date, capture_date)` gives `end_date`; on the
+  period in play it gives the capture day. `fact_preseason_salary`'s
+  `capture_date` is 2026-07-18.
+- `04u` can drop its own `fetch` for `etl.fantrax_public_get`, and its
+  `reconcile_rosters` goes (the `fantrax_public_fxea` entry in
+  `sources.yml` then loses its `getTeamRosters` half).
+
+PR 3's window starts by checking the transaction history runs past
+2026-07-24. Then
 #118, which is plan-gated: grill and plan first, in its own window. Read
 the #117 issue and its hand-on comments (from #115, #113 and #125) before
 building.
+- After #117 closes, on the owner's go: notes on #97 (slots stop updating
+  after period 12), #118 (public `getLeagueInfo.matchups` lists 14 matchups
+  for all 17 periods; `checks_passed` is the Close-check seam in `04p`),
+  #93 (the future-period trap; `04p` and `04r` import `04a` for the league
+  id; `04r` makes two public calls beyond one per period) and a Resolution
+  on #117. Nothing was posted for PR 1 or PR 2.
 - Scratchpad for #117: `g117_facts.py` (table counts), `g117_probe.py` and
   `g117_probe2.py` (public payload shapes, keys and counts only).
 - Owner calls still open from the #125 audit (see "Open after the audit"
   below; items 1–3 need the owner): the stale cap (rerun `04t`, owner's
   login), the `FA` contract on a re-priced claim, the lower draft tiers.
-- The post-#125 RESUME and PLAN.md edits ride on the PR 1 branch.
 
 **#125 DONE 2026-10-03 — merged as PR #126 (`376a842`), branch deleted; the
 PR closed #125.** The ledger and roster on `main` are now the `02d` → `02e`

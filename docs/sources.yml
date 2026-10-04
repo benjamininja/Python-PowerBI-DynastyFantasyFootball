@@ -99,7 +99,7 @@ sources:
     name: "Fantrax — public fxea API (getDraftPicks + getTeamRosters)"
     status: live
     locator: "https://www.fantrax.com/fxea/general/{getDraftPicks,getTeamRosters}?leagueId=v744203wmmvjqzv6"
-    purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades). getTeamRosters is a print-only reconciliation check against fact_roster_placement — never written (fact_fantasy_teams stays ledger-replay-only, ADR-0003)"
+    purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades). 04u's own getTeamRosters call is a print-only reconciliation check against fact_roster_placement — never written (fact_fantasy_teams stays ledger-replay-only, ADR-0003). The stored per-period Roster State is 04r's (the getTeamRosters entry below)"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
     cadence: "Manual run (not in run_pipeline.py)"
     feeds:
@@ -117,6 +117,17 @@ sources:
       - { notebook: 04p_fantrax_league_info.py, table: dim_scoring_period }
       - { notebook: 04p_fantrax_league_info.py, table: dim_division }
     match: ["getLeagueInfo"]
+
+  - id: fantrax_public_rosters
+    name: "Fantrax — public fxea API (getTeamRosters per period)"
+    status: live
+    locator: "https://www.fantrax.com/fxea/general/getTeamRosters?leagueId=v744203wmmvjqzv6&period=N"
+    purpose: "The Roster State of each regular-season Scoring Period: every player copy's Roster Slot (`status`), salary and contract, per team (ADR-0016 decision 3 and its amendment). A call with no period returns the current one and echoes its number. A past period returns its real roster; a FUTURE period returns the current roster under the future number, so 04r never asks past the current period. One call per period that has started and is not closed. The season comes from a getLeagueInfo call, so a league id carried into a new season cannot write under the old one"
+    auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
+    cadence: "Every pipeline run, all phases (`04r_roster_state` step, fantrax_core Chain); nothing is read before Scoring Period 1 starts"
+    feeds:
+      - { notebook: 04r_fantrax_roster_state.py, table: fact_roster_state }
+    match: ["getTeamRosters"]
 
   - id: google_sheet_team_manifest
     name: "Google Sheet — team manifest"

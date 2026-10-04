@@ -1,0 +1,141 @@
+{
+ "period": 1,
+ "rosters": {
+  "6nhnbkuqmmwi166w": {
+   "rosterItems": [
+    {
+     "id": "05rls",
+     "status": "ACTIVE",
+     "salary": 14380000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "060k8",
+     "status": "RESERVE",
+     "salary": 7857000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "074xe",
+     "status": "MINORS",
+     "salary": 9703000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "074y2",
+     "status": "RESERVE",
+     "salary": 5769000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "060su",
+     "status": "ACTIVE",
+     "salary": 9071000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "074zb",
+     "status": "MINORS",
+     "salary": 2000000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "05rnx",
+     "status": "RESERVE",
+     "salary": 2000000.0,
+     "contract": {
+      "name": "FA"
+     }
+    },
+    {
+     "id": "06sr6",
+     "status": "INJURED_RESERVE",
+     "salary": 5609000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    }
+   ]
+  },
+  "6wmapyeymntmhosz": {
+   "rosterItems": [
+    {
+     "id": "060re",
+     "status": "RESERVE",
+     "salary": 4679000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "074ze",
+     "status": "MINORS",
+     "salary": 7326000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "04yq0",
+     "status": "ACTIVE",
+     "salary": 8101000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "06l7c",
+     "status": "ACTIVE",
+     "salary": 8099000.0,
+     "contract": {
+      "name": "1st"
+     }
+    },
+    {
+     "id": "05je8",
+     "status": "RESERVE",
+     "salary": 2000000.0,
+     "contract": {
+      "name": "FA"
+     }
+    },
+    {
+     "id": "06l6j",
+     "status": "MINORS",
+     "salary": 2000000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "06jei",
+     "status": "INJURED_RESERVE",
+     "salary": 8443000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    },
+    {
+     "id": "073nk",
+     "status": "INJURED_RESERVE",
+     "salary": 6980000.0,
+     "contract": {
+      "name": "Minor"
+     }
+    }
+   ]
+  }
+ }
+}

@@ -141,6 +141,53 @@ class TestCoverage:
         assert len(ec.latest_partition(df)) == 2
 
 
+def _roster_state(periods=(("2026-2027", 1), ("2026-2027", 2)), contract="1st"):
+    """One player per team in each (season_id, period)."""
+    teams = _teams()["team_key"]
+    return pd.concat([pd.DataFrame({"season_id": season, "period": period,
+                                    "team_key": teams, "contract_id": contract})
+                      for season, period in periods], ignore_index=True)
+
+
+class TestRosterStateChecks:
+    CONTRACTS = pd.DataFrame({"contract_id": ["Minor", "1st", "FA"]})
+
+    def _run(self, check, state):
+        tables = {"fact_roster_state": state, "dim_fantasy_teams": _teams(),
+                  "dim_contract": self.CONTRACTS}
+        dc = next(d for d in ec.DOMAIN_CHECKS
+                  if (d.table, d.name) == ("fact_roster_state", check))
+        assert dc.tier == "gate"
+        return dc.fn(tables.__getitem__)
+
+    def test_newest_period_of_the_newest_season(self):
+        # Last season's period 12 is a higher number, not the newer period.
+        state = _roster_state((("2025-2026", 12), ("2026-2027", 1), ("2026-2027", 2)))
+        newest = ec.newest_period(state)
+        assert set(zip(newest["season_id"], newest["period"])) == {("2026-2027", 2)}
+        assert len(newest) == 28
+
+    def test_coverage_passes_on_a_full_newest_period(self):
+        assert self._run("coverage", _roster_state()) == []
+
+    def test_coverage_reads_only_the_newest_period(self):
+        state = _roster_state()
+        older_gap = state[~((state["period"] == 1) & (state["team_key"] == "T00"))]
+        assert self._run("coverage", older_gap) == []
+        newest_gap = state[~((state["period"] == 2) & (state["team_key"] == "T00"))]
+        assert "27 teams, expected 28" in self._run("coverage", newest_gap)
+
+    def test_every_contract_is_a_dim_contract_row(self):
+        assert self._run("contract", _roster_state()) == []
+        assert ec.contract_errors(_roster_state(contract="7th"), self.CONTRACTS) == [
+            "contract_id not in dim_contract: ['7th']"]
+
+    def test_an_unknown_contract_in_an_older_period_still_blocks(self):
+        state = _roster_state()
+        state.loc[(state["period"] == 1) & (state["team_key"] == "T00"), "contract_id"] = "7th"
+        assert self._run("contract", state) == ["contract_id not in dim_contract: ['7th']"]
+
+
 class TestRunSuite:
     REG = {
         "t": {"name": "t", "chain": "rookie", "grain": "(k, j)", "required_keys": ["k"],

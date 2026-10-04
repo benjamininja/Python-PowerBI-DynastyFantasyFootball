@@ -14,9 +14,9 @@ shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py roster_info.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
-To cover a new parser (#117 public rosters, #118 live scoring + standings):
-add an ALLOWLIST spec, a trimmer and a SOURCES row, regenerate, and test the
-parser against the new file.
+To cover a new parser (#118 live scoring + standings): add an ALLOWLIST spec,
+a trimmer and a SOURCES row, regenerate, and test the parser against the new
+file.
 """
 from __future__ import annotations
 
@@ -68,6 +68,10 @@ ALLOWLIST: dict[str, object] = {
         "playoffs": {k: KEEP for k in ("lastRegularSeasonPeriod", "firstPlayoffPeriod")},
         "teamInfo": {ANY: {"id": KEEP, "division": KEEP}},
     },
+    # 04r check_reply / rosters_to_state: public getTeamRosters for one period.
+    # A roster's `teamName` is the team's display name and is not listed.
+    "public_rosters.json": {"period": KEEP, "rosters": {ANY: {"rosterItems": [{
+        "id": KEEP, "status": KEEP, "salary": KEEP, "contract": {"name": KEEP}}]}}},
     # 04s schedule_periods / schedule_team_ids: getStandings view=SCHEDULE.
     "schedule.json": {"responses": [{"data": {"tableList": [{
         "caption": KEEP, "subCaption": KEEP,
@@ -171,6 +175,32 @@ def trim_league_info(raw: dict) -> dict:
         raise ValueError("fewer than two divisions in teamInfo")
     keep = [tid for ids in by_division.values() for tid in ids[:2]]
     return {**raw, "teamInfo": {tid: raw["teamInfo"][tid] for tid in keep}}
+
+
+PUBLIC_ROSTER_STATUSES = {"ACTIVE", "RESERVE", "INJURED_RESERVE", "MINORS"}
+
+
+def _trim_public_roster(items: list) -> list:
+    """Up to two players per status, plus the first player on each contract."""
+    keep, per_status, contracts = [], {}, set()
+    for it in items:
+        status, contract = it["status"], it["contract"]["name"]
+        if per_status.get(status, 0) < 2 or contract not in contracts:
+            per_status[status] = per_status.get(status, 0) + 1
+            contracts.add(contract)
+            keep.append(it)
+    return keep
+
+
+def trim_public_rosters(raw: dict) -> dict:
+    """Two teams whose rosters hold all four statuses."""
+    rosters = raw["rosters"]
+    picked = [tid for tid in sorted(rosters) if PUBLIC_ROSTER_STATUSES
+              <= {it["status"] for it in rosters[tid]["rosterItems"]}][:2]
+    if len(picked) < 2:
+        raise ValueError("fewer than two teams hold every roster status")
+    return {**raw, "rosters": {tid: {**rosters[tid], "rosterItems": _trim_public_roster(
+        rosters[tid]["rosterItems"])} for tid in picked}}
 
 
 def trim_schedule(raw: dict) -> dict:
@@ -296,6 +326,7 @@ SOURCES = {
     "playerstats_page_ranked.json": ("fantrax_playerstats_2025_YTD.json", trim_playerstats),
     "public_draftpicks.json": ("fantrax_public_draftpicks.json", trim_draftpicks),
     "league_info.json": ("fantrax_public_leagueinfo.json", trim_league_info),
+    "public_rosters.json": ("fantrax_public_rosters_2026_p01.json", trim_public_rosters),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
     "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
     "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),

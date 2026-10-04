@@ -6,9 +6,9 @@ scripts/make_fixtures.py (allowlisted keys only). When Fantrax changes shape,
 regenerate them in a PR; a failure here is the shape drift showing up.
 
 Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04p
-getLeagueInfo (periods + divisions), 04s schedule helpers, 04v
-rosters_to_frame, 02d draft results + transaction history. Later builds add
-the public rosters (#117), live scoring + standings (#118).
+getLeagueInfo (periods + divisions), 04r public getTeamRosters, 04s schedule
+helpers, 04v rosters_to_frame, 02d draft results + transaction history. Later
+builds add live scoring + standings (#118).
 """
 import copy
 import importlib
@@ -28,6 +28,7 @@ fx = importlib.import_module("04a_fantrax_weekly_scrape")
 fs = importlib.import_module("04s_fantrax_inseason_capture")
 fu = importlib.import_module("04u_fantrax_public_api")
 lg = importlib.import_module("04p_fantrax_league_info")
+rs = importlib.import_module("04r_fantrax_roster_state")
 mv = importlib.import_module("04v_minor_contracts")
 rt = importlib.import_module("02d_fact_roster_transactions")
 
@@ -180,6 +181,59 @@ class TestLeagueInfo:
         teams.loc[0, "conference"] = "B" if teams.loc[0, "conference"] == "A" else "A"
         with pytest.raises(ValueError, match="not one-to-one"):
             lg.parse_divisions(raw, teams, "2026-2027")
+
+
+class TestPublicRosters:
+    DAY = pd.Timestamp("2026-10-04")
+    CONTRACTS = {"Minor", "1st", "FA"}
+
+    @pytest.fixture
+    def raw(self):
+        return _load("public_rosters.json")
+
+    @pytest.fixture
+    def teams(self, raw):
+        return pd.DataFrame({"fantrax_team_id": sorted(raw["rosters"]),
+                             "team_key": ["T1", "T2"]})
+
+    @pytest.fixture
+    def df(self, raw, teams):
+        return rs.rosters_to_state(raw, teams, self.CONTRACTS, "2026-2027", 1, self.DAY)
+
+    def test_rows_and_grain(self, df):
+        assert df.groupby("team_key").size().to_dict() == {"T1": 8, "T2": 8}
+        assert not df.duplicated(["team_key", "scorer_id"]).any()
+        assert (df["season_id"] == "2026-2027").all() and (df["period"] == 1).all()
+        assert (df["capture_date"] == self.DAY).all()
+
+    def test_statuses_map_to_roster_slots(self, raw, df):
+        statuses = {it["status"] for r in raw["rosters"].values() for it in r["rosterItems"]}
+        assert statuses == set(rs.ROSTER_SLOT)                 # the fixture holds all four
+        assert df["roster_slot"].value_counts().to_dict() == {
+            "Bench": 5, "Starter": 4, "Minors": 4, "IR": 3}
+
+    def test_salary_and_contract_off_the_row(self, df):
+        by = df.set_index("scorer_id")
+        row = by.loc["05rls"]
+        assert (row["team_key"], row["roster_slot"], row["salary"], row["contract_id"]) == (
+            "T1", "Starter", 14380000.0, "1st")
+        # The slot and the contract are separate: a Minor contract off the Minors squad.
+        assert (by.loc["06sr6", "roster_slot"], by.loc["06sr6", "contract_id"]) == ("IR", "Minor")
+        assert by.loc["05rnx", "contract_id"] == "FA"
+
+    def test_schema_matches_the_registry(self, df):
+        import etl_checks as ec
+        declared = {c["name"]: c["dtype"]
+                    for c in ec.load_registry()["fact_roster_state"]["columns"]}
+        assert {c: str(t) for c, t in df.dtypes.items()} == declared
+
+    def test_reply_passes_its_checks(self, raw, teams):
+        assert rs.check_reply(raw, 1, teams["fantrax_team_id"]) == 1
+        assert rs.check_reply(raw, None, teams["fantrax_team_id"]) == 1
+
+    def test_reply_for_another_period_raises(self, raw, teams):
+        with pytest.raises(ValueError, match="echoed period 1"):
+            rs.check_reply(raw, 2, teams["fantrax_team_id"])
 
 
 class TestSchedule:
