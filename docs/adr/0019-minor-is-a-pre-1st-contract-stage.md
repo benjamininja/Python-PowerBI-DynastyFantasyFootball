@@ -45,6 +45,7 @@
        - *A draft pick and a claim start a stint, so both always take the default.*
        - *A copy with no stint on record (the ledger never saw it join the team) reads any snapshot before the move day.*
      - *A snapshot row with a blank contract or no capture date is not an observation.*
+     - *These rules cover the contract only. Salary is sourced on its own (#125): a draft pick or a claim reads the first snapshot after the move, inside the stint it starts, and the preseason snapshot is read for it. Its salaries match the in-season rosters.*
      - *A player is eligible on the day of a move if either neighbouring eligibility snapshot lists them: the first one on or after the move day, or the last one before it (owner's decision).*
        - *Games played only grow, so a player eligible later was eligible that day.*
        - *A player listed before the move and not after it graduated in between, on an unknown side of the move. The earlier list stands.*

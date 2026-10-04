@@ -22,8 +22,9 @@
 #   Key `season_id + event_type + team_key + asset_id + event_seq`. Each pick's
 #   contract is sourced, not assumed (ADR-0019 -- see "Contract sourcing"
 #   below): `Minor` for a minors-eligible player, else `1st`. `contract_value` =
-#   the Fantrax `salary` as-of the capture; `cap_hit` = that contract's
-#   `dim_contract.cap_hit_pct` × value.
+#   the salary Fantrax charges the pick -- read off the roster snapshot, else
+#   the salary pool at draft time (see "Salary sourcing" below); `cap_hit` =
+#   that contract's `dim_contract.cap_hit_pct` × value.
 #   PLUS the free-agency/trade events parsed from 04t's captured transaction
 #   history — `trade_away` (TERMINAL) + `trade` for a traded player, and
 #   `claim` / `drop` (TERMINAL) for FA churn. All four share one chronological
@@ -51,8 +52,9 @@
 # **Identity joins:** team `teamId → team_key` via `dim_fantasy_teams.fantrax_team_id`
 # (01c, the league Sheet's authoritative `Fantrax-TeamId` column — ADR-0005);
 # player `scorerId → gsis_id/player_key` via `dim_fantrax_crosswalk` (04z);
-# `salary` via the latest `fact_fantrax_adp` snapshot (04a); contract via
-# `fact_roster_placement` + `fact_minor_eligibility` (04v).
+# `salary` via `fact_roster_placement` (04v), else the draft-time
+# `fact_fantrax_adp` capture (04a); contract via `fact_roster_placement` +
+# `fact_minor_eligibility` (04v).
 #
 # **Run:**  python notebooks/02d_fact_roster_transactions.py
 #
@@ -115,6 +117,13 @@ STALE_ELIGIBILITY_DAYS = 8    # 04v runs weekly; a move further past its newest 
 
 # Which fact_minor_eligibility capture says a player was eligible (eligible_at).
 ELIGIBLE_NEXT, ELIGIBLE_PREVIOUS, ELIGIBLE_NEWEST = "next", "previous", "newest"
+
+# Where a draft pick's salary was read (build_startup_rows), firmest first.
+SALARY_SNAPSHOT   = "roster snapshot"
+SALARY_AT_PICK    = "ADP on or before the pick"
+SALARY_AFTER_PICK = "ADP after the pick"
+SALARY_LATEST     = "latest ADP of any season"
+SALARY_MISSING    = "none"
 
 # Same-timestamp tiebreak: a drop frees the roster spot the paired claim
 # fills, and a trade_away precedes the claim of anyone it displaced.
@@ -256,10 +265,11 @@ def build_draft_picks(picks: pd.DataFrame, team_lut: dict, season_id: str = SEAS
 # take the default. A copy with no stint on record (the ledger never saw it
 # join the team) reads any snapshot before the move day.
 #
-# The preseason (`PRE`) snapshot is NOT read. Fantrax moved the eligible
-# players to `Minor` after it was taken, so it shows `1st` on players who were
-# `Minor` by week 1; reading it would stamp `1st` on an eligible player moved
-# between that capture and the season start.
+# The preseason (`PRE`) snapshot is NOT read for a contract. Fantrax moved the
+# eligible players to `Minor` after it was taken, so it shows `1st` on players
+# who were `Minor` by week 1; reading it would stamp `1st` on an eligible
+# player moved between that capture and the season start. (Its salaries ARE
+# read -- see "Salary sourcing".)
 #
 # Today the snapshot is 04v's fact_roster_placement, keyed by capture date;
 # #117 re-points step 1 at fact_roster_state, keyed by Scoring Period, and
@@ -269,6 +279,7 @@ class ContractSource(NamedTuple):
     elig: list     # [(capture day, {minors-eligible scorer_ids})], oldest first
     years: dict    # contract_id -> dim_contract.contract_year
     pcts: dict     # contract_id -> dim_contract.cap_hit_pct
+    salaries: dict # (team_key, scorer_id) -> [(capture day, salary)], oldest first
 
 
 class Sourced(NamedTuple):
@@ -316,7 +327,8 @@ def contract_source(placement, eligibility, contracts) -> ContractSource:
         snaps=index_snapshots(placement),
         elig=index_eligibility(eligibility),
         years=dict(zip(contracts["contract_id"], contracts["contract_year"])),
-        pcts=dict(zip(contracts["contract_id"], contracts["cap_hit_pct"])))
+        pcts=dict(zip(contracts["contract_id"], contracts["cap_hit_pct"])),
+        salaries=index_salaries(placement))
 
 
 def snapshot_contract(snaps: dict, team_key, scorer_id, event_dt, since=None):
@@ -429,21 +441,165 @@ def unknown_contracts(frame: pd.DataFrame, contracts: pd.DataFrame) -> list:
 
 
 # %%
+# ---- Salary sourcing (#125) -------------------------------------------------
+# A draft pick and a claim START a stint, so each sets the salary the copy
+# carries. Both read it off the roster snapshot (04v's fact_roster_placement):
+# the FIRST capture that shows the copy on the move's team inside the stint
+# the move starts:
+#          move day  <  capture day  <  the day the copy next left the team
+# - After the move day, for the reason a contract is read from before it: a
+#   capture dated the move day may predate the move.
+# - Before the copy next left (a trade away, a drop). A copy that comes back
+#   starts a new stint, and that stint's salary belongs to the move that
+#   started it.
+# The first such snapshot, not the latest: it is the one closest to the move.
+#
+# Only when no snapshot qualifies, a default:
+# - a draft pick: the fact_fantrax_adp salary of the draft's own season, on the
+#   latest capture on or before the pick day, else the earliest one after it,
+#   else the latest capture of any season. Fantrax re-prices the pool after the
+#   draft and keeps charging a roster the draft-time salary, so the LATEST
+#   capture is the wrong one to read first.
+# - a claim: the salary it inherits this season in this Conference, else the
+#   league minimum (see resolve_legs).
+#
+# The preseason snapshot IS read here. Its contracts predate Fantrax's `Minor`
+# relabel, but its salaries match the in-season rosters row for row.
+#
+# A trade and a drop set no salary: they carry the copy's.
+#
+# Known limits (cap-ledger-auditor, #125; none bites on today's data):
+# - The two lower draft tiers are weak. A capture taken after the pick can
+#   already carry Fantrax's post-draft re-price, and another season's pool is
+#   priced differently (main() warns when a pick falls that far).
+# - A claim traded away before its first snapshot keeps its default: the trade
+#   carries the salary on, and the new team's snapshot is not read.
+# - The lookup is not bounded by season: a claim with no snapshot before the
+#   season rolls over would read next season's first capture.
+#
+# #117 re-points this lookup at fact_roster_state with the contract lookup.
+# That table starts at Scoring Period 1, so the preseason salaries read here
+# need a home before fact_roster_placement is retired.
+class DraftSalaries(NamedTuple):
+    season: dict   # scorer_id -> [(capture day, salary)], the draft's season, oldest first
+    latest: dict   # scorer_id -> salary on the latest capture of any season
+
+
+def index_salaries(placement) -> dict:
+    """Every roster snapshot row's salary, indexed per copy, the preseason
+    capture included. Left out: rows with no capture date and rows with no
+    salary."""
+    if placement is None or placement.empty:
+        return {}
+    seen = placement[placement["capture_date"].notna() & placement["salary"].notna()]
+    salaries = {}
+    for r in seen.sort_values("capture_date").itertuples():
+        salaries.setdefault((r.team_key, r.scorer_id), []).append(
+            (_day(r.capture_date), float(r.salary)))
+    return salaries
+
+
+def snapshot_salary(salaries: dict, team_key, scorer_id, event_dt, until=None):
+    """The salary on the first snapshot that shows this copy on this team
+    inside the stint the move starts: captured after the move day and before
+    `until`, the day the copy next left the team (None when it never did).
+    None when no snapshot qualifies."""
+    day, end = _day(event_dt), _day(until)
+    if day is None:
+        return None
+    return next((salary for captured, salary in salaries.get((team_key, scorer_id), ())
+                 if captured > day and (end is None or captured < end)), None)
+
+
+def departures(legs: list) -> dict:
+    """(team_key, scorer_id) -> when the copy left that team, oldest first: a
+    trade away from it, or a drop by it. A leg with no date is left out."""
+    left = {}
+    for l in legs:
+        team = {TRADE_IN: l["team_from"], DROP_EVENT: l["team_to"]}.get(l["kind"])
+        if team is not None and pd.notna(team) and pd.notna(l["event_dt"]):
+            left.setdefault((team, l["scorer_id"]), []).append(l["event_dt"])
+    return {copy: sorted(times) for copy, times in left.items()}
+
+
+def stint_end(departs: dict, team_key, scorer_id, joined=None):
+    """When the copy next left the team after joining it at `joined`; None when
+    it never did. A draft pick passes no `joined`: the ledger and 02e's replay
+    put every transaction after the draft, so its stint ends at the copy's
+    first departure, whatever its date. A departure stamped the same instant as
+    the join belongs to the stint before (sort_legs puts it first)."""
+    return next((left for left in departs.get((team_key, scorer_id), ())
+                 if joined is None or left > joined), None)
+
+
+def index_draft_salaries(adp: pd.DataFrame, season: int) -> DraftSalaries:
+    """fact_fantrax_adp -> the salary lookups a draft pick falls back on. The
+    season index holds only `season`'s captures, and no row without a salary
+    or a capture date: another season's pool is priced differently."""
+    by_day = adp.sort_values(["capture_date", "week"], kind="stable")
+    priced = by_day[(by_day["season"] == season) & by_day["salary"].notna()
+                    & by_day["capture_date"].notna()]
+    in_season = {}
+    for r in priced.itertuples():
+        in_season.setdefault(r.scorer_id, []).append((_day(r.capture_date), float(r.salary)))
+    latest = by_day.drop_duplicates("scorer_id", keep="last")
+    return DraftSalaries(in_season, dict(zip(latest["scorer_id"], latest["salary"])))
+
+
+def draft_time_salary(index: DraftSalaries, scorer_id, event_dt):
+    """A draft pick's (salary, where it was read) when no snapshot prices it:
+    the draft season's latest capture on or before the pick day, else its
+    earliest capture after, else the latest capture of any season. A pick with
+    no date reads the season's earliest capture."""
+    day = _day(event_dt)
+    seen = index.season.get(scorer_id, ())
+    at_pick = [salary for captured, salary in seen if day is not None and captured <= day]
+    if at_pick:
+        return at_pick[-1], SALARY_AT_PICK
+    if seen:
+        return seen[0][1], SALARY_AFTER_PICK
+    latest = index.latest.get(scorer_id)
+    return (latest, SALARY_LATEST) if pd.notna(latest) else (pd.NA, SALARY_MISSING)
+
+
+def repriced(terms: dict, salary: float) -> dict:
+    """Contract terms at a new salary. `cap_hit` keeps the share of the salary
+    it had: all of it on the league-minimum fallback, the draft row's share on
+    inherited terms. Unknown when the old share is. (Nothing reads the ledger's
+    `cap_hit`; #97 settles what it means.)"""
+    old, hit = terms["contract_value"], terms["cap_hit"]
+    if pd.notna(old) and old == salary:
+        return terms
+    share = hit / old if pd.notna(old) and pd.notna(hit) and old else pd.NA
+    return {**terms, "contract_value": salary,
+            "cap_hit": salary * share if pd.notna(share) else pd.NA}
+
+
+# %%
 # ---- fact_roster_transactions: one startup_draft row per made pick ---------
 def _epoch_ms_to_date(ms):
     return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date() if pd.notna(ms) else pd.NaT
 
 
-def build_startup_rows(made, team_lut, sid2aid, gsis_lut, salary_lut, src):
+def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, departs):
     """Made picks -> (the ledger's `startup_draft` rows, one per pick; the
-    `tally_sourcing` of their contracts)."""
-    fact_rows, sourced = [], []
+    `tally_sourcing` of their contracts; how many salaries each source gave).
+
+    `draft_salaries` is `index_draft_salaries()`; `departs` is `departures()`
+    of the transaction legs, which end a drafted copy's stint."""
+    fact_rows, sourced, priced = [], [], []
     for _, p in made.iterrows():
         sid = p["scorerId"]
-        val = salary_lut.get(sid)
-        val = float(val) if pd.notna(val) else pd.NA
         team_key   = team_lut[p["teamId"]]
         event_date = _epoch_ms_to_date(p["modifiedDate"])
+        # Salary: the first snapshot inside the stint the pick starts, else the
+        # pool at draft time (see "Salary sourcing").
+        val, origin = snapshot_salary(src.salaries, team_key, sid, event_date,
+                                      stint_end(departs, team_key, sid)), SALARY_SNAPSHOT
+        if val is None:
+            val, origin = draft_time_salary(draft_salaries, sid, event_date)
+        val = float(val) if pd.notna(val) else pd.NA
+        priced.append(origin)
         # The pick starts the copy's stint, so no snapshot covers it: the default.
         sourced.append(resolve_contract(src, EVENT_TYPE, team_key, sid, event_date,
                                         since=event_date))
@@ -474,7 +630,7 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, salary_lut, src):
     fact["event_date"] = pd.to_datetime(fact["event_date"])
     # key integrity: the ADR grain must be unique.
     assert not fact.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
-    return fact, tally_sourcing(sourced)
+    return fact, tally_sourcing(sourced), {o: priced.count(o) for o in dict.fromkeys(priced)}
 
 
 # %%
@@ -504,9 +660,10 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, salary_lut, src):
 # so an unrelated copy on the other side must not donate its contract. A DROP
 # carries the copy's last-known terms forward for auditing.
 #
-# Those inherited terms set the leg's salary. Its `contract_id` goes through
-# "Contract sourcing" above: the snapshot wins, and the inherited contract is
-# only the fallback for a player who is not minors-eligible.
+# Those inherited terms set the leg's salary -- except on a claim the roster
+# snapshot shows at another one ("Salary sourcing" above). Its `contract_id`
+# goes through "Contract sourcing": the snapshot wins, and the inherited
+# contract is only the fallback for a player who is not minors-eligible.
 def _strip_html(s: str) -> str:
     return _HTML_TAG.sub("", s or "").strip()
 
@@ -670,16 +827,17 @@ def fa_terms(contracts: pd.DataFrame) -> dict:
     cap_hit mirrors contract_value: dim_contract.cap_hit_pct prices a CUT
     (dead money), it is NOT a discount on a kept player's charge.
 
-    Known gap: a claim whose player was dropped BEFORE 04t's capture window
-    (04t only starts 2026-07-19) has no ledger history, so it lands here and
-    is priced at the league minimum even if the player actually carried a
-    real contract.
+    A claim whose player was dropped BEFORE 04t's capture window (04t only
+    starts 2026-07-19) has no ledger history, so it lands here even if the
+    player carried a real contract. resolve_legs then re-prices it off the
+    first roster snapshot that shows it on the claiming team ("Salary
+    sourcing").
 
-    The backstop is Fantrax's public `getTeamRosters?leagueId=...&period=N`.
-    In preseason it ignored `period` and served current state (probed
-    2026-07-26), which made it useless here. In season it returns real past
-    periods (#79, docs/research/inseason-schema-extraction.md). #117 builds
-    fact_roster_state from it; until then the league minimum stands."""
+    Known gap: a claim that left the team again before any snapshot, or that
+    postdates the newest one, keeps the league minimum. #117 builds
+    fact_roster_state, a snapshot per Scoring Period, from Fantrax's
+    `getTeamRosters?period=N` (#79, docs/research/inseason-schema-extraction.md),
+    which closes most of it."""
     fa    = contracts.loc[contracts["contract_id"] == FA_CONTRACT_ID].iloc[0]
     value = float(fa["min_salary"])
     return dict(contract_id=FA_CONTRACT_ID, contract_year=1,
@@ -701,18 +859,21 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
     chained trade, or a drop-then-reclaim on the same day, resolves against
     what was actually true at that moment.
 
-    Returns (rows, missing_source, fa_fallback, sourcing): traded players
-    with no prior ledger row on their 'from' team, claims with no in-season
-    history, and the `tally_sourcing` of the legs' contracts."""
+    Returns (rows, missing_source, fa_fallback, sourcing, snapshot_priced):
+    traded players with no prior ledger row on their 'from' team, claims left
+    at the league minimum (no in-season history, no snapshot), the
+    `tally_sourcing` of the legs' contracts, and claims priced off a roster
+    snapshot."""
     copy_terms, conf_terms = {}, {}      # (team_key, asset_id) / (conference, asset_id)
     stint_start = {}                     # (team_key, asset_id) -> when the copy joined
+    departs = departures(legs)           # (team_key, scorer_id) -> when the copy left
     for r in base.sort_values("event_seq").itertuples():
         t = {c: getattr(r, c) for c in _TERM_COLS}
         copy_terms[(r.team_key, r.asset_id)] = t
         stint_start[(r.team_key, r.asset_id)] = r.event_date
         conf_terms[(conf_lut.get(r.team_key), r.asset_id)] = (t, r.season_id)
 
-    rows, missing_source, fa_fallback, sourced = [], [], [], []
+    rows, missing_source, fa_fallback, sourced, snapshot_priced = [], [], [], [], []
     for i, l in enumerate(sort_legs(legs)):
         aid, kind = sid2aid[l["scorer_id"]], l["kind"]
         team, season = l["team_to"], _season_id_for(l["event_dt"], spans)
@@ -738,9 +899,18 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
             inherited = prior[0] if (prior and prior[1] == season) else None
             if inherited is None and kind == DROP_EVENT:
                 inherited = copy_terms.get((team, aid))
-            if inherited is None:
+            no_history = inherited is None
+            if no_history:
                 inherited = fa
-                if kind == CLAIM_EVENT:
+            # A claim starts a stint: the first snapshot inside it sets the
+            # salary (see "Salary sourcing").
+            if kind == CLAIM_EVENT:
+                seen = snapshot_salary(src.salaries, team, l["scorer_id"], l["event_dt"],
+                                       stint_end(departs, team, l["scorer_id"], l["event_dt"]))
+                if seen is not None:
+                    inherited = repriced(inherited, seen)
+                    snapshot_priced.append(l["scorer_id"])
+                elif no_history:
                     fa_fallback.append(l["scorer_id"])
 
         # 2. Its contract: the snapshot wins, else the default (see
@@ -774,7 +944,7 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
                 copy_terms.pop((team, aid), None)
                 stint_start.pop((team, aid), None)
         conf_terms[(conf, aid)] = (terms, season)
-    return rows, missing_source, fa_fallback, tally_sourcing(sourced)
+    return rows, missing_source, fa_fallback, tally_sourcing(sourced), snapshot_priced
 
 
 # %%
@@ -793,9 +963,8 @@ def main():
     gsis_lut = dict(zip(px["scorer_id"], px["gsis_id"]))
     pkey_lut = dict(zip(px["scorer_id"], px["player_key"]))
 
-    adp = pd.read_parquet(DATA / "fact_fantrax_adp.parquet")
-    adp_latest = adp.sort_values("capture_date").drop_duplicates("scorer_id", keep="last")
-    salary_lut = dict(zip(adp_latest["scorer_id"], adp_latest["salary"]))
+    draft_salaries = index_draft_salaries(pd.read_parquet(DATA / "fact_fantrax_adp.parquet"),
+                                          CFG.draft_year)
 
     contracts = pd.read_parquet(DATA / "dim_contract.parquet")
     spans = season_spans(pd.read_parquet(DATA / "dim_season.parquet"))
@@ -805,8 +974,10 @@ def main():
     eligibility = pd.read_parquet(ELIGIBILITY_PATH) if ELIGIBILITY_PATH.exists() else None
     src = contract_source(placement, eligibility, contracts)
     n_snapshots = len({day for seen in src.snaps.values() for day, _ in seen})
+    n_salary_snapshots = len({day for seen in src.salaries.values() for day, _ in seen})
     print(f"[info] contract source: {n_snapshots} in-season roster snapshot(s), "
           f"{len(src.elig)} eligibility snapshot(s)")
+    print(f"[info] salary source: {n_salary_snapshots} roster snapshot(s), preseason included")
     if not src.elig:
         print(f"[warn] no fact_minor_eligibility (run 04v) -- no move can default "
               f"to '{MINOR_CONTRACT_ID}'")
@@ -833,14 +1004,26 @@ def main():
     print(f"[ok] fact_draft_pick: {len(dim_draft_pick)} slots ({SEASON_ID}, "
           f"{int(dim_draft_pick['is_made'].sum())} made) -> {PICK_PATH.name}")
 
+    # ---- Transaction history: parsed here, posted further down ----------------
+    # The parse is pure. The draft rows need it first: a trade away or a drop
+    # ends a drafted copy's stint, which bounds the snapshot its salary is read
+    # from.
+    raw_txn_rows = load_txn_rows()
+    trade_log, legs, stats = parse_txn_rows(raw_txn_rows, team_lut, gsis_lut)
+
     # ---- fact_roster_transactions: startup_draft rows ------------------------
-    fact, draft_sourcing = build_startup_rows(made, team_lut, sid2aid, gsis_lut, salary_lut, src)
+    fact, draft_sourcing, draft_priced = build_startup_rows(
+        made, team_lut, sid2aid, gsis_lut, draft_salaries, src, departures(legs))
     tallies = [draft_sourcing]
     total = load_replace_partition(fact, FACT_PATH, part_cols=("season_id", "event_type"))
     print(f"[ok] fact_roster_transactions: +{len(fact)} {EVENT_TYPE} rows "
           f"({total} total) -> {FACT_PATH.name}")
     print(f"[info] {EVENT_TYPE} contracts (all defaulted): "
           f"{fact['contract_id'].value_counts().to_dict()}")
+    print(f"[info] {EVENT_TYPE} salaries read off: {draft_priced}")
+    if draft_priced.get(SALARY_LATEST):
+        print(f"[warn] {draft_priced[SALARY_LATEST]} pick(s) have no {CFG.draft_year} salary "
+              f"capture -- priced off another season's pool")
 
     # ---- Asset bridge extension from roster placement ------------------------
     # Placement (04v) can carry roster copies the startup draft never saw — a
@@ -866,8 +1049,6 @@ def main():
               "covers drafted copies only")
 
     # ---- Transaction events (trade / claim / drop) ---------------------------
-    raw_txn_rows = load_txn_rows()
-    trade_log, legs, stats = parse_txn_rows(raw_txn_rows, team_lut, gsis_lut)
     if raw_txn_rows:
         print(f"[info] captured txn rows: {stats['trade_rows']} trade leg(s), "
               f"{stats['claim_drop_rows']} claim/drop row(s)")
@@ -893,7 +1074,7 @@ def main():
         fa   = fa_terms(contracts)
         base = pd.read_parquet(FACT_PATH)
         base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]
-        txn_fact_rows, missing_source, fa_fallback, txn_sourcing = resolve_legs(
+        txn_fact_rows, missing_source, fa_fallback, txn_sourcing, snapshot_priced = resolve_legs(
             legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src)
         tallies.append(txn_sourcing)
 
@@ -901,9 +1082,11 @@ def main():
             print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
                   f"their 'from' team -- contract fields left NA for those legs: "
                   f"{missing_source[:5]}{'...' if len(missing_source) > 5 else ''}")
+        if snapshot_priced:
+            print(f"[info] {len(snapshot_priced)} claim(s) priced off the roster snapshot")
         if fa_fallback:
-            print(f"[info] {len(fa_fallback)} claim(s) had no in-season contract history -- "
-                  f"priced at the league minimum (${fa['contract_value']:,.0f})")
+            print(f"[info] {len(fa_fallback)} claim(s) had no in-season contract history and "
+                  f"no snapshot -- priced at the league minimum (${fa['contract_value']:,.0f})")
 
         txn_fact = pd.DataFrame(txn_fact_rows)[LEDGER_COLS]
         txn_fact["event_date"] = pd.to_datetime(txn_fact["event_date"])

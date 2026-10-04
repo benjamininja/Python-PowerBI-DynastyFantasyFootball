@@ -97,6 +97,12 @@ Built S1–S4 and merged to `main` (PR #15) against the live Riddell capture
   (`dim_contract` `"1st"`: `cap_hit_pct = 0.50`, guaranteed, 3-yr term); `cap_hit` =
   `0.50 × value`; `dead_money = 0` at acquisition. `getDraftResults` carries **no**
   salary on the pick, so the snapshot join is the source.
+  *Amended 2026-10-03 (#125): the latest capture is no longer read first.
+  Fantrax re-priced the pool after the draft and still charges a roster the
+  draft-time salary. A pick now reads the first roster snapshot after it
+  (`fact_roster_placement`), else the draft season's `fact_fantrax_adp`
+  capture on or before the pick day. The contract is sourced per
+  [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md).*
 - **Source = `getDraftResults`**, fetched by new `notebooks/04w_fantrax_draft_results.py`
   (reuses 04a's `FantraxScraper`). The draft board is served by Fantrax's
   **service worker**, so a DevTools HAR records the response *size* but not the

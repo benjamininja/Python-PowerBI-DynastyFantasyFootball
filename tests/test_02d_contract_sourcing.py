@@ -1,9 +1,11 @@
-"""Contract sourcing in 02d (#113, ADR-0019 decision 6).
+"""Contract and salary sourcing in 02d (#113, ADR-0019 decision 6; #125).
 
 A Roster Move's contract is read off the latest in-season Roster State
 snapshot taken inside the copy's stint on the team and before the move day; a
-default applies only when no snapshot covers it. These tests build the lookups
-by hand; only TestPublishedDimContract reads data/ (the seeded dim_contract).
+default applies only when no snapshot covers it. A draft pick's or a claim's
+salary is read off the first snapshot inside the stint the move starts. These
+tests build the lookups by hand; only TestPublishedDimContract reads data/
+(the seeded dim_contract).
 """
 import importlib
 import sys
@@ -31,8 +33,14 @@ NO_FLAGS = {"observed": 0, "after_newest": 0, "left_list": 0, "stale_capture": 0
 
 
 def placement(*rows):
-    """rows: (team_key, scorer_id, week, capture_date, contract)."""
-    return pd.DataFrame(rows, columns=["team_key", "scorer_id", "week", "capture_date", "contract"])
+    """rows: (team_key, scorer_id, week, capture_date, contract[, salary])."""
+    cols = ["team_key", "scorer_id", "week", "capture_date", "contract", "salary"]
+    return pd.DataFrame([tuple(r) + (None,) * (len(cols) - len(r)) for r in rows], columns=cols)
+
+
+def adp(*rows):
+    """fact_fantrax_adp rows: (scorer_id, season, week, capture_date, salary)."""
+    return pd.DataFrame(rows, columns=["scorer_id", "season", "week", "capture_date", "salary"])
 
 
 def eligibility(by_day):
@@ -59,7 +67,8 @@ def leg(kind, sid, team_to, team_from=pd.NA, when=MOVE):
 
 
 def resolve_all(legs, src, startup=None):
-    """resolve_legs' full return: (rows, missing_source, fa_fallback, sourcing)."""
+    """resolve_legs' full return: (rows, missing_source, fa_fallback, sourcing,
+    snapshot_priced)."""
     startup = base() if startup is None else startup
     return rt.resolve_legs(legs, startup, {"p1": 1, "p2": 2}, CONF, {},
                            SPANS, rt.fa_terms(CONTRACTS), src)
@@ -308,10 +317,21 @@ class TestStartupRows:
         "modifiedDate": [1781138250000, 1781138250000],      # 2026-06-11 UTC
     })
 
+    # The pool at the draft, and after Fantrax re-priced it.
+    ADP = adp(("p1", 2026, "DRAFT", "2026-06-09", 4_000_000),
+              ("p2", 2026, "DRAFT", "2026-06-09", 6_000_000),
+              ("p1", 2026, "PRE", "2026-07-31", 2_000_000),
+              ("p2", 2026, "PRE", "2026-07-31", 2_000_000))
+    ON_ROSTER = ("A01", "p2", "PRE", "2026-07-18", "1st", 7_500_000)
+
+    def _priced(self, src, legs=()):
+        fact, sourcing, priced = rt.build_startup_rows(
+            self.MADE, {"tA": "A01"}, {"p1": 1, "p2": 2}, {},
+            rt.index_draft_salaries(self.ADP, 2026), src, rt.departures(list(legs)))
+        return fact.set_index("scorer_id"), sourcing, priced
+
     def _rows(self, src):
-        fact, sourcing = rt.build_startup_rows(
-            self.MADE, {"tA": "A01"}, {"p1": 1, "p2": 2}, {}, {"p1": 4_000_000, "p2": 6_000_000}, src)
-        return fact.set_index("scorer_id"), sourcing
+        return self._priced(src)[:2]
 
     def test_eligible_pick_is_minor_with_no_year(self):
         fact, sourcing = self._rows(source(elig=eligibility({"2026-07-18": ["p1"]})))
@@ -337,6 +357,245 @@ class TestStartupRows:
         fact, _ = self._rows(source())
         assert set(fact["contract_id"]) == {"1st"}
         assert fact["contract_year"].dtype == "float64"
+
+    def test_salary_is_the_pool_at_the_draft_not_the_latest(self):
+        fact, _, priced = self._priced(source())
+        assert fact["contract_value"].to_dict() == {"p1": 4_000_000, "p2": 6_000_000}
+        assert priced == {rt.SALARY_AT_PICK: 2}
+
+    def test_snapshot_salary_beats_the_pool(self):
+        fact, sourcing, priced = self._priced(source(placement(self.ON_ROSTER)))
+        assert fact.loc["p2", "contract_value"] == 7_500_000
+        assert fact.loc["p2", "cap_hit"] == 3_750_000
+        assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_SNAPSHOT: 1}
+        # the preseason snapshot prices the pick; it still sets no contract
+        assert fact.loc["p2", "contract_id"] == "1st" and sourcing["observed"] == 0
+
+    def test_pool_when_the_copy_left_before_the_snapshot(self):
+        # A01 traded p2 away on 07-10 and holds it again by 07-18. That row is
+        # a later stint's, not the pick's.
+        away = leg(rt.TRADE_IN, "p2", "A02", team_from="A01", when=pd.Timestamp("2026-07-10"))
+        fact, _, priced = self._priced(source(placement(self.ON_ROSTER)), [away])
+        assert fact.loc["p2", "contract_value"] == 6_000_000
+        assert priced == {rt.SALARY_AT_PICK: 2}
+
+    def test_snapshot_from_before_the_copy_left_is_read(self):
+        away = leg(rt.TRADE_IN, "p2", "A02", team_from="A01", when=pd.Timestamp("2026-08-01"))
+        fact, _, _ = self._priced(source(placement(self.ON_ROSTER)), [away])
+        assert fact.loc["p2", "contract_value"] == 7_500_000
+
+    def test_a_reclaims_snapshot_does_not_price_the_pick(self):
+        legs = [leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-06-20")),
+                leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-01"))]
+        src = source(placement(self.ON_ROSTER))
+        fact, _, _ = self._priced(src, legs)
+        assert fact.loc["p2", "contract_value"] == 6_000_000
+        # ...it prices the claim that started the stint the snapshot shows
+        rows = resolve(legs, src, base(("A01", 2, "1st", 6_000_000)))
+        assert rows["contract_value"].tolist() == [6_000_000, 7_500_000]
+
+    def test_a_pick_with_no_salary_anywhere_is_left_unpriced(self):
+        fact, _, priced = rt.build_startup_rows(
+            self.MADE, {"tA": "A01"}, {"p1": 1, "p2": 2}, {},
+            rt.index_draft_salaries(self.ADP[self.ADP["scorer_id"] == "p1"], 2026),
+            source(), {})
+        fact = fact.set_index("scorer_id")
+        assert pd.isna(fact.loc["p2", "contract_value"]) and pd.isna(fact.loc["p2", "cap_hit"])
+        assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_MISSING: 1}
+
+
+class TestSnapshotSalary:
+    PRE = ("A01", "p1", "PRE", "2026-07-18", "1st", 5_000_000)
+    WK1 = ("A01", "p1", "01", "2026-09-10", "1st", 6_000_000)
+    JOINED = pd.Timestamp("2026-07-01 09:00")
+
+    def _salary(self, rows, when=JOINED, until=None, team="A01"):
+        return rt.snapshot_salary(rt.index_salaries(placement(*rows)), team, "p1", when, until)
+
+    def test_first_capture_after_the_move_day(self):
+        # ...and the preseason capture counts
+        assert self._salary([self.PRE, self.WK1]) == 5_000_000
+        assert self._salary([self.PRE, self.WK1], when=pd.Timestamp("2026-08-01")) == 6_000_000
+
+    def test_a_capture_dated_the_move_day_is_not_read(self):
+        assert self._salary([self.PRE], when=pd.Timestamp("2026-07-18 08:00")) is None
+        assert self._salary([self.PRE], when=pd.Timestamp("2026-07-17 23:00")) == 5_000_000
+
+    def test_nothing_after_the_newest_snapshot(self):
+        assert self._salary([self.PRE, self.WK1], when=pd.Timestamp("2026-09-11")) is None
+
+    def test_stops_when_the_copy_left(self):
+        assert self._salary([self.PRE], until=pd.Timestamp("2026-07-10")) is None
+        assert self._salary([self.PRE], until=pd.Timestamp("2026-07-18 20:00")) is None
+        assert self._salary([self.PRE], until=pd.Timestamp("2026-07-19")) == 5_000_000
+        # a later stint's snapshot is out of reach
+        assert self._salary([self.WK1], until=pd.Timestamp("2026-08-01")) is None
+
+    def test_rows_with_no_salary_or_no_date_are_skipped(self):
+        blank = ("A01", "p1", "PRE", "2026-07-18", "1st", None)
+        undated = ("A01", "p1", "PRE", None, "1st", 9_000_000)
+        assert self._salary([blank, undated, self.WK1]) == 6_000_000
+        assert self._salary([blank, undated]) is None
+
+    def test_another_team_or_no_date(self):
+        assert self._salary([self.PRE], team="A02") is None
+        assert self._salary([self.PRE], when=pd.NaT) is None
+
+    def test_no_placement_table(self):
+        assert rt.index_salaries(None) == {}
+        assert rt.snapshot_salary({}, "A01", "p1", self.JOINED) is None
+
+
+class TestStintEnd:
+    LEGS = [leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-25")),
+            leg(rt.TRADE_IN, "p1", "A02", team_from="A01", when=pd.Timestamp("2026-07-10 12:00")),
+            leg(rt.CLAIM_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-01")),
+            leg(rt.DROP_EVENT, "p1", "A02", when=pd.NaT)]
+
+    def test_departures_are_trades_away_and_drops(self):
+        assert rt.departures(self.LEGS) == {
+            ("A01", "p1"): [pd.Timestamp("2026-07-10 12:00"), pd.Timestamp("2026-09-25")]}
+
+    def test_the_first_departure_after_the_copy_joined(self):
+        departs = rt.departures(self.LEGS)
+        assert rt.stint_end(departs, "A01", "p1", pd.Timestamp("2026-07-01")) == pd.Timestamp("2026-07-10 12:00")
+        assert rt.stint_end(departs, "A01", "p1", pd.Timestamp("2026-09-01")) == pd.Timestamp("2026-09-25")
+        assert rt.stint_end(departs, "A01", "p1", pd.Timestamp("2026-09-25")) is None
+
+    def test_a_departure_at_the_same_instant_is_the_stint_before(self):
+        departs = rt.departures(self.LEGS)
+        assert rt.stint_end(departs, "A01", "p1", pd.Timestamp("2026-07-10 12:00")) == pd.Timestamp("2026-09-25")
+
+    def test_a_draft_pick_ends_at_the_first_departure(self):
+        departs = rt.departures(self.LEGS)
+        assert rt.stint_end(departs, "A01", "p1") == pd.Timestamp("2026-07-10 12:00")
+        assert rt.stint_end(departs, "A02", "p1") is None
+        assert rt.stint_end({}, "A01", "p1") is None
+
+
+class TestDraftTimeSalary:
+    PICK = pd.Timestamp("2026-06-11")
+
+    def _salary(self, *rows, when=PICK):
+        return rt.draft_time_salary(rt.index_draft_salaries(adp(*rows), 2026), "p1", when)
+
+    def test_latest_capture_on_or_before_the_pick(self):
+        rows = [("p1", 2026, "DRAFT", "2026-06-09", 4_000_000),
+                ("p1", 2026, "PRE", "2026-07-31", 2_000_000)]
+        assert self._salary(*rows) == (4_000_000, rt.SALARY_AT_PICK)
+        assert self._salary(*rows, when=pd.Timestamp("2026-06-09")) == (4_000_000, rt.SALARY_AT_PICK)
+        assert self._salary(*rows, when=pd.Timestamp("2026-08-01")) == (2_000_000, rt.SALARY_AT_PICK)
+
+    def test_else_the_earliest_capture_after_it(self):
+        rows = [("p1", 2026, "01", "2026-09-27", 3_000_000),
+                ("p1", 2026, "PRE", "2026-07-31", 2_000_000)]
+        assert self._salary(*rows) == (2_000_000, rt.SALARY_AFTER_PICK)
+
+    def test_another_seasons_capture_is_the_last_resort(self):
+        old = ("p1", 2025, "YTD", "2026-06-06", 9_000_000)
+        assert self._salary(old, ("p1", 2026, "PRE", "2026-07-31", 2_000_000)) == (
+            2_000_000, rt.SALARY_AFTER_PICK)
+        assert self._salary(old) == (9_000_000, rt.SALARY_LATEST)
+
+    def test_rows_with_no_salary_are_skipped(self):
+        rows = [("p1", 2026, "DRAFT", "2026-06-09", None),
+                ("p1", 2026, "PRE", "2026-07-31", 2_000_000)]
+        assert self._salary(*rows) == (2_000_000, rt.SALARY_AFTER_PICK)
+
+    def test_a_pick_with_no_date_reads_the_seasons_first_capture(self):
+        rows = [("p1", 2026, "DRAFT", "2026-06-09", 4_000_000),
+                ("p1", 2026, "PRE", "2026-07-31", 2_000_000)]
+        assert self._salary(*rows, when=pd.NaT) == (4_000_000, rt.SALARY_AFTER_PICK)
+
+    def test_no_capture_at_all(self):
+        salary, origin = self._salary(("p2", 2026, "DRAFT", "2026-06-09", 4_000_000))
+        assert pd.isna(salary) and origin == rt.SALARY_MISSING
+
+
+class TestClaimSalary:
+    ELIG = eligibility({"2026-07-18": ["p1"]})     # p1 eligible, p2 not
+    CLAIMED = pd.Timestamp("2026-07-10 11:00")
+
+    def _src(self, sid="p2", team="A01", salary=8_200_000):
+        return source(placement((team, sid, "PRE", "2026-07-18", "1st", salary)), self.ELIG)
+
+    def test_snapshot_beats_the_league_minimum(self):
+        rows, _, fa_fallback, sourcing, priced = resolve_all(
+            [leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED)], self._src())
+        assert (rows[0]["contract_value"], rows[0]["cap_hit"]) == (8_200_000, 8_200_000)
+        assert fa_fallback == [] and priced == ["p2"]
+        # the preseason snapshot sets the salary, never the contract
+        assert rows[0]["contract_id"] == "FA" and sourcing["observed"] == 0
+
+    def test_eligible_claim_is_minor_at_the_snapshot_salary(self):
+        row = resolve([leg(rt.CLAIM_EVENT, "p1", "A01", when=self.CLAIMED)], self._src("p1")).iloc[0]
+        assert (row["contract_id"], row["contract_value"]) == ("Minor", 8_200_000)
+
+    def test_snapshot_beats_the_inherited_salary(self):
+        # Dropped by A02 at 9.0M, claimed by A01; cap_hit keeps the draft row's share.
+        startup = base(("A02", 2, "1st", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p2", "A02", when=pd.Timestamp("2026-07-05")),
+                leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED)]
+        out = resolve(legs, self._src(salary=9_500_000), startup)
+        assert out["contract_id"].tolist() == ["1st", "1st"]
+        assert out["contract_value"].tolist() == [9_000_000, 9_500_000]
+        assert out["cap_hit"].tolist() == [4_500_000, 4_750_000]
+
+    def test_a_snapshot_at_the_inherited_salary_changes_nothing(self):
+        startup = base(("A02", 2, "1st", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p2", "A02", when=pd.Timestamp("2026-07-05")),
+                leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED)]
+        out = resolve(legs, self._src(salary=9_000_000), startup)
+        assert out["contract_value"].tolist() == [9_000_000, 9_000_000]
+        assert out["cap_hit"].tolist() == [4_500_000, 4_500_000]
+
+    def test_a_later_trade_carries_the_new_salary(self):
+        legs = [leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED),
+                leg(rt.TRADE_IN, "p2", "A02", team_from="A01")]
+        out = resolve(legs, self._src())
+        assert out["event_type"].tolist() == ["claim", "trade_away", "trade"]
+        assert out["contract_value"].tolist() == [8_200_000] * 3
+
+    def test_claim_after_the_newest_snapshot_keeps_its_default(self):
+        rows, _, fa_fallback, _, priced = resolve_all(
+            [leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-20"))], self._src())
+        assert rows[0]["contract_value"] == 2_000_000
+        assert fa_fallback == ["p2"] and priced == []
+
+    def test_claim_on_the_capture_day_keeps_its_default(self):
+        row = resolve([leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-18 09:00"))],
+                      self._src()).iloc[0]
+        assert row["contract_value"] == 2_000_000
+
+    def test_claim_dropped_before_the_snapshot_keeps_its_default(self):
+        # Claimed, dropped, claimed back: the snapshot shows the second stint.
+        legs = [leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-01")),
+                leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-08")),
+                leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-12"))]
+        rows, _, fa_fallback, _, priced = resolve_all(legs, self._src())
+        assert [r["contract_value"] for r in rows] == [2_000_000, 2_000_000, 8_200_000]
+        assert fa_fallback == ["p2"] and priced == ["p2"]
+
+    def test_another_teams_snapshot_does_not_price_the_claim(self):
+        row = resolve([leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED)],
+                      self._src(team="A02")).iloc[0]
+        assert row["contract_value"] == 2_000_000
+
+    def test_a_repriced_claim_leaves_the_other_conferences_copy_alone(self):
+        # B01 drafted its own copy of p2 at 9.0M; A01's claim is re-priced.
+        startup = base(("B01", 2, "1st", 9_000_000))
+        legs = [leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED),
+                leg(rt.DROP_EVENT, "p2", "B01", when=pd.Timestamp("2026-07-20"))]
+        out = resolve(legs, self._src(), startup)
+        assert out["contract_value"].tolist() == [8_200_000, 9_000_000]
+
+    def test_a_drop_and_a_trade_set_no_salary(self):
+        # A01 drafted p2 at 9.0M; its snapshot row shows another salary. The
+        # drop carries the ledger's.
+        startup = base(("A01", 2, "1st", 9_000_000))
+        out = resolve([leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-25"))],
+                      self._src(), startup)
+        assert out["contract_value"].tolist() == [9_000_000]
 
 
 class TestTransactionLegs:
@@ -380,7 +639,7 @@ class TestTransactionLegs:
     def test_trade_reads_the_from_teams_snapshot(self):
         startup = base(("A01", 2, "1st", 9_000_000))
         src = source(placement(("A01", "p2", "02", "2026-09-17", "2nd")), self.ELIG)
-        rows, _, _, sourcing = resolve_all(
+        rows, _, _, sourcing, _ = resolve_all(
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], src, startup)
         assert [r["contract_id"] for r in rows] == ["2nd", "2nd"]
         assert [r["contract_year"] for r in rows] == [2.0, 2.0]
@@ -389,7 +648,7 @@ class TestTransactionLegs:
     def test_trade_does_not_read_a_capture_dated_the_trade_day(self):
         startup = base(("A01", 2, "1st", 9_000_000))
         src = source(placement(("A01", "p2", "03", "2026-09-20", "2nd")), self.ELIG)
-        rows, _, _, sourcing = resolve_all(
+        rows, _, _, sourcing, _ = resolve_all(
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], src, startup)
         assert [r["contract_id"] for r in rows] == ["1st", "1st"]
         assert sourcing["observed"] == 0
@@ -401,7 +660,7 @@ class TestTransactionLegs:
         src = source(placement(("A01", "p2", "01", "2026-09-09", "Minor")), self.ELIG)
         legs = [leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-09-12")),
                 leg(rt.CLAIM_EVENT, "p2", "A01")]
-        rows, _, _, sourcing = resolve_all(legs, src, startup)
+        rows, _, _, sourcing, _ = resolve_all(legs, src, startup)
         assert [(r["event_type"], r["contract_id"]) for r in rows] == [
             ("drop", "Minor"), ("claim", "1st")]
         assert sourcing["observed"] == 1                 # the drop; the claim defaulted
@@ -412,12 +671,12 @@ class TestTransactionLegs:
                 leg(rt.CLAIM_EVENT, "p2", "A01"),
                 leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-09-25"))]
         old = ("A01", "p2", "01", "2026-09-09", "Minor")
-        rows, _, _, sourcing = resolve_all(legs, source(placement(old), self.ELIG), startup)
+        rows, _, _, sourcing, _ = resolve_all(legs, source(placement(old), self.ELIG), startup)
         assert [r["contract_id"] for r in rows] == ["Minor", "1st", "1st"]
         assert sourcing["observed"] == 1
         # a snapshot inside the new stint is read
         new = ("A01", "p2", "03", "2026-09-22", "2nd")
-        rows, _, _, sourcing = resolve_all(legs, source(placement(old, new), self.ELIG), startup)
+        rows, _, _, sourcing, _ = resolve_all(legs, source(placement(old, new), self.ELIG), startup)
         assert [r["contract_id"] for r in rows] == ["Minor", "1st", "2nd"]
         assert sourcing["observed"] == 2
 
@@ -428,12 +687,12 @@ class TestTransactionLegs:
         legs = [leg(rt.TRADE_IN, "p2", "A02", team_from="A01", when=pd.Timestamp("2026-09-12")),
                 leg(rt.DROP_EVENT, "p2", "A02")]
         src = source(placement(("A02", "p2", "01", "2026-09-09", "3rd")), self.ELIG)
-        rows, _, _, sourcing = resolve_all(legs, src, startup)
+        rows, _, _, sourcing, _ = resolve_all(legs, src, startup)
         assert [r["contract_id"] for r in rows] == ["1st", "1st", "1st"]
         assert sourcing["observed"] == 0
         src = source(placement(("A02", "p2", "01", "2026-09-09", "3rd"),
                                ("A02", "p2", "02", "2026-09-17", "2nd")), self.ELIG)
-        rows, _, _, sourcing = resolve_all(legs, src, startup)
+        rows, _, _, sourcing, _ = resolve_all(legs, src, startup)
         assert [r["contract_id"] for r in rows] == ["1st", "1st", "2nd"]
         assert sourcing["observed"] == 1
 
@@ -445,7 +704,7 @@ class TestTransactionLegs:
         src = source(placement(("A01", "p2", "02", "2026-09-17", "2nd")), self.ELIG)
         legs = [leg(rt.TRADE_IN, "p2", "A02", team_from="A01", when=pd.Timestamp("2026-09-20 10:00")),
                 leg(rt.TRADE_IN, "p2", "A01", team_from="A02", when=pd.Timestamp("2026-09-20 15:00"))]
-        rows, missing, _, sourcing = resolve_all(legs, src, startup)
+        rows, missing, _, sourcing, _ = resolve_all(legs, src, startup)
         assert [r["contract_id"] for r in rows] == ["2nd"] * 4
         assert missing == [] and sourcing["observed"] == 1
 
@@ -453,7 +712,7 @@ class TestTransactionLegs:
         # The ledger never saw p2 join A01, so its salary is unknown, but the
         # snapshot still shows the contract.
         src = source(placement(("A01", "p2", "02", "2026-09-17", "2nd")), self.ELIG)
-        rows, missing, _, sourcing = resolve_all(
+        rows, missing, _, sourcing, _ = resolve_all(
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], src)
         assert missing == [("A01", "p2")] and sourcing["observed"] == 1
         assert [r["contract_id"] for r in rows] == ["2nd", "2nd"]
@@ -462,7 +721,7 @@ class TestTransactionLegs:
     def test_drop_with_no_stint_on_record_reads_the_snapshot(self):
         # The ledger never saw p2 join A01 (claimed before the capture window).
         src = source(placement(("A01", "p2", "02", "2026-09-17", "2nd")), self.ELIG)
-        rows, _, _, sourcing = resolve_all([leg(rt.DROP_EVENT, "p2", "A01")], src)
+        rows, _, _, sourcing, _ = resolve_all([leg(rt.DROP_EVENT, "p2", "A01")], src)
         assert rows[0]["contract_id"] == "2nd" and sourcing["observed"] == 1
 
     def test_graduated_players_inherited_minor_becomes_1st(self):
@@ -481,7 +740,7 @@ class TestTransactionLegs:
         assert out["contract_id"].tolist() == ["Minor", "Minor"]
 
     def test_trade_with_no_source_row_stays_unknown(self):
-        rows, missing, _, _ = resolve_all(
+        rows, missing, _, _, _ = resolve_all(
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], source(elig=self.ELIG))
         assert missing == [("A01", "p2")]
         assert all(pd.isna(r["contract_id"]) and pd.isna(r["contract_value"]) for r in rows)
@@ -491,9 +750,28 @@ class TestTransactionLegs:
         legs = [leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-08-01")),   # off the next list
                 leg(rt.CLAIM_EVENT, "p1", "A02", when=pd.Timestamp("2026-09-01")),   # on the next list
                 leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-10-20"))]    # after the newest
-        rows, _, _, sourcing = resolve_all(legs, source(elig=elig))
+        rows, _, _, sourcing, _ = resolve_all(legs, source(elig=elig))
         assert [r["contract_id"] for r in rows] == ["Minor", "Minor", "Minor"]
         assert sourcing == {"observed": 0, "after_newest": 1, "left_list": 1, "stale_capture": 1}
+
+
+class TestRepriced:
+    TERMS = dict(contract_id="1st", contract_year=1.0, contract_value=9_000_000,
+                 cap_hit=4_500_000, status="active")
+
+    def test_cap_hit_keeps_its_share_of_the_salary(self):
+        out = rt.repriced(self.TERMS, 9_500_000)
+        assert (out["contract_value"], out["cap_hit"]) == (9_500_000, 4_750_000)
+        assert out["contract_id"] == "1st"
+        assert self.TERMS["contract_value"] == 9_000_000        # the input is not mutated
+
+    def test_the_same_salary_returns_the_terms_untouched(self):
+        assert rt.repriced(self.TERMS, 9_000_000) is self.TERMS
+
+    def test_an_unknown_share_leaves_cap_hit_unknown(self):
+        for old, hit in ((pd.NA, pd.NA), (9_000_000, pd.NA), (0, 0)):
+            out = rt.repriced({**self.TERMS, "contract_value": old, "cap_hit": hit}, 8_200_000)
+            assert out["contract_value"] == 8_200_000 and pd.isna(out["cap_hit"])
 
 
 @pytest.fixture(scope="module")

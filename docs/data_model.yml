@@ -479,8 +479,18 @@ tables:
       (always the case for a draft pick and a claim) it defaults to `Minor`
       for a player listed in the fact_minor_eligibility capture on either
       side of the move, else the contract the copy already held, else `1st`
-      (draft) or `FA` (claim). The preseason snapshot is not read.
-      contract_year follows dim_contract, so it is null on a `Minor` row.
+      (draft) or `FA` (claim). The preseason snapshot is not read for a
+      contract. contract_year follows dim_contract, so it is null on a
+      `Minor` row.
+      contract_value on a draft pick or a claim is the salary on the first
+      fact_roster_placement snapshot inside the stint the move starts:
+      captured after the move day and before the copy next left that team.
+      For a salary the preseason snapshot is read. With no such snapshot a draft
+      pick takes the fact_fantrax_adp salary of the draft's own season (the
+      latest capture on or before the pick day, else the earliest after
+      it), and a claim takes the salary the copy held this season in this
+      Conference, else the league minimum. A trade and a drop carry the
+      copy's salary (#125).
       cap_hit is read by nothing (#97 replaces it).
 
   - name: fact_trade_log
