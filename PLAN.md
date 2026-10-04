@@ -148,8 +148,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   claims take their salary from the roster snapshot, then draft-time ADP;
   all 1,004 roster rows on Fantrax period 1 match; the ledger and roster
   are published, as of the 2026-07-24 transaction history) → #117 (grilled
-  and planned 2026-10-03, plan approved; three PRs). **PR 1 built
-  2026-10-03 on `feat/117-league-info`, PR pending:** `04p` reads public
+  and planned 2026-10-03, plan approved; three PRs). **PR 1 is PR #127
+  (opened 2026-10-03, branch `feat/117-league-info`):** `04p` reads public
   `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
   exact bounds, Update-Set state `open` / `closing`) and `dim_division`
   (same two rows, now from Fantrax); `01g` is in `archive/`. Next: PR 2

@@ -13,7 +13,7 @@ place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
 493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass); then `main` =
 376a842 (PR #126, #125 salary sourcing; 225 tests pass). Working branch:
-`feat/117-league-info` (#117 PR 1, built, uncommitted; see below).
+`feat/117-league-info` (#117 PR 1 = PR #127, open; see below).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -248,8 +248,8 @@ compact between them, commit and PR only when asked.
   (`dim_division` has no `chain`). `04e` reads `fact_roster_placement` for
   who is rostered per Conference.
 
-**#117 PR 1 BUILT 2026-10-03 on branch `feat/117-league-info` — not
-committed, no PR yet (waits for the owner's go).** "Part of #117".
+**#117 PR 1 BUILT 2026-10-03: PR #127 (branch `feat/117-league-info`),
+open, waiting for CI and the owner's merge.** "Part of #117".
 - `notebooks/04p_fantrax_league_info.py` (new, pipeline step
   `04p_league_info`, `fantrax_core`, group `regular_season`, after `01f`,
   all phases): one public `getLeagueInfo` call → `dim_scoring_period` and
@@ -288,8 +288,8 @@ committed, no PR yet (waits for the owner's go).** "Part of #117".
   memory files, `PLAN.md`, this file, three test files, the fixture,
   `data/dim_scoring_period.parquet` (new).
 
-**NEXT: commit and open the PR for PR 1 when the owner says so. Then, after
-a compact, PR 2 (`feat/117-roster-state`):** `04r_fantrax_roster_state.py`,
+**NEXT: merge PR #127 on the owner's go (squash, `--delete-branch`). Then,
+after a compact, PR 2 (`feat/117-roster-state`):** `04r_fantrax_roster_state.py`,
 `fact_roster_state`, `fact_preseason_salary`, the coverage and contract
 Gates. PR 3 (`feat/117-retire-placement`) waits for the owner's `04t`
 rerun; its window starts by checking the history runs past 2026-07-24. Then
