@@ -14,14 +14,15 @@ shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py roster_info.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
-To cover a new parser (#113 02d draft/transactions, #117 getLeagueInfo,
-#118 live scoring + standings): add an ALLOWLIST spec, a trimmer and a
-SOURCES row, regenerate, and test the parser against the new file.
+To cover a new parser (#117 getLeagueInfo, #118 live scoring + standings):
+add an ALLOWLIST spec, a trimmer and a SOURCES row, regenerate, and test the
+parser against the new file.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -75,6 +76,19 @@ ALLOWLIST: dict[str, object] = {
             "cells": _cells("content"),
         }],
     }]}}]}},
+    # 02d parse_draft_results / build_draft_picks: one Division's getDraftResults.
+    "draft_results.json": {"responses": [{"data": {"draftPicksOrdered": [{k: KEEP for k in (
+        "divisionId", "round", "pickNumber", "teamId", "scorerId", "modifiedDate")}]}}]},
+    # 02d parse_txn_rows: 04t's transaction history, a list of pages. `content`
+    # is listed for the date and week cells only -- trim_txn_history drops it
+    # from the team cells, where it is the fantasy team's display name.
+    "txn_history.json": [{"responses": [{"data": {"table": {"rows": [{
+        "txSetId": KEEP,
+        "transactionCode": KEEP,
+        "scorer": {"scorerId": KEEP},
+        "draftPickDisplayParts": {"roundInfo": KEEP, "year": KEEP},
+        "cells": _cells("key", "teamId", "content"),
+    }]}}}]}],
 }
 
 
@@ -190,6 +204,71 @@ def trim_rosters(p01: dict) -> dict:
         for tid in picked}
 
 
+DRAFT_FIXTURE_ROUNDS = 2
+
+
+def trim_draft_results(raw: dict) -> dict:
+    """Rounds 1-2 of one Division (round 1 whole: it defines the snake order),
+    with at least one traded slot in round 2."""
+    picks = _data(raw)["draftPicksOrdered"]
+    keep = [p for p in picks if p["round"] <= DRAFT_FIXTURE_ROUNDS]
+    per_round = max(p["pickNumber"] for p in picks)
+    order = {p["pickNumber"]: p["teamId"] for p in keep if p["round"] == 1}
+    if len(order) != per_round:
+        raise ValueError("round 1 is not a full round")
+    if not any(p["teamId"] != order[per_round + 1 - p["pickNumber"]]
+               for p in keep if p["round"] == 2):
+        raise ValueError("no traded slot in round 2 -- cut from the other Division")
+    return {"responses": [{"data": {"draftPicksOrdered": keep}}]}
+
+
+TXN_CELL_KEYS = {"from", "to", "team", "date", "week"}
+TXN_CONTENT_KEYS = {"date", "week"}        # every other cell's content names a team
+PICK_OWNER_PLACEHOLDER = "(Team (X))"
+_PICK_OWNER_HINT = re.compile(r"\(.*\)\s*$")
+
+
+def _scrub_txn_row(row: dict) -> dict:
+    """Drop team display names: keep `content` on the date/week cells only,
+    and swap the pick owner hint (a team name in trailing parentheses) for a
+    placeholder of the same shape."""
+    cells = [{k: v for k, v in c.items() if k != "content" or c["key"] in TXN_CONTENT_KEYS}
+             for c in row["cells"] if c["key"] in TXN_CELL_KEYS]
+    out = {**row, "cells": cells}
+    parts = row.get("draftPickDisplayParts")
+    if parts and "roundInfo" in parts:
+        out["draftPickDisplayParts"] = {**parts, "roundInfo": _PICK_OWNER_HINT.sub(
+            PICK_OWNER_PLACEHOLDER, parts["roundInfo"])}
+    return out
+
+
+def trim_txn_history(pages: list) -> list:
+    """Two pages. Page 1: one trade with a player leg and a pick leg. Page 2:
+    a claim-and-drop pair, a lone claim and a lone drop."""
+    groups: dict[str, list] = {}
+    for pg in pages:
+        for r in _data(pg)["table"]["rows"]:
+            groups.setdefault(r["txSetId"], []).append(r)
+
+    def codes(rows):
+        return sorted(str(r.get("transactionCode")) for r in rows)
+
+    def has_scorer(r):
+        return bool((r.get("scorer") or {}).get("scorerId"))
+
+    trade = next(g for g in groups.values()
+                 if all(r.get("transactionCode") is None for r in g)
+                 and any(has_scorer(r) for r in g) and not all(has_scorer(r) for r in g))
+    pair = next(g for g in groups.values() if codes(g) == ["CLAIM", "DROP"])
+    claim = next(g for g in groups.values() if codes(g) == ["CLAIM"])
+    drop = next(g for g in groups.values() if codes(g) == ["DROP"])
+
+    def page(rows):
+        return {"responses": [{"data": {"table": {"rows": [_scrub_txn_row(r) for r in rows]}}}]}
+
+    return [page(trade), page(pair + claim + drop)]
+
+
 # fixture -> (raw source file, trimmer). Bump the source when re-cutting from
 # a newer capture.
 SOURCES = {
@@ -198,6 +277,8 @@ SOURCES = {
     "public_draftpicks.json": ("fantrax_public_draftpicks.json", trim_draftpicks),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
     "roster_info.json": ("fantrax_inseason_2026_p01.json", trim_rosters),
+    "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),
+    "txn_history.json": ("fantrax_txn_history_2026.json", trim_txn_history),
 }
 
 

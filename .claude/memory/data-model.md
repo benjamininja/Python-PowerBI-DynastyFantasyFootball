@@ -41,7 +41,7 @@ Two-table player system bridged by `pfr_id`:
 | `dim_rookie_prospect` | `player_key` | nflreadpy `load_combine()` + expert sources | Pre-draft staging |
 | `dim_position` | `position_raw` | Hardcoded seed | Transformer: raw → canonical. Covers all FantasyPros + WalterFootball codes |
 | `dim_school` | `school_raw` | Hardcoded seed | Transformer: raw → canonical + conference |
-| `dim_contract` | `contract_id` | Hardcoded seed | 10 rows; 1st/2nd/.../FA |
+| `dim_contract` | `contract_id` | Hardcoded seed (01b) | 11 rows; Minor/1st/2nd/.../FA/Pick. `Minor` = the stage before `1st` (ADR-0019): no term (`contract_year`/`total_years` null, nullable `Int64`), `cap_hit_pct` 0, not guaranteed. `cap_exempt` is descriptive only, read by nothing; the one cap exemption is the Minors Roster Slot |
 | `dim_fantasy_teams` | `team_key` | Google Sheet | 28 teams; A01-A14 Riddell, B01-B14 Wilson. + `fantrax_team_id` (01c maps Sheet col `Fantrax-TeamId` → resolves teamId→team_key for the ledger, ADR-0004/0005). Sheet is Fantrax-synced mirror (ADR-0005) |
 | `dim_nfl_teams` | `team_abbr` | nflreadpy `load_teams()` | NFL team metadata |
 | `dim_fantrax_crosswalk` | `scorer_id` | notebook 04z | Bridge: Fantrax scorer_id → gsis_id + player_key |

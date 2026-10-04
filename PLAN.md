@@ -90,7 +90,12 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - `02d` takes each move's contract from the snapshot first, falling back
     to a default.
   - The Minors slot stays the only cap exemption.
-  - Build: the `dim_contract` row + `02d` sourcing (#113).
+  - Build: the `dim_contract` row + `02d` sourcing (#113) — **built
+    2026-10-03**, uncommitted on `feat/113-minor-contract-sourcing`. The
+    preseason snapshot is not read; 354 draft rows, 14 trades and 11 claims
+    are `Minor`; cap totals unchanged. `02d` now runs behind `main()`.
+    A move reads a snapshot only from inside the copy's stint and before
+    the move day; eligibility counts the capture on either side of the move.
 - **#88 grilled ✅ 2026-10-03 →
   [ADR-0008 amendment](docs/adr/0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88)**
   (amended in place, owner's choice).
@@ -105,8 +110,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Fixtures are generated with a key allowlist. CI gets a required
     `tests.yml`, and `run_pipeline.py` gets `--check-only`.
   - Build (a), the foundation (also fixes the commit-on-failure bug at
-    `run_pipeline.py:325`): #115 — **built 2026-10-03** (`etl_checks.py`,
-    per-Chain publish, `--check-only`, fixtures, `tests.yml`); PR pending.
+    `run_pipeline.py:325`): #115 ✅ **merged 2026-10-03** (PR #120:
+    `etl_checks.py`, per-Chain publish, `--check-only`, fixtures, `tests.yml`).
   - Build (b), the in-season checks (← #115, #93 and #118): #116.
 - **#75 grilled ✅ 2026-10-02 →
   [ADR-0018](docs/adr/0018-supabase-schema-and-rls.md)**: schemas
@@ -138,7 +143,11 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   - Builds: #117 Roster State (← #113), then #118 Scoring (← #117).
     #93 ← #117; #116 ← #118.
 - Step-by-step handoff: [RESUME.md](.claude/memory/RESUME.md).
-- Build, plan-gated: #113 → #117 → #118 (#115 built, PR pending);
+- Build, plan-gated: #113 (built; auditor fixes applied 2026-10-03,
+  uncommitted; PR carries no `fact_*` parquet) → a draft-pricing fix that
+  publishes the ledger and roster (not ticketed; `02d` prices draft rows
+  from the latest salary capture, 30 players wrong) → #117 → #118
+  (#115 ✅ PR #120);
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.

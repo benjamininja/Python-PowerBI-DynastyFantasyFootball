@@ -12,14 +12,17 @@
 #   (Active / Reserve / Minors). Placement is the team's own lever and is what
 #   the cap exemption follows.
 #
-# **There is no Minor contract type.** Minors-eligible players carry ordinary
-# contracts (generally `1st`); eligibility permits a team to *place* a player in
-# the Minors squad, and nothing about the contract changes. An earlier design
-# modelled Minors as a contract with its own protection/stash rules — that was
-# retired (ADR-0011 supersedes ADR-0010), and with it this script's
-# eligibility-vs-contract diff, its commissioner worklist, and its write-side
-# `--apply` path. Ineligible players simply cannot be placed in Minors; Fantrax
-# enforces that at the source, so there is nothing left to reconcile.
+# **`Minor` is a contract stage, and it is read, never derived (ADR-0019).** A
+# minors-eligible player holds `Minor`, the stage before `1st`; Fantrax moves
+# them to `1st` once they pass the games-played limit. This script records the
+# contract Fantrax shows on each roster row and never works one out. Placement
+# is a separate lever: eligibility permits a team to *place* a player in the
+# Minors squad, and only that placement is cap-exempt.
+#
+# An earlier design gave this script an eligibility-vs-contract diff, a
+# commissioner worklist and a write-side `--apply` path. All three were retired
+# (ADR-0011) and stay retired: Fantrax sets the contract itself, so there is
+# nothing left to reconcile.
 #
 # This script is therefore READ-ONLY and makes no write-side calls to Fantrax.
 #
@@ -30,7 +33,8 @@
 # 2. Roster placement — `getTeamRosterInfo` per fantasy team: who sits in the
 #    Minors squad vs active roster vs IR this week (cap exemption follows
 #    placement, not contract type — team's choice, salary charged otherwise).
-# 3. (implicit in 1+2) current contract type per player, for the diff.
+# 3. (implicit in 2) the contract Fantrax shows on each roster row. `02d` reads
+#    it as that Roster Move's contract (ADR-0019 decision 6).
 #
 # **Outputs:**
 # - `data/raw/fantrax_minor_eligibility_{season}_wk{NN}.json` — raw filter pulls
@@ -46,6 +50,9 @@
 # snapshot, and capmath/the PBI measures exempt `roster_status == "Minors"`
 # from the cap charge. If 04v stops running, `roster_status` goes null
 # league-wide and every Minors-placed player starts charging salary.
+# `02d` reads both outputs to source each Roster Move's contract: the in-season
+# placement snapshots for the contract Fantrax showed, and the eligibility
+# snapshot for the `Minor` default when no snapshot covers the move.
 #
 # **Run:**  .\run.ps1 notebooks\04v_minor_contracts.py
 # Scheduled right after 04a (same Task Scheduler cadence).

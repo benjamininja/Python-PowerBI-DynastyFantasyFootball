@@ -44,3 +44,18 @@ class TestPrune:
     def test_shape_drift_raises(self):
         with pytest.raises(ValueError):
             mf.prune({"nested": {"id": 1}}, self.SPEC)
+
+
+def test_txn_history_holds_no_team_names():
+    """prune checks keys, not values: a team's display name sits in `content`
+    on the team cells and in the pick owner hint, so trim_txn_history scrubs
+    both. This holds a regenerated fixture to that."""
+    pages = json.loads((REPO / "tests" / "fixtures" / "fantrax" / "txn_history.json")
+                       .read_text(encoding="utf-8"))
+    rows = [r for pg in pages for r in pg["responses"][0]["data"]["table"]["rows"]]
+    assert rows
+    for r in rows:
+        for c in r["cells"]:
+            assert "content" not in c or c["key"] in mf.TXN_CONTENT_KEYS
+        hint = (r.get("draftPickDisplayParts") or {}).get("roundInfo", "")
+        assert "(" not in hint or hint.endswith(mf.PICK_OWNER_PLACEHOLDER)

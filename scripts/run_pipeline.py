@@ -23,8 +23,8 @@ Phase model (derived from 04a's week label + the season calendar):
 NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
 03-group rookie chain (manual Excel gates), and review applies (03z,
 apply_fantrax_crosswalk_review). Nothing here writes to Fantrax: the one
-write-side path (`04v --apply`) was removed with the Minor contract type
-(ADR-0011).
+write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
+(ADR-0019: Fantrax sets the `Minor` contract itself).
 
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
