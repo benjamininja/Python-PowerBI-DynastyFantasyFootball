@@ -6,7 +6,7 @@
 # -- there is no public REST endpoint for this (confirmed: 6 method-name guesses
 # against the public `fxea/general` API all failed -- see
 # .claude/memory/mouserat-trade-bud.md Checkpoint 3.5/6). Same reverse-engineered
-# JSON-RPC surface as `getDraftRanks` (04a), `getTeamRosterInfo` (04s),
+# JSON-RPC surface as `getDraftRanks` (04a), `getLiveScoringStats` (04s),
 # `getDraftResults` (04w).
 #
 # **Why a script (like 04a/04u/04v/04w, not a notebook):** drives a Playwright
