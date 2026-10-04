@@ -17,8 +17,9 @@
 # to a `closing` period lands on the next run; a `closed` period is frozen.
 #
 # **`capture_date`:** the day, on the league's Eastern clock, the period was
-# last read. A period that has ended shows its final roster; the period in
-# play shows the roster on that day.
+# last read. A period's roster is the roster at its lineup lock: it moves
+# until the lock and is frozen after, so a past period does not show its
+# final roster (measured 2026-10-04; ADR-0016).
 #
 # **Fails, and writes nothing, when:** a reply echoes a period other than the
 # one asked for; a reply's teams are not exactly dim_fantasy_teams' teams; a
@@ -142,8 +143,11 @@ def rosters_to_state(payload: dict, teams: pd.DataFrame, contract_ids,
                                  "is not in dim_contract")
             if item.get("salary") is None:
                 raise ValueError(f"{where} player {scorer_id}: no salary")
+            # To the cent: the public API serves some whole-dollar salaries a
+            # float hair off (14266999.999999998), which would fail an equality
+            # check against the same salary read anywhere else.
             recs.append((key_of[team_id], scorer_id, ROSTER_SLOT[status],
-                         float(item["salary"]), contract))
+                         round(float(item["salary"]), 2), contract))
 
     rows = pd.DataFrame.from_records(
         recs, columns=["team_key", "scorer_id", "roster_slot", "salary", "contract_id"])

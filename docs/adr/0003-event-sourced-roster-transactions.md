@@ -103,6 +103,13 @@ Built S1–S4 and merged to `main` (PR #15) against the live Riddell capture
   (`fact_roster_placement`), else the draft season's `fact_fantrax_adp`
   capture on or before the pick day. The contract is sourced per
   [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md).*
+  *Amended 2026-10-04 (#117): `fact_roster_placement` is retired. A pick reads
+  the preseason capture (`fact_preseason_salary`), else the first Roster State
+  inside its stint (`fact_roster_state`), else the draft season's
+  `fact_fantrax_adp` capture: the latest on or before the pick day, else the
+  earliest after it, never below the league minimum. A pick with no capture in
+  the draft's season takes the league minimum, with a warning; another
+  season's pool is no longer read (owner's decision, 2026-10-03).*
 - **Source = `getDraftResults`**, fetched by new `notebooks/04w_fantrax_draft_results.py`
   (reuses 04a's `FantraxScraper`). The draft board is served by Fantrax's
   **service worker**, so a DevTools HAR records the response *size* but not the

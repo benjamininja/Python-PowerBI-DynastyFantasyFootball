@@ -28,8 +28,8 @@ class TradeRequest(BaseModel):
 def _asset_owners() -> tuple[set[tuple[str, str]], dict[str, str]]:
     """{(gsis_id, team_key)} roster memberships, pick_ref -> current_owner.
 
-    This is a duplicate-player league (confirmed in
-    .claude/memory/data-model.md's fact_roster_placement grain note): the
+    This is a duplicate-player league (see .claude/memory/data-model.md:
+    fact_roster_state's grain carries team_key next to scorer_id): the
     same gsis_id can be legitimately rostered by one team in each
     conference at once, so ownership is a membership check, not a
     single-valued lookup.

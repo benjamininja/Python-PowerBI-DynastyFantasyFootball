@@ -7,8 +7,8 @@ regenerate them in a PR; a failure here is the shape drift showing up.
 
 Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04p
 getLeagueInfo (periods + divisions), 04r public getTeamRosters, 04s schedule
-helpers, 04v rosters_to_frame, 02d draft results + transaction history. Later
-builds add live scoring + standings (#118).
+helpers, 02d draft results + transaction history. Later builds add live
+scoring + standings (#118).
 """
 import copy
 import importlib
@@ -29,7 +29,6 @@ fs = importlib.import_module("04s_fantrax_inseason_capture")
 fu = importlib.import_module("04u_fantrax_public_api")
 lg = importlib.import_module("04p_fantrax_league_info")
 rs = importlib.import_module("04r_fantrax_roster_state")
-mv = importlib.import_module("04v_minor_contracts")
 rt = importlib.import_module("02d_fact_roster_transactions")
 
 
@@ -251,28 +250,6 @@ class TestSchedule:
         assert fs.page_error({"responses": [{"pageError": {"code": "Y"}}]}) == {"code": "Y"}
 
 
-class TestRosterInfo:
-    @pytest.fixture
-    def df(self, no_crosswalk):
-        raw = _load("roster_info.json")
-        teams = pd.DataFrame({"fantrax_team_id": sorted(raw), "team_key": ["T1", "T2"]})
-        return mv.rosters_to_frame(raw, teams, 2026, "01")
-
-    def test_rows(self, df):
-        assert len(df) == 25                                  # empty slots dropped
-        assert not df.duplicated(["team_id", "scorer_id"]).any()
-        assert df["team_key"].notna().all()
-
-    def test_sections_from_status_totals(self, df):
-        assert set(df["roster_section"]) == {"Active", "Reserve", "Inj Res", "Minors"}
-        assert (df.loc[df["status_id"] == "9", "roster_section"] == "Minors").all()
-
-    def test_minors_eligible_and_cells(self, df):
-        assert df.loc[df["roster_section"] == "Minors", "minors_eligible"].all()
-        row = df.set_index("scorer_id").loc["060tq"]
-        assert (row["salary"], row["contract"], row["position_raw"]) == (17118000.0, "1st", "QB")
-
-
 def _team_lut(team_ids):
     return {t: f"T{i:02d}" for i, t in enumerate(sorted(set(team_ids)), 1)}
 
@@ -373,6 +350,12 @@ class TestTxnHistory:
         assert (claim["kind"], drop["kind"]) == ("claim", "drop")
         assert drop["team_to"] == claim["team_to"]
         assert drop["event_dt"] == claim["event_dt"] == pd.Timestamp("2026-07-24 16:24")
+
+    def test_every_leg_carries_an_int_period(self, parsed):
+        # The Scoring Period a move takes effect in, read off the row's `week` cell.
+        legs = parsed[1]
+        assert len(legs) == 6
+        assert all(type(l["period"]) is int for l in legs)
 
     def test_unmapped_team_is_skipped(self, rows):
         lut = self._lut(rows)

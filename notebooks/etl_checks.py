@@ -166,12 +166,6 @@ def coverage_errors(roster: pd.DataFrame, teams: pd.DataFrame) -> list[str]:
     return errs
 
 
-def latest_partition(df: pd.DataFrame) -> pd.DataFrame:
-    """The most recent weekly snapshot (max capture_date) of a
-    replace-by-(season, week) fact."""
-    return df[df["capture_date"] == df["capture_date"].max()]
-
-
 def newest_period(df: pd.DataFrame) -> pd.DataFrame:
     """The newest Scoring Period of the newest season in a
     replace-by-(season_id, period) fact."""
@@ -198,9 +192,6 @@ class DomainCheck:
 DOMAIN_CHECKS = [
     DomainCheck("coverage", "gate", "fact_fantasy_teams",
                 lambda load: coverage_errors(load("fact_fantasy_teams"),
-                                             load("dim_fantasy_teams"))),
-    DomainCheck("coverage", "gate", "fact_roster_placement",
-                lambda load: coverage_errors(latest_partition(load("fact_roster_placement")),
                                              load("dim_fantasy_teams"))),
     DomainCheck("coverage", "gate", "fact_roster_state",
                 lambda load: coverage_errors(newest_period(load("fact_roster_state")),

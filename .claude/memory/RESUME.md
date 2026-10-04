@@ -1,4 +1,4 @@
-# RESUME — Supabase + in-season ETL maps (updated 2026-10-03)
+# RESUME — Supabase + in-season ETL maps (updated 2026-10-04)
 
 **Managing session**: `dynastyFantasyFootball-central-builder`. It fires the
 AFK tickets as background sessions, reviews what they return, and posts to
@@ -13,9 +13,9 @@ place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 `main` = 3ac5fed (PRs #121–#123, the `overall_rank` fix); then `main` =
 493a6d7 (PR #124, #113 `Minor` contract; 188 tests pass); then `main` =
 376a842 (PR #126, #125 salary sourcing; 225 tests pass); then `main` =
-581ae4c (PR #127, #117 PR 1 league info; 269 tests pass). Working branch
-`feat/117-roster-state` (#117 PR 2, opened as PR #128 on 2026-10-04; merge
-only when the owner asks).
+581ae4c (PR #127, #117 PR 1 league info; 269 tests pass); then `main` =
+995f663 (PR #128, #117 PR 2 Roster State; 320 tests pass). No working
+branch.
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -290,9 +290,19 @@ deleted; 6 CI checks green.** It said "Part of #117", so #117 is still open.
   memory files, `PLAN.md`, this file, three test files, the fixture,
   `data/dim_scoring_period.parquet` (new).
 
-**#117 PR 2 BUILT 2026-10-04 on branch `feat/117-roster-state`, opened as
-PR #128 on the owner's word. It says "Part of #117". The merge waits for
-the owner.** Additive: no reader changed, and it did not need `04t`.
+**#117 PR 2 DONE 2026-10-04: merged as PR #128 (`995f663`), branch
+deleted; 6 CI checks green.** It said "Part of #117", so #117 is still
+open. Additive: no reader changed, and it did not need `04t`.
+- Gotcha at the merge: `gh pr merge --delete-branch` merged on GitHub, then
+  its local fast-forward of `main` stopped on `unable to unlink old
+  '.claude/memory/MEMORY.md': Invalid argument` (a OneDrive lock). It left
+  `main` at the old commit with the new files half-written. Repair: check
+  each changed file's `git hash-object` against `origin/main` (set
+  `MSYS_NO_PATHCONV=1`, or Git Bash mangles `origin/main:.claude/...`),
+  then `git reset origin/main` (mixed, working tree untouched) and
+  `git checkout -- <the stale file>`.
+- This RESUME edit and the matching PLAN.md line are uncommitted on `main`;
+  fold both into the PR 3 branch.
 - `notebooks/04r_fantrax_roster_state.py` (new, pipeline step
   `04r_roster_state`, `fantrax_core`, group `regular_season`, right after
   `04p_league_info`, all phases, `needs` `04p_league_info`): public
@@ -316,7 +326,9 @@ the owner.** Additive: no reader changed, and it did not need `04t`.
   `1st`, `Minor`, `FA`, all in `dim_contract`. No repeated player on a team.
 - **The echo does not catch the future-period trap**: Fantrax echoes the
   future number it was asked for. The guard is `periods_to_pull`.
-- My choices, not ruled on by the owner (flag them in the report):
+- My choices, not in the plan. They were reported to the owner on
+  2026-10-04 and listed in PR #128's body; the owner merged without
+  comment, which is not an explicit ruling:
   - A period is read only when the calendar (`start_at <= now`) **and**
     Fantrax (`period <=` the no-period call's echo) say it has started. If
     the two disagree on the period in play, `04r` prints a `[warn]` and
@@ -376,19 +388,236 @@ the owner.** Additive: no reader changed, and it did not need `04t`.
 - Scratchpad for PR 2: `pr2_facts.py`, `pr2_preseason_salary.py`,
   `pr2_verify.py`, `pr2_checkonly.log`.
 
-**NEXT (after a compact, and after the owner's `04t` rerun): #117 PR 3,
-branch `feat/117-retire-placement`,** from the approved plan's "PR 3"
-section (`C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`).
-- For PR 3: `04r`'s `capture_date` on a period that has ended is later than
-  its `end_date`, so `min(end_date, capture_date)` gives `end_date`; on the
-  period in play it gives the capture day. `fact_preseason_salary`'s
-  `capture_date` is 2026-07-18.
+**#117 PR 3 IN PROGRESS (2026-10-04): branch `feat/117-retire-placement`
+exists, cut from `995f663`. The build is done and verified; nothing is
+committed.** Resume with "resume from pointer, execute PR 3". Done so far:
+- **`04t` recaptured 2026-10-04 14:47.** The owner chose "Claude runs 04t,
+  no login": `pr3_run_04t_nologin.py` (scratchpad) runs `04t.capture()`
+  with `FantraxScraper._login` replaced by a raise, so a dead session stops
+  the run. The session was alive. New capture: 350 rows (133 trade, 170
+  `CLAIM`, 46 `DROP`, 1 `LINEUP_CHANGE`, a code `02d` ignores), 254 player
+  legs, newest move 2026-10-01 23:05. The old capture (180 rows) is backed
+  up in the scratchpad as `fantrax_txn_history_2026.before_pr3.json`.
+- **Baseline saved** (main's code on the new history, `02d` → `02e`):
+  scratchpad `baseline117/` (five tables), logs `pr3_base_02d.log` and
+  `pr3_base_02e.log`; `main`'s own five tables are in `main117/`. Baseline
+  facts: ledger 1,267 rows (975 draft; 170 claim, 46 drop, 38 trade, 38
+  trade_away); 16 claims priced off the `PRE` snapshot, **148 claims at the
+  league minimum**; 0 legs read a contract off a snapshot; 163 moves
+  defaulted more than 8 days past the 2026-07-18 eligibility capture;
+  roster 1,100 rows; 22 placement orphans. The working tree's four changed
+  `data/*.parquet` are this baseline run (not staged).
+  `dim_roster_asset` now holds baseline-minted ids: **restore it from
+  `main117/` before the first run of the new code**, and compare runs on
+  `scorer_id`, not `asset_id` (the new code mints in a different order).
+- **Decision 1 test done; decision 1 re-ruled by the owner 2026-10-04.**
+  - Finding: a period's public roster is the roster at **lineup lock**,
+    frozen afterwards. Of 54 in-season claims, the 49 made from Tuesday on
+    are not on the roster of the period they were made in; the 5 made in
+    the first 26 hours are. 21 of 23 dropped copies still show on that
+    period's roster. The lock falls between Sunday 10:46 and Tuesday 13:16
+    Central (transaction times are `America/Chicago`).
+  - Every transaction row has a `week` cell: the Scoring Period the move
+    takes effect in (`date` / `team` style carry-forward within a
+    `txSetId`). `02d` reads it for trades only (`fact_trade_log.week`).
+    All preseason moves carry `week` 1.
+  - Replaying the draft plus every move by that period reproduces
+    `fact_roster_state` exactly: 1,069 / 1,092 / 1,099 / 1,100 for periods
+    1–4, no difference either way (`pr3_weekcell.py`, `pr3_decision1.py`).
+  - **Owner's ruling: "By effective period".** This replaces decision 1's
+    day rule (`min(end_date, capture_date)`), so `02d` does not read
+    `dim_scoring_period`:
+    - every leg carries `period` (the `week` cell); a draft pick is period 1;
+    - a pick or a claim reads the **first** Roster State with
+      `move period <= p < the period of the copy's next departure`;
+    - a trade or a drop reads the **latest** one with
+      `stint-start period <= p < move period` (no stint on record: any
+      `p < move period`);
+    - a Roster State is read only when its `capture_date` is after the move
+      day (this is what is left of "the open period counts as the day it
+      was captured");
+    - `fact_preseason_salary` stays day-based and comes first for salary:
+      `move day < 2026-07-18 < the day the copy next left`. It is never
+      read for a contract;
+    - `eligible_at` (the `Minor` default) stays day-based.
+  - My choices inside that ruling, to report (not ruled on): a leg with no
+    readable `week` reads no Roster State and is counted in a warning; the
+    indexes hold `SEASON_ID` only and a leg of another season reads
+    nothing; `departures()` / `stint_end()` return the departure's period
+    with its time; the ledger gets no `period` column (schema unchanged).
+- **Built since (same day, second half of the window; nothing committed):**
+  - `02d` rewritten for the ruling: `Seen`, `Left`, `index_state`,
+    `index_preseason`, `first_in_stint`, `latest_before`,
+    `preseason_salary`; `resolve_contract(src, kind, scorer_id, event_dt,
+    inherited, seen)`; `draft_time_salary(index, scorer_id, event_dt,
+    minimum)` (floor, `SALARY_MINIMUM` tier; `DraftSalaries` gone); legs
+    carry `period`; assets minted from `fact_roster_state` +
+    `fact_preseason_salary`. `02e` stamps `roster_status` from the newest
+    period through `SLOT_TO_STATUS`. Edit scripts: `pr3_edit_02d_a.py`,
+    `pr3_edit_02d_b.py`, `pr3_edit_02e.py` (scratchpad).
+  - **`04r` fix (not in the plan):** `salary` is rounded to the cent. The
+    public API serves 84 whole-dollar salaries per period a float hair off
+    (e.g. `…999.999999998`), which showed as 84 false salary mismatches.
+    `04r` was rerun; `fact_roster_state` has 0 non-whole salaries now.
+  - Rerun `02d` → `02e` (asset bridge restored from `main117/` first).
+    `pr3_verify.py` against the baseline: ledger 1,267 rows both; differs
+    only in `contract_id` (61 rows: claim `Minor`→`FA` 41, claim `FA`→`1st`
+    7, drop `Minor`→`FA` 7, draft `Minor`→`1st` 6), `contract_year` (54),
+    `cap_hit` (6 draft rows) and `asset_id` (17, mint order); **no
+    `contract_value` change**. Roster 1,100 rows both; differs in
+    `contract_id` (47), `contract_year` (40), `roster_status` (447).
+    Against Roster State period 4: **1,100 of 1,100 copies shared, salary
+    and contract equal on all** (baseline: contract equal on 1,053). Charged
+    salary per team equals Fantrax's non-Minors salary for **28 of 28**
+    (baseline 7). Lowest remaining cap $12.3M; no team over. `02e` prints no
+    orphan and no unseen row. Claims: 156 priced off a roster, 13 at the
+    league minimum (baseline 16 / 148). Draft rows: 938 contracts read off
+    Roster State; salaries 946 preseason, 27 + 2 ADP, 0 at the minimum tier.
+    `dim_roster_asset` 567 → 635, every old id kept.
+  - Registry: `fact_roster_placement` removed from `data_model.yml`, the
+    parquet `git rm`'d; `sources.yml` edited (04v eligibility only; 04u
+    `getDraftPicks` only). Docs: ADR-0016, ADR-0019 d6, ADR-0003, ADR-0011
+    amend notes; `CONTEXT.md` gains **Stint** plus one sentence each on
+    Roster State (lineup lock) and Roster Move (takes effect in one
+    period) — the two sentences were my addition, to report; READMEs;
+    `data-model.md`, `MEMORY.md`, `powerbi-semantic-model.md`;
+    `storage-seam-inventory.md`.
+  - **Agents' work reviewed (third window, 2026-10-04).** Two agents had
+    disjoint files: (A) `tests/test_02d_contract_sourcing.py` reworked for
+    period-keyed rows (130 tests) + new `tests/test_02d_main.py` (7: a
+    `main()` smoke on a temp data dir, re-run frame- and byte-identical);
+    (B) `04v` (placement half deleted; `capture_date` read once), `04u`
+    (`etl.fantrax_public_get("getDraftPicks")`, `reconcile_rosters` gone),
+    `04e` (newest period of `fact_roster_state`), `etl_checks` (placement
+    coverage Gate and `latest_partition` gone), two docstrings,
+    `make_fixtures.py` + the deleted `roster_info.json` fixture, the parser
+    tests, and new `tests/test_retired_tables.py` (no code names the retired
+    table).
+  - My fixes on top of the agents' work:
+    - `02d` `resolve_legs`: `in_season = pd.notna(season) and season ==
+      src.season`. A leg outside every `dim_season` span used to crash on
+      `if pd.NA`; it now reaches `main()`'s clear assert.
+    - `04v` `_header_index`: the unreachable roster-table `header` fallback
+      and its test are gone.
+    - `sources.yml`: `fantrax_public_fxea` matches on `getDraftPicks`; the
+      `getTeamRosters` entry says a past period is the roster at lineup lock.
+    - `capmath.py` docstring rewrapped.
+  - **Verified:** `pytest tests/` 353 pass; bot suite 8 pass (scratchpad
+    `botvenv`; `.venv` has no `discord`); `check_data_model.py` + `--check`
+    (29 tables; `DATA_MODEL.md` re-rendered); `check_sources.py` + `--check`
+    (15 sources; `SOURCES.md` re-rendered); `run_pipeline.py --check-only`
+    148 checks, 0 Gate failures; `--dry-run` order unchanged; `check_pii.py`
+    clean on all 35 changed files; `02d` → `02e` rerun twice after the code
+    fix: all five tables byte-identical to the verified run
+    (`pr3_rerun_cmp.py`, copies in `new117/`, `new117b/`).
+  - **One new Review finding, not from this code:** 4 `fact_fantasy_teams`
+    rows have no `gsis_id` (players claimed in season with no crosswalk
+    row). The baseline has the same 4, so they come from the new transaction
+    history. They clear when the owner works the crosswalk review queue.
+  - **`04e` trial run (not published):** the notebook executes on the new
+    reader. A rerun would append a 2026-10-04 snapshot whose ceilings move
+    by up to 11.6 points (DL +5 to +12, LB about +6, QB -1 to -2; RB becomes
+    the top position in place of QB), because 1,100 players are rostered
+    now against 992. The published `dim_position_ceiling` was restored and
+    is unchanged; the plan does not list it as PR 3 data. The notebook's
+    stored outputs are still the 2026-07-31 ones.
+  - **`cap-ledger-auditor` ran on the diff (2026-10-04).** No wrong figure
+    on today's data: roster equals Roster State period 4 on all 1,100
+    copies; a 4,000-seed fuzz of `resolve_legs` found nothing. It confirmed
+    the rulings are implemented. Its findings and what was done:
+    - **Fixed in PR 3:**
+      - A departure of another season bounded this season's stints by its
+        period number (a 2027-offseason drop in period 1 would strip the
+        observed contract and salary from the 2026 stint it ends).
+        `departures(legs, spans, season)` now gives such a departure no
+        period.
+      - Stale wording that an ended period "shows its final roster"
+        (`data-model.md`, `data_model.yml`, `04r`'s header, ADR-0016).
+    - **Owner's rulings, 2026-10-04 (both the recommended option), built:**
+      - **An in-season leg with no readable period fails the step.**
+        `legs_without_period()`; `main()` raises before the ledger is
+        rebuilt. The old warning is gone. Replaces my "warn and default".
+      - **A trade or a drop with no ledger terms is priced off the Roster
+        State row it reads** (it was NA on a trade, the league minimum on a
+        drop). Narrow: only when the ledger never saw the copy join.
+      - 0 rows are affected today: the rerun is byte-identical.
+    - **Not PR 3, to report and carry forward:**
+      - `fact_fantasy_teams` is still the ledger replay; only
+        `roster_status` comes from Roster State. A `Minor` → `1st`
+        graduation after the newest transaction capture, or any move since
+        it, is not on the roster until `04t` is rerun (`04t` is not a
+        pipeline step). This is #97 / #93.
+      - **The ADR-0019 claim default looks wrong against Fantrax:** 41 of 46
+        observed claims of minors-eligible players show `FA`, 5 show
+        `Minor`. Five unobserved claims still carry the `Minor` default. No
+        cap effect (both are $2M, 0%), but the label and year are off. The
+        same default is right for draft picks (332 of 338). Needs the
+        owner: a decision 6 change, its own issue.
+      - Ledger `cap_hit` disagrees with `contract_id` on 206 rows (the
+        contract is swapped, the inherited `cap_hit` kept). Nothing reads
+        it; #97 settles it.
+      - Dead money is 0 everywhere: nothing sets `Cut`. Nine `1st` drops
+        imply about $23.0M of year-1 dead money. One looks like a reversed
+        draft pick (a drop a day before the last pick, by a team the ledger
+        never saw hold the player). #111 / #97.
+      - `02e` has no tests and no importable `main()`; the `SLOT_TO_STATUS`
+        mapping and its match with `capmath`'s exempt literal are untested.
+        A small follow-up (it fits #110, which renames the column).
+      - `04r` raises on a team with an empty roster; `sort_legs` can reorder
+        same-timestamp moves on one copy (none in the data); `roster_status`
+        stops moving after period 12 (#97).
+  - **Other known limits (agent A):** a from-scratch first write types
+    `draft_round`, `pick_in_round`, `pick_overall` as int64 and later runs
+    as double (frames equal on read); the smoke test would not notice if
+    `main()` stopped passing `departures()` to `build_startup_rows`; the
+    Roster State index holds the startup-draft season only (`SEASON_ID`),
+    so a later season's moves read no Roster State until it is keyed by
+    season.
+  - The newest-period filter lives in three places (`02e`,
+    `etl_checks.newest_period`, `04e`): a candidate for `etl_helpers`.
+  - Root tier, not touched: `C:\Users\benha\.claude\skills\
+    discord-bot-github-fetch\SKILL.md:117` still names the retired table,
+    and `C:\Users\benha\.claude\memory\preferences.md` holds one
+    uncommitted gotcha bullet. Both need the owner's go ("commit and push?").
+  - Every `data/*.parquet` change in the tree is from my runs: `04r` (the
+    rounding fix), `02d`, `02e`. `fact_roster_placement.parquet` is staged
+    as deleted (`git rm`); nothing else is staged.
+- **Final state (2026-10-04): PR 3 is built, audited and verified; nothing
+  is committed.** After the last code change: `pytest tests/` 359 pass, bot
+  suite 8 pass, registry and source checks pass, `--check-only` 0 Gate
+  failures, `02d` → `02e` rerun byte-identical, PII scan clean.
+- **Next:** wait for the owner's "commit and open the PR" (commit from the
+  main checkout, explicit paths, PR body closes #117). After the merge, on
+  the owner's go: notes on #97, #118, #93, a Resolution on #117, and an
+  issue for the claim default.
+
+The approved plan's "PR 3" section
+(`C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`) still holds
+except for decision 1 above. PR 3 closes #117.
+- Order of work (detail in the plan): `02d` (`contract_source`,
+  `first_in_stint`, the stint-start contract of decision 2, the
+  league-minimum floor and the minimum tier of decision 6, season-bounded
+  lookups, assets minted from `fact_roster_state` + `fact_preseason_salary`)
+  → `02e` (slots from the newest period, mapped back Starter→`Active`,
+  Bench→`Reserve`, IR→`Inj Res`, Minors→`Minors`) → `04v` (placement half
+  deleted) → `04u`, `04e`, `etl_checks`, two docstrings → registry removal
+  and `git rm data/fact_roster_placement.parquet` → rerun `02d` → `02e` →
+  tests → docs (`Stint` in `CONTEXT.md`; ADR-0019 d6, ADR-0016 and ADR-0003
+  notes) → `cap-ledger-auditor` on the diff before merge.
+- **Stop and report before staging data** if any group is worse than the
+  baseline.
+- Dtypes: `fact_roster_state.capture_date` and
+  `fact_preseason_salary.capture_date` (2026-07-18) are `datetime64[us]`;
+  `period` is int64.
 - `04u` can drop its own `fetch` for `etl.fantrax_public_get`, and its
   `reconcile_rosters` goes (the `fantrax_public_fxea` entry in
   `sources.yml` then loses its `getTeamRosters` half).
+- `etl_checks.latest_partition` has no caller once the placement check goes;
+  remove it with its test.
+- After the PR 3 merge, check `git status` before anything else (the
+  OneDrive lock gotcha above).
 
-PR 3's window starts by checking the transaction history runs past
-2026-07-24. Then
+Then
 #118, which is plan-gated: grill and plan first, in its own window. Read
 the #117 issue and its hand-on comments (from #115, #113 and #125) before
 building.

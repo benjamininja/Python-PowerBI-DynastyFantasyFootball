@@ -95,7 +95,6 @@ cover them:
 | dim_fantrax_crosswalk | 04z c5; `apply_fantrax_crosswalk_review` | 04z full; apply = read, patch rows, full write | `replace` (or `upsert keys=scorer_id` for the patch) |
 | fact_roster_state | 04r via `load_replace_partition(season_id, period)` (added by #117) | replace-by-`(season_id, period)`; a run replaces every period it read | `replace_partition keys=(season_id, period)` |
 | fact_preseason_salary | none (written once by a one-off script, #117) | frozen | none: one-time load |
-| fact_roster_placement | 04v `load_placement` | hand-rolled replace-by-`(season, week)` + dedup `(team_id, scorer_id, season, week)` | `replace_partition keys=(season, week)` |
 | fact_minor_eligibility | 04v `load_eligibility` | hand-rolled replace-by-`(season, week)` + dedup `(scorer_id, season, week)` | `replace_partition keys=(season, week)` |
 
 04t and 04w only write `data/raw/*.json`, and the review files are CSVs
@@ -107,7 +106,7 @@ of the seam.
 The most-read tables are `dim_rookie_prospect` (×11), `dim_nfl_players` (×8),
 `dim_position` (×8), `fact_rookie_rankings` (×6),
 `fact_dynasty_ranking_metrics` (×7), `fact_fantrax_adp` (×6),
-`fact_roster_placement` (×4), `dim_fantasy_teams` (×5), `dim_player_alias`
+`fact_roster_placement` (×4, retired by #117), `dim_fantasy_teams` (×5), `dim_player_alias`
 (×4) and `dim_contract` (×2).
 
 Almost every write site also re-reads the same table in a QA cell
@@ -126,7 +125,7 @@ seam modes:
    returns the total row count. This is `replace_partition(keys=part_cols)`
    and is the canonical shape.
 2. **Hand-rolled replace-by-`(season, week)`** in 04a `load_fact`, 04v
-   `load_placement` and 04v `load_eligibility`. It is a copy-paste of #1 with
+   `load_placement` (deleted with `fact_roster_placement`, #117) and 04v `load_eligibility`. It is a copy-paste of #1 with
    a trailing safety `drop_duplicates` on the grain, which is a violation of
    the modular-extraction rule. It becomes `replace_partition(keys=("season",
    "week"))`. The seam's grain-uniqueness check replaces the silent dedup:
@@ -329,7 +328,7 @@ seam section of `etl_helpers.py`. This locks in the migration.
 2. **Partition-replace writers**: 04b, 04x, 04f, 04y, 04d, 04e, 04u, 04p,
    04r and 02d. These are the shared idioms with the highest leverage.
 3. **Hand-rolled replace-by-week**: 04a `load_fact`, 04v
-   `load_placement`/`load_eligibility`, and the 02d `TXN_EVENT_TYPES`
+   `load_eligibility` (`load_placement` went with #117), and the 02d `TXN_EVENT_TYPES`
    delete. Drop the 04a `score→fpts` migration shim (the data is already
    migrated).
 4. **Read-modify-write / upsert**: `dim_roster_asset`, `dim_player_alias`,

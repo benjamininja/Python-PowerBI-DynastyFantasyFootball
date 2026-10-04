@@ -53,7 +53,11 @@
      - *`02d` warns when a move takes the default more than 8 days after the newest eligibility snapshot. The label is kept (owner's decision).*
      - *An ineligible player whose inherited contract is `Minor` gets `1st`: they graduated (decision 3).*
      - *A trade with no source row and an ineligible player keeps an unknown contract. Nothing is invented.*
-     - *Until #117 builds `fact_roster_state`, the lookup reads `fact_roster_placement` by capture date and needs the copy on the move's team (the "from" team for a trade). #117 settles how a claim reads its own period.*
+     - *Amended 2026-10-04 (#117): the lookup reads `fact_roster_state`, by the Scoring Period Fantrax says the move takes effect in, not by capture day ([ADR-0016's amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81), decision 3). It needs the copy on the move's team (the "from" team for a trade). The day rules above are replaced:*
+       - *A trade and a drop read the latest Roster State inside the copy's stint and before the move's period: stint-start period ≤ p < move period.*
+       - *A draft pick and a claim no longer always default (owner's decision, 2026-10-03). Each reads contract and salary off the first Roster State inside the stint it starts: move period ≤ p < the period the copy next leaves the team in. A draft pick takes effect in period 1. The default applies only when no such row exists: a copy that left before a roster showed it.*
+       - *The preseason capture is still never read for a contract. It now lives in `fact_preseason_salary`, which holds salaries only.*
+       - *The eligibility rules above are unchanged, and the eligibility captures are read for the draft's own season only.*
 7. **`dim_contract` gains one row:**
 
    | contract_id | contract_type | contract_label | salary_type | contract_year | total_years | cap_hit_pct | guaranteed | cap_exempt | min_salary |
