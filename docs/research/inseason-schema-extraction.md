@@ -168,9 +168,9 @@ What this collides with:
 | Payload | Grain | Shape |
 |---|---|---|
 | `getStandings {view: SCHEDULE}` | week × matchup | `tableList[12]`, 14 rows each; header `Away, FPts, Home, FPts`; cell keys `content, id, leagueId, teamId` |
-| `getStandings {view: COMBINED, period}` | team, as of period | `tableList[3]`: one 28-row table (`W, L, T, Win%, Div, GB, SR, FPtsF, FPtsA, Streak, % Playoffs`; `fixedCells` carry `teamId`) and two 14-row matchup tables |
+| `getStandings {view: COMBINED, period}` | team, current (`period` is ignored; see the 2026-10-04 notes) | `tableList[3]`: one 28-row table (`W, L, T, Win%, Div, GB, SR, FPtsF, FPtsA, Streak, % Playoffs`; `fixedCells` carry `teamId`) and two 14-row matchup tables |
 | `getLiveScoringStats {period}` | team × player × stat | `statsPerTeam.allTeamsStats[teamId].{ACTIVE,BENCH}.statsMap[scorerId] = {object1: number, object2: [{scipId, sv, av, fpts}]}`; skip the `_1010` / `_1020` keys; team totals in `totalFpts` |
-| `getTeamRosterInfo {teamId, period}` | team × player | `tables[2]` (offense, defense); header `Age, Opp, Sal, Con, FPts, Bye` + stat columns; row keys `statusId, posId, scorer{scorerId, minorsEligible, rookie, …}, cells`; `statusTotals[{id, name, total}]`; `draftPicksData` |
+| `getTeamRosterInfo {teamId, period}` (no longer captured, #118) | team × player | `tables[2]` (offense, defense); header `Age, Opp, Sal, Con, FPts, Bye` + stat columns; row keys `statusId, posId, scorer{scorerId, minorsEligible, rookie, …}, cells`; `statusTotals[{id, name, total}]`; `draftPicksData` |
 
 IDs:
 
@@ -192,7 +192,7 @@ IDs:
 |---|---|---|
 | `04v_minor_contracts.py` | 96, 284 | **Fixed** (`fix/04v-keep-ir-rows`). `EMPTY_SLOT_STATUS = "3"` skips every statusId `"3"` row. In-season `"3"` is IR with real players (35 in period 1, 50 in period 2). Empty slots are already caught by the missing `scorerId`. IR players would be dropped from `fact_roster_placement`. |
 | `04v_minor_contracts.py` | 95 | **Fixed** (`fix/04v-keep-ir-rows`; `"3": "Inj Res"`, the live `statusTotals` name). `STATUS_TO_SECTION_FALLBACK` had no `"3"`. Low impact: the live `statusTotals` names override the fallback. |
-| `04s_fantrax_inseason_capture.py` | 145 | Sends no `playerViewType`, so only Starters are captured. Needs `"playerViewType": "2"`. |
+| `04s_fantrax_inseason_capture.py` | 145 | **Fixed** (`feat/118-capture`, #118). Sent no `playerViewType`, so only Starters were captured. It now sends `"playerViewType": "2"`. Captures taken before the fix (2026-09-26) hold Starters only. |
 | `02d_fact_roster_transactions.py` | 496–518 | Comment says the public `period` is ignored. Out of date (section 2). |
 | `dim_contract` | — | No `Minor` row (section 4). |
 
@@ -223,3 +223,30 @@ Also checked 2026-10-03 for #81, all from the authed captures:
 - **Live scoring:** `statsMap` keys `_1010` and `_1020` are offense and
   defense group totals. Skipping them, the Starters' `object1` sum equals
   `ACTIVE.totalFpts` to 0.01 for all 28 teams in period 1.
+
+Checked 2026-10-04 for #118, from the same 2026-09-26 captures:
+
+- **`getStandings {view: COMBINED, period}` ignores `period`.** The three
+  captures (periods 1, 2 and 3, all taken on one day) are identical in every
+  column. Every team shows 2 games played, and `FPtsF` equals the schedule
+  points of weeks 1 to 3, period 3 in progress included. So the reply is the
+  current standings, not the standings as of the period asked for. The two
+  14-row tables are the week in play and the last final week.
+- **The reply names a way to ask by period, untested.** `displayedSelections`
+  echoes `timeframeType: YEAR_TO_DATE` and `timeStartType: PERIOD_ONLY`.
+  `displayedLists` offers `timeframeTypes` `YEAR_TO_DATE` | `BY_PERIOD` and
+  `timeStartTypes` `PERIOD_ONLY` | `FROM_SEASON_START`. `04s` now saves two
+  probe replies per period, `BY_PERIOD` with each `timeStartType`. A probe
+  counts only if its echo shows `BY_PERIOD`; an unchanged echo means Fantrax
+  did not take the request key, and the question stays open.
+- **Live scoring echoes no period** (`displayedSelections` is empty), so a
+  reply cannot be checked against the period asked for.
+- **Units:** every stat id (`scipId`) is `<group>#<category>#<pos>`. Group
+  `1010` is Offense and `1020` is Defense. Categories `3218` (under both
+  groups) and `256g` (under `1020`) are Special Teams. Per player the stat
+  points sum to `object1` exactly, in periods 1 and 2.
+- **Starters agree across sources.** In periods 1 and 2 the `ACTIVE` set
+  equals `fact_roster_state`'s Starters for 28 of 28 teams, and each team's
+  Starter sum equals `ACTIVE.totalFpts` and its schedule `FPts`.
+- **Public `getLeagueInfo.matchups`** equals the authed schedule on all 12
+  weeks, pairs and sides. Its playoff periods 15 to 17 are `TBD`.

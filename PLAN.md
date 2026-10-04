@@ -59,7 +59,8 @@ raw points, not categories.
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
-  ← #113) · #118 Scoring build (task, ← #117).
+  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; planned 2026-10-04, PR 1 of 3 built) · #130 claim
+  default contract (grilling, ADR-0019 d6; filed 2026-10-04).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
   snaps + injuries only; points/GP from Fantrax) · #86 build + schedule
@@ -121,7 +122,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   `shared.owner` lookup for the PII check; `migrate.yml` on merge. Prereqs:
   the grain fixes, trade-log pick legs resolved to Original Owners,
   `division_id`.
-- Code follow-ups from #79: `04s` needs `playerViewType:'2'` (now in #118).
+- Code follow-ups from #79: `04s` sends `playerViewType:'2'` ✅ (#118 PR 1).
   `04v` IR drop fixed ✅ (PR #106: IR kept as `"Inj Res"`, charges per
   ADR-0011).
 - Research docs for #73 #74 #80 #84 landed in `docs/research/` ✅
@@ -147,8 +148,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   Resolution and hand-on comments posted) → #125 ✅ PR #126 (draft picks and
   claims take their salary from the roster snapshot, then draft-time ADP;
   all 1,004 roster rows on Fantrax period 1 match; the ledger and roster
-  are published, as of the 2026-07-24 transaction history) → #117 (grilled
-  and planned 2026-10-03, plan approved; three PRs). **PR 1 ✅ merged as PR #127
+  are published, as of the 2026-07-24 transaction history) → #117 ✅ (grilled
+  and planned 2026-10-03; three PRs; closed 2026-10-04). **PR 1 ✅ merged as PR #127
   (2026-10-03):** `04p` reads public
   `getLeagueInfo` on every run and writes `dim_scoring_period` (17 periods,
   exact bounds, Update-Set state `open` / `closing`) and `dim_division`
@@ -158,24 +159,35 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   `fact_roster_state` (periods 1–4 today, 4,360 rows; Roster Slot, salary,
   contract, `capture_date`), with coverage and contract Gates;
   `fact_preseason_salary` (992 rows, frozen) keeps the preseason salaries.
-  Nothing reads either table yet. **PR 3 in progress (2026-10-04, branch
-  `feat/117-retire-placement`):** the `fact_roster_placement` retirement.
-  `04t` was recaptured (history to 2026-10-01). Decision 1 was re-ruled
-  after its test: a move reads Roster State by the Scoring Period it takes
-  effect in (Fantrax's `week` stamp), not by day. `02d`, `02e`, the
-  registry and the docs are edited, and the rerun ledger and roster match
-  Roster State period 4 on all 1,100 copies. The test rework and the
-  `04v` / `04u` / `04e` retirement edits are reviewed, and the
-  `cap-ledger-auditor` found no wrong figure on today's data. Two more
-  owner rulings came out of the audit and are built: an in-season move with
-  no readable period fails the step, and a trade or drop with no ledger
-  terms is priced off the Roster State row it reads. `pytest tests/` 359
-  pass, bot suite 8 pass, registry and source checks pass, `--check-only`
-  0 Gate failures, a `02d` → `02e` rerun is byte-identical. `04e` is edited
-  but not rerun (`dim_position_ceiling` is unchanged). Open: the owner's
-  "commit and open the PR". Nothing is committed. Detail in
-  `.claude/memory/RESUME.md`
-  → #118 (#115 ✅ PR #120);
+  Nothing read either table until PR 3. **PR 3 ✅ merged as PR #129
+  (2026-10-04, `6a61da9`); it closed #117:** `fact_roster_placement` is
+  retired. `04t` was recaptured (history to 2026-10-01). Decision 1 was
+  re-ruled after its test: a period's public roster is the roster at its
+  lineup lock, so a move reads Roster State by the Scoring Period it takes
+  effect in (Fantrax's `week` stamp), not by day. Two more rulings came out
+  of the audit: an in-season move with no readable period fails the step,
+  and a trade or drop with no ledger terms is priced off the Roster State
+  row it reads. The republished ledger and roster match Roster State period
+  4 on all 1,100 copies, and charged salary matches Fantrax for 28 of 28
+  teams. `pytest tests/` 359 pass. `04e` is edited but not rerun
+  (`dim_position_ceiling` is unchanged; the owner decides when). Carried
+  forward: the claim default (ADR-0019 decision 6, #130), dead money still 0, the
+  roster still a ledger replay (#97). Detail
+  in `.claude/memory/RESUME.md`
+  → #118 (#115 ✅ PR #120): **grilled and planned 2026-10-04**, three PRs.
+  PR 1 the `04s` capture change (bench view, standings probe, no roster
+  calls), then the owner's capture; PR 2 `fact_period_scoring` (with
+  `is_starter`) and `fact_matchup`; PR 3 standings per the probe, the Close
+  checks, `closed` switched on, `04s` as a pipeline step. Found in the
+  grill: `getStandings COMBINED` ignores `period` and serves the current
+  standings, and the saved captures hold Starters only. A period's scoring
+  loads once its games are final. **PR 1 built 2026-10-04** (branch
+  `feat/118-capture`): `04s` asks for the bench view, saves two by-period
+  standings probes beside the standings reply, makes no roster calls, and
+  stamps `captured_at`; a period Fantrax rejects is reported and skipped.
+  No table changed. `pytest tests/` 368 pass. **Next: the owner's capture**
+  (`04s --periods 1-5`, from `main` after the merge), **then PR 2.** Detail
+  in `.claude/memory/RESUME.md`;
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
