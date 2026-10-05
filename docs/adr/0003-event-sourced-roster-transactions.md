@@ -12,6 +12,11 @@
   current rosters are read from the roster snapshot, not replayed from the ledger.
   The ledger remains the source of provenance and Dead Money. The open
   `dead_money` schedule is settled: rest of contract, by year.
+- **Amended 2026-10-04 (#96, ADR-0016 decision 6):** the ledger key is
+  `(transaction_id, scorer_id, team_key, event_type)`. `event_seq` is sort
+  order only, and the ledger no longer carries a `dead_money` column. The key
+  and the `dead_money = 0` in the Build amendment below are the 2026-06-14
+  build's.
 
 ## Context
 

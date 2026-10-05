@@ -511,6 +511,13 @@ class TestTxnHistory:
         assert len(legs) == 6
         assert all(type(l["period"]) is int for l in legs)
 
+    def test_every_leg_carries_its_rows_txsetid(self, rows, parsed):
+        # Fantrax's txSetId is the ledger's transaction_id for a move.
+        trades, churn = parsed[1][:2], parsed[1][2:]
+        assert {l["transaction_id"] for l in trades} == set(parsed[0]["transaction_id"])
+        assert [l["transaction_id"] for l in churn] == [
+            r["txSetId"] for r in rows if r.get("transactionCode") in ("CLAIM", "DROP")]
+
     def test_unmapped_team_is_skipped(self, rows):
         lut = self._lut(rows)
         lut.pop("66ao8djmmn0kdqp0")                           # the lone drop's team

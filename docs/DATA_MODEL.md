@@ -69,6 +69,7 @@ graph LR
     fact_roster_transactions --> dim_fantasy_teams
     fact_roster_transactions --> dim_roster_asset
     fact_roster_transactions --> dim_season
+    fact_roster_transactions --> dim_scoring_period
     fact_roster_transactions --> dim_contract
     fact_roster_transactions --> dim_nfl_players
     fact_roster_transactions -.via dim_fantrax_crosswalk.-> dim_nfl_players
@@ -92,6 +93,7 @@ graph LR
     fact_matchup --> dim_fantasy_teams
     fact_preseason_salary --> dim_season
     fact_preseason_salary --> dim_fantasy_teams
+    fact_preseason_salary --> dim_contract
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_rookie_prospect
     fact_minor_eligibility -.via dim_fantrax_crosswalk.-> dim_nfl_players

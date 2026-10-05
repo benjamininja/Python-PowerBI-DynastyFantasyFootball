@@ -1,12 +1,15 @@
-"""Contract and salary sourcing in 02d (#113, ADR-0019 decision 6; #125; #117).
+"""Contract and salary sourcing in 02d (#113, ADR-0019 decision 6; #125; #117;
+#96).
 
 A Roster Move's contract is read off Roster State, one roster per Scoring
 Period. A draft pick and a claim start a stint and read the first row inside
 it; a trade and a drop end one and read the latest row before they take
-effect. A default applies only when no row covers the move. A stint-starting
-move's salary is read off the preseason capture, else off that same first
-row. These tests build the lookups by hand; only TestPublishedDimContract
-reads data/ (the seeded dim_contract).
+effect. A pick or a claim no row covers reads the preseason capture, when it
+was taken inside the stint. A default applies only when neither covers the
+move. A stint-starting move's salary is read off the preseason capture, else
+off that same first row. `contract_source` says where each row's contract was
+read, and marks a drop that ends no stint. These tests build the lookups by
+hand; only TestPublishedDimContract reads data/ (the seeded dim_contract).
 """
 import importlib
 import sys
@@ -38,7 +41,8 @@ MOVE = pd.Timestamp("2026-09-20 14:00")
 MOVE_PERIOD = 3                 # the Scoring Period Fantrax stamps MOVE with
 MINIMUM = 2_000_000.0           # CONTRACTS' league minimum
 SALARY = 5_000_000.0            # a Roster State row's salary when the test does not care
-NO_FLAGS = {"observed": 0, "after_newest": 0, "left_list": 0, "stale_capture": 0}
+NO_FLAGS = {"observed": 0, "preseason": 0, "after_newest": 0, "left_list": 0,
+            "stale_capture": 0}
 
 
 def read_day(period):
@@ -64,13 +68,14 @@ def state(*rows, season=SEASON):
                                        "roster_slot", "salary", "contract_id", "capture_date"])
 
 
-def preseason(*rows, season=SEASON):
+def preseason(*rows, season=SEASON, contract="1st"):
     """fact_preseason_salary rows: (team_key, scorer_id, salary[, capture_date]),
-    captured on PRESEASON_DAY unless a row says otherwise."""
-    recs = [(season, team, sid, salary, _stamp(rest[0] if rest else PRESEASON_DAY))
+    captured on PRESEASON_DAY unless a row says otherwise. Every row shows
+    `contract`: the real capture shows `1st` on nearly all of them."""
+    recs = [(season, team, sid, salary, contract, _stamp(rest[0] if rest else PRESEASON_DAY))
             for team, sid, salary, *rest in rows]
     return pd.DataFrame(recs, columns=["season_id", "team_key", "scorer_id", "salary",
-                                       "capture_date"])
+                                       "contract_id", "capture_date"])
 
 
 def adp(*rows):
@@ -88,19 +93,21 @@ def source(rosters=None, elig=None, pre=None):
     return rt.contract_source(rosters, pre, elig, CONTRACTS, season_id=SEASON, season=YEAR)
 
 
-def base(*rows):
-    """Startup ledger rows: (team_key, asset_id, contract_id, contract_value)."""
+def base(*rows, read=rt.FROM_DEFAULT):
+    """Startup ledger rows: (team_key, asset_id, contract_id, contract_value).
+    `read` is the `contract_source` they carry."""
     cols = ["team_key", "asset_id", "event_seq", "event_date", "season_id", "contract_id",
-            "contract_year", "contract_value", "cap_hit", "status"]
-    return pd.DataFrame([(t, a, i, DRAFTED, SEASON, c, 1.0, v, v * 0.5, "active")
+            "contract_year", "contract_value", "cap_hit", "status", "contract_source"]
+    return pd.DataFrame([(t, a, i, DRAFTED, SEASON, c, 1.0, v, v * 0.5, "active", read)
                          for i, (t, a, c, v) in enumerate(rows, 1)], columns=cols)
 
 
-def leg(kind, sid, team_to, team_from=pd.NA, when=MOVE, period=MOVE_PERIOD):
+def leg(kind, sid, team_to, team_from=pd.NA, when=MOVE, period=MOVE_PERIOD, txn="tx1"):
     """A transaction leg, as parse_txn_rows emits it. `period` is the Scoring
-    Period the move takes effect in: 1 for an offseason move."""
-    return {"kind": kind, "scorer_id": sid, "team_from": team_from, "team_to": team_to,
-            "event_dt": when, "period": period}
+    Period the move takes effect in: 1 for an offseason move. `txn` is
+    Fantrax's txSetId."""
+    return {"kind": kind, "transaction_id": txn, "scorer_id": sid, "team_from": team_from,
+            "team_to": team_to, "event_dt": when, "period": period}
 
 
 def resolve_all(legs, src, startup=None):
@@ -234,15 +241,22 @@ class TestFirstInStint:
         assert rt.first_in_stint({}, "A01", "p1", 1, self.JOINED) is None
 
 
-class TestPreseasonSalary:
+class TestPreseasonInStint:
     PRE = rt.index_preseason(preseason(("A01", "p1", 5_000_000)), SEASON)     # captured 07-18
     JOINED = pd.Timestamp("2026-07-01 09:00")
 
     def _salary(self, when=JOINED, until=None, team="A01"):
-        return rt.preseason_salary(self.PRE, team, "p1", when, until)
+        row = rt.preseason_in_stint(self.PRE, team, "p1", when, until)
+        return None if row is None else row.salary
 
     def test_a_capture_after_the_move_day_is_read(self):
         assert self._salary() == 5_000_000
+
+    def test_the_row_carries_the_captures_contract(self):
+        assert rt.preseason_in_stint(self.PRE, "A01", "p1", self.JOINED) == rt.Preseason(
+            pd.Timestamp(PRESEASON_DAY), 5_000_000.0, "1st")
+        blank = rt.index_preseason(preseason(("A01", "p1", 5_000_000), contract=None), SEASON)
+        assert rt.preseason_in_stint(blank, "A01", "p1", self.JOINED).contract_id is None
 
     def test_a_capture_dated_the_move_day_is_not_read(self):
         assert self._salary(when=pd.Timestamp("2026-07-18 08:00")) is None
@@ -258,7 +272,8 @@ class TestPreseasonSalary:
         blank = ("A01", "p2", None)
         undated = ("A02", "p2", 9_000_000, None)
         index = rt.index_preseason(preseason(blank, undated, ("B01", "p2", 6_000_000)), SEASON)
-        assert index == {("B01", "p2"): (pd.Timestamp(PRESEASON_DAY), 6_000_000.0)}
+        assert index == {("B01", "p2"): rt.Preseason(
+            pd.Timestamp(PRESEASON_DAY), 6_000_000.0, "1st")}
 
     def test_another_team_or_no_date(self):
         assert self._salary(team="A02") is None
@@ -267,7 +282,7 @@ class TestPreseasonSalary:
     def test_no_preseason_table(self):
         assert rt.index_preseason(None, SEASON) == {}
         assert rt.index_preseason(preseason(), SEASON) == {}
-        assert rt.preseason_salary({}, "A01", "p1", self.JOINED) is None
+        assert rt.preseason_in_stint({}, "A01", "p1", self.JOINED) is None
 
 
 class TestSeasonBound:
@@ -283,7 +298,7 @@ class TestSeasonBound:
         pre = pd.concat([preseason(("A01", "p1", 5_000_000)),
                          preseason(("A01", "p2", 7_000_000), season=NEXT_SEASON)])
         assert rt.index_preseason(pre, SEASON) == {
-            ("A01", "p1"): (pd.Timestamp(PRESEASON_DAY), 5_000_000.0)}
+            ("A01", "p1"): rt.Preseason(pd.Timestamp(PRESEASON_DAY), 5_000_000.0, "1st")}
         assert set(rt.index_preseason(pre, NEXT_SEASON)) == {("A01", "p2")}
 
     def test_index_eligibility_keeps_only_the_asked_season(self):
@@ -458,13 +473,45 @@ class TestResolveContract:
         frame = pd.DataFrame({"contract_id": [got.contract_id, "1st", pd.NA]})
         assert rt.unknown_contracts(frame, CONTRACTS) == ["7th"]
 
+    def test_the_preseason_contract_is_read_when_no_row_covers_the_move(self):
+        # p2 is not eligible: the capture's contract stands, not a claim's FA.
+        got = rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p2", MOVE,
+                                  preseason="1st")
+        assert got == rt.Sourced("1st", preseason=True)
+        assert got.source == rt.FROM_PRESEASON
+
+    def test_an_eligible_player_is_minor_whatever_the_capture_shows(self):
+        # The capture predates the Minor label: it shows eligible players on 1st.
+        # The Minor is the default rule's, so the capture is not what was read.
+        got = rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE,
+                                  preseason="1st")
+        assert got == rt.Sourced("Minor", after_newest=True)
+        assert got.source == rt.FROM_DEFAULT
+        assert got == rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE)
+
+    def test_roster_state_wins_over_the_preseason_capture(self):
+        src = source(state(("A01", "p2", 2, "2nd")), self.ELIG)
+        seen = rt.latest_before(src.snaps, "A01", "p2", MOVE_PERIOD)
+        got = rt.resolve_contract(src, rt.CLAIM_EVENT, "p2", MOVE, seen=seen, preseason="1st")
+        assert got == rt.Sourced("2nd", observed=True)
+        assert got.source == rt.FROM_STATE
+
+    def test_a_capture_row_with_no_contract_leaves_the_default(self):
+        for blank in (None, pd.NA):
+            got = rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p2", MOVE,
+                                      preseason=blank)
+            assert got == rt.Sourced("FA")
+            assert got.source == rt.FROM_DEFAULT
+
     def test_tally_counts_each_flag(self):
         got = rt.tally_sourcing([rt.Sourced("1st", observed=True),
+                                 rt.Sourced("1st", preseason=True),
                                  rt.Sourced("Minor", after_newest=True, stale_capture=True),
                                  rt.Sourced("Minor", after_newest=True),
                                  rt.Sourced("Minor", left_list=True),
                                  rt.Sourced("FA")])
-        assert got == {"observed": 1, "after_newest": 2, "left_list": 1, "stale_capture": 1}
+        assert got == {"observed": 1, "preseason": 1, "after_newest": 2, "left_list": 1,
+                       "stale_capture": 1}
         assert rt.tally_sourcing([]) == NO_FLAGS
 
 
@@ -492,8 +539,8 @@ class TestSourcingReport:
 
 class TestStartupRows:
     MADE = pd.DataFrame({
-        "scorerId": ["p1", "p2"], "teamId": ["tA", "tA"], "round": [1, 2],
-        "pickNumber": [1, 14], "overall_slot": [1, 28],
+        "scorerId": ["p1", "p2"], "teamId": ["tA", "tA"], "divisionId": ["d1", "d1"],
+        "round": [1, 2], "pickNumber": [1, 14], "overall_slot": [1, 28],
         "modifiedDate": [1781138250000, 1781138250000],      # 2026-06-11 UTC
     })
 
@@ -513,6 +560,15 @@ class TestStartupRows:
 
     def _rows(self, src):
         return self._priced(src)[:2]
+
+    def test_a_pick_is_keyed_by_its_pick_ref(self):
+        # The slot's identity, as fact_draft_pick spells it; never the event_seq.
+        fact, _ = self._rows(source())
+        assert fact["transaction_id"].to_dict() == {
+            "p1": f"{SEASON}|d1|S001", "p2": f"{SEASON}|d1|S028"}
+        assert not fact.reset_index().duplicated(rt.LEDGER_KEY).any()
+        assert (fact["period"] == rt.DRAFT_PERIOD).all()
+        assert str(fact["period"].dtype) == "Int64"
 
     def test_eligible_pick_is_minor_with_no_year(self):
         fact, sourcing = self._rows(source(elig=eligibility({"2026-07-18": ["p1"]})))
@@ -564,14 +620,34 @@ class TestStartupRows:
         assert fact.loc["p2", "contract_value"] == 7_500_000
         assert fact.loc["p2", "cap_hit"] == 3_750_000
         assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_PRESEASON: 1}
-        # the preseason capture prices the pick; it sets no contract
+        # no Roster State shows the pick, so the capture gives its contract too
         assert fact.loc["p2", "contract_id"] == "1st" and sourcing["observed"] == 0
+        assert sourcing["preseason"] == 1
+        assert fact["contract_source"].to_dict() == {
+            "p1": rt.FROM_DEFAULT, "p2": rt.FROM_PRESEASON}
+
+    def test_a_pick_takes_the_preseason_contract_as_shown(self):
+        pre = preseason(("A01", "p2", 7_500_000), contract="2nd")
+        fact, _ = self._rows(source(pre=pre))
+        assert (fact.loc["p2", "contract_id"], fact.loc["p2", "contract_year"]) == ("2nd", 2.0)
+        assert fact.loc["p2", "cap_hit"] == 3_000_000
+
+    def test_an_eligible_pick_on_the_preseason_capture_is_minor(self):
+        # The capture predates the Minor label, so eligibility wins over it.
+        src = source(elig=eligibility({"2026-07-18": ["p2"]}), pre=self.PRE)
+        fact, sourcing = self._rows(src)
+        assert fact.loc["p2", "contract_id"] == "Minor"
+        assert fact.loc["p2", "contract_source"] == rt.FROM_DEFAULT
+        assert sourcing["preseason"] == 0
+        # the capture still gives the pick its salary
+        assert fact.loc["p2", "contract_value"] == 7_500_000
 
     def test_preseason_salary_beats_roster_state_which_still_sets_the_contract(self):
         fact, sourcing, priced = self._priced(source(state(self.WEEK_1), pre=self.PRE))
         assert (fact.loc["p2", "contract_id"], fact.loc["p2", "contract_value"]) == (
             "2nd", 7_500_000)
-        assert sourcing["observed"] == 1
+        assert sourcing["observed"] == 1 and sourcing["preseason"] == 0
+        assert fact.loc["p2", "contract_source"] == rt.FROM_STATE
         assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_PRESEASON: 1}
 
     def test_pool_when_the_copy_left_before_the_capture(self):
@@ -579,9 +655,12 @@ class TestStartupRows:
         # a later stint's, not the pick's.
         away = leg(rt.TRADE_IN, "p2", "A02", team_from="A01",
                    when=pd.Timestamp("2026-07-10"), period=1)
-        fact, _, priced = self._priced(source(pre=self.PRE), [away])
+        fact, sourcing, priced = self._priced(source(pre=self.PRE), [away])
         assert fact.loc["p2", "contract_value"] == 6_000_000
         assert priced == {rt.SALARY_AT_PICK: 2}
+        # nor does it give the pick a contract
+        assert fact.loc["p2", "contract_source"] == rt.FROM_DEFAULT
+        assert sourcing["preseason"] == 0
 
     def test_capture_from_before_the_copy_left_is_read(self):
         away = leg(rt.TRADE_IN, "p2", "A02", team_from="A01",
@@ -756,8 +835,10 @@ class TestClaimSalary:
         rows, _, fa_fallback, sourcing, priced = resolve_all([self._claim()], self._src())
         assert (rows[0]["contract_value"], rows[0]["cap_hit"]) == (8_200_000, 8_200_000)
         assert fa_fallback == [] and priced == ["p2"]
-        # the preseason capture sets the salary, never the contract
-        assert rows[0]["contract_id"] == "FA" and sourcing["observed"] == 0
+        # no Roster State shows the claim, so the capture gives its contract too
+        assert (rows[0]["contract_id"], rows[0]["contract_year"]) == ("1st", 1.0)
+        assert rows[0]["contract_source"] == rt.FROM_PRESEASON
+        assert sourcing["observed"] == 0 and sourcing["preseason"] == 1
 
     def test_eligible_claim_is_minor_at_the_capture_salary(self):
         row = resolve([self._claim("p1")], self._src("p1")).iloc[0]
@@ -835,6 +916,77 @@ class TestClaimSalary:
         assert out["contract_id"].tolist() == ["2nd"]
         out = resolve([leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], src, startup)
         assert out["contract_value"].tolist() == [9_000_000, 9_000_000]
+
+
+class TestPreseasonContract:
+    """#96 decision 1: a stint only the preseason capture saw takes that
+    capture's contract."""
+    ELIG = eligibility({"2026-07-18": ["p1"]})     # p1 eligible, p2 not
+    CLAIMED = pd.Timestamp("2026-07-10 11:00")
+    DROPPED = pd.Timestamp("2026-08-14 09:00")     # before period 1's roster
+
+    def _legs(self, sid="p2", dropped=DROPPED):
+        return [leg(rt.CLAIM_EVENT, sid, "A01", when=self.CLAIMED, period=1, txn="tx1"),
+                leg(rt.DROP_EVENT, sid, "A01", when=dropped, period=1, txn="tx2")]
+
+    def _src(self, sid="p2", rosters=None, contract="1st"):
+        return source(rosters, self.ELIG, preseason(("A01", sid, 8_200_000), contract=contract))
+
+    def test_claim_and_drop_take_the_captures_contract(self):
+        rows, _, _, sourcing, _ = resolve_all(self._legs(), self._src())
+        assert [(r["event_type"], r["contract_id"], r["contract_year"]) for r in rows] == [
+            ("claim", "1st", 1.0), ("drop", "1st", 1.0)]
+        assert [r["contract_value"] for r in rows] == [8_200_000, 8_200_000]
+        # the drop reads nothing itself: it carries the source of the claim's terms
+        assert [r["contract_source"] for r in rows] == [rt.FROM_PRESEASON] * 2
+        assert sourcing["preseason"] == 1 and sourcing["observed"] == 0
+
+    def test_an_eligible_claim_is_minor(self):
+        # The capture shows everyone on 1st: it predates the Minor label.
+        rows = resolve(self._legs("p1"), self._src("p1"))
+        assert rows["contract_id"].tolist() == ["Minor", "Minor"]
+        # eligibility set it, not the capture, which still gives the salary
+        assert rows["contract_source"].tolist() == [rt.FROM_DEFAULT] * 2
+        assert rows["contract_value"].tolist() == [8_200_000, 8_200_000]
+
+    def test_the_capture_is_not_read_outside_the_stint(self):
+        # claimed after the capture was taken
+        late = [leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-07-20"), period=1)]
+        row = resolve(late, self._src()).iloc[0]
+        assert (row["contract_id"], row["contract_source"]) == ("FA", rt.FROM_DEFAULT)
+        # claimed and dropped before it
+        rows = resolve(self._legs(dropped=pd.Timestamp("2026-07-15")), self._src())
+        assert rows["contract_id"].tolist() == ["FA", "FA"]
+        assert rows["contract_source"].tolist() == [rt.FROM_DEFAULT] * 2
+
+    def test_a_roster_state_row_wins(self):
+        # Period 1's roster shows the claim: the capture gives its salary only.
+        claim = [leg(rt.CLAIM_EVENT, "p2", "A01", when=self.CLAIMED, period=1)]
+        src = self._src(rosters=state(("A01", "p2", 1, "2nd", 9_900_000)))
+        rows, _, _, sourcing, _ = resolve_all(claim, src)
+        assert (rows[0]["contract_id"], rows[0]["contract_value"]) == ("2nd", 8_200_000)
+        assert rows[0]["contract_source"] == rt.FROM_STATE
+        assert sourcing["observed"] == 1 and sourcing["preseason"] == 0
+
+    def test_the_captures_contract_is_taken_as_shown(self):
+        rows = resolve(self._legs(), self._src(contract="FA"))
+        assert rows["contract_id"].tolist() == ["FA", "FA"]
+        assert rows["contract_source"].tolist() == [rt.FROM_PRESEASON] * 2
+
+    def test_a_claim_back_after_the_capture_does_not_read_it(self):
+        # Dropped, then claimed back by the same team on 08-27: that stint is
+        # not the one the capture shows. It keeps the contract held this season.
+        back = leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-08-27"), period=1,
+                   txn="tx3")
+        rows = resolve(self._legs() + [back], self._src())
+        assert rows["contract_id"].tolist() == ["1st", "1st", "1st"]
+        assert rows["contract_source"].tolist() == [
+            rt.FROM_PRESEASON, rt.FROM_PRESEASON, rt.FROM_DEFAULT]
+
+    def test_a_claim_of_another_season_does_not_read_it(self):
+        old = [leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2026-02-10"), period=1)]
+        row = resolve(old, self._src()).iloc[0]
+        assert (row["contract_id"], row["contract_source"]) == ("FA", rt.FROM_DEFAULT)
 
 
 class TestClaimReadsRosterState:
@@ -963,6 +1115,66 @@ class TestTransactionLegs:
         assert out["contract_value"].tolist() == [4_000_000, 4_000_000]
         assert out["event_seq"].nunique() == 1
 
+    def test_rows_carry_the_legs_transaction_id_and_period(self):
+        # Both sides of a trade share Fantrax's txSetId. A move of another
+        # season carries no period: its number counts that season's periods.
+        startup = base(("A01", 1, "Minor", 4_000_000))
+        legs = [leg(rt.TRADE_IN, "p1", "A02", team_from="A01", txn="txA"),
+                leg(rt.CLAIM_EVENT, "p2", "A01", when=pd.Timestamp("2027-09-20"), period=2,
+                    txn="txB")]
+        rows = resolve(legs, source(elig=self.ELIG), startup)
+        assert rows["transaction_id"].tolist() == ["txA", "txA", "txB"]
+        assert rows["period"].tolist()[:2] == [MOVE_PERIOD, MOVE_PERIOD]
+        assert pd.isna(rows["period"].iloc[2])
+        assert not rows.duplicated(rt.LEDGER_KEY).any()
+
+    def test_a_trade_or_a_drop_with_no_row_carries_its_stints_source(self):
+        startup = base(("A01", 2, "1st", 9_000_000), read=rt.FROM_PRESEASON)
+        legs = [leg(rt.TRADE_IN, "p2", "A02", team_from="A01",
+                    when=pd.Timestamp("2026-09-12"), period=2, txn="tx1"),
+                leg(rt.DROP_EVENT, "p2", "A02", txn="tx2")]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["1st"] * 3
+        assert out["contract_source"].tolist() == [rt.FROM_PRESEASON] * 3
+
+    def test_a_claim_reads_its_own_source(self):
+        # Dropped by A02 and re-claimed by A01: the claim keeps this season's
+        # contract, by the default rule. It does not carry A02's source on.
+        startup = base(("A02", 2, "1st", 9_000_000), read=rt.FROM_STATE)
+        legs = [leg(rt.DROP_EVENT, "p2", "A02", when=pd.Timestamp("2026-09-18"), txn="tx1"),
+                leg(rt.CLAIM_EVENT, "p2", "A01", txn="tx2")]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["1st", "1st"]
+        assert out["contract_source"].tolist() == [rt.FROM_STATE, rt.FROM_DEFAULT]
+
+    def test_a_drop_that_ends_no_stint_is_marked(self):
+        # A02 drafted the copy. A01 drops it without ever holding it: no draft
+        # pick, claim or trade put it there (#96 decision 2).
+        startup = base(("A02", 2, "1st", 9_000_000))
+        rows, _, _, _, _ = resolve_all([leg(rt.DROP_EVENT, "p2", "A01")],
+                                       source(elig=self.ELIG), startup)
+        assert rows[0]["contract_source"] == rt.NO_STINT
+        # the row keeps the terms it was given; only the mark changes
+        assert (rows[0]["contract_id"], rows[0]["contract_value"]) == ("1st", 9_000_000)
+
+    def test_a_stintless_drop_leaves_the_holders_stint_alone(self):
+        # A02's own drop afterwards still ends A02's stint, on A02's source.
+        startup = base(("A02", 2, "1st", 9_000_000), read=rt.FROM_STATE)
+        legs = [leg(rt.DROP_EVENT, "p2", "A01", txn="tx1"),
+                leg(rt.DROP_EVENT, "p2", "A02", when=pd.Timestamp("2026-09-29"), period=4,
+                    txn="tx2")]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["team_key"].tolist() == ["A01", "A02"]
+        assert out["contract_source"].tolist() == [rt.NO_STINT, rt.FROM_STATE]
+
+    def test_a_second_drop_by_the_same_team_ends_no_stint(self):
+        startup = base(("A01", 2, "1st", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p2", "A01", txn="tx1"),
+                leg(rt.DROP_EVENT, "p2", "A01", when=pd.Timestamp("2026-09-29"), period=4,
+                    txn="tx2")]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_source"].tolist() == [rt.FROM_DEFAULT, rt.NO_STINT]
+
     def test_trade_reads_the_from_teams_roster_state(self):
         startup = base(("A01", 2, "1st", 9_000_000))
         src = source(state(("A01", "p2", 2, "2nd")), self.ELIG)
@@ -970,6 +1182,7 @@ class TestTransactionLegs:
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], src, startup)
         assert [r["contract_id"] for r in rows] == ["2nd", "2nd"]
         assert [r["contract_year"] for r in rows] == [2.0, 2.0]
+        assert [r["contract_source"] for r in rows] == [rt.FROM_STATE] * 2
         assert sourcing["observed"] == 1
 
     def test_trade_does_not_read_the_period_it_takes_effect_in(self):
@@ -1079,6 +1292,8 @@ class TestTransactionLegs:
         assert rows[0]["contract_id"] == "2nd" and sourcing["observed"] == 1
         assert rows[0]["contract_value"] == 9_000_000
         assert fa_fallback == [] and priced == []
+        # it still ends no stint on the ledger, whatever the roster showed
+        assert rows[0]["contract_source"] == rt.NO_STINT
 
     def test_drop_with_ledger_terms_keeps_them_over_the_roster_rows_salary(self):
         # Only a copy with no terms on the ledger is priced off the row.
@@ -1094,11 +1309,13 @@ class TestTransactionLegs:
 
     def test_graduated_players_inherited_minor_becomes_1st(self):
         # p2 was drafted on Minor and is no longer eligible at the trade.
-        startup = base(("A01", 2, "Minor", 9_000_000))
+        startup = base(("A01", 2, "Minor", 9_000_000), read=rt.FROM_STATE)
         out = resolve([leg(rt.TRADE_IN, "p2", "A02", team_from="A01")],
                       source(elig=self.ELIG), startup)
         assert out["contract_id"].tolist() == ["1st", "1st"]
         assert out["contract_year"].tolist() == [1.0, 1.0]
+        # the default rule changed the contract, so the stint's source is not kept
+        assert out["contract_source"].tolist() == [rt.FROM_DEFAULT] * 2
 
     def test_resolved_contract_carries_into_the_next_move(self):
         # Eligible claim -> Minor; the same copy's later drop keeps Minor.
@@ -1112,6 +1329,7 @@ class TestTransactionLegs:
             [leg(rt.TRADE_IN, "p2", "A02", team_from="A01")], source(elig=self.ELIG))
         assert missing == [("A01", "p2")]
         assert all(pd.isna(r["contract_id"]) and pd.isna(r["contract_value"]) for r in rows)
+        assert [r["contract_source"] for r in rows] == [rt.FROM_DEFAULT] * 2
 
     def test_sourcing_counts_how_each_default_was_reached(self):
         elig = eligibility({"2026-07-18": ["p1", "p2"], "2026-09-17": ["p1"]})
@@ -1121,7 +1339,7 @@ class TestTransactionLegs:
                 leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-10-20"), period=6)]
         rows, _, _, sourcing, _ = resolve_all(legs, source(elig=elig))
         assert [r["contract_id"] for r in rows] == ["Minor", "Minor", "Minor"]
-        assert sourcing == {"observed": 0, "after_newest": 1, "left_list": 1, "stale_capture": 1}
+        assert sourcing == {**NO_FLAGS, "after_newest": 1, "left_list": 1, "stale_capture": 1}
 
 
 class TestRepriced:

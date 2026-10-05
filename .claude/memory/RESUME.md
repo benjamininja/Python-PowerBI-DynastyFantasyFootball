@@ -51,7 +51,12 @@ written down 2026-10-04 so they survive a reset, not only a compact):
   `gh pr create --body-file` or `python file.py`: a Bash heredoc breaks on
   an apostrophe. One approval-sensitive command per call. `.venv` has no
   `discord`; the bot suite needs a throwaway venv built from
-  `discord_bot/requirements.txt`.
+  `discord_bot/requirements.txt`. The working tree is CRLF and the index
+  LF: `check_data_model.py --render`, `check_sources.py --render` and any
+  script that writes LF leave a file showing ` M` with an empty `git diff`.
+  Such a file has no content change: leave it out of the commit, and
+  `git add` it afterwards to clear the flag (nothing gets staged). An edit
+  script should keep the file's own line endings.
 
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
@@ -66,8 +71,9 @@ place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 995f663 (PR #128, #117 PR 2 Roster State; 320 tests pass); then `main` =
 6a61da9 (PR #129, #117 PR 3 placement retired; 359 tests pass); then `main` =
 6280c2e (PR #131, #118 PR 1 capture; 368 tests pass); then `main` = 99d5753
-(PR #132, #118 PR 2 period scoring; 442 tests pass). Working branch:
-`feat/118-close` (#118 PR 3, built 2026-10-04; 468 tests pass).
+(PR #132, #118 PR 2 period scoring; 442 tests pass); then `main` = 8ed808a
+(PR #133, #118 PR 3 close; 468 tests pass; it closed #118). No working
+branch.
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -791,9 +797,9 @@ PR 3 section of `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`
   "no fact_standings/wins table" comment is not touched; issue #118's body
   is not edited (the PR body and the Resolution explain); PR 3 stays one PR.
 
-**#118 PR 3 BUILT 2026-10-04 on `feat/118-close`; it closes #118.** When this
-was written the branch was verified and waiting for the owner's go to commit,
-open the PR and merge (each its own go).
+**#118 PR 3 DONE 2026-10-04 — merged as PR #133 (`8ed808a`), branch
+deleted; 6 CI checks green. The PR closed #118.** Commit, PR and merge
+each had the owner's go.
 - `notebooks/04s_fantrax_inseason_capture.py`: `period_requests(n)` returns
   `standings` (the plain `COMBINED` call) and `live_scoring` only. `PROBES`,
   the kept-`pageError` exception and `standings_echo` are gone: a `pageError`
@@ -872,21 +878,193 @@ open the PR and merge (each its own go).
   an entry" and grace (#116); `--reclose` (#93); Salary Remaining and the
   cap table (#97); dead money (#96).
 
-**NEXT, on the owner's go each time:** commit, open the PR (it closes #118),
-merge. Then, after the merge:
-- **Public posts (owner's go):** a Resolution on #118 (it says
+- **Uncommitted on `main`, on purpose:** this file and `PLAN.md` (the
+  post-merge edits, the note that the public posts are made, and the #96
+  grill block below). They ride with the next PR. Nothing else is modified.
+
+**#96 GRILLED AND PLANNED 2026-10-04 — plan approved by the owner.** (PR 1
+has since been built; see "#96 PR 1 BUILT" below.) Full plan (decisions, measured facts, steps, verify
+lists, my defaults): `C:\Users\benha\.claude\plans\sparkling-strolling-stroustrup.md`
+(root tier, git-ignored). Two PRs, one per window.
+- Owner decisions (each the recommended option):
+  1. A stint that only the 2026-07-18 preseason capture saw takes that
+     capture's contract. `02d` reads it when the capture falls inside the
+     stint and no Roster State row covers the move: `Minor` if the player is
+     minors-eligible, else the capture's contract. `fact_preseason_salary`
+     gains `contract_id`. This amends ADR-0019 decision 6.
+  2. A drop that ends no stint (no draft pick, claim or trade into that team
+     before it) makes no Dead Money and is listed by a Review check.
+  3. `transaction_id` on every ledger row: Fantrax's `txSetId` on a move, the
+     pick's `pick_ref` on a startup pick. One grain for
+     `fact_roster_transactions`: `(transaction_id, scorer_id, team_key,
+     event_type)`. `event_seq` stays as sort order only. `fact_dead_money`
+     grain: `(transaction_id, scorer_id, team_key, season_id)`.
+  4. `capmath` reads `fact_dead_money` in #96 (its `"Cut"` branch goes; this
+     season's rows off current cap room, next season's off next-year room).
+     The bot and trade-bud both go through it. The `"Cut"` DAX measures are
+     not touched. #97 later moves the sum into the shared cap module.
+  5. `fact_preseason_salary` keeps its name.
+  6. The Review check lists a drop priced on a default contract only while
+     its Scoring Period is not closed; a stintless drop is always listed.
+- Measured (counts-only; ledger to 2026-10-01, Salary Remaining captured
+  2026-10-04; gap = 300,000,000 − non-Minors salary in Roster State period 4
+  − Fantrax's `salaryRem`):
+  - 46 drops, 9 on `1st`. Half the salary equals Fantrax's gap to the dollar
+    on 5 of the 6 teams with a `1st` drop, two of them preseason drops. The
+    ADR schedule is right, and Fantrax charges preseason drops.
+  - 25 of 28 teams match today. A06 (+7,449,500 on Fantrax) and A12
+    (+2,000,000): four claims (`05jb8`, `04zeg`, `03ccw`, `05rlw`) dropped
+    before period 1; the ledger says `FA`, the 07-18 capture says `1st`. B09
+    (we would charge 9,602,500 more): `06anf`, dropped 06-19 mid startup
+    draft by a team with no stint for it; the only such move in the ledger.
+  - Minors-eligible players the 07-18 capture shows as `1st` were dropped and
+    not charged, so eligibility must win over that capture.
+  - After decisions 1 and 2: 12 charged drops, 24 rows; this season
+    22,819,500 (A05 2,053,500; A06 7,449,500; A12 2,000,000; B01 1,138,000;
+    B09 2,247,000; B10 2,040,000; B11 4,891,500; B13 1,000,000), next season
+    18,255,600; 28 of 28 teams match Fantrax.
+  - The four-column key is unique on all 1,267 ledger rows. Only one `04t`
+    capture exists, so `txSetId` stability across captures is untested.
+  - The preseason contract survives only in git:
+    `git show 995f663:data/fact_roster_placement.parquet`, column `contract`
+    (992 rows; 987 `1st`, 5 `FA`). `fact_preseason_salary` has no writer.
+  - A Review-tier `DomainCheck` would file nothing today: `run_suite`
+    (`etl_checks.py:395`) builds its `Result` without `findings`.
+- My defaults, not grilled (in the plan; the owner approved the plan with
+  them): two PRs, the table and the `capmath` switch together in PR 2;
+  `period` (Fantrax's stamp) is written to the ledger; `contract_source` is
+  one column (`roster_state`, `preseason`, `default`, `no_stint`); a
+  next-season charge uses the salary at the drop; the Fantrax parity check
+  is build-time only (#97 owns the standing one).
+- Known gap, to go on #130: a player claimed and dropped inside one Scoring
+  Period is never on a Roster State and gets the league-minimum `FA`
+  default, while Fantrax may hold it at pool salary on `1st`.
+
+**#96 PR 1 BUILT 2026-10-04 on `feat/96-move-key` (off `8ed808a`). It does
+not close #96.**
+- What changed:
+  - `data/fact_preseason_salary.parquet` gained `contract_id` (after
+    `salary`), by a one-off script (not kept) that joined `git show
+    995f663:data/fact_roster_placement.parquet` on `(team_key, scorer_id)`:
+    992 rows, `salary` unchanged, 987 `1st` / 5 `FA`.
+  - `02d`: `LEDGER_KEY` is `(transaction_id, scorer_id, team_key,
+    event_type)`. `LEDGER_COLS` gained `transaction_id`, `period` (Int64) and
+    `contract_source`, and lost `dead_money` (20 columns). Legs carry
+    `transaction_id` (`txSetId`); a startup row takes its slot's `pick_ref`
+    through `pick_refs()`, which `build_draft_picks` also calls.
+    `resolve_contract` has the preseason step (`preseason=`), fed by
+    `preseason_in_stint()` (was `preseason_salary()`; it returns the
+    `Preseason` row). `Sourced` gained a `preseason` flag and `.source`.
+    The final write selects `LEDGER_COLS`, so the old `dead_money` column
+    does not ride along on the first rebuild. A run with no transaction
+    history conforms the columns after the draft rows are written, and stops
+    before any ledger write if the file holds moves with no `transaction_id`
+    (`unkeyed_moves()`): only the `04t` capture can rebuild those.
+  - `02e`: header comment only.
+  - Tests: `test_02d_contract_sourcing.py` (helpers, `TestPreseasonInStint`,
+    `TestPreseasonContract`, stint and source cases), `test_02d_main.py`
+    (key stability under shuffled inputs and a removed move),
+    `test_fantrax_parsers.py` (legs carry `txSetId`).
+  - Registry and docs: `docs/data_model.yml` (rendered), `data/README.md`,
+    `notebooks/README.md`, notes on ADR-0016 decision 6, ADR-0019 decision 6,
+    ADR-0004 and ADR-0003 (header), `.claude/memory/data-model.md`,
+    `PLAN.md`, this file.
+- Verified against a rebuild with the unchanged code (which matched `main`
+  byte for byte):
+  - 1,267 rows both; columns +3 −1; 8 rows changed, `contract_id` only,
+    all `FA` → `1st`: the claims and drops of `05jb8`, `04zeg` (A06) and
+    `03ccw`, `05rlw` first stint (A12). `contract_year` keeps its value (`FA`
+    and `1st` are both year 1). No startup row changed.
+  - `contract_source = no_stint` on one row (`06anf`, B09). By source:
+    1,109 `roster_state`, 134 `default`, 23 `preseason`, 1 `no_stint`.
+  - The key is unique and never null; a second rebuild is byte-identical.
+    `fact_fantasy_teams`, `dim_roster_asset`, `fact_draft_pick` and
+    `fact_trade_log` are byte-identical to the baseline.
+  - Half the salary of the 12 `1st` drops that end a stint equals the plan's
+    per-team figures (total 22,819,500): PR 2's target is reachable.
+  - `pytest tests/` 498 passed; bot suite 8 passed; `check_data_model.py`
+    and `--check`; `check_sources.py --check`; `run_pipeline.py --check-only`
+    0 Gate failures and no new review finding; `check_pii.py` clean. All
+    rerun after the audit fixes.
+- `cap-ledger-auditor` on the diff (2026-10-04): no defect in the shipped
+  data. What it found, and what was done:
+  - Fixed: a rebuild with no transaction history over a pre-#96 ledger kept
+    `dead_money` and the old moves with a null key (the conform and the stop
+    above; three tests). Comment nits in `02d`. ADR-0003's header still gave
+    the old key.
+  - Changed on the owner's decision (2026-10-04): an eligible player's
+    `Minor` is `contract_source = default` even when the preseason capture
+    shows the stint. Eligibility set it, not the capture. 12 rows moved from
+    `preseason` to `default`; no other column changed.
+  - Kept on the owner's decision (2026-10-04): `no_stint` is set on any drop
+    with no pick, claim or trade into that team on the ledger, even if a
+    Roster State row shows the copy there (decision 2 as grilled). No such
+    row exists today. The auditor reads ADR-0016 decision 1 the other way.
+    If this is ever changed, bound the Roster State read by the period the
+    copy last left the team: read unbounded, a second drop by the same team
+    would read the ended stint's row and be charged twice.
+  - Confirmed: a trade or a drop with no Roster State row takes its
+    `contract_source` from the open stint it ends (`copy_terms`). The
+    auditor's count: across the 45 stints that end in a drop, none differs.
+- Open, not built (none hits a row today):
+  - A claim and a drop of one copy by one team in the same minute sort the
+    drop first (`_KIND_ORDER`): the drop is a false `no_stint` and the stint
+    stays open, in `02e` too. No such pair is on the ledger.
+  - A stint that starts with a trade does not read the preseason capture
+    (only a pick or a claim does). The auditor's count: 30 such stints hold
+    the capture day; all agree with it and none ends in a drop. The capture
+    is frozen.
+  - `TXN_GLOB` matches any `fantrax_txn_history_*.json`, so a stray backup
+    copy in `data/raw/` now stops the run on the key assert.
+- Registry: the ledger's `required_keys` are its four key columns;
+  `fact_preseason_salary.contract_id` is required; two new edges (ledger →
+  `dim_scoring_period`, preseason → `dim_contract`). `02d` prints a `[warn]`
+  line naming each `no_stint` drop.
+
+**NEXT after PR 1 merges: #96 PR 2 on `feat/96-dead-money`, in a fresh
+window.**
+- `02f_fact_dead_money.py`, the checks, the pipeline step, `capmath`, the
+  bot tests. It closes #96. Steps and the verify list are in the plan file.
+- From the PR 1 audit, for `02f` and its checks:
+  - Skip a stintless drop by `contract_source = no_stint`, never by its
+    terms: the one such row carries another team's contract and salary
+    (`1st`, 19,205,000).
+  - A drop of another season has a null `period`. Test that `02f` and the
+    `default_contract_drop` check handle it.
+  - Make the `stintless_drop` finding say whether a Roster State row shows
+    the copy on the dropping team. That is the case the owner kept as
+    `no_stint`, and the finding is its only net until #97.
+- Stop for the owner's go before each commit, PR and merge.
+- Public posts after the merges, on the owner's go, drafts first: a
+  Resolution on #96 and notes on #97, #130, #116 and #93 (listed in the
+  plan).
+
+**Earlier (#118 is closed):**
+- **Public posts: all made 2026-10-04, on the owner's go** (drafts reviewed
+  first; do not post them again): a Resolution on #118 (it says
   `fact_standings` was not built and why), and notes on #116 (which Close
   checks exist; what is left), #93 (`04s` is a pipeline step; no
   `--reclose`), #97 (Salary Remaining is its to parse and check; the
   20-of-28 finding) and #96 (the 8-team gap as a target for dead money).
-- **Then the map #70 frontier:** #116 (unblocked by #118); the #77 seam,
-  which unblocks #86 and #93; #96 → #97. Each starts with its own grill or
-  plan in its own window.
+  Two statements in them are my reading, not tested: that a run on Actions
+  needs the #92 login path before `04s_scoring` can pass there (#93 note),
+  and that the 8-team gap is dead money (#96 and #97 notes say "most
+  likely"; the 8 teams were not matched to the teams with a guaranteed drop).
+- **The frontier (checked 2026-10-04 against `PLAN.md` and the issues).**
+  The owner picked #96 (2026-10-04); see the block above.
+  - Unblocked now: the #77 seam (← #74 ✅; it unblocks #86 and #93); #96
+    `fact_dead_money` (then #97); #130 the claim default (a grill).
+  - Still blocked: #116 (#118 no longer blocks it, but it waits for #93);
+    #93 (waits for #92, #77 and #76).
+  - Each starts with its own grill or plan in its own window.
 - **Scratchpads** (may not survive; a new session gets its own), under
   `C:\Users\benha\AppData\Local\Temp\claude\
   C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\`:
   - `b70feb52-4d88-4084-a25b-dbb056315f00\scratchpad`: `gs_rank.py`,
-    `gs_sr.py`, `gs_odds.py`, `pr3_precheck.py`, `pr3_verify.py`.
+    `gs_sr.py`, `gs_odds.py`, `pr3_precheck.py`, `pr3_verify.py`; for #96,
+    `g96_facts.py` (drops, key uniqueness, the parity table), `g96_gaps.py`
+    (the three teams) and `g96_contracts.py` (walks `resolve_legs` with a
+    spy on `resolve_contract`). They write nothing.
   - `2a09ea7e-3d10-4266-8367-40f2662bc74e\scratchpad`: `pr2s_capture.py`,
     `pr2s_standings.py`, `pr2s_shapes.py`, `pr2s_verify.py`,
     `g118s_facts.py`, and `botvenv/` (the bot suite's venv).

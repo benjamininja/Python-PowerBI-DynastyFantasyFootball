@@ -486,21 +486,23 @@ tables:
 
   - name: fact_roster_transactions
     type: fact
-    grain: "(season_id, event_type, team_key, asset_id, event_seq)"
+    grain: "(transaction_id, scorer_id, team_key, event_type)"
     chain: fantrax_core
-    required_keys: [team_key]
+    required_keys: [transaction_id, scorer_id, team_key, event_type]
     columns:
+      - { name: transaction_id, dtype: str }
       - { name: season_id, dtype: str }
       - { name: event_type, dtype: str }
       - { name: team_key, dtype: str }
       - { name: asset_id, dtype: int64 }
       - { name: event_seq, dtype: int64 }
       - { name: event_date, dtype: "datetime64[us]" }
+      - { name: period, dtype: Int64 }
       - { name: contract_id, dtype: str }
       - { name: contract_year, dtype: float64 }
       - { name: contract_value, dtype: float64 }
       - { name: cap_hit, dtype: float64 }
-      - { name: dead_money, dtype: int64 }
+      - { name: contract_source, dtype: str }
       - { name: status, dtype: str }
       - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
@@ -512,19 +514,39 @@ tables:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_roster_asset, via: direct, on: asset_id }
       - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_scoring_period, via: direct, on: "season_id, period" }
       - { to: dim_contract, via: direct, on: contract_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
+      The grain is the stable move key (ADR-0016 decision 6, built in #96).
+      transaction_id is Fantrax's txSetId on a trade, claim or drop, and the
+      slot's pick_ref (fact_draft_pick) on a startup_draft row, so a rebuild
+      never changes a row's key. event_seq is sort order only: it renumbers
+      whenever a capture adds or removes a move, and 02e's replay sorts by it.
+      period is the Scoring Period the move takes effect in (Fantrax's own
+      stamp; 1 on a draft pick; null on a move of another season).
       contract_id is observed, never derived (ADR-0019 decision 6): 02d reads
       it off fact_roster_state, by the Scoring Period Fantrax says the move
       takes effect in. A draft pick (period 1) and a claim read the first
       Roster State inside the stint they start: from the move's period up to
       the period the copy next leaves that team in. A trade and a drop read
-      the latest one inside the stint, before the move's period. With no such
-      row the contract defaults to `Minor` for a player listed in the
+      the latest one inside the stint, before the move's period. A pick or a
+      claim that no Roster State row covers reads the fact_preseason_salary
+      capture, when it was taken inside the stint the move starts and the
+      player is not minors-eligible (#96 decision 1). With neither,
+      the contract defaults to `Minor` for a player listed in the
       fact_minor_eligibility capture on either side of the move, else the
       contract the copy already held, else `1st` (draft) or `FA` (claim).
+      contract_source says where the contract was read: roster_state,
+      preseason or default. An eligible player's `Minor` is default, whether
+      or not the capture shows the stint. A trade or a drop with no Roster
+      State row of its own keeps the contract of the stint it ends and that
+      stint's source; a contract the default rule changed on the way is
+      default. no_stint marks
+      a drop by a team the ledger never saw the copy join (no draft pick,
+      claim or trade into it): it ends no stint and makes no Dead Money (#96
+      decision 2).
       contract_year follows dim_contract, so it is null on a `Minor` row.
       contract_value on a draft pick or a claim is the salary on the
       fact_preseason_salary capture when it was taken inside the stint the
@@ -536,7 +558,8 @@ tables:
       capture), and a claim takes the salary the copy held this season in
       this Conference, else the league minimum. A trade and a drop carry the
       copy's salary (#125, #117).
-      cap_hit is read by nothing (#97 replaces it).
+      cap_hit is read by nothing (#97 replaces it). The dead_money column,
+      always 0, was dropped in #96: Dead Money is its own fact.
 
   - name: fact_trade_log
     type: fact
@@ -690,26 +713,32 @@ tables:
   - name: fact_preseason_salary
     type: fact
     grain: "(season_id, team_key, scorer_id)"
-    required_keys: [season_id, team_key, scorer_id, salary, capture_date]
+    required_keys: [season_id, team_key, scorer_id, salary, contract_id, capture_date]
     columns:
       - { name: season_id, dtype: str }
       - { name: team_key, dtype: str }
       - { name: scorer_id, dtype: str }
       - { name: salary, dtype: float64 }
+      - { name: contract_id, dtype: str }
       - { name: capture_date, dtype: "datetime64[us]" }
     edges:
       - { to: dim_season, via: direct, on: season_id }
       - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_contract, via: direct, on: contract_id }
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
       - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
-      Frozen. The salary of every player copy on a roster in the 2026-07-18
-      preseason capture, copied once from the retired fact_roster_placement
-      (#117). It keeps the salary of a draft pick or a claim that
-      left its team before Scoring Period 1, which fact_roster_state cannot
-      show. Salary only: the preseason capture is never read for a contract
-      (ADR-0019 decision 6). No step writes it and it has no Chain; a later
-      season's rows would arrive by PR.
+      Frozen. The salary and contract of every player copy on a roster in the
+      2026-07-18 preseason capture, copied once from the retired
+      fact_roster_placement (#117). It keeps the terms of a draft pick or a
+      claim that left its team before Scoring Period 1, which
+      fact_roster_state cannot show. contract_id was added in #96 from the
+      same capture (the `contract` column of fact_roster_placement as
+      committed in 995f663; 987 `1st`, 5 `FA`). 02d reads it only for a stint
+      no Roster State row shows, and a minors-eligible player is `Minor`
+      whatever it says: the capture predates the `Minor` label (#96 decision
+      1, amending ADR-0019 decision 6). No step writes it and it has no
+      Chain; a later season's rows would arrive by PR.
 
   - name: fact_minor_eligibility
     type: fact
