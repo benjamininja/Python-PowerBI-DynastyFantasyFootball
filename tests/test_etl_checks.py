@@ -14,12 +14,7 @@ import pandas as pd
 import pytest
 
 import etl_checks as ec
-from conftest import git
-
-
-def _teams(conferences=("A",) * 14 + ("B",) * 14):
-    return pd.DataFrame({"team_key": [f"T{i:02d}" for i in range(len(conferences))],
-                         "conference": list(conferences)})
+from conftest import closeable, git, league_teams as _teams
 
 
 class TestRegistry:
@@ -268,6 +263,127 @@ class TestScoringChecks:
     def test_a_row_that_does_not_mirror_blocks(self, second, rows):
         errs = ec.mirror_errors(_matchup([self.MATCHUP[0], second]))
         assert f"{rows} rows that do not mirror their opponent's row (periods [1])" in errs
+
+
+class TestCloseChecks:
+    """ADR-0008 amendment decision 7 and ADR-0016 amendment decision 10: what
+    04p asks before a period's Update-Set goes from closing to closed."""
+
+    def errs(self, tables, period=1, season_id="2026-2027"):
+        return ec.close_errors(season_id, period, tables.__getitem__)
+
+    def test_a_complete_period_may_close(self):
+        assert self.errs(closeable()) == []
+
+    def test_roster_state_short_a_team_blocks(self):
+        t = closeable()
+        t["fact_roster_state"] = t["fact_roster_state"].iloc[1:]
+        assert "Roster State: 27 teams, expected 28" in self.errs(t)
+
+    def test_a_missing_matchup_blocks(self):
+        t = closeable()
+        t["fact_matchup"] = t["fact_matchup"].iloc[2:]          # T00 v T01, both rows
+        errs = self.errs(t)
+        assert "Matchups: 26 teams, expected 28" in errs
+        assert "Matchups: conference A: 12 teams, expected 14" in errs
+
+    def test_a_team_listed_twice_blocks(self):
+        t = closeable()
+        t["fact_matchup"] = pd.concat([t["fact_matchup"], t["fact_matchup"].iloc[:1]],
+                                      ignore_index=True)
+        assert "Matchups: team(s) listed more than once: ['T00']" in self.errs(t)
+
+    def test_a_pair_that_does_not_mirror_blocks(self):
+        t = closeable()
+        t["fact_matchup"].loc[0, "fpts_against"] += 5.0
+        assert any("do not mirror" in e for e in self.errs(t))
+
+    def test_one_edited_score_blocks(self):
+        # The mirror leg sees both rows of the pair; the Starter leg names the team.
+        t = closeable()
+        t["fact_matchup"].loc[0, "fpts_for"] += 0.5
+        errs = self.errs(t)
+        assert "1 team(s) whose Matchup score is not their Starter sum: ['T00']" in errs
+        assert any("do not mirror" in e for e in errs)
+
+    def test_one_edited_starter_blocks(self):
+        t = closeable()
+        s = t["fact_period_scoring"]
+        s.loc[s["is_starter"] & (s["team_key"] == "T05"), "fpts"] -= 0.02
+        assert self.errs(t) == [
+            "1 team(s) whose Matchup score is not their Starter sum: ['T05']"]
+
+    def test_float_noise_inside_the_tolerance_passes(self):
+        t = closeable()
+        t["fact_period_scoring"].loc[0, "fpts"] += 0.004
+        assert self.errs(t) == []
+
+    def test_bench_points_do_not_count(self):
+        t = closeable()
+        s = t["fact_period_scoring"]
+        s.loc[~s["is_starter"], "fpts"] = 99.0
+        assert self.errs(t) == []
+
+    def test_a_team_with_no_starter_rows_blocks(self):
+        t = closeable()
+        s = t["fact_period_scoring"]
+        t["fact_period_scoring"] = s[~(s["is_starter"] & (s["team_key"] == "T09"))]
+        assert self.errs(t) == [
+            "1 team(s) whose Matchup score is not their Starter sum: ['T09']"]
+
+    def test_only_the_period_asked_for_is_read(self):
+        t = closeable(periods=(1, 2))
+        m = t["fact_matchup"]
+        m.loc[(m["period"] == 2) & (m["team_key"] == "T00"), "fpts_for"] += 3.0
+        assert self.errs(t, period=1) == []
+        assert self.errs(t, period=2) != []
+
+    def test_a_period_with_no_rows_blocks(self):
+        errs = self.errs(closeable(), period=2)
+        assert "Roster State: 0 teams, expected 28" in errs
+        assert "Matchups: 0 teams, expected 28" in errs
+
+    def test_another_seasons_rows_do_not_count(self):
+        assert self.errs(closeable(season_id="2025-2026")) != []
+
+
+class TestScoringCoverage:
+    """The coverage Gate on fact_period_scoring (ADR-0008 amendment decision 4)."""
+
+    @staticmethod
+    def periods(states):
+        return pd.DataFrame({"season_id": "2026-2027", "period": range(1, len(states) + 1),
+                             "update_set_state": states})
+
+    def errs(self, tables, states):
+        tables = {**tables, "dim_scoring_period": self.periods(states)}
+        dc = next(d for d in ec.DOMAIN_CHECKS
+                  if (d.table, d.name) == ("fact_period_scoring", "coverage"))
+        assert dc.tier == "gate"
+        return dc.fn(tables.__getitem__)
+
+    def test_every_loaded_period_covers_28_teams(self):
+        assert self.errs(closeable(periods=(1, 2, 3)), ["closed", "closed", "closing", "open"]) == []
+
+    def test_a_loaded_period_short_a_team_blocks(self):
+        t = closeable(periods=(1, 2))
+        s = t["fact_period_scoring"]
+        t["fact_period_scoring"] = s[~((s["period"] == 2) & (s["team_key"] == "T00"))]
+        assert self.errs(t, ["closing", "closing"]) == [
+            "2026-2027 period 2: 27 teams, expected 28",
+            "2026-2027 period 2: conference A: 13 teams, expected 14"]
+
+    def test_a_closed_period_with_no_rows_blocks(self):
+        t = closeable(periods=(1, 3))
+        assert self.errs(t, ["closed", "closed", "closed"]) == [
+            "2026-2027: no rows for period(s) [2], closed through period 3"]
+
+    def test_a_period_that_is_not_closed_may_be_absent(self):
+        # Period 2 is closing and not loaded: the games may not be final yet.
+        assert self.errs(closeable(periods=(1,)), ["closed", "closing", "open"]) == []
+
+    def test_no_closed_period_asks_for_none(self):
+        assert self.errs(closeable(periods=()), ["closing", "open"]) == []
 
 
 class TestRunSuite:

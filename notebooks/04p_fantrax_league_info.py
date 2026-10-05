@@ -13,9 +13,17 @@
 # **Update-Set state** (CONTEXT.md): `open` while the period is in play,
 # `closing` once it has ended on the league's clock, `closed` once the
 # following period has ended and its Close checks pass. Future and playoff
-# periods have none (null). The Close checks arrive with the scoring build
-# (#118, #116); until then this script never closes a period, and a period
-# that is already `closed` stays closed.
+# periods have none (null). A `closed` period stays closed: there is no
+# re-open here (#93 adds `--reclose`).
+#
+# **Close checks** (`etl_checks.close_errors`; ADR-0008 amendment decision 7,
+# ADR-0016 amendment decision 10), run on the tables as they stand on disk
+# for each period the calendar lets close: its Roster State covers 28 teams;
+# its Matchups hold every team once and each pair mirrors; each team's
+# Matchup score is its Starter sum in Period Scoring. A period that fails
+# stays `closing` and is logged with the reasons (the alert is #116). This
+# step runs before 04r and 04s, so a period closes on the rows the previous
+# run wrote, and 04r and 04s then skip it.
 #
 # **Division Gate:** each Fantrax division must map to exactly one Conference
 # and each Conference to one division. A violation raises here, so the step
@@ -39,6 +47,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
+import etl_checks as ec
 from etl_helpers import DATA, fantrax_public_get, load_replace_partition
 
 # league_id/raw_dir live on 04a's own LeagueConfig -- same import-by-file
@@ -107,7 +116,7 @@ def parse_scoring_periods(info: dict, now, prior: pd.DataFrame | None = None,
 
     `now` is a tz-aware timestamp. `prior` is the published dim (any seasons);
     its state and `closed_at` carry a closed period forward. `checks_passed`
-    is the set of periods whose Close checks pass (none until #118).
+    is the set of periods whose Close checks pass.
     """
     season_id = season_id_of(info)
     first_playoff = first_playoff_period(info)
@@ -157,6 +166,30 @@ def parse_scoring_periods(info: dict, now, prior: pd.DataFrame | None = None,
     return df[PERIOD_COLUMNS]
 
 
+def periods_due(info: dict, now, prior: pd.DataFrame | None = None) -> list[int]:
+    """The periods that close at `now` if their Close checks pass. Asked of
+    the state machine itself: the periods that are closed when every check
+    passes and not closed when none does."""
+    every = {int(p["number"]) for p in info["scoringPeriods"]}
+    held = parse_scoring_periods(info, now, prior)
+    freed = parse_scoring_periods(info, now, prior, checks_passed=every)
+    due = freed["update_set_state"].eq(CLOSED) & ~held["update_set_state"].eq(CLOSED)
+    return [int(n) for n in freed.loc[due, "period"]]
+
+
+def close_checks(season_id: str, due: list[int], load) -> dict[int, list[str]]:
+    """Each period of `due` -> its Close-check errors (none: it may close).
+    `load` is a table loader (name -> DataFrame). A check that cannot run,
+    such as a table not on disk, is a failure: the period stays closing."""
+    out = {}
+    for n in due:
+        try:
+            out[n] = ec.close_errors(season_id, n, load)
+        except Exception as e:
+            out[n] = [f"check raised: {e}"]
+    return out
+
+
 def parse_divisions(info: dict, teams: pd.DataFrame, season_id: str) -> pd.DataFrame:
     """getLeagueInfo.teamInfo -> dim_division rows for the season.
 
@@ -204,8 +237,17 @@ def main() -> int:
     # Parse both tables before writing either: a failed Gate writes nothing.
     now = pd.Timestamp.now(tz="UTC")
     prior = pd.read_parquet(PERIODS_PATH) if PERIODS_PATH.exists() else None
-    periods = parse_scoring_periods(info, now, prior)
     season_id = season_id_of(info)
+    tables: dict[str, pd.DataFrame] = {}
+
+    def load(name: str) -> pd.DataFrame:
+        if name not in tables:
+            tables[name] = pd.read_parquet(DATA / f"{name}.parquet")
+        return tables[name]
+
+    checked = close_checks(season_id, periods_due(info, now, prior), load)
+    periods = parse_scoring_periods(
+        info, now, prior, checks_passed={n for n, errs in checked.items() if not errs})
     if season_id not in set(pd.read_parquet(DATA / "dim_season.parquet")["season_id"]):
         raise ValueError(f"season {season_id} is not in dim_season -- run 01f first")
     divisions = parse_divisions(
@@ -214,6 +256,11 @@ def main() -> int:
     n_periods = load_replace_partition(periods, PERIODS_PATH, part_cols=("season_id",))
     n_divisions = load_replace_partition(divisions, DIVISION_PATH, part_cols=("season_id",))
 
+    for n, errs in checked.items():
+        if errs:
+            print(f"[hold] period {n} stays closing, Close checks fail: {'; '.join(errs)}")
+        else:
+            print(f"[ok] period {n} closed: Close checks pass")
     counts = periods["update_set_state"].value_counts(dropna=False).to_dict()
     in_play = periods.loc[periods["update_set_state"] == OPEN, "period"].tolist()
     print(f"[ok] dim_scoring_period: {len(periods)} periods for {season_id} "

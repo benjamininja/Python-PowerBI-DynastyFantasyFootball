@@ -59,7 +59,7 @@ raw points, not categories.
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
   ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
-  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; PR 1 of 3 ✅ PR #131; PR 2 open) · #130 claim
+  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; PRs 1–2 of 3 ✅ #131, #132; PR 3 built) · #130 claim
   default contract (grilling, ADR-0019 d6; filed 2026-10-04).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
@@ -135,7 +135,8 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
     - `fact_roster_state`: per period, P1–12; retires `fact_roster_placement`;
     - `fact_period_scoring`: points by Unit, every rostered player;
     - `fact_matchup`: one row per team;
-    - `fact_standings`: rank, playoff odds and salary remaining only.
+    - `fact_standings`: rank, playoff odds and salary remaining only
+      (not built: the owner's decision, 2026-10-04, in #118).
   - `fact_fantasy_teams` is the current Roster State all year; `roster_status`
     becomes `roster_slot` (#110).
   - Players by `scorer_id` only. Age is derived. No YTD columns. Division
@@ -189,12 +190,26 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   (2026-10-04, periods 1–5):** the bench view works, a period that has not
   started returns no entries, and Fantrax serves a past period's record and
   rank by period; Salary Remaining and % Playoffs are current-only. **PR 2
-  built 2026-10-04 on `feat/118-period-scoring` (PR open):** `04s`
+  ✅ merged as PR #132 (2026-10-04, `99d5753`):** `04s`
   loads `fact_period_scoring` (points by Unit, `is_starter`) and
   `fact_matchup` for every final period, `--from-raw` with no browser;
   Gates `unit_sum`, `starter_slot`, `mirror`; periods 1–3 loaded (3,226 and
-  84 rows). `pytest tests/` 442 pass. **Next: the merge on the owner's go;
-  then a short grill on `fact_standings`; then PR 3.** Detail
+  84 rows). `pytest tests/` 442 pass. **`fact_standings` grilled
+  (2026-10-04): not built.** Rank is derived from `fact_matchup` (win %,
+  then points for: it matches Fantrax for 28 of 28 teams in periods 1–3);
+  Fantrax's Salary Remaining goes to #97 (it stays in the raw files; it
+  equals cap minus non-Minors salary for 20 of 28 teams, the rest likely
+  dead money); `% Playoffs` is dropped (one Conference only, no history);
+  `04s` keeps the plain standings call only; Standings becomes a derived
+  term in `CONTEXT.md`. **PR 3 built (2026-10-04, `feat/118-close`; it
+  closes #118):** `04s` asks for the plain standings only; `04p` closes a
+  period once the following period has ended and its Close checks pass on
+  the stored tables (`etl_checks.close_errors`: Roster State covers 28
+  teams, Matchups hold every team once and mirror, each Matchup score is
+  the team's Starter sum); a coverage Gate on `fact_period_scoring`;
+  `04s_scoring` is an INSEASON pipeline step after `04r_roster_state`.
+  Periods 1 and 2 are `closed`. `pytest tests/` 468 pass. Left for #116:
+  the alert, the Drift sweep, "every Starter has an entry", grace. Detail
   in `.claude/memory/RESUME.md`;
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76

@@ -133,6 +133,12 @@ def build_steps(profile: str | None) -> list[dict]:
         # the periods and their Update-Set states from 04p's table.
         {"name": "04r_roster_state", "cmd": _script("04r_fantrax_roster_state.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04p_league_info"], "chain": "fantrax_core", "group": "regular_season"},
+        # Logged-in getLiveScoringStats + getStandings (04a's session): Period
+        # Scoring and Matchups of every period 04r just read whose games are
+        # final. Its Starter Gate reads that period's Roster State, so it
+        # follows 04r. A closed period is skipped.
+        {"name": "04s_scoring", "cmd": _script("04s_fantrax_inseason_capture.py"),
+         "phases": {"INSEASON"}, "needs": ["04r_roster_state"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),

@@ -14,7 +14,7 @@ shows the drift):
     .\\run.ps1 scripts\\make_fixtures.py public_rosters.json
 A git worktree has no data/raw (gitignored): pass --raw-dir <main checkout>\\data\\raw.
 
-To cover a new parser (#118 standings): add an ALLOWLIST spec, a trimmer and
+To cover a new parser: add an ALLOWLIST spec, a trimmer and
 a SOURCES row, regenerate, and test the parser against the new file.
 """
 from __future__ import annotations

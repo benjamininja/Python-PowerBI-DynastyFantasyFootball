@@ -138,6 +138,8 @@ the in-season checks wait for #116. The July decisions above stand.
    - schema: columns and dtypes match `docs/data_model.yml`. This catches a renamed Fantrax field that leaves a parser silently writing an all-null column.
 
    *Amended at build (#115): grain uniqueness is checked over rows whose grain columns are all non-null, so a new duplicate still blocks. Rows with a null grain column file one `grain_null_key` Review finding per table, with the count in its detail. At build time these were `fact_fantasy_teams` (29), `fact_dynasty_ranking_metrics` (1,812 Composite rows) and `fact_trade_log` (125, until #109 gives it a key). Required keys are listed per table as `required_keys`, only where a key is never legitimately null.*
+
+   *Built in #118: the Period Scoring coverage Gate (`etl_checks.scoring_coverage_errors`). Besides every Scoring Period from 1 to the last closed one, it requires 28 teams, 14 per Conference, in every period the table holds.*
 5. **No FPts-YTD-non-decreasing check.** A drop during a closing period is a normal stat correction. A change to a closed period is Drift, which is already checked.
 6. **Collapse** means a table shrinks by more than 20%, or to zero rows, against the last published snapshot.
    - A table can set its own limit in `docs/data_model.yml`.
@@ -149,6 +151,8 @@ the in-season checks wait for #116. The July decisions above stand.
    - per team, the Starter FPts sum equals Fantrax's `totalFpts` for the period, to 0.01.
 
    Matchup completeness waits for #81's fact model. *Defined in [ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81) (decision 10): all 14 matchups present, pairs mirror, and schedule FPts = `totalFpts` = the Starter sum.* Bench completeness is not checked: 15 non-starters were missing from `BENCH` in final period 1, unexplained ([#79](../research/inseason-schema-extraction.md)).
+
+   *Built in #118 (`etl_checks.close_errors`, run by `04p` before it closes a period): the Roster State check, and the matchup check of ADR-0016's decision 10 (every team once, pairs mirror, each team's Matchup score equals its Starter sum). The `totalFpts` leg is enforced when `04s` loads the period. "Every Starter has an `ACTIVE` entry" is not built: it held in periods 1 and 2, but no team had had a bye yet, so it stays with #116, along with the alert. Until then a period that fails stays `closing` and the run log names the reasons.*
 8. **Filing.**
    - `ops.review_check` holds one open row per `(check_name, table_name, row_key)`.
    - A repeat finding only updates `last_seen_at` and the run id.
@@ -172,6 +176,7 @@ the in-season checks wait for #116. The July decisions above stand.
 13. **Parser tests on generated fixtures.**
     - A committed `scripts/make_fixtures.py` trims each `data/raw` payload: 2 teams, about 10 players, 1 period. It keeps only allowlisted keys, so owner and user fields are dropped by construction. The output goes to `tests/fixtures/fantrax/`, is committed, and is regenerated when Fantrax changes shape.
     - Covered parsers: `04a` `getPlayerStats`; `04s` standings, live scoring and roster info; `04t` transaction history; `04u` public rosters and picks; `02d` draft results; the `getLeagueInfo` periods.
+    - *After #118: `04s` has no standings parser, because no standings table was built (ADR-0016's amendment, decision 11), and no roster-info parser, because its `getTeamRosterInfo` calls were dropped. Its fixtures cover the schedule and live scoring.*
 14. **CI: `.github/workflows/tests.yml`, a required check.**
     - It runs on every PR and every push to `main`.
     - One job builds a clean venv from `requirements.txt` and runs `pytest tests/`. A second job does the same from `discord_bot/requirements.txt` for `discord_bot/tests/`.

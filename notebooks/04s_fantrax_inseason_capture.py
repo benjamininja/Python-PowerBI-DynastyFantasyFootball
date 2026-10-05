@@ -3,11 +3,10 @@
 #
 # **Purpose:** Capture the authenticated in-season Fantrax payloads for
 # league `v744203wmmvjqzv6` (#78, map #70; #118), and load Period Scoring
-# and Matchups from them: matchup scores, standings
-# and every rostered player's points per Scoring Period. The public `fxea`
-# API exposes none of the scores/points (#80), so this rides the internal
-# `fxpa/req` RPC like 04a/04t/04v/04w. Endpoint map probed live 2026-09-26
-# — see #78.
+# and Matchups from them: matchup scores and every rostered player's points
+# per Scoring Period. The public `fxea` API exposes none of the
+# scores/points (#80), so this rides the internal `fxpa/req` RPC like
+# 04a/04t/04v/04w. Endpoint map probed live 2026-09-26 — see #78.
 #
 # **Requests** (all POST `fxpa/req?leagueId=...`):
 # - `getStandings {view: "SCHEDULE"}` — one call, every week's matchups:
@@ -20,27 +19,25 @@
 #     **`period` is required** — omitted, it returns only today's live slice.
 #     Without `playerViewType` only Starters come back.
 #   - `getStandings {view: "COMBINED", period}` — the *current* standings:
-#     Fantrax ignores `period` here (measured 2026-10-04, #118).
-#   - Two standings probes (`PROBES`), `timeframeType: "BY_PERIOD"` with
-#     `timeStartType` `FROM_SEASON_START` and `PERIOD_ONLY`: do they serve a
-#     past period's standings? The reply's `displayedSelections` echo says
-#     whether Fantrax took the selection. #118 decides `fact_standings` on it.
+#     Fantrax ignores `period` here (measured 2026-10-04, #118). Saved raw
+#     and never loaded: it carries Fantrax's Salary Remaining per team,
+#     which #97 reads. No standings table is built (ADR-0016 amendment
+#     decision 11): Standings are derived from Matchups.
 # Roster State is 04r's job (public `getTeamRosters`); the 28 logged-in
 # `getTeamRosterInfo` calls per period were dropped (#118). Trades, claims
 # and drops are 04t's job.
 #
 # **Errors:** Fantrax answers bad requests with HTTP 200 + `pageError`. The
 # schedule call raises on one. A period that gets one writes no file, is
-# reported, and the run carries on and exits 1. A probe's error reply is the
-# answer to the probe, so it is kept in the file.
+# reported, and the run carries on and exits 1.
 #
 # **Raw output:**
 # - `data/raw/fantrax_inseason_{season}_schedule.json` =
 #   `{"captured_at", "responses", ...}`
 # - `data/raw/fantrax_inseason_{season}_p{NN}.json` =
-#   `{"captured_at", "period", "standings", "standings_by_period",
-#   "standings_period_only", "live_scoring"}`
-# `captured_at` is the UTC time the file was written.
+#   `{"captured_at", "period", "standings", "live_scoring"}`
+# `captured_at` is the UTC time the file was written. A file captured on
+# 2026-10-04 also holds two by-period standings probes; the load ignores them.
 #
 # **Load** (after the capture, or alone with `--from-raw`): a period loads
 # once its games are final (`allEventsFinished`), even while its Update-Set
@@ -95,9 +92,6 @@ CFG = fx.CFG
 
 LEAGUE_URL = f"https://www.fantrax.com/fantasy/league/{CFG.league_id}"
 PULL_DELAY_S = (0.5, 1.5)     # between read pulls, same pacing as 04v
-# Raw-file keys whose reply is a question put to Fantrax, not a payload we
-# depend on: an error reply is kept, not raised.
-PROBES = ("standings_by_period", "standings_period_only")
 LIVE_GROUPS = ("ACTIVE", "BENCH")
 STARTER_GROUP = "ACTIVE"
 
@@ -180,13 +174,8 @@ def parse_periods(spec: str) -> list[int]:
 
 def period_requests(n: int) -> dict[str, tuple[str, dict, str]]:
     """One period's requests: raw-file key -> (method, data, refUrl page)."""
-    by_period = {"view": "COMBINED", "period": n, "timeframeType": "BY_PERIOD"}
     return {
         "standings": ("getStandings", {"view": "COMBINED", "period": n}, "standings"),
-        "standings_by_period": (
-            "getStandings", {**by_period, "timeStartType": "FROM_SEASON_START"}, "standings"),
-        "standings_period_only": (
-            "getStandings", {**by_period, "timeStartType": "PERIOD_ONLY"}, "standings"),
         "live_scoring": (
             "getLiveScoringStats", {"period": n, "playerViewType": "2"}, "livescoring"),
     }
@@ -194,12 +183,12 @@ def period_requests(n: int) -> dict[str, tuple[str, dict, str]]:
 
 def period_snapshot(n: int, post) -> dict:
     """One period's raw-file body. `post(method, data, ref)` returns the raw
-    reply. A pageError raises PageError, except on a probe (kept as the answer)."""
+    reply. A pageError on either request raises PageError."""
     snap = {"period": n}
     for key, (method, data, ref) in period_requests(n).items():
         raw = post(method, data, ref)
         err = page_error(raw)
-        if err and key not in PROBES:
+        if err:
             raise PageError(f"{method} {data} -> pageError {err.get('code')}: {err.get('text')}")
         snap[key] = raw
     return snap
@@ -218,15 +207,6 @@ def live_counts(live: dict) -> dict[str, int]:
         out[g] = sum(1 for t in teams.values()
                      for sid in (t.get(g) or {}).get("statsMap", {}) if not sid.startswith("_"))
     return out
-
-
-def standings_echo(raw: dict) -> str:
-    """What a standings reply says it served: the selection Fantrax echoes."""
-    err = page_error(raw)
-    if err:
-        return f"pageError {err.get('code')}"
-    sel = _data(raw).get("displayedSelections") or {}
-    return "/".join(str(sel.get(k)) for k in ("timeframeType", "timeStartType", "period"))
 
 
 # %%
@@ -485,8 +465,6 @@ def capture(periods: list[int]) -> None:
                 live = live_counts(snap["live_scoring"])
                 print(f"[ok] period {n}: live_scoring {live['teams']} teams, "
                       f"{live['ACTIVE']} ACTIVE, {live['BENCH']} BENCH -> {path}")
-                for key in ("standings", *PROBES):
-                    print(f"       {key}: {standings_echo(snap[key])}")
         finally:
             ctx.close()
 

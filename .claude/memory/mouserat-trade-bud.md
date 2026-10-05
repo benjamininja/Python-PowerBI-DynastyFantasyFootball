@@ -126,6 +126,8 @@ for DL/LB/DB) rather than inventing a new one. `profiles.py`'s stance
 inference is age-curve only — **no `fact_standings`/wins table exists in
 this repo**, so decision #6's "age-curve + standings" is age-curve only
 until that data is ETL'd (another future gap, not blocking).
+*(2026-10-04, #118: `fact_standings` will not be built. Wins and points
+now come from `fact_matchup`, so the standings half can be derived there.)*
 
 `data_access.py` imports `discord_bot/capmath.py` for cap math per decision
 #2, but had to monkeypatch its module-level `fetch_parquet` (which normally
