@@ -142,9 +142,12 @@ wins.
 _Avoid_: game, fixture, head-to-head
 
 **Standings**:
-The ranking of teams as of a Scoring Period, in Fantrax's order with its
-tiebreaks, along with Fantrax's playoff odds and each team's remaining salary.
-Win-loss records and points for and against come from Matchups.
+The teams in order as of a Scoring Period: by win percentage, then by points
+for, both worked out from Matchups up to that period. The order runs across
+both Conferences, 1 to 28. Nothing is stored. The rule gave Fantrax's own order
+for every team in every period measured (periods 1 to 3 of 2026); no two teams
+have yet tied on both, so Fantrax's deeper tiebreaks are unobserved. Fantrax's
+playoff odds and its Salary Remaining are not part of Standings.
 _Avoid_: table, leaderboard, power rankings
 
 ### Storage
@@ -216,8 +219,9 @@ The durable record of one Scoring Period. It moves through three states:
 has ended, judged on the league's Eastern clock; still refreshed so stat
 corrections land) and **closed** (the following period has ended and its Close
 checks pass; frozen). A closed Update-Set changes only by an explicit re-close.
-Only regular-season periods have one. A period's Period Scoring, Matchups and
-Standings are first recorded once its games are all final, as it enters closing.
+Only regular-season periods have one. A period's Period Scoring and Matchups
+are first recorded once its games are all final, which can be while it is still
+open.
 _Avoid_: weekly snapshot, week-closed data
 
 **Drift**:

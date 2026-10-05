@@ -150,3 +150,22 @@ class TestRegistryConsistency:
         names = [t["name"] for t in
                  yaml.safe_load(ec.MODEL_YML.read_text(encoding="utf-8"))["tables"]]
         assert len(names) == len(set(names))
+
+
+class TestScoringStep:
+    """04s is an in-season step of the Fantrax core Chain (#118)."""
+
+    STEPS = rp.build_steps(None)
+
+    def test_it_runs_in_season_only_after_roster_state(self):
+        names = [s["name"] for s in self.STEPS]
+        step = self.STEPS[names.index("04s_scoring")]
+        assert step["phases"] == {"INSEASON"}
+        assert (step["chain"], step["needs"]) == ("fantrax_core", ["04r_roster_state"])
+        # Sequential execution: the period dim, then Roster State, then scoring.
+        assert names.index("04p_league_info") < names.index("04r_roster_state") \
+            < names.index("04s_scoring")
+
+    def test_its_tables_are_in_the_same_chain(self):
+        reg = ec.load_registry()
+        assert {reg[t]["chain"] for t in ("fact_period_scoring", "fact_matchup")} == {"fantrax_core"}

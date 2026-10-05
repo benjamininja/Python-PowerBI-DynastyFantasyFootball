@@ -10,8 +10,12 @@ Two tiers (decision 2):
 Table Gates take their parameters from docs/data_model.yml (decision 16):
 grain uniqueness, required keys, schema (columns + dtypes) and shrink limit.
 Domain checks (coverage, known contracts, Unit sums, Starter slots and
-matchup mirrors today; Close checks with #118; drift, dirty edges and replay
-with #116) are functions here, registered in DOMAIN_CHECKS.
+matchup mirrors today; drift, dirty edges and replay with #116) are functions
+here, registered in DOMAIN_CHECKS.
+
+The Close checks (`close_errors`, decision 7) are not in the suite: 04p runs
+them on one Scoring Period before it moves that period's Update-Set from
+closing to closed.
 
 The gate functions are pure (DataFrame + registry entry in, verdict out) so
 tests drive them without parquet. `run_suite` does the I/O; `file_review`
@@ -46,6 +50,7 @@ TEAMS_PER_CONFERENCE = 14
 UNIT_COLUMNS = ["fpts_offense", "fpts_defense", "fpts_special_teams"]
 POINTS_TOLERANCE = 0.01       # Fantrax serves points to the cent
 STARTER_SLOT = "Starter"
+CLOSED = "closed"             # dim_scoring_period.update_set_state (04p's CLOSED)
 
 # ops.review_check columns (ADR-0018 decision 11, as amended by ADR-0008 d8/d9).
 FILING_COLUMNS = ["check_name", "table_name", "row_key", "detail", "run_id",
@@ -229,6 +234,62 @@ def mirror_errors(matchup: pd.DataFrame) -> list[str]:
     return errs
 
 
+def scoring_coverage_errors(scoring: pd.DataFrame, teams: pd.DataFrame,
+                            periods: pd.DataFrame) -> list[str]:
+    """Period Scoring covers 28 teams in every period it holds, and holds
+    every Scoring Period from 1 to the last closed one of each season
+    (decision 4). `periods` is dim_scoring_period."""
+    errs = []
+    for (season_id, period), rows in scoring.groupby(["season_id", "period"]):
+        errs += [f"{season_id} period {period}: {e}" for e in coverage_errors(rows, teams)]
+    closed = periods[periods["update_set_state"].eq(CLOSED)]
+    for season_id, last in closed.groupby("season_id")["period"].max().items():
+        held = set(scoring.loc[scoring["season_id"] == season_id, "period"])
+        missing = sorted(set(range(1, int(last) + 1)) - held)
+        if missing:
+            errs.append(f"{season_id}: no rows for period(s) {missing}, "
+                        f"closed through period {int(last)}")
+    return errs
+
+
+def _of_period(df: pd.DataFrame, season_id: str, period: int) -> pd.DataFrame:
+    return df[(df["season_id"] == season_id) & (df["period"] == period)]
+
+
+def close_errors(season_id: str, period: int,
+                 load: Callable[[str], pd.DataFrame]) -> list[str]:
+    """The Close checks of one Scoring Period, read off the stored tables
+    (decision 7; ADR-0016 amendment decision 10). An empty list means the
+    period may close.
+
+      - its Roster State covers 28 teams;
+      - its Matchups hold every team once, and each pair mirrors;
+      - per team, the Matchup's score is the sum of that team's Starter rows
+        in Period Scoring, to 0.01.
+
+    Decision 10's other leg (the Starter sum equals Fantrax's `totalFpts`) is
+    enforced by 04s when the period loads. `load` is a table loader."""
+    teams = load("dim_fantasy_teams")
+    state = _of_period(load("fact_roster_state"), season_id, period)
+    matchup = _of_period(load("fact_matchup"), season_id, period)
+    scoring = _of_period(load("fact_period_scoring"), season_id, period)
+
+    errs = [f"Roster State: {e}" for e in coverage_errors(state, teams)]
+    errs += [f"Matchups: {e}" for e in coverage_errors(matchup, teams)]
+    twice = sorted(set(matchup.loc[matchup["team_key"].duplicated(), "team_key"]))
+    if twice:
+        errs.append(f"Matchups: team(s) listed more than once: {twice}")
+    errs += [f"Matchups: {e}" for e in mirror_errors(matchup)]
+
+    starters = scoring[scoring["is_starter"].astype(bool)].groupby("team_key")["fpts"].sum()
+    score = matchup.drop_duplicates("team_key").set_index("team_key")["fpts_for"]
+    off = (score - starters.reindex(score.index, fill_value=0.0)).abs() > POINTS_TOLERANCE
+    if off.any():
+        errs.append(f"{int(off.sum())} team(s) whose Matchup score is not their "
+                    f"Starter sum: {sorted(off[off].index)}")
+    return errs
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -249,6 +310,10 @@ DOMAIN_CHECKS = [
     DomainCheck("contract", "gate", "fact_roster_state",
                 lambda load: contract_errors(load("fact_roster_state"),
                                              load("dim_contract"))),
+    DomainCheck("coverage", "gate", "fact_period_scoring",
+                lambda load: scoring_coverage_errors(load("fact_period_scoring"),
+                                                     load("dim_fantasy_teams"),
+                                                     load("dim_scoring_period"))),
     DomainCheck("unit_sum", "gate", "fact_period_scoring",
                 lambda load: unit_sum_errors(load("fact_period_scoring"))),
     DomainCheck("starter_slot", "gate", "fact_period_scoring",

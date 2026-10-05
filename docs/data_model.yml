@@ -348,8 +348,13 @@ tables:
       timestamps to place an instant in a period. is_playoff is true from
       playoffs.firstPlayoffPeriod on. update_set_state is open | closing |
       closed, and null for a playoff period or one that has not started.
-      Until the scoring Close checks land (#118, #116) no period is closed,
-      so closed_at is all null.
+      04p closes a period once the following period has ended and its Close
+      checks pass (etl_checks.close_errors: its Roster State covers 28
+      teams, its Matchups hold every team once and mirror, each Matchup
+      score is the team's Starter sum), and stamps closed_at with the
+      instant of that run. A closed period is frozen: 04r and 04s skip it,
+      and nothing re-opens it until #93's --reclose. A period that fails its
+      checks stays closing.
 
   # ----------------------------------------------------------- resolvers
   - name: dim_fantrax_crosswalk
@@ -645,7 +650,9 @@ tables:
       capture was written. The load fails unless every team's Starter points
       sum to the totalFpts Fantrax serves. Gates: the Units sum to fpts
       (0.01); every row is on that period's fact_roster_state, with
-      is_starter true exactly when its Roster Slot is Starter.
+      is_starter true exactly when its Roster Slot is Starter; every period
+      held covers 28 teams, and every period from 1 to the last closed one
+      is held.
 
   - name: fact_matchup
     type: fact
@@ -676,7 +683,9 @@ tables:
       whole on every run until it is closed. The future schedule is not
       stored. The load fails unless the week's matchups hold every team
       once. Gate: every row mirrors its opponent's row (sides and scores
-      swapped).
+      swapped). Standings are derived from this table and not stored
+      (ADR-0016 amendment decision 11): teams ordered as of a period by win
+      percentage, then points for.
 
   - name: fact_preseason_salary
     type: fact

@@ -65,9 +65,9 @@
 ## Amendment 2026-10-03: in-season fact model (#81)
 
 - Amends decisions 1 (the Period Scoring grain), 4 (where current and per-period Roster State live) and 8 (`fact_fantasy_teams`).
-- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3 is built and `fact_roster_placement` is retired (#117's last PR); the rest are not yet.
+- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3 is built and `fact_roster_placement` is retired (#117's last PR); decisions 1, 5, 9, 10 and 15 are built and periods close (#118); decision 11 was not built (its note says why); decision 16 waits for #110.
 - Scope:
-  - new tables `dim_scoring_period`, `fact_roster_state`, `fact_period_scoring`, `fact_matchup`, `fact_standings`
+  - new tables `dim_scoring_period`, `fact_roster_state`, `fact_period_scoring`, `fact_matchup`, `fact_standings` *(the last was not built: decision 11)*
   - `dim_division` (its source moves to Fantrax) and `fact_fantasy_teams.roster_status`
   - retires `fact_roster_placement`; touches `02d`, `02e`, `04s`, `04v`
   - `docs/data_model.yml` (entries land with the builds, because the registry check needs each table's parquet)
@@ -138,22 +138,30 @@
     - all 14 matchups are present;
     - each pair mirrors;
     - per team, schedule FPts = live-scoring `totalFpts` = the Starter sum in `fact_period_scoring`, to 0.01.
+    - *Built in #118 (`etl_checks.close_errors`), together with the Roster State check of ADR-0008's decision 7. `04p` runs it on the stored tables for each period the calendar lets close: the period's `fact_roster_state` covers 28 teams; its `fact_matchup` rows hold every team once and each pair mirrors; each team's `fpts_for` equals its Starter sum in `fact_period_scoring`. The `totalFpts` leg is enforced earlier, when `04s` loads the period, so a period that fails it never reaches the tables.*
 11. **`fact_standings`**, keyed `(season_id, period, team_key)`, holds only what can't be derived.
     - Columns: `rank` (Fantrax's order and tiebreaks), `playoff_odds`, `salary_remaining`.
     - Records, points, games back and streak are derived from `fact_matchup`.
     - A Review check compares `salary_remaining` with cap room in the cap table (#97).
+    - *Not built (owner's decision, 2026-10-04, #118). Measured on that day's capture, each of the three columns turned out to be derivable or current-only:*
+      - *`rank`: Fantrax's rank as of a period equals win percentage descending, then points for descending, worked out from `fact_matchup`, for 28 of 28 teams in periods 1, 2 and 3. Record, points for and points against match too. The rank runs across both Conferences, 1 to 28. No two teams have yet tied on record and points (the closest gap inside a record group was 0.07), so a tiebreak past points for is unobserved, and Fantrax serves no tiebreak setting. The by-period standings view serves any past period on demand, so Fantrax's own rank can be asked for again.*
+      - *`playoff_odds`: dropped. It is not parsed, not stored and has no ticket. Fantrax serves it for the current standings only, with no history, and it was filled for the 14 teams of one Conference and blank for the other in all five captures.*
+      - *`salary_remaining`: Fantrax serves the current value in every reply, never a past period's. It goes to #97: `04s` still saves the plain standings reply in each period's raw file, and #97 parses it there for the Review check above. Measured: Salary Remaining plus non-Minors salary is the 300,000,000 cap for 20 of 28 teams; the other 8 show 1.0M to 7.45M less room, most likely Fantrax's dead-money charge.*
+      - ***Standings** is a derived term ([CONTEXT.md](../../CONTEXT.md)): the teams ordered as of a Scoring Period by win percentage, then points for, from Matchups. Nothing is stored, and #118 adds no helper or measure for it.*
+      - *`04s` asks for the plain `COMBINED` standings only. The two by-period probes it sent on 2026-10-04 are gone.*
 12. **Division by join.**
     - Facts carry `team_key`. Conference comes from `dim_fantasy_teams`, and the Division name from `dim_division (season_id, conference)`.
     - `dim_division` is loaded from public `getLeagueInfo.teamInfo[].division` instead of the Sheet.
     - A Gate check requires each Fantrax division to map to exactly one Conference.
     - *Built in #117. The check runs in `04p`'s parser, before anything is written: a division in two Conferences, or two divisions in one, fails the step, which holds the Chain. `dim_fantasy_teams.division` is still read from the Sheet by `01c`.*
-13. **Playoffs are out of scope.** Periods 13–17 get no Update-Set; no `fact_roster_state`, scoring, matchup or standings rows; and no follow-up ticket.
+13. **Playoffs are out of scope.** Periods 13–17 get no Update-Set; no `fact_roster_state`, scoring, matchup or standings rows; and no follow-up ticket. *(2026-10-04: no standings rows are stored for any period; decision 11.)*
 14. **The Update-Set state lives on `dim_scoring_period`.**
     - Columns: `update_set_state` (open | closing | closed; null for future and playoff periods) and `closed_at`.
     - It is published with the snapshot, so consumers can tell final numbers from provisional ones.
     - *Built in #117 (owner's decision, 2026-10-03): the build writes `open` and `closing` only. The transition to `closed` is coded and tested, but it needs the scoring Close checks, which arrive with #118 and #116; until then no period closes and `closed_at` is null. A period already `closed` stays closed.*
+    - *Closing built in #118 (2026-10-04). `04p` closes a period once the following period has ended and its Close checks (decision 10) pass, and stamps `closed_at` with the instant of that run. `04p` runs before `04r` and `04s`, so a period closes on the rows the previous run wrote, and `04r` and `04s` then skip it. A period that fails stays `closing` and the run log names the reasons; the alert is #116. Closing is one-way until #93's `--reclose`. Periods 1 and 2 of 2026 closed with this build.*
 15. **Scoring loads once final.**
-    - A period's scoring, matchup and standings rows first load when `allEventsFinished` is true, as its Update-Set enters closing.
+    - A period's scoring, matchup and standings rows first load when `allEventsFinished` is true, as its Update-Set enters closing. *(2026-10-04: there are no standings rows; decision 11. The rule covers Period Scoring and Matchups.)*
     - *Amended 2026-10-04 (owner's decision, #118): a period loads as soon as `allEventsFinished` is true, even while its Update-Set is still open. Games end Monday night and the Update-Set turns closing on Thursday, so waiting would hold final scores back for three days. The last bullet below still holds until the games are final.*
     - *Fantrax answers for a period that has not started with 28 teams and no entries, not an error (measured 2026-10-04). `04s` never loads a period that has not started, is closed, or is a playoff period, whatever was captured.*
     - They refresh through closing, so corrections land, and freeze at closed.
@@ -178,7 +186,7 @@
 - **A running `fpts_ytd`.** Rejected: it is ambiguous between player and team, and a correction would rewrite every later row.
 - **One row per matchup (away/home).** Rejected: every per-team question would need an unpivot.
 - **A matchup score derived from Starters,** or **a stored result**. Rejected: the first never records Fantrax's official score, and the second is derivable.
-- **The full standings row with a reconcile check,** or **no standings table.** Rejected: the first keeps two truths for records, and the second loses Fantrax's order, its playoff odds and the cap cross-check.
+- **The full standings row with a reconcile check,** or **no standings table.** Rejected: the first keeps two truths for records, and the second loses Fantrax's order, its playoff odds and the cap cross-check. *(2026-10-04: no standings table is what was built after all. Decision 11's note has the measurements that changed the answer.)*
 - **Division from the Sheet,** or **stamped on each fact row.** Rejected: a manual mirror can lag, and stamping leaves mixed labels after a rename.
 - **Deferring the playoff bracket to a capture ticket,** or **modelling playoffs on a guessed shape.** Not chosen: the owner leaves playoffs out entirely.
 - **`fact_roster_state` continuing past period 12 as the current state.** Rejected: it would partly reverse leaving playoffs out, and ADR-0016 already gives `fact_fantasy_teams` that role.
@@ -193,7 +201,7 @@
 
 - `fact_roster_placement` stops being load-bearing: `02e` stamps slots from the current public roster, and `04v` no longer writes slots.
 - `04s` must send `playerViewType:'2'` (the [#79 drift table](../research/inseason-schema-extraction.md#drift-against-existing-parsers)).
-- The coverage Gate for Period Scoring ([ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88), decision 4) runs from period 1 to the last closed period, at most period 12.
+- The coverage Gate for Period Scoring ([ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88), decision 4) runs from period 1 to the last closed period, at most period 12. *Built in #118: it also requires 28 teams in every period the table holds.*
 - Playoff points are kept only by Fantrax, and in 04a's year-to-date totals.
 - Registry entries and DDL arrive with builds #117 and #118.
 - **Still open, harmless under decision 5:**

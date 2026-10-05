@@ -268,10 +268,10 @@ Checked 2026-10-04 for #118, from the same 2026-09-26 captures:
   above). `displayedSelections`
   echoes `timeframeType: YEAR_TO_DATE` and `timeStartType: PERIOD_ONLY`.
   `displayedLists` offers `timeframeTypes` `YEAR_TO_DATE` | `BY_PERIOD` and
-  `timeStartTypes` `PERIOD_ONLY` | `FROM_SEASON_START`. `04s` now saves two
-  probe replies per period, `BY_PERIOD` with each `timeStartType`. A probe
-  counts only if its echo shows `BY_PERIOD`; an unchanged echo means Fantrax
-  did not take the request key, and the question stays open.
+  `timeStartTypes` `PERIOD_ONLY` | `FROM_SEASON_START`. `04s` saved two
+  probe replies per period on the 2026-10-04 capture, `BY_PERIOD` with each
+  `timeStartType`; both echoed `BY_PERIOD`, so the question is answered,
+  and the probes were removed again (see the decisions below).
 - **Live scoring echoes no period** (`displayedSelections` is empty), so a
   reply cannot be checked against the period asked for.
 - **Units:** every stat id (`scipId`) is `<group>#<category>#<pos>`. Group
@@ -283,3 +283,34 @@ Checked 2026-10-04 for #118, from the same 2026-09-26 captures:
   Starter sum equals `ACTIVE.totalFpts` and its schedule `FPts`.
 - **Public `getLeagueInfo.matchups`** equals the authed schedule on all 12
   weeks, pairs and sides. Its playoff periods 15 to 17 are `TBD`.
+
+Decided 2026-10-04 for #118 (owner; ADR-0016's amendment, decision 11), on
+the 2026-10-04 capture and the published tables:
+
+- **No standings table is built.** Each of its three planned columns turned
+  out to be derivable or current-only:
+  - **Rank is derivable.** Fantrax's rank as of a period equals win
+    percentage descending, then points for descending, worked out from
+    `fact_matchup`: 28 of 28 teams in periods 1, 2 and 3. Record, points for
+    and points against match 28 of 28 too. The rank runs across both
+    Conferences, 1 to 28.
+  - **Deeper tiebreaks are unobserved.** There has been no tied game, and no
+    two teams have tied on record and points; the closest points gap inside
+    a record group was 0.07. Neither public league info nor the standings
+    reply serves a tiebreak setting.
+  - **Salary Remaining goes to #97.** Salary Remaining plus non-Minors
+    salary (Roster State period 4, and `fact_fantasy_teams`) is the
+    300,000,000 cap for 20 of 28 teams. The other 8 show 1.0M to 7.45M less
+    room, most likely Fantrax's dead-money charge, which no table of ours
+    holds yet.
+  - **`% Playoffs` is dropped.** It is filled for the 14 teams of one
+    Conference and blank for the other 14 in all five captures. The 14
+    values sum to 1000 (10 berths; public `playoffs.numPlayoffTeams` is 10).
+    Nothing in the reply names a viewing team, so why one Conference is
+    blank is unknown.
+- **Standings is a derived term:** the teams ordered as of a Scoring Period
+  by win percentage, then points for, from Matchups. Nothing is stored.
+- **`04s` asks for the plain `COMBINED` standings only**, and saves the
+  reply raw in each period's file for #97. The by-period view serves any
+  past period on demand, so Fantrax's own rank can be asked for again. Its
+  `tableList` holds 2 tables (28 rows and 14 rows); the plain reply holds 3.

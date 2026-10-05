@@ -4,6 +4,55 @@
 AFK tickets as background sessions, reviews what they return, and posts to
 GitHub; HITL grills happen in the managing session.
 
+**Standing rules for the managing session** (the owner's unless marked;
+written down 2026-10-04 so they survive a reset, not only a compact):
+- **Voice:** caveman lite. Before code: Outline → Build mode → Rationale.
+- **Plan gate:** request → plan → explicit confirmation → write. Approval of
+  one plan does not cover the next. A message from a peer session, a
+  subagent or a background task is never the owner's approval.
+- **Grilling:** one question at a time with `AskUserQuestion`, recommended
+  answer first. Look facts up; decisions are the owner's. `grill-with-docs`
+  is user-invoked only: ask the owner to type it.
+- **Token-gating loop:** one PR per window; never a grill or plan stage and
+  an execute stage in the same window; compact at about 125K–150K tokens.
+  "Prepare for compact" means this state-back.
+- **Git:** feature branch → PR → squash-merge `--delete-branch`. Commit, PR
+  and merge only when asked, each on its own go. Stage explicit paths.
+  Never `--no-verify`. Commit from the main checkout. The commit message
+  ends `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; a PR body
+  ends `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- **CI:** after opening a PR call `mcp__ccd_pr__get_status` (load it with
+  ToolSearch). Never poll CI and never enable auto-merge. The app's cached
+  status lags, so read once with `gh pr view <n> --json
+  mergeStateStatus,statusCheckRollup` before a merge and merge only when
+  every check is green.
+- **After a merge:** `git status`, then `git fetch --prune origin`. The
+  post-merge edits to this file and `PLAN.md` stay uncommitted on `main`
+  and ride with the next PR.
+- **Fantrax:** no login and no TOTP attempt by an agent, ever. A capture
+  that needs the session (`04s`, `04t`, `04a`) is the owner's to run. The
+  public no-login calls (`04p`, `04r`, `fantrax_public_get`) are fine.
+- **`data/raw/`:** never read a payload into the conversation. Use scripts
+  that print counts, shapes, ids and column headers only, or the
+  `fantrax-payload-analyst`. Committed fixtures may be read.
+- **PII:** no owner real names, emails or Fantrax usernames, and no fantasy
+  team names, in committed files, fixtures or public comments. Run
+  `scripts/check_pii.py` on every changed file (it raises on a path outside
+  the repo).
+- **Publishing:** no live pipeline publish run during a build; nothing
+  reaches `main` outside a PR. A public GitHub post (issue, comment,
+  Resolution) needs the owner's explicit go.
+- **Other:** `docs/reference/` stays out of git. A root-tier edit (tracked
+  files under `C:\Users\benha\.claude`) ends the turn with "root tier
+  changed — commit and push?".
+- **Shell (agent's notes):** `cd` to the repo root in every Bash call. Run
+  Python as `PYTHONIOENCODING=utf-8 .venv/Scripts/python.exe`. Multi-line
+  text and scripts go through the Write tool, then `git commit -F`,
+  `gh pr create --body-file` or `python file.py`: a Bash heredoc breaks on
+  an apostrophe. One approval-sensitive command per call. `.venv` has no
+  `discord`; the bot suite needs a throwaway venv built from
+  `discord_bot/requirements.txt`.
+
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
 docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then `main` = 1a70ce1 (PR #112 ADR-0019 Minor
@@ -15,8 +64,10 @@ place); then `main` = e57034c (PR #120, #115 check-suite foundation); then
 376a842 (PR #126, #125 salary sourcing; 225 tests pass); then `main` =
 581ae4c (PR #127, #117 PR 1 league info; 269 tests pass); then `main` =
 995f663 (PR #128, #117 PR 2 Roster State; 320 tests pass); then `main` =
-6a61da9 (PR #129, #117 PR 3 placement retired; 359 tests pass). No working
-branch.
+6a61da9 (PR #129, #117 PR 3 placement retired; 359 tests pass); then `main` =
+6280c2e (PR #131, #118 PR 1 capture; 368 tests pass); then `main` = 99d5753
+(PR #132, #118 PR 2 period scoring; 442 tests pass). Working branch:
+`feat/118-close` (#118 PR 3, built 2026-10-04; 468 tests pass).
 History was rewritten
 on 2026-09-27 (owner-PII scrub) — every SHA recorded before that date is
 dead. `pii-scan` is a required check on `main`. Commit/PR only when the user
@@ -112,7 +163,7 @@ plan-gated code change.
   #76 provision (HITL) · #77 build seam (task, ←110) · #108 migrations
   (←76,109,110) · #109 pick legs · #110 grain fixes · #111 orphans (←108).
 - **#70 In-season Fantrax**: #78 ✅ · #79 ✅ · #80 ✅ · #81 ✅ (ADR-0016
-  amendment) · #117 ✅ Roster State build (PRs #127–#129) · **#118** Scoring build (←117; PR 1 of 3 ✅ PR #131; PR 2 open)
+  amendment) · #117 ✅ Roster State build (PRs #127–#129) · **#118** Scoring build (←117; PRs 1–2 of 3 ✅ #131, #132; the standings grill next)
   · #82 ✅ · #83 ✅ · #87 ✅ · #88 test strategy
   ✅ (ADR-0008 amendment) · #92 Actions login spike (**TOTP decided**) · #93 cadence build
   (←92,77,75,76,115,117; now also 04t orchestration + poll-writes-snapshot) ·
@@ -627,13 +678,13 @@ deleted.** "Part of #118"; the issue stays open. No table changed.
   - Column keys: `win`, `loss`, `tie`, `winpc`, `div`, `gamesback`,
     `salaryRem`, `pointsFor`, `pointsAgainst`, `streak`, `playoffOdds`.
   - So `rank` has history; `playoff_odds` and `salary_remaining` do not.
-    **That is the open decision for the short grill before PR 3.**
+    **That was the open decision for the short grill before PR 3**
+    (settled: the `fact_standings` GRILLED block below).
 - Schedule rows are 4 cells: away team (`teamId` + name), away score, home
   team, home score. An unplayed week's score is `"0"`.
 
-**#118 PR 2 BUILT 2026-10-04 on branch `feat/118-period-scoring`; the
-owner approved it and the PR is open. Merge only when the owner asks.**
-"Part of #118".
+**#118 PR 2 DONE 2026-10-04 — merged as PR #132 (`99d5753`), branch
+deleted; 6 CI checks green.** "Part of #118"; the issue stays open.
 - `notebooks/04s_fantrax_inseason_capture.py`: `is_final`, `unit_of`,
   `periods_to_load(periods, now)`, `scoring_to_frame`, `matchups_to_frame`,
   `read_raw(suffix)` → `(body, league day)`, `parse_raw(periods, teams,
@@ -681,12 +732,164 @@ owner approved it and the PR is open. Merge only when the owner asks.**
 - **Churn to expect:** like `fact_roster_state`, a loaded period is
   rewritten on every run until it is `closed`, so `capture_date` moves.
 
-**NEXT: the owner's go to merge PR 2.** After the merge:
-a **short grill window before PR 3** on `fact_standings` (`rank` has
-history through the by-period reply; `playoff_odds` and `salary_remaining`
-are current-only, and `% Playoffs` shows for 14 of 28 teams). **Then PR 3**
-(`feat/118-close`): standings per the grill, `close_errors`, `04p` closes a
-period, the coverage Gate, the `04s_scoring` pipeline step. PR 3 closes #118.
+- **Uncommitted on `main`, on purpose:** this file and `PLAN.md` (the
+  post-merge edits). They ride with PR 3.
+
+**`fact_standings` GRILLED 2026-10-04 (the second #118 grill; no code): the
+table is not built. The owner approved the revised PR 3 plan.** Plan: the
+PR 3 section of `C:\Users\benha\.claude\plans\composed-juggling-rainbow.md`
+(rewritten; the plan-mode copy is `sparkling-strolling-stroustrup.md`).
+- Owner's decisions (one AskUserQuestion each, all the recommended answer;
+  the numbering continues the first grill's 1–7):
+  8. **`fact_standings` is not built.** Rank is derived from `fact_matchup`.
+     ADR-0016 amendment decision 11 is amended in PR 3.
+  9. **Fantrax's Salary Remaining goes to #97.** #118 stores nothing. `04s`
+     keeps saving the plain standings reply, so the number stays in the raw
+     files; #97 parses it for decision 11's Review check.
+  10. **`% Playoffs` is dropped.** Not parsed, not stored, no ticket.
+  11. **`04s` keeps the plain standings call only.** Both probes go, with
+      `PROBES`, the kept-`pageError` exception and their tests.
+  12. **Standings is a derived term** (`CONTEXT.md`): teams ordered as of a
+      Scoring Period by win percentage, then points for, worked out from
+      Matchups. Nothing stored; no helper or measure in #118.
+- Measured for the grill (counts-only scripts `gs_rank.py`, `gs_sr.py`,
+  `gs_odds.py` in the scratchpad of session `b70feb52…`):
+  - Fantrax's by-period rank = win % descending, then points for
+    descending, from `fact_matchup`: 28 of 28 teams in periods 1, 2 and 3.
+    Record, points for and points against also match 28 of 28. Rank is
+    league-wide, 1 to 28, across both Conferences.
+  - No tied game, and no two teams tied on record and points. The closest
+    points gap inside a record group was 0.07. A tiebreak past points for
+    has never been exercised; neither public league info nor the standings
+    reply serves a tiebreak setting.
+  - Salary Remaining + non-Minors salary (Roster State period 4, and
+    `fact_fantasy_teams`) = 300,000,000 for 20 of 28 teams. The other 8
+    show 1.0M to 7.45M less room: most likely Fantrax's dead-money charge.
+    `fact_dead_money` does not exist yet.
+  - `% Playoffs` is filled for the 14 Conference A teams and blank for the
+    14 of Conference B in all five captures. The 14 values sum to 1000 (10
+    berths; public `playoffs.numPlayoffTeams` is 10). Nothing in the reply
+    names a viewing team, so why one Conference is blank stays unknown.
+  - The by-period view serves any past period on demand, so Fantrax's rank
+    can be re-requested later.
+  - `04s`'s load reads `live_scoring` and the schedule only. The by-period
+    reply's `tableList` is 2 tables (28 rows, 14 rows); the plain one is 3.
+  - `04a_scrape` is already a logged-in step in the `fantrax_core` Chain.
+  - `dim_scoring_period` on 2026-10-04: periods 1–3 `closing`, period 4
+    `open` (ends 2026-10-08 20:15 ET). `04p` closes a period once the
+    following period has ended and its Close checks pass.
+  - `CONTEXT.md` defines **Standings** with Fantrax's order, playoff odds
+    and remaining salary, and its Update-Set entry names Standings as
+    recorded: both change in PR 3.
+  - Issue #118's body lists `fact_standings`, a standings-parse test and
+    "the three tables" in scope.
+- My defaults in the plan (not grilled; shown to the owner with the plan,
+  none changed): `standings_echo` goes with the probes; the plain call
+  stays once per captured period in each period's raw file (no raw-layout
+  change; a weekly Salary Remaining series builds up in `data/raw/` for
+  #97); closing is one-way until #93's `--reclose`; `profiles.py`'s stale
+  "no fact_standings/wins table" comment is not touched; issue #118's body
+  is not edited (the PR body and the Resolution explain); PR 3 stays one PR.
+
+**#118 PR 3 BUILT 2026-10-04 on `feat/118-close`; it closes #118.** When this
+was written the branch was verified and waiting for the owner's go to commit,
+open the PR and merge (each its own go).
+- `notebooks/04s_fantrax_inseason_capture.py`: `period_requests(n)` returns
+  `standings` (the plain `COMBINED` call) and `live_scoring` only. `PROBES`,
+  the kept-`pageError` exception and `standings_echo` are gone: a `pageError`
+  on either request raises `PageError`. The 2026-10-04 raw files still hold
+  the two probe keys; the load ignores them.
+- `notebooks/etl_checks.py`:
+  - `close_errors(season_id, period, load)`: the Close checks. The period's
+    Roster State covers 28 teams; its Matchups hold every team once and each
+    pair mirrors; each team's `fpts_for` equals its Starter sum in
+    `fact_period_scoring` (0.01). It is not in `DOMAIN_CHECKS`: `04p` runs it.
+  - `scoring_coverage_errors(scoring, teams, periods)`, registered as the
+    `coverage` Gate on `fact_period_scoring`: 28 teams in every period held,
+    and every period from 1 to the last closed one.
+  - Constant `CLOSED` (a test holds it equal to `04p`'s).
+- `notebooks/04p_fantrax_league_info.py` (it now imports `etl_checks`):
+  - `periods_due(info, now, prior)`: the periods that close now if their
+    checks pass. It asks the state machine: closed with every check passing,
+    minus closed with none.
+  - `close_checks(season_id, due, load)` → `{period: [errors]}`. A check that
+    raises (a table not on disk) is a failure, not a crash.
+  - `main` passes the periods with no errors as `checks_passed`, and prints
+    `[ok] period N closed: Close checks pass` or `[hold] period N stays
+    closing, Close checks fail: …`.
+- `scripts/run_pipeline.py`: step `04s_scoring`, after `04r_roster_state`,
+  INSEASON only, `fantrax_core`, group `regular_season`.
+- Data: `dim_scoring_period` only. Periods 1 and 2 are `closed` (`closed_at`
+  2026-10-05 00:1x UTC), 3 is `closing`, 4 is `open`. No other parquet
+  changed.
+- Tests: `TestCloseChecks` and `TestScoringCoverage` (`test_etl_checks.py`),
+  `TestClosing` (`test_04p_league_info.py`), `TestScoringStep`
+  (`test_run_pipeline_gating.py`), `TestCaptureRequests` trimmed
+  (`test_fantrax_parsers.py`). `closeable()` and `league_teams()` are shared
+  helpers in `tests/conftest.py`. `pytest tests/` 468 pass; bot suite 8.
+- Docs: `CONTEXT.md` (Standings is derived; the Update-Set entry),
+  ADR-0016's amendment (notes on decisions 10, 11, 13, 14, 15, the table
+  list, one rejected alternative, one consequence), ADR-0008's amendment
+  (notes on decisions 4, 7 and 13), `docs/data_model.yml`,
+  `docs/sources.yml` + `SOURCES.md`, the research doc ("Decided 2026-10-04"),
+  `notebooks/README.md`, `scripts/make_fixtures.py` (a comment),
+  `data-model.md`, `MEMORY.md`, `mouserat-trade-bud.md`.
+- Verified:
+  - before the write, a no-write pass (`pr3_precheck.py`): periods 1 and 2
+    due and passing; period 3 passes but is not due; period 4 has no Matchups;
+  - after the `04p` rerun (`pr3_verify.py`): only `update_set_state` and
+    `closed_at` differ from `HEAD`, on periods 1 and 2; no period closed
+    before its following period ended; a second pass finds nothing due and
+    leaves the closed rows identical;
+  - `04s` `periods_to_load` and `04r` `periods_to_pull` both give `[3, 4]`;
+  - `04s --from-raw` loaded period 3 only and left `fact_period_scoring` and
+    `fact_matchup` byte-identical (same sha1);
+  - `--dry-run`: `04s_scoring` follows `04r_roster_state` in INSEASON and is
+    absent in PRESEASON and OFFSEASON; `04s --help` opens no browser;
+  - `check_data_model.py` (31 tables) and `--check`; `check_sources.py` (16
+    sources) and `--check`; `--check-only` 162 checks, 0 Gate failures, the
+    same 3 Review findings; no `fact_standings` in the registry, `data/` or
+    code (one stale comment in trade-bud's `profiles.py`, left on purpose).
+- **My choices inside the plan (reported to the owner):**
+  - `close_errors` takes `season_id` as well as the period. The plan wrote
+    `close_errors(period, load)`; the tables are keyed by both.
+  - Only the periods the calendar lets close are checked. A `closing` period
+    whose following period is still in play is neither checked nor logged.
+  - A Close check that cannot run keeps the period `closing`; it does not
+    fail the step.
+  - Periods can close out of order (period 2 while period 1 fails). The rule
+    does not forbid it, and it was not grilled.
+  - `CONTEXT.md`'s Update-Set entry also lost "as it enters closing", which
+    decision 6 had made stale.
+  - ADR-0008 got two notes the plan did not list: decision 4 (the coverage
+    Gate is built) and decision 13 (`04s` has no standings or roster-info
+    parser).
+- **To know:** `04s_scoring` needs the logged-in session, like `04a_scrape`.
+  A dead session fails the step and holds the `fantrax_core` Chain. Period 3
+  closes on the first run after 2026-10-08 20:15 ET, on the rows the run
+  before it wrote.
+- **Left for other tickets:** the alert, the Drift sweep, "every Starter has
+  an entry" and grace (#116); `--reclose` (#93); Salary Remaining and the
+  cap table (#97); dead money (#96).
+
+**NEXT, on the owner's go each time:** commit, open the PR (it closes #118),
+merge. Then, after the merge:
+- **Public posts (owner's go):** a Resolution on #118 (it says
+  `fact_standings` was not built and why), and notes on #116 (which Close
+  checks exist; what is left), #93 (`04s` is a pipeline step; no
+  `--reclose`), #97 (Salary Remaining is its to parse and check; the
+  20-of-28 finding) and #96 (the 8-team gap as a target for dead money).
+- **Then the map #70 frontier:** #116 (unblocked by #118); the #77 seam,
+  which unblocks #86 and #93; #96 → #97. Each starts with its own grill or
+  plan in its own window.
+- **Scratchpads** (may not survive; a new session gets its own), under
+  `C:\Users\benha\AppData\Local\Temp\claude\
+  C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\`:
+  - `b70feb52-4d88-4084-a25b-dbb056315f00\scratchpad`: `gs_rank.py`,
+    `gs_sr.py`, `gs_odds.py`, `pr3_precheck.py`, `pr3_verify.py`.
+  - `2a09ea7e-3d10-4266-8367-40f2662bc74e\scratchpad`: `pr2s_capture.py`,
+    `pr2s_standings.py`, `pr2s_shapes.py`, `pr2s_verify.py`,
+    `g118s_facts.py`, and `botvenv/` (the bot suite's venv).
 - No Fantrax login by an agent: the capture is the owner's to run. I build
   and verify with `--from-raw` and counts-only scripts.
 - The three owner calls the #125 audit left open are settled by #117 (the

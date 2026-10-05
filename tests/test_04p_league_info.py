@@ -16,6 +16,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
 import pandas as pd
 import pytest
 
+from conftest import closeable
+
 lg = importlib.import_module("04p_fantrax_league_info")
 
 
@@ -161,6 +163,62 @@ class TestParseScoringPeriods:
         raw["playoffs"]["lastRegularSeasonPeriod"] = 1
         with pytest.raises(ValueError, match="lastRegularSeasonPeriod"):
             lg.parse_scoring_periods(raw, IN_PERIOD_3)
+
+
+class TestClosing:
+    """How 04p closes a period (#118): the calendar says which periods are
+    due, the Close checks say which of those may close."""
+
+    def states(self, df):
+        return {p: s if isinstance(s, str) else None
+                for p, s in zip(df["period"], df["update_set_state"])}
+
+    def close(self, tables, now=AFTER_PERIOD_3, prior=None):
+        checked = lg.close_checks("2026-2027", lg.periods_due(info(), now, prior),
+                                  tables.__getitem__)
+        passed = {n for n, errs in checked.items() if not errs}
+        return checked, lg.parse_scoring_periods(info(), now, prior, checks_passed=passed)
+
+    def test_the_closed_state_is_one_word_in_both_modules(self):
+        assert lg.ec.CLOSED == lg.CLOSED
+
+    def test_due_once_the_following_period_has_ended(self):
+        assert lg.periods_due(info(), IN_PERIOD_3) == [1]
+        # Period 3's follower is the playoff period 4, still in play.
+        assert lg.periods_due(info(), AFTER_PERIOD_3) == [1, 2]
+
+    def test_a_closed_period_is_not_due_again(self):
+        closed = lg.parse_scoring_periods(info(), IN_PERIOD_3, checks_passed={1})
+        assert lg.periods_due(info(), AFTER_PERIOD_3, prior=closed) == [2]
+
+    def test_nothing_is_due_before_a_period_has_a_finished_follower(self):
+        assert lg.periods_due(info(), ts("2026-09-12 12:00")) == []
+
+    def test_periods_that_pass_close(self):
+        checked, df = self.close(closeable(periods=(1, 2, 3)))
+        assert checked == {1: [], 2: []}
+        assert self.states(df) == {1: "closed", 2: "closed", 3: "closing", 4: None}
+        assert (df.set_index("period").loc[[1, 2], "closed_at"] == AFTER_PERIOD_3).all()
+
+    def test_one_edited_score_keeps_its_period_closing(self):
+        tables = closeable(periods=(1, 2, 3))
+        m = tables["fact_matchup"]
+        m.loc[(m["period"] == 2) & (m["team_key"] == "T00"), "fpts_for"] += 0.5
+        checked, df = self.close(tables)
+        assert checked[1] == [] and checked[2] != []
+        assert self.states(df) == {1: "closed", 2: "closing", 3: "closing", 4: None}
+        assert pd.isna(df.set_index("period").loc[2, "closed_at"])
+
+    def test_a_period_that_never_loaded_stays_closing(self):
+        checked, df = self.close(closeable(periods=(1,)))
+        assert checked[2] != []
+        assert self.states(df)[2] == "closing"
+
+    def test_a_table_that_cannot_be_read_stays_closing(self):
+        def load(name):
+            raise FileNotFoundError(f"{name}.parquet")
+        assert lg.close_checks("2026-2027", [1], load) == {
+            1: ["check raised: dim_fantasy_teams.parquet"]}
 
 
 TEAMS = pd.DataFrame({"fantrax_team_id": ["t1", "t2", "t3", "t4"],

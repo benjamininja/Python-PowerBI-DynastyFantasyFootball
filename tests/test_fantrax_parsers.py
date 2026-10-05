@@ -8,7 +8,7 @@ regenerate them in a PR; a failure here is the shape drift showing up.
 Covered today: 04a player_stats_to_frame, 04u build_future_picks, 04p
 getLeagueInfo (periods + divisions), 04r public getTeamRosters, 04s schedule
 helpers, per-period requests, live scoring and matchups, 02d draft results +
-transaction history. A later build adds standings (#118).
+transaction history. Standings have no parser: #118 built no standings table.
 """
 import copy
 import importlib
@@ -366,34 +366,25 @@ class TestCaptureRequests:
         assert method == "getLiveScoringStats"
         assert data == {"period": 3, "playerViewType": "2"}
 
-    def test_three_standings_requests(self):
-        asked = {k: d for k, (m, d, _) in fs.period_requests(3).items() if m == "getStandings"}
-        by_period = {"view": "COMBINED", "period": 3, "timeframeType": "BY_PERIOD"}
-        assert asked == {
-            "standings": {"view": "COMBINED", "period": 3},
-            "standings_by_period": {**by_period, "timeStartType": "FROM_SEASON_START"},
-            "standings_period_only": {**by_period, "timeStartType": "PERIOD_ONLY"},
-        }
-        assert set(fs.PROBES) == set(asked) - {"standings"}
+    def test_one_standings_request(self):
+        # The plain call only: kept raw for #97, never loaded. The by-period
+        # probes went once #118 decided not to build a standings table.
+        asked = fs.period_requests(3)
+        assert set(asked) == {"standings", "live_scoring"}
+        method, data, _ = asked["standings"]
+        assert (method, data) == ("getStandings", {"view": "COMBINED", "period": 3})
 
     def test_no_roster_call(self):
         calls = []
         snap = fs.period_snapshot(3, lambda m, d, r: calls.append(m) or self.OK)
-        assert sorted(calls) == ["getLiveScoringStats"] + ["getStandings"] * 3
-        assert set(snap) == {"period", "live_scoring", "standings", *fs.PROBES}
+        assert sorted(calls) == ["getLiveScoringStats", "getStandings"]
+        assert set(snap) == {"period", "live_scoring", "standings"}
         assert snap["period"] == 3
-
-    def test_probe_error_is_kept(self):
-        def post(method, data, ref):
-            return self.BAD if "timeframeType" in data else self.OK
-        snap = fs.period_snapshot(3, post)
-        assert all(snap[k] == self.BAD for k in fs.PROBES)
-        assert fs.standings_echo(snap["standings_by_period"]) == "pageError X"
 
     @pytest.mark.parametrize("bad_method", ["getLiveScoringStats", "getStandings"])
     def test_payload_error_raises(self, bad_method):
         def post(method, data, ref):
-            return self.BAD if method == bad_method and "timeframeType" not in data else self.OK
+            return self.BAD if method == bad_method else self.OK
         with pytest.raises(fs.PageError, match="pageError X: no"):
             fs.period_snapshot(3, post)
 
@@ -405,12 +396,6 @@ class TestCaptureRequests:
         }}}}]}
         assert fs.live_counts(live) == {"teams": 2, "ACTIVE": 3, "BENCH": 1}
         assert fs.live_counts(self.OK) == {"teams": 0, "ACTIVE": 0, "BENCH": 0}
-
-    def test_standings_echo(self):
-        raw = {"responses": [{"data": {"displayedSelections": {
-            "timeframeType": "BY_PERIOD", "timeStartType": "FROM_SEASON_START", "period": 2}}}]}
-        assert fs.standings_echo(raw) == "BY_PERIOD/FROM_SEASON_START/2"
-        assert fs.standings_echo(self.OK) == "None/None/None"
 
     def test_saved_file_is_stamped(self, tmp_path, monkeypatch):
         monkeypatch.setattr(fs, "out_path", lambda suffix: tmp_path / f"{suffix}.json")
