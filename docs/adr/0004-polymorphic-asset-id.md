@@ -44,7 +44,12 @@ Introduce a **polymorphic `asset_id`** as the single, stable identity for any
     `rookie_draft` ledger row links them (`spent_asset_id` = pick, row
     `asset_id` = player).
 - **Ledger key changes** from ADR-0003: `season + event_type + team_key +
-  asset_id + event_seq` (was `gsis_id`).
+  asset_id + event_seq` (was `gsis_id`). *Superseded 2026-10-04 (#96,
+  [ADR-0016](0016-roster-state-from-snapshot-ledger-is-provenance.md) decision
+  6): the key is `(transaction_id, scorer_id, team_key, event_type)`, with
+  `transaction_id` the slot's `pick_ref` on a startup-draft row. `event_seq`
+  renumbers on a rebuild, so it is sort order only. `asset_id` stays on the
+  row.*
 - **`dim_draft_pick`** — descriptive dim for pick assets, parallel to
   `dim_nfl_players`. Natural key `pick_ref = (draft_season, round,
   original_owner)`; **stable under trade** (current owner moves via ledger

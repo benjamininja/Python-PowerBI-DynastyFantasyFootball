@@ -93,9 +93,9 @@ def write_inputs(data: Path):
                  "contract_id", "capture_date"]
     ).to_parquet(data / "fact_roster_state.parquet", index=False)
     pd.DataFrame(
-        [(SEASON, _team(ON_PRESEASON), ON_PRESEASON["scorerId"], 7_500_000.0,
+        [(SEASON, _team(ON_PRESEASON), ON_PRESEASON["scorerId"], 7_500_000.0, "1st",
           pd.Timestamp("2026-07-18"))],
-        columns=["season_id", "team_key", "scorer_id", "salary", "capture_date"]
+        columns=["season_id", "team_key", "scorer_id", "salary", "contract_id", "capture_date"]
     ).to_parquet(data / "fact_preseason_salary.parquet", index=False)
     pd.DataFrame({"scorer_id": [ELIGIBLE["scorerId"]], "season": [2026], "week": ["PRE"],
                   "capture_date": ["2026-07-18"]}
@@ -117,6 +117,31 @@ def data(tmp_path, monkeypatch):
 
 def outputs():
     return {name: pd.read_parquet(getattr(rt, name)) for name in OUTPUTS}
+
+
+def keys(ledger):
+    return set(map(tuple, ledger[rt.LEDGER_KEY].to_numpy()))
+
+
+def before_the_key(ledger):
+    """A ledger as it was written before #96: no key columns, and `dead_money`."""
+    return (ledger.drop(columns=["transaction_id", "period", "contract_source"])
+            .assign(dead_money=0.0))
+
+
+class TestUnkeyedMoves:
+    LEDGER = pd.DataFrame({"event_type": [rt.EVENT_TYPE, rt.CLAIM_EVENT, rt.DROP_EVENT],
+                           "transaction_id": [None, "tx1", None]})
+
+    def test_counts_the_moves_with_no_transaction_id(self):
+        # the draft row is rebuilt on every run, so it is not counted
+        assert rt.unkeyed_moves(self.LEDGER) == 1
+
+    def test_every_move_counts_on_a_ledger_with_no_such_column(self):
+        assert rt.unkeyed_moves(self.LEDGER.drop(columns="transaction_id")) == 2
+
+    def test_a_keyed_ledger_has_none(self):
+        assert rt.unkeyed_moves(self.LEDGER.assign(transaction_id="tx")) == 0
 
 
 class TestMain:
@@ -152,18 +177,103 @@ class TestMain:
         assert ledger[rt.LEDGER_KEY + ["event_date"]].notna().all().all()
         assert not ledger.duplicated(rt.LEDGER_KEY).any()
         assert set(ledger["team_key"]) <= set(TEAM_KEY.values())
+        # A draft row is keyed by its slot's pick_ref, a move by Fantrax's txSetId.
+        grid = pd.read_parquet(rt.PICK_PATH)
+        is_draft = ledger["event_type"] == rt.EVENT_TYPE
+        assert set(ledger.loc[is_draft, "transaction_id"]) == set(
+            grid.loc[grid["is_made"], "pick_ref"])
+        assert set(ledger.loc[~is_draft, "transaction_id"]) <= {r["txSetId"] for r in TXNS}
+        assert ledger["period"].notna().all() and str(ledger["period"].dtype) == "Int64"
+        assert set(ledger["contract_source"]) <= {
+            rt.FROM_STATE, rt.FROM_PRESEASON, rt.FROM_DEFAULT, rt.NO_STINT}
+
+    def test_the_key_survives_a_rebuild_from_shuffled_inputs(self, data, monkeypatch):
+        rt.main()
+        first = pd.read_parquet(rt.FACT_PATH)
+        parse_txn, parse_draft = rt.parse_txn_rows, rt.parse_draft_results
+
+        def legs_reversed(*args):
+            trade_log, legs, stats = parse_txn(*args)
+            return trade_log, legs[::-1], stats
+
+        monkeypatch.setattr(rt, "parse_txn_rows", legs_reversed)
+        monkeypatch.setattr(rt, "parse_draft_results",
+                            lambda payloads: parse_draft(payloads).sample(frac=1, random_state=7))
+        rt.main()
+        assert keys(pd.read_parquet(rt.FACT_PATH)) == keys(first)
+
+    def test_a_move_removed_from_the_log_changes_no_other_key(self, data, monkeypatch):
+        rt.main()
+        first = pd.read_parquet(rt.FACT_PATH)
+        parse, removed = rt.parse_txn_rows, []
+
+        def without_the_earliest(*args):
+            trade_log, legs, stats = parse(*args)
+            removed.append(rt.sort_legs(legs)[0])
+            return trade_log, [l for l in legs if l is not removed[-1]], stats
+
+        monkeypatch.setattr(rt, "parse_txn_rows", without_the_earliest)
+        rt.main()
+        second = pd.read_parquet(rt.FACT_PATH)
+        gone = first[(first["transaction_id"] == removed[-1]["transaction_id"])
+                     & (first["scorer_id"] == removed[-1]["scorer_id"])]
+        assert len(gone) == 1
+        assert keys(second) == keys(first) - keys(gone)
+        # event_seq is sort order only: the same removal renumbers every later move.
+        seq = {name: frame[frame["event_type"] != rt.EVENT_TYPE]
+               .set_index(rt.LEDGER_KEY)["event_seq"] for name, frame in
+               (("first", first), ("second", second))}
+        assert (seq["second"] == seq["first"].loc[seq["second"].index] - 1).all()
+
+    def test_a_ledger_from_before_the_key_is_rebuilt_whole(self, data):
+        rt.main()
+        first = pd.read_parquet(rt.FACT_PATH)
+        before_the_key(first).to_parquet(rt.FACT_PATH, index=False)
+        rt.main()
+        ledger = pd.read_parquet(rt.FACT_PATH)
+        assert list(ledger.columns) == rt.LEDGER_COLS
+        assert ledger[rt.LEDGER_KEY].notna().all().all()
+        assert keys(ledger) == keys(first)
+
+    def test_a_dropped_column_goes_when_no_move_is_rebuilt(self, data, monkeypatch):
+        # No transaction history on this machine: only the draft rows are
+        # rebuilt, and the older file's `dead_money` still must not ride along.
+        rt.main()
+        first = pd.read_parquet(rt.FACT_PATH)
+        draft = first[first["event_type"] == rt.EVENT_TYPE]
+        before_the_key(draft).to_parquet(rt.FACT_PATH, index=False)
+        monkeypatch.setattr(rt, "load_txn_rows", lambda: [])
+        rt.main()
+        ledger = pd.read_parquet(rt.FACT_PATH)
+        assert list(ledger.columns) == rt.LEDGER_COLS
+        assert keys(ledger) == keys(draft)
+
+    def test_moves_from_before_the_key_stop_a_run_that_cannot_rebuild_them(self, data,
+                                                                         monkeypatch):
+        rt.main()
+        before_the_key(pd.read_parquet(rt.FACT_PATH)).to_parquet(rt.FACT_PATH, index=False)
+        written = rt.FACT_PATH.read_bytes()
+        monkeypatch.setattr(rt, "load_txn_rows", lambda: [])
+        with pytest.raises(RuntimeError, match="transaction_id"):
+            rt.main()
+        assert rt.FACT_PATH.read_bytes() == written
 
     def test_rosters_reach_the_ledger(self, data):
         rt.main()
         ledger = pd.read_parquet(rt.FACT_PATH)
         draft = ledger[ledger["event_type"] == rt.EVENT_TYPE].set_index("scorer_id")
         terms = draft[["contract_id", "contract_value"]]
-        # Roster State sets contract and salary; the preseason capture, salary only.
+        read = draft["contract_source"]
+        # Roster State sets contract and salary. The preseason capture sets the
+        # salary, and the contract of a copy no Roster State shows.
         assert tuple(terms.loc[ON_STATE["scorerId"]]) == ("Minor", 9_100_000)
+        assert read.loc[ON_STATE["scorerId"]] == rt.FROM_STATE
         assert tuple(terms.loc[ON_PRESEASON["scorerId"]]) == ("1st", 7_500_000)
+        assert read.loc[ON_PRESEASON["scorerId"]] == rt.FROM_PRESEASON
         # No roster shows these two: the eligibility list and the draft-time pool.
         assert tuple(terms.loc[ELIGIBLE["scorerId"]]) == ("Minor", _pool_salary(ELIGIBLE))
         assert tuple(terms.loc[UNPRICED["scorerId"]]) == ("1st", MINIMUM)
+        assert read.loc[ELIGIBLE["scorerId"]] == read.loc[UNPRICED["scorerId"]] == rt.FROM_DEFAULT
 
         claim = ledger[(ledger["event_type"] == rt.CLAIM_EVENT)
                        & (ledger["scorer_id"] == CLAIMED["scorer"]["scorerId"])].iloc[0]

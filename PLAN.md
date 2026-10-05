@@ -57,9 +57,9 @@ raw points, not categories.
   (grilling, ✅ ADR-0008 amendment) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
   #93 cadence build (task, ← #92 #77 #75 #76 + #115; now also 04t orchestration
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
-  ADR-0016) · #97 shared cap module + published per-team cap table, 02e =
+  ADR-0016; grilled and planned 2026-10-04, two PRs) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
-  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; PRs 1–2 of 3 ✅ #131, #132; PR 3 built) · #130 claim
+  ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; ✅ PRs #131–#133) · #130 claim
   default contract (grilling, ADR-0019 d6; filed 2026-10-04).
 - [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
@@ -201,15 +201,16 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   equals cap minus non-Minors salary for 20 of 28 teams, the rest likely
   dead money); `% Playoffs` is dropped (one Conference only, no history);
   `04s` keeps the plain standings call only; Standings becomes a derived
-  term in `CONTEXT.md`. **PR 3 built (2026-10-04, `feat/118-close`; it
-  closes #118):** `04s` asks for the plain standings only; `04p` closes a
+  term in `CONTEXT.md`. **PR 3 ✅ merged as PR #133
+  (2026-10-04, `8ed808a`); it closed #118:** `04s` asks for the plain standings only; `04p` closes a
   period once the following period has ended and its Close checks pass on
   the stored tables (`etl_checks.close_errors`: Roster State covers 28
   teams, Matchups hold every team once and mirror, each Matchup score is
   the team's Starter sum); a coverage Gate on `fact_period_scoring`;
   `04s_scoring` is an INSEASON pipeline step after `04r_roster_state`.
   Periods 1 and 2 are `closed`. `pytest tests/` 468 pass. Left for #116:
-  the alert, the Drift sweep, "every Starter has an entry", grace. Detail
+  the alert, the Drift sweep, "every Starter has an entry", grace.
+  Resolution posted on #118; hand-on notes on #116, #93, #97 and #96. Detail
   in `.claude/memory/RESUME.md`;
   #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
@@ -338,8 +339,27 @@ deprioritized**; trade-bud and the bot need parity. Per
 `fact_dead_money` is derived from drops, and each remaining guaranteed contract
 year charges its own `cap_hit_pct × contract_value` in its own season. The ETL
 computes a per-team cap table that both apps read. The old "no `drop` event"
-blocker is stale: `02d` emits drops, but `dead_money` is hardcoded 0 until the
-build lands.
+blocker is stale: `02d` emits drops. The ledger's always-0 `dead_money` column
+went with #96 PR 1; `fact_dead_money` is PR 2.
+
+**#96 grilled and planned 2026-10-04 (plan approved; nothing built).** Two
+PRs: PR 1 the ledger (`transaction_id` on every row, grain
+`(transaction_id, scorer_id, team_key, event_type)`, the contract of a stint
+only the preseason capture saw read from that capture), PR 2
+`fact_dead_money` from `02f`, its checks, and `capmath` reading it. Measured:
+the ADR schedule equals Fantrax's charge to the dollar wherever the contract
+is known; the two fixes (the preseason contract, and no Dead Money for a
+drop that ends no stint) take the match from 25 to 28 of 28 teams. Detail in
+`.claude/memory/RESUME.md`.
+
+**#96 PR 1 built 2026-10-04 (`feat/96-move-key`; does not close #96).** The
+ledger is keyed `(transaction_id, scorer_id, team_key, event_type)` and
+carries `period` and `contract_source`; `fact_preseason_salary` has
+`contract_id`; `02d` reads the preseason contract for a stint only that
+capture saw. On the rebuilt ledger 8 rows change (four claims and their
+drops, `FA` → `1st`), one drop is `no_stint`, and half the salary of the 12
+`1st` drops that end a stint equals the plan's per-team figures. PR 2 is
+next.
 
 ## [ ] Active — Minors, open user actions only
 

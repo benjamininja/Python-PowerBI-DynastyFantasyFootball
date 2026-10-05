@@ -12,7 +12,10 @@
 # `discord_bot/capmath.py`. Same formula, computed where it's consumed.
 #
 # **Replay rule:** order events by `event_seq`; the **last** event per
-# `(team_key, asset_id)` defines that player's current contract. Terminal `drop`
+# `(team_key, asset_id)` defines that player's current contract. `event_seq` is
+# the ledger's sort order only: its key is `(transaction_id, scorer_id,
+# team_key, event_type)` (ADR-0016 decision 6), which this replay does not
+# need. Terminal `drop`
 # events remove the player from the active roster. v1 has only `startup_draft`
 # events (all active), so this is one active row per drafted player — but the
 # logic is written general so `resign`/`fa_*`/`drop` slot in without change.

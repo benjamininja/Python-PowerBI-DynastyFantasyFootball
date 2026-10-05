@@ -56,8 +56,14 @@
      - *Amended 2026-10-04 (#117): the lookup reads `fact_roster_state`, by the Scoring Period Fantrax says the move takes effect in, not by capture day ([ADR-0016's amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81), decision 3). It needs the copy on the move's team (the "from" team for a trade). The day rules above are replaced:*
        - *A trade and a drop read the latest Roster State inside the copy's stint and before the move's period: stint-start period ≤ p < move period.*
        - *A draft pick and a claim no longer always default (owner's decision, 2026-10-03). Each reads contract and salary off the first Roster State inside the stint it starts: move period ≤ p < the period the copy next leaves the team in. A draft pick takes effect in period 1. The default applies only when no such row exists: a copy that left before a roster showed it.*
-       - *The preseason capture is still never read for a contract. It now lives in `fact_preseason_salary`, which holds salaries only.*
+       - *The preseason capture is still never read for a contract. It now lives in `fact_preseason_salary`, which holds salaries only. (Amended by #96, below.)*
        - *The eligibility rules above are unchanged, and the eligibility captures are read for the draft's own season only.*
+     - *Amended 2026-10-04 (#96, owner's decision): the preseason capture is read for a contract, by a stint that only that capture saw. A draft pick or a claim that no Roster State row covers takes the capture's contract when the capture was taken inside the stint the move starts (after the move day, before the copy next left the team): `Minor` if the player is minors-eligible, else the contract the capture shows. `fact_preseason_salary` gains `contract_id` for it.*
+       - *Measured 2026-10-04 against Fantrax's Salary Remaining: four claims the capture shows on `1st` were dropped before a period-1 roster showed them. The ledger had them on `FA`. Half their salary is the whole of Fantrax's gap on the two teams that made them, to the dollar.*
+       - *Eligibility wins over the capture. It predates the `Minor` label (987 rows on `1st`, 5 on `FA`), and the minors-eligible players it shows on `1st` were dropped and not charged.*
+       - *A Roster State row still wins over the capture. A trade or a drop reads nothing new: it keeps the contract of the stint it ends.*
+       - *The ledger's `contract_source` records where each row's contract was read: `roster_state`, `preseason` or `default`. A trade or a drop with no Roster State row of its own carries the source of the stint it ends.*
+       - *An eligible player's `Minor` is `default`, whether or not the capture shows the stint (owner's decision, 2026-10-04, after the `cap-ledger-auditor` review). Eligibility set it, not the capture. The capture still gives that stint its salary.*
 7. **`dim_contract` gains one row:**
 
    | contract_id | contract_type | contract_label | salary_type | contract_year | total_years | cap_hit_pct | guaranteed | cap_exempt | min_salary |

@@ -34,6 +34,10 @@
    - The contract at the time of the drop is taken from the last Roster State before it.
    - If the same team re-claims the player, the Dead Money stands and the claim starts fresh terms. A commissioner-reversed drop disappears from the log, so it never produces Dead Money.
 6. **Move identity** is the natural key `(txSetId, scorer_id, team_key, event_type)`. `event_seq` is a sort order only. Startup-draft rows keep their ADR-0004 key.
+   - *Built 2026-10-04 (#96). `txSetId` is stored as `transaction_id`, and `fact_roster_transactions` has one grain for every row: `(transaction_id, scorer_id, team_key, event_type)`.*
+   - *A startup-draft row does not keep its ADR-0004 key (owner's decision, 2026-10-04): that key ends in `event_seq`. Its `transaction_id` is the slot's `pick_ref` from `fact_draft_pick`, which a rebuild does not change either.*
+   - *Each row also carries `period`, the Scoring Period Fantrax stamps the move with (1 on a draft pick, null on a move of another season).*
+   - *Measured on the ledger to 2026-10-01: the key is unique on all 1,267 rows. Only one `04t` capture exists, so `txSetId` staying the same from one capture to the next is not yet tested.*
 7. **Cadence.** Each run pulls the whole season from `04t` (the volume is small, and a full pull catches reversals), then runs `02d` and then Dead Money. This happens on **every debounced Change Poll trigger**, after the snapshot is saved, and again on the daily run. If spike #92 shows that frequent logins get challenged, fall back to the daily run only.
 8. **Cap math is computed once, in the ETL.** The cap functions move out of `discord_bot/` into a shared module that the ETL calls. The ETL publishes:
    - `fact_fantasy_teams`: the snapshot rows plus `acquired_method` and date from the latest Roster Move into that team. *Per the [2026-10-03 amendment](#amendment-2026-10-03-in-season-fact-model-81), it is the current Roster State all year, and `roster_status` becomes `roster_slot`.*
