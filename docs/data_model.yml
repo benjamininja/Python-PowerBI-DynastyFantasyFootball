@@ -24,6 +24,12 @@
 #             documented key, not re-derived from the parquet)
 #   columns : list of {name, dtype} — dtype is pandas' dtype string, checked
 #             against the real parquet schema by `validate`
+#             A column with no value yet reads back as `object`, which
+#             names no SQL type. Such a column also carries `sql_type`
+#             (text | integer | double precision), the type its values
+#             will have (ADR-0018 decision 8; #110). `validate` fails an
+#             `object` column without one. #108 adds `sql_type` to the
+#             other columns, with `pk` and `fk`.
 #   edges   : outbound relationships: {to: <table>, via: direct|<resolver
 #             table name>, on: <join column(s)>}. `via: direct` = joins
 #             straight to the target's key. `via: <resolver>` = the real
@@ -103,7 +109,7 @@ tables:
       - { name: weight, dtype: float64 }
       - { name: pfr_id, dtype: str }
       - { name: cfb_id, dtype: str }
-      - { name: gsis_id, dtype: object }
+      - { name: gsis_id, dtype: object, sql_type: text }
       - { name: draft_year, dtype: int64 }
       - { name: source, dtype: str }
       - { name: added_date, dtype: str }
@@ -180,7 +186,7 @@ tables:
     columns:
       - { name: team_abbr, dtype: str }
       - { name: team_name, dtype: str }
-      - { name: team_id_pfr, dtype: object }
+      - { name: team_id_pfr, dtype: object, sql_type: text }
       - { name: team_conf, dtype: str }
       - { name: team_division, dtype: str }
       - { name: team_color, dtype: str }
@@ -188,7 +194,7 @@ tables:
       - { name: team_logo_wikipedia, dtype: str }
       - { name: team_logo_espn, dtype: str }
       - { name: team_wordmark, dtype: str }
-      - { name: team_stadium, dtype: object }
+      - { name: team_stadium, dtype: object, sql_type: text }
     edges: []
 
   - name: dim_dynasty_metric
@@ -274,8 +280,8 @@ tables:
       - { name: pick_ref, dtype: str }
       - { name: draft_season, dtype: str }
       - { name: round, dtype: int64 }
-      - { name: pick_in_round, dtype: object }
-      - { name: overall_slot, dtype: object }
+      - { name: pick_in_round, dtype: object, sql_type: integer }
+      - { name: overall_slot, dtype: object, sql_type: integer }
       - { name: original_owner, dtype: str }
       - { name: division_id, dtype: str }
       - { name: current_owner, dtype: str }
@@ -421,7 +427,7 @@ tables:
       - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
       - { name: player_key, dtype: str }
-      - { name: pick_ref, dtype: object }
+      - { name: pick_ref, dtype: object, sql_type: text }
     edges:
       - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
@@ -449,15 +455,15 @@ tables:
       - { name: height_inches, dtype: float64 }
       - { name: weight, dtype: float64 }
       - { name: forty_yard, dtype: float64 }
-      - { name: ten_split, dtype: object }
+      - { name: ten_split, dtype: object, sql_type: "double precision" }
       - { name: bench_press, dtype: float64 }
       - { name: vertical_jump, dtype: float64 }
       - { name: broad_jump, dtype: float64 }
       - { name: three_cone, dtype: float64 }
       - { name: shuttle, dtype: float64 }
-      - { name: hand_size, dtype: object }
-      - { name: arm_length, dtype: object }
-      - { name: wingspan, dtype: object }
+      - { name: hand_size, dtype: object, sql_type: "double precision" }
+      - { name: arm_length, dtype: object, sql_type: "double precision" }
+      - { name: wingspan, dtype: object, sql_type: "double precision" }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
@@ -805,7 +811,7 @@ tables:
       - { name: fa_status, dtype: str }
       - { name: salary, dtype: float64 }
       - { name: contract, dtype: str }
-      - { name: games_played, dtype: object }
+      - { name: games_played, dtype: object, sql_type: integer }
       - { name: season, dtype: int64 }
       - { name: week, dtype: str }
       - { name: capture_date, dtype: str }
