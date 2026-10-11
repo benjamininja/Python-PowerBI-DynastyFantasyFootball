@@ -21,7 +21,7 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["snapshot","date","as of date","capture date","snapshot date"]
 
-	/// The source's own player id/slug. Not unique across sources; combine with source_name (see source_uid) for identity.
+	/// The source's own player id/slug (the GSIS ID on Composite rows). Not unique across sources; combine with source_name (see source_uid) for identity.
 	column SourcePlayerID
 		dataType: string
 		lineageTag: 4158490d-246b-43e7-a4b6-3aeef7507882
@@ -88,7 +88,7 @@ table Fact_DynastyRankingMetrics
 
 		annotation SynonymCollection = ["text","metric text","note","comment","description"]
 
-	/// Player identity key = source_name|source_player_id. Single-column key linking to the crosswalk; the metrics grain's only path to player identity.
+	/// Player identity key = source_name|source_player_id. Single-column key linking to the crosswalk. Composite rows carry Composite|GSIS ID and have no crosswalk row.
 	column SourceUID
 		dataType: string
 		lineageTag: 7b44de5e-7eca-4f88-9d00-94e5ca27a16b

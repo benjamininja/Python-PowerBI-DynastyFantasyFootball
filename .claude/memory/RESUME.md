@@ -4,6 +4,98 @@
 AFK tickets as background sessions, reviews what they return, and posts to
 GitHub; HITL grills happen in the managing session.
 
+**START HERE after a clear or compact (written 2026-10-11, late night;
+managing session `56063cf0…`).** Read the Standing rules below, then
+`GOAL-RUN.md` and `NEEDS-OWNER.md`. The older blocks "#68 REOPENED DESIGN",
+"#68 GRILLED" and "MERGED 2026-10-11" further down are history now.
+- **State:** `main` = `origin/main` = `a1056a3`. No open PR, no stash, no
+  local feature branch. Uncommitted on `main`: this file and
+  `NEEDS-OWNER.md` (they ride with the next PR). `.agents/` and
+  `GEMINI.md` are untracked and not ours. `pytest tests/` 597 pass.
+- **Goal:** the stage A goal was set 2026-10-11 and its condition held at
+  the last status block (#96 and #68 CLOSED, #97 OPEN and in
+  `NEEDS-OWNER.md`, no open PR, `main` in sync, tests pass). No goal is
+  needed until the owner sets the next one.
+- **Next, the owner's pick:** (a) wait for the `04t` capture after
+  Thursday morning 2026-10-15, then #97 PR 1 (plan
+  `C:\Users\benha\.claude\plans\squishy-toasting-minsky.md`); or
+  (b) start stage B now (#110 first), with the catch that #110 changes the
+  grain of `fact_fantasy_teams`, which #97 also rewrites.
+- **Picked 2026-10-11 (owner, in chat): "start stage b, now."** No `/goal`
+  was set with it, so the plan gate holds until the owner says go or sets
+  the stage B goal. **#110 plan, approved by the owner's "go" 2026-10-11 (this plan only; ask before each merge and before #109). PR 1 is built on branch `fix/110-composite-ids`:**
+  - Measured on `main` `a1056a3`: 1,812 Composite rows, all with null
+    `source_player_id` and `source_uid`, 0 null `gsis_id`, 0 duplicates on
+    `(snapshot_date, source_name, gsis_id, format, metric_key)`, one
+    snapshot. 2 combine `gsis_id` orphans (seasons 2025 and 2026): their
+    `pfr_id` is no longer in `dim_nfl_players`, so the table is stale
+    against the dim. `divisionId` is in `fact_draft_pick` and
+    `fact_draft_pick_future`; code in `02d`, `04u`, `etl_helpers`
+    (`snake_draft_order`), trade-bud `pick_value.py`, two tests; Power BI
+    only drops it in one M step of `Fact_DraftPick.tmdl`. All-null
+    untyped columns: 11, in 6 tables (list in seam inventory §5).
+  - PR 1 Composite: `04y` writes `source_player_id = gsis_id` and
+    `source_uid = "Composite|<gsis_id>"`; rerun `04y` (offline) as the
+    backfill; `check_grain` docstring and `test_composite_grain`; registry
+    and `data-model.md`.
+  - PR 2 `division_id`: writers, helper, `pick_value.py`, tests, registry,
+    the M step, both tables rebuilt; `cap-ledger-auditor` (it touches `02d`).
+  - PR 3 combine orphans: rerun `02a` against today's dim (public data, no
+    login). If the rerun changes more than the two rows, stop and report.
+  - PR 4 `sql_type` on the 11 all-null columns in `docs/data_model.yml`
+    (ADR-0018 decision 3 names the key).
+  - Not in stage B: the `roster_status` → `roster_slot` rename. The #97
+    grill put #97 first, so #110 stays open after these four PRs and is
+    listed in `NEEDS-OWNER.md` under the `04t` action.
+- **Done 2026-10-11:** PRs #141 (`a23df3a`) and #142 (`f7b9aa4`) merged; #96
+  closed with its Resolution; notes posted on #97, #130, #116, #93; map
+  #70 has #96's line.
+- **Goal (set 2026-10-11, night):** stage A, the full text of
+  `GOAL-RUN.md`. The agent read the goal as the go on the #68 plan: the
+  three design answers are the owner's, and the plan was already here.
+- **#68 is built: PRs #143 (`6aef60e`) and #144 (`a1056a3`), both merged; #68 closed with its Resolution, map #66 has its line, #130 has a note.** #143: `claim_method`
+  and `claim_bid` on `fact_roster_transactions`, read off the `bid` cell
+  in `02d` (`_claim_bid`, `claim_dtypes`, a second pass in
+  `_parse_claim_drops`). #144: `_claim_activity` in `profiles.py` behind
+  `infer_waiver_activity` and the new `infer_free_agent_activity`, each
+  tiered by rank on its own count. `pytest tests/` 597 pass, bot suite 9.
+  Detail is in `mouserat-trade-bud.md` ("Built 2026-10-11 (#68") and
+  `data-model.md` (the ledger's row).
+  - #143's rerun of `02d` → `02f` → `02e` also published the moves of the
+    2026-10-11 capture (ledger 1267 → 1294 rows, `fact_dead_money` 24 →
+    34). `main`'s `02d` on the same inputs gave the same tables apart from
+    the two columns.
+  - A capture with no `bid` cell leaves the method null (the agent's
+    call: it cannot be told). The committed fixture is such a capture.
+  - The Fantrax rules page was read (look only, in the app's browser):
+    "Free Agent Claim System: Bidding", bids "processed on: Wed, Thu at
+    8:00 am", minimum bid $0.00, budget $200, Waiver Wire "Not used". So
+    the league's "waivers" are Fantrax's bid run. It is quoted in `02d`.
+  - Slip to not repeat: the agent ran `gh pr checks 143 --watch`, which is
+    polling. The rule is one read with `gh pr view`.
+- **Stage A now:** #96 and #68 closed; #97 open and in `NEEDS-OWNER.md`
+  (it waits for the `04t` capture after 2026-10-15). Nothing else in stage
+  A can move before then. Next unblocked work is stage B (#110 first),
+  with the catch that #110 changes the grain of the table #97 rewrites.
+- **Answered 2026-10-11 (owner):** the claim form asked for a bid on the
+  claim placed after period 5's lock. That fits the rule "a claim with a
+  bid is a waiver claim": that claim waits for the Thursday bid run. The
+  amount was not said. The row to check after the `04t` capture: it should
+  carry `claim_method = waiver` and a `claim_bid`.
+- **#97:** PR 1 waits for a `04t` capture taken after Thursday morning,
+  2026-10-15, when the owner's pending claim (placed 2026-10-11 after
+  period 5's lock, with a conditional drop) is processed. The session
+  cannot run `04t`: deny rules on lines 34 and 39 of the project
+  `.claude/settings.json`. Stage A cannot fully close before then.
+- **Rules added today:** the PR-approval relaxation (Standing rules, Git);
+  code for the owner to paste always comes with file path, line number
+  and an anchor line (root `preferences.md`, uncommitted in the root repo).
+- **Not done:** the old session `local_2bb79438…` is not archived (denied);
+  the mod's `env` block is pasted but the app restart is not confirmed.
+- **Tools:** no `start_session` here; AFK work runs as subagents. Scratch
+  scripts in this session's scratchpad are not needed again. The bot suite's venv is
+  scratchpad `botvenv`.
+
 **Standing rules for the managing session** (the owner's unless marked;
 written down 2026-10-04 so they survive a reset, not only a compact):
 - **Voice:** caveman lite. Before code: Outline → Build mode → Rationale.
@@ -17,7 +109,17 @@ written down 2026-10-04 so they survive a reset, not only a compact):
   an execute stage in the same window; compact at about 125K–150K tokens.
   "Prepare for compact" means this state-back.
 - **Git:** feature branch → PR → squash-merge `--delete-branch`. Commit, PR
-  and merge only when asked, each on its own go. Stage explicit paths.
+  and merge only when asked. **Relaxed by the owner 2026-10-11** (their
+  words: "relax the rule constraining you from creating, merging, and
+  resetting with PRs AFTER you receive approval. i want the action itself
+  gated behind understanding but then for it to occur on acceptance"). The
+  agent's reading: first say in chat what the PR action is and what it
+  changes; once the owner accepts, do it at once, with no second go for
+  each step (open the PR, merge it on green, sync and reset the local
+  branches after). The acceptance covers that PR only. The never list in
+  `GOAL-RUN.md` is unchanged (`--admin`, a push to `main`, a force push).
+  The app's auto-mode classifier is separate and may still deny a merge;
+  an owner's go in chat is what clears it. Stage explicit paths.
   Never `--no-verify`. Commit from the main checkout. The commit message
   ends `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; a PR body
   ends `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
@@ -1387,6 +1489,144 @@ approved plan file's PR 2 section, nothing new decided).**
 - Bot suite venv: scratchpad `botvenv` of session `56063cf0…`.
 - The `discord-bot-github-fetch` skill has a Dead Money paragraph (the root
   repo ignores that file; nothing to commit there).
+
+**GOAL A STATE 2026-10-11 (new managing session `56063cf0…`; the old one,
+`local_2bb79438…`, is not archived: the classifier denied the call).**
+- **PR #141** (#96 PR 2, commit `e1c1644`, branch `feat/96-dead-money`):
+  open, CI 3 of 3 green on the one read, every Green item holds. **The
+  merge was denied by the auto-mode classifier ("Merge Without Review").**
+  Parked as an action in `NEEDS-OWNER.md`. After the owner merges (or says
+  "merge 141"): `git fetch --prune origin`, check out `main`, delete the
+  local branch, then post the #96 Resolution and the notes on #97, #130,
+  #116 and #93 (the list is in the plan file; PII-check each), and add
+  #96's line to map #70's Decisions so far. "Closes #96" is in the PR.
+- **PR #142** (#68, commit `5ffcc41`, branch `feat/68-waiver-activity`, off
+  `main`): open, "Part of #68". `infer_waiver_activity` in `profiles.py`,
+  `tests/test_waiver_activity.py` (12 tests; 510 pass on that branch).
+  Same merge denial. The ticket's spot check no longer holds (18 / 5 / 5
+  teams against 6 / 4 / 17); the cut-point choice is a decision in
+  `NEEDS-OWNER.md`, recommended: tiers by rank inside the league.
+- **#97**: not started. Blocked by the #141 merge and by the fresh `04t`
+  capture (the 2026-10-11 10:02 capture predates period 5's lock).
+- The working tree sits on `feat/96-dead-money` so `NEEDS-OWNER.md` and
+  `GOAL-RUN.md` exist on disk (they reach `main` with #141). This block and
+  the `NEEDS-OWNER.md` entries are uncommitted and ride with the next PR.
+- This session has no `start_session` tool: AFK tickets run as subagents.
+- **STATE AT COMPACT (2026-10-11, goal A still set, not met).** Both PRs
+  open and mergeable: #141 CI 3 of 3 green, #142 CI 3 of 3 green
+  (`mergeStateStatus` CLEAN on both). Nothing else was done after the
+  denial: the goal's stop hook kept re-firing and each turn only re-read
+  `gh pr list`. **First thing after the compact:** `gh pr list --state
+  open`. If #141 and #142 are merged (or the owner says "merge 141" /
+  "merge 142" in chat, which is the explicit go the classifier lacked):
+  1. `git fetch --prune origin`; `git checkout main`; `git pull --ff-only`
+     (carry the uncommitted `RESUME.md` and `NEEDS-OWNER.md` edits over;
+     if the checkout refuses, the trees differ only by those two files);
+     delete local `feat/96-dead-money` and `feat/68-waiver-activity`.
+  2. Delete the two "Merge PR" entries from `NEEDS-OWNER.md`.
+  3. #96: confirm it closed; post the Resolution and the notes on #97,
+     #130, #116, #93 (list at the end of
+     `C:\Users\benha\.claude\plans\sparkling-strolling-stroustrup.md`;
+     figures in the "#96 PR 2 BUILT" block above; PII-check each text);
+     add #96's line to map #70's Decisions so far.
+  4. #68: stays open until the owner picks the cut points; if the answer
+     changes them, that is one small PR (constants or a rank rule in
+     `profiles.py`, `tests/test_waiver_activity.py`), then close #68 with a
+     Resolution and add its line to map #66.
+  5. #97 PR 1 only after the owner reports the fresh `04t` capture; plan
+     `C:\Users\benha\.claude\plans\squishy-toasting-minsky.md`.
+  If they are still open, there is no unblocked stage A work: report and
+  stop. Do not close a PR unmerged and do not merge by another route.
+- **MERGED 2026-10-11, on the owner's go in chat ("approved to merge 141
+  and 142 as needed").** #141 → `a23df3a`, #142 → `f7b9aa4`; `main` level
+  with origin; local branches deleted; `pytest tests/` 564 pass. Steps 1 to
+  3 above are done: the #96 Resolution and the notes on #97, #130, #116 and
+  #93 are posted (PII scan clean; do not post again) and map #70 has #96's
+  line. #96 is closed. GitHub also closed #68 on the #142 merge although
+  the PR said "Part of"; the session reopened it with a comment, since the
+  cut-point decision is still the owner's. **Left in stage A:** #68 (the
+  decision in `NEEDS-OWNER.md`) and #97 (the fresh `04t` capture; plan
+  `squishy-toasting-minsky.md`). Uncommitted: this file and
+  `NEEDS-OWNER.md`; they ride with the next PR.
+- **#68 REOPENED DESIGN, 2026-10-11 evening (goal cleared by the owner).**
+  The owner answered the cut-point decision with option (c), tiers by rank.
+  Built, not committed, on local branch `feat/68-waiver-rank-tiers`:
+  `profiles.py` (`_WAIVER_ACTIVITY_TOP_SHARE = 1/3`; no moves `inactive`;
+  count at or above the last team of the top third of `dim_fantasy_teams`
+  `active`, ties included; else `occasional`), `tests/test_waiver_activity.py`
+  (14 pass), a line in `mouserat-trade-bud.md`. Real data: 9 / 14 / 5.
+  Then the owner widened the ticket, in chat: waivers and free agency are
+  different and want **separate metrics**; both can be counted in the same
+  ledger; waivers run from game lock to the Thursday (maybe Wednesday)
+  morning run, free agency takes over after it; "find the association in
+  the site", it should be in league info. Measured (counts only, by
+  `fantrax-payload-analyst`): the capture has no waiver label
+  (`claimType` is `FA` on all 185 claims); the **bid cell** separates
+  them: 107 claims carry a bid (10 of them 0.00) and all 95 claims
+  stamped 08:00 carry one, Wed and Thu; 78 claims have an empty bid, are
+  scattered, never at 08:00. `_parse_claim_drops` (`02d` lines 930 to 968)
+  ignores the bid. The public `getLeagueInfo` capture has no waiver, claim
+  or bid key. **Was open, now answered (next block):** the
+  ledger column (name, values, whether the bid amount is kept), which
+  metric a drop belongs to, and the two tier rules. A ledger column is a
+  schema change (registry, `02d` tests, auditor). Open research: read the
+  league's waiver settings from the Fantrax rules page (in-app browser,
+  look only). The entry left `NEEDS-OWNER.md` once answered.
+- **#68 GRILLED 2026-10-11 (owner's answers, by `AskUserQuestion`).**
+  1. The ledger keeps the method and the bid: two new columns on
+     `fact_roster_transactions`.
+  2. A drop follows its claim: a drop in the same transaction as a claim
+     counts with that claim's metric; a lone drop counts toward neither.
+  3. Each metric gets its own rank tiers (the top-third rule).
+  **PLAN, waiting on the owner's go; build in a fresh window, two PRs.**
+  - *Outline, PR 1 (ledger), branch `feat/68-claim-method`:*
+    `_parse_claim_drops` (`02d` lines 930 to 968) reads the bid cell.
+    New columns: `claim_method` (`waiver` when the claim's bid cell is not
+    empty, 0.00 included; `free_agent` when it is empty; a drop takes the
+    method of the claim sharing its `transaction_id` and `team_key`; null
+    on a lone drop and on every other event type) and `claim_bid` (the
+    amount; null when there is none). `LEDGER_COLS`, `docs/data_model.yml`
+    and the render, `data/README.md`, `notebooks/README.md`, `data-model.md`,
+    `02d` tests. Rerun `02d` → `02f` → `02e` from files (no login); every
+    other column and `fact_dead_money` must come out unchanged.
+    `cap-ledger-auditor` before the PR. "Part of #68".
+  - *Outline, PR 2 (profiles), branch `feat/68-waiver-rank-tiers`
+    (holds the uncommitted rank-tier work):* `infer_waiver_activity`
+    counts `claim_method = waiver` rows (claims and their drops);
+    new `infer_free_agent_activity` the same on `free_agent`; each returns
+    count, tier and confidence; both wired into `build_profile()` and
+    `low_confidence_fields()`; `tests/test_waiver_activity.py`; exporter
+    run. "Closes #68". Then the Resolution and map #66's line.
+  - *Build mode:* BEFORE/AFTER patches; no new file.
+  - *Rationale:* the bid is the only field that separates the two (107 of
+    185 claims; all 95 claims at 08:00 carry one); keeping the amount keeps
+    the evidence. The label is inferred from the pattern, not stated by
+    Fantrax, and the doc says so.
+  - *My calls, flag any:* a 0.00 bid is a waiver claim; PR 1 does not
+    change contract pricing (a waiver claim stays on the #130 default; a
+    note goes on #130); the league's waiver schedule is not modelled, only
+    read from the rules page and quoted in the docs if found.
+  - *Not done:* reading the Fantrax rules page (in-app browser, look only).
+- **`04t` (2026-10-11):** the owner approved the session to run it, but
+  the project `.claude/settings.json` deny rules (lines 34 and 39) still
+  block the command, and a deny rule is not worked around. Either the
+  owner runs it or removes those two lines.
+- **Mod:** `CLAUDE_CODE_PLUGIN_DIRS` is now in `~/.claude/settings.json`
+  (the owner pasted it). It needs an app restart; not yet confirmed drawn.
+- **Root tier:** `preferences.md` gained the rule "code to paste comes
+  with file path, line number and an anchor line"; uncommitted there.
+- **Owner tracker, from the old session 2026-10-11:** it is
+  `NEEDS-OWNER.md` plus the `owner-queue` mod, nothing else. Upkeep: remove
+  an item as soon as the owner answers it; never reorder items (the owner
+  refers to them by position); restate the title when answering; edit the
+  file from the main checkout and PII-check it after each edit. The mod
+  loads only in the old session until the owner sets
+  `CLAUDE_CODE_PLUGIN_DIRS` (entry in `NEEDS-OWNER.md`; shared copy is PR
+  #39 of `skills-plugins-hooks-agents`, open). The old session still has an
+  unanswered question to the owner: what "test v1 attempt" meant.
+- Scratchpad of this session (may not survive): `a96_facts.py`,
+  `a96_verify.py` (parity), `a96_capdiff.py`, `botvenv/` (bot suite),
+  `msg96.txt`, `body96.md`, `msg68.txt`, `body68.md`.
 
 **Earlier (#118 is closed):**
 - **Public posts: all made 2026-10-04, on the owner's go** (drafts reviewed
