@@ -169,3 +169,22 @@ class TestScoringStep:
     def test_its_tables_are_in_the_same_chain(self):
         reg = ec.load_registry()
         assert {reg[t]["chain"] for t in ("fact_period_scoring", "fact_matchup")} == {"fantrax_core"}
+
+
+class TestDeadMoneyStep:
+    """02f derives Dead Money from the ledger, in the Fantrax core Chain (#96)."""
+
+    STEPS = rp.build_steps(None)
+
+    def test_it_sits_between_the_ledger_and_the_roster(self):
+        names = [s["name"] for s in self.STEPS]
+        step = self.STEPS[names.index("02f_dead_money")]
+        ledger = self.STEPS[names.index("02d_ledger")]
+        assert (step["chain"], step["needs"]) == ("fantrax_core", ["02d_ledger"])
+        assert (step["phases"], step["group"]) == (ledger["phases"], ledger["group"])
+        assert names.index("02d_ledger") < names.index("02f_dead_money") \
+            < names.index("02e_derive")
+        assert step["cmd"][-1].endswith("02f_fact_dead_money.py")
+
+    def test_its_table_is_in_the_same_chain(self):
+        assert ec.load_registry()["fact_dead_money"]["chain"] == "fantrax_core"

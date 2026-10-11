@@ -48,6 +48,56 @@
 - `notebooks/.env` had been **tracked since 66b79d8** (`*.env` only ignores *untracked* files). Untracked via `git rm --cached` (PR #8); local copy kept. `.gitignore` hardened so every `.env` variant is ignored (`.env`, `*.env`, `.env.*`) while `.env.example` stays tracked (`!**/.env.example`).
 - **Credential rotation: DONE** (user, 2026-06-08) and `.env` files updated. The newer Discord/GitHub keys were never committed (working-tree only). Only the `git filter-repo` history scrub of `notebooks/.env` may remain outstanding (user-owned; low urgency since creds are rotated).
 
+## Secrets and destinations (names only, as of 2026-10-11)
+
+Values live in the owner's root `.env` and in the GitHub `etl` environment
+(deploys from `main` only). `.env.example` lists every name.
+
+| Name | What it is |
+|---|---|
+| `SUPABASE_DB_URL` | Supabase Postgres, session pooler. Project ref `vulbdywraotfodcmlawy`, AWS `us-east-1` (#76) |
+| `FANTRAX_EMAIL`, `FANTRAX_PASSWORD` | Fantrax login for the authed captures |
+| `FANTRAX_TOTP_SECRET` | Bare two-factor setup key; proven against the owner's app 2026-10-11 |
+| `DISCORD_WEBHOOK_URL` | Where the pipeline posts today; currently the same address as `_dev` |
+| `DISCORD_WEBHOOK_URL_dev` | Development channel |
+| `DISCORD_WEBHOOK_URL_admin` | Admin server |
+| `DISCORD_WEBHOOK_URL_main` | Main league chat |
+
+GitHub secret names are the same in upper case (`_DEV`, `_ADMIN`, `_MAIN`).
+Planned for #116: a `DISCORD_WEBHOOK_TARGET` setting (`dev`, `admin`,
+`main`) that picks the destination, in `.env` and as a repository variable.
+Until then `run_pipeline.py` reads the plain name only.
+
+## Supabase access (as of 2026-10-11)
+
+Project `DynastyFantasyFootball`, ref `vulbdywraotfodcmlawy`, AWS
+`us-east-1`, Postgres 17.11, Free plan, status healthy, `public` schema
+empty. Two ways in:
+
+1. **`SUPABASE_DB_URL`** (root `.env`, GitHub `etl` environment): the session
+   pooler, default `postgres` role until #108 creates the least-privilege
+   writer. This is the only path pipeline code uses, and only through the
+   `etl_helpers` storage seam (ADR-0014).
+2. **The Supabase connector in Claude** (connected by the owner 2026-10-11;
+   tools named `mcp__<id>__list_projects`, `list_tables`, `get_advisors`,
+   `execute_sql`, `apply_migration` and others). It acts with the owner's
+   account, so it can change or pause the project.
+
+**Rule for agents:** the connector is for looking, not changing. Allowed:
+`list_projects`, `get_project`, `list_tables`, `list_migrations`,
+`list_extensions`, `get_advisors`, `query_logs`, `search_docs`, and
+`execute_sql` with a `SELECT` only. Not allowed without the owner's word in
+chat: `apply_migration`, any writing SQL, and every create, delete, pause,
+restore, branch, deploy or cost tool. Schema changes go through the
+registry-generated migrations (ADR-0018); data goes through the seam. Run
+`get_advisors` (security) after each migration lands, to catch a table
+exposed without row-level security.
+
+**Skills:** the `supabase/agent-skills` repository has
+`supabase-postgres-best-practices` (load before #108 and #135) and
+`supabase`. As of 2026-10-11 neither shows as an installed skill or CLI
+plugin in a session; only the connector is confirmed.
+
 ## Overview
 
 Dynasty fantasy football league. Ben is the commissioner and data engineer.
@@ -152,6 +202,7 @@ Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied).
 | 02b | `archive/02b_fact_fantasy_teams_seed.ipynb` | RETIRED 2026-07-13 — 02e derives `fact_fantasy_teams` from the ledger |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed only) |
 | 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` (ledger, replay from `04w` draft-results JSON) + `dim_roster_asset` + `dim_draft_pick` |
+| 02f | `02f_fact_dead_money.py` | `fact_dead_money` (Dead Money from the ledger's drops, one row per season charged; ADR-0016 d5, #96, built 2026-10-11) |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster). Since 2026-07-11 this is the **only** location for contract/salary/cap-hit data — no longer rolls anything up into `dim_fantasy_teams` (see "Cap architecture" below) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
@@ -275,8 +326,9 @@ gained `roster_with_cap_hit()` for the same join in pandas. `DeadMoney` was
 **not** touched — no simple single-row formula exists yet (needs real
 drop-event tracking, ledger `drop` event type doesn't exist); the user is
 building the 3-version design (current/next/total year) live in `_Measures.tmdl`
-themselves — **see PLAN.md "Active — dead money"** for the full spec, don't
-duplicate it here as it'll drift. `dim_season.relative_nfl_season_number`
+themselves — superseded: Dead Money shipped as `fact_dead_money` (#96,
+2026-10-11; `capmath` reads it; the DAX side is #140). See PLAN.md "Dead
+money". `dim_season.relative_nfl_season_number`
 (one of that design's dependencies) is **built** (`01f`, 2026-07-11) — 0 =
 season containing today via the fantasy window, negative=past/positive=future.
 Not yet in the PBI model (`dim_season` isn't a TMDL table yet).

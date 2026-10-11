@@ -84,6 +84,7 @@ cover them:
 | fact_roster_transactions | 02d ×2 | (a) `load_replace_partition(season_id, event_type)`; (b) hand-rolled **delete `event_type IN TXN_EVENT_TYPES`** + append (explicit value set, deliberately not derived from df) | (a) `replace_partition keys=(...)`; (b) `replace_partition partition={"event_type": TXN_EVENT_TYPES}` |
 | fact_trade_log | 02d | full rebuild from 04t capture | `replace` |
 | fact_fantasy_teams | 02e | full derive | `replace` |
+| fact_dead_money | 02f (added #96, after this inventory) | full derive from the ledger's drops | `replace` |
 | dim_player_alias | 03y (rebuild); `add_players_from_source`; 03z `record_alias` | 03y full; others read, concat, dedup keep-last `(name_clean, position_raw)` | 03y `replace`; others `upsert` |
 | fact_fantrax_adp | 04a `load_fact`; 04z c6; `apply_fantrax_crosswalk_review` | 04a: hand-rolled replace-by-`(season, week)` + safety dedup `(scorer_id, season, week)` + **`score→fpts` schema-migration shim**; 04z/apply: read, overwrite FK columns, full write | 04a `replace_partition keys=(season, week)`; FK backfill `replace` for now (later: column update) |
 | dim_dynasty_crosswalk | `etl.upsert_dynasty_crosswalk` (04b, 04x, 04f) | replace-by-`source` | `replace_partition keys=(source,)` |

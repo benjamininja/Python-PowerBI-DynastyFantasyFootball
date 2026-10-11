@@ -424,6 +424,216 @@ class TestRunSuite:
         assert [(r.check, r.ok) for r in res] == [("schema", False)]
 
 
+def _moves(*rows):
+    """Ledger rows: (transaction_id, event_type, team_key, scorer_id,
+    contract_id, contract_value, contract_source, period)."""
+    df = pd.DataFrame(rows, columns=["transaction_id", "event_type", "team_key", "scorer_id",
+                                     "contract_id", "contract_value", "contract_source", "period"])
+    df["season_id"] = "2026-2027"
+    df["event_date"] = pd.Timestamp("2026-09-16 08:00")
+    return df.astype({"period": "Int64"})
+
+
+def _dead(*rows):
+    df = pd.DataFrame(rows, columns=["transaction_id", "scorer_id", "team_key", "season_id",
+                                     "contract_value", "charge_contract_id", "cap_hit_pct",
+                                     "dead_money"])
+    return df.assign(contract_id="1st")
+
+
+_CONTRACTS = pd.DataFrame({"contract_id": ["1st", "2nd", "X", "FA"],
+                           "contract_type": ["initial", "initial", "expiring", "fa"],
+                           "contract_year": [1, 2, 1, 1],
+                           "cap_hit_pct": [0.5, 0.4, 0.5, 0.0],
+                           "guaranteed": [True, True, False, False]})
+
+
+class TestDeadMoneyChecks:
+    """The `schedule` Gate on fact_dead_money and the two drop Review checks
+    on the ledger (#96)."""
+
+    LEDGER = _moves(("t1", "drop", "A01", "s1", "1st", 10e6, "roster_state", 2),
+                    ("t2", "drop", "A01", "s2", "FA", 2e6, "default", 2),
+                    ("t3", "claim", "A01", "s3", "1st", 4e6, "roster_state", 2))
+    DEAD = _dead(("t1", "s1", "A01", "2026-2027", 10e6, "1st", 0.5, 5e6),
+                 ("t1", "s1", "A01", "2027-2028", 10e6, "2nd", 0.4, 4e6))
+
+    def errs(self, dead=None, ledger=None):
+        return ec.dead_money_errors(self.DEAD if dead is None else dead,
+                                    self.LEDGER if ledger is None else ledger, _CONTRACTS)
+
+    def test_clean(self):
+        assert self.errs() == []
+
+    def test_an_empty_table_is_clean_when_nothing_is_owed(self):
+        assert self.errs(self.DEAD.iloc[:0], self.LEDGER.iloc[1:]) == []
+
+    def test_wrong_amount(self):
+        dead = self.DEAD.copy()
+        dead.loc[0, "dead_money"] = 5e6 + 1
+        assert self.errs(dead) == ["1 rows whose dead_money is not cap_hit_pct x contract_value"]
+
+    def test_a_charge_on_a_contract_that_is_not_guaranteed(self):
+        dead = self.DEAD.copy()
+        dead.loc[1, ["charge_contract_id", "cap_hit_pct", "dead_money"]] = ["X", 0.5, 5e6]
+        assert any("not a guaranteed dim_contract row" in e and "'X'" in e for e in self.errs(dead))
+
+    def test_a_rate_that_is_not_the_one_in_dim_contract(self):
+        dead = self.DEAD.copy()
+        dead.loc[1, ["cap_hit_pct", "dead_money"]] = [0.3, 3e6]
+        assert any("not a guaranteed dim_contract row" in e for e in self.errs(dead))
+
+    def test_a_row_that_is_not_a_drop_on_the_ledger(self):
+        dead = pd.concat([self.DEAD, _dead(("t3", "s3", "A01", "2026-2027", 4e6, "1st", 0.5, 2e6),
+                                           ("t3", "s3", "A01", "2027-2028", 4e6, "2nd", 0.4, 1.6e6))],
+                         ignore_index=True)
+        assert "1 charged moves are not a drop on the ledger" in self.errs(dead)
+
+    def test_a_drop_with_no_contract_source_is_still_a_drop(self):
+        ledger = self.LEDGER.copy()
+        ledger.loc[0, "contract_source"] = None
+        assert self.errs(ledger=ledger) == []
+
+    def test_a_missing_schedule_row(self):
+        assert self.errs(self.DEAD.iloc[:1]) == [
+            "1 drops whose row count is not the guaranteed years left on the contract"]
+
+    def test_a_later_year_charged_to_the_drop_season_or_before(self):
+        dead = self.DEAD.copy()
+        dead.loc[1, "season_id"] = "2025-2026"
+        assert self.errs(dead) == ["1 rows charged to the wrong season"]
+
+    def test_the_first_year_charged_to_another_season(self):
+        dead = self.DEAD.copy()
+        dead.loc[0, "season_id"] = "2028-2029"
+        assert self.errs(dead) == ["1 rows charged to the wrong season"]
+
+    def test_terms_that_are_not_the_ledger_drop(self):
+        dead = self.DEAD.copy()
+        dead[["contract_value", "dead_money"]] = dead[["contract_value", "dead_money"]] * 2
+        assert self.errs(dead) == ["2 rows whose contract_id or contract_value is not the ledger drop's"]
+
+    def test_a_charged_drop_that_ends_no_stint(self):
+        ledger = self.LEDGER.copy()
+        ledger.loc[0, "contract_source"] = "no_stint"
+        assert self.errs(ledger=ledger) == ["1 charged drops end no stint"]
+
+    def test_a_guaranteed_drop_with_no_row(self):
+        assert self.errs(self.DEAD.iloc[:0]) == [
+            "1 drops of a guaranteed contract have no row (run 02f after 02d)"]
+
+    def test_a_stintless_or_unpriced_drop_owes_no_row(self):
+        ledger = _moves(("t1", "drop", "A01", "s1", "1st", 10e6, "no_stint", 2),
+                        ("t2", "drop", "A01", "s2", "1st", None, "default", 2))
+        assert self.errs(self.DEAD.iloc[:0], ledger) == []
+
+    # ---- Review: stintless_drop -----------------------------------------------
+    STATE = pd.DataFrame({"season_id": "2026-2027", "period": [1, 2, 1],
+                          "team_key": ["A01", "A01", "A02"], "scorer_id": ["s1", "s1", "s1"]})
+
+    def stintless(self, period=3, state=None):
+        ledger = _moves(("t1", "drop", "A01", "s1", "1st", 10e6, "no_stint", period),
+                        ("t2", "drop", "A01", "s2", "FA", 2e6, "default", 2))
+        return ec.stintless_drop_findings(ledger, self.STATE if state is None else state)
+
+    def test_every_stintless_drop_is_listed_once(self):
+        found = self.stintless()
+        assert [k for k, _ in found] == ["t1|s1|A01"]
+        assert "ends no stint; no Dead Money charged" in found[0][1]
+
+    def test_the_finding_says_roster_state_showed_the_copy(self):
+        detail = self.stintless(period=3)[0][1]
+        assert "Roster State shows the copy on A01 in period(s) [1, 2]" in detail
+        assert "missing the move in" in detail
+
+    def test_only_periods_before_the_drop_count(self):
+        # A drop effective in period 1 left before any Roster State; the row
+        # of another team for the same player is not a stint on this team.
+        detail = self.stintless(period=1)[0][1]
+        assert "no Roster State row shows the copy on A01 before the drop" in detail
+
+    def test_a_stintless_drop_of_another_season_has_no_period(self):
+        detail = self.stintless(period=None, state=self.STATE.iloc[:0])[0][1]
+        assert "no period (another season)" in detail
+
+    # ---- Review: default_contract_drop ----------------------------------------
+    PERIODS = pd.DataFrame({"season_id": "2026-2027", "period": [1, 2, 3],
+                            "update_set_state": ["closed", "closing", "open"]})
+
+    def defaults(self, *periods):
+        ledger = _moves(*[(f"t{i}", "drop", "A01", f"s{i}", "FA", 2e6, "default", p)
+                          for i, p in enumerate(periods)],
+                        ("r1", "drop", "A01", "r1", "1st", 2e6, "roster_state", 3),
+                        ("c1", "claim", "A01", "c1", "FA", 2e6, "default", 3))
+        return ec.default_contract_drop_findings(ledger, self.PERIODS)
+
+    def test_listed_while_the_period_is_not_closed(self):
+        found = self.defaults(1, 2, 3)
+        assert [k for k, _ in found] == ["t1|s1|A01", "t2|s2|A01"]
+        assert "period 2 is priced on the default contract FA" in found[0][1]
+
+    def test_a_period_the_dim_does_not_hold_is_not_closed(self):
+        assert [k for k, _ in self.defaults(9)] == ["t0|s0|A01"]
+
+    def test_a_drop_with_no_period_is_not_listed(self):
+        assert self.defaults(None) == []
+
+
+class TestReviewDomainChecks:
+    """A Review-tier DomainCheck files its findings; run_suite used to drop
+    them (#96)."""
+
+    REG = {
+        "t": {"name": "t", "chain": "rookie", "grain": "(k)", "required_keys": ["k"],
+              "columns": [{"name": "k", "dtype": "int64"}]},
+    }
+
+    def _run(self, tmp_path, monkeypatch, fn, tier="review"):
+        pd.DataFrame({"k": [1, 2]}).to_parquet(tmp_path / "t.parquet")
+        monkeypatch.setattr(ec, "DOMAIN_CHECKS", [ec.DomainCheck("odd", tier, "t", fn)])
+        res = ec.run_suite(["t"], registry=self.REG, data_dir=tmp_path, head_rows=lambda n: None)
+        return res, next(r for r in res if r.check == "odd")
+
+    def test_findings_are_filed_and_do_not_block(self, tmp_path, monkeypatch):
+        res, r = self._run(tmp_path, monkeypatch,
+                           lambda load: [(str(k), f"k={k}") for k in load("t")["k"]])
+        assert (r.tier, r.ok, r.detail) == ("review", False, "")
+        assert r.findings == [("1", "k=1"), ("2", "k=2")]
+        assert not [x for x in res if x.tier == "gate" and not x.ok]
+        findings, ran = ec.review_findings(res)
+        assert ("odd", "t") in ran
+        assert [f["row_key"] for f in findings if f["check_name"] == "odd"] == ["1", "2"]
+
+    def test_no_findings_is_ok_and_clears(self, tmp_path, monkeypatch):
+        res, r = self._run(tmp_path, monkeypatch, lambda load: [])
+        assert r.ok and r.findings == []
+        assert ("odd", "t") in ec.review_findings(res)[1]
+
+    def test_a_review_check_that_raises_files_nothing_and_clears_nothing(self, tmp_path, monkeypatch):
+        def boom(load):
+            raise KeyError("no such column")
+        res, r = self._run(tmp_path, monkeypatch, boom)
+        assert not r.ok and "check raised" in r.detail and not r.ran
+        findings, ran = ec.review_findings(res)
+        assert ("odd", "t") not in ran and not [f for f in findings if f["check_name"] == "odd"]
+
+    def test_a_gate_check_still_returns_error_strings(self, tmp_path, monkeypatch):
+        _, r = self._run(tmp_path, monkeypatch, lambda load: ["bad", "worse"], tier="gate")
+        assert (r.tier, r.ok, r.detail, r.findings) == ("gate", False, "bad; worse", [])
+
+    def test_a_gate_check_that_raises_blocks(self, tmp_path, monkeypatch):
+        def boom(load):
+            raise KeyError("x")
+        _, r = self._run(tmp_path, monkeypatch, boom, tier="gate")
+        assert r.tier == "gate" and not r.ok and "check raised" in r.detail
+
+    def test_the_drop_checks_are_registered(self):
+        got = {(c.name, c.tier, c.table) for c in ec.DOMAIN_CHECKS}
+        assert {("schedule", "gate", "fact_dead_money"),
+                ("stintless_drop", "review", "fact_roster_transactions"),
+                ("default_contract_drop", "review", "fact_roster_transactions")} <= got
+
+
 class TestFiling:
     def _f(self, row_key="*", detail="2 rows"):
         return {"check_name": "grain_null_key", "table_name": "t",

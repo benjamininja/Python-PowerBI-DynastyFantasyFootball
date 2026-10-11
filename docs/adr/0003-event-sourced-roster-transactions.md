@@ -16,7 +16,8 @@
   `(transaction_id, scorer_id, team_key, event_type)`. `event_seq` is sort
   order only, and the ledger no longer carries a `dead_money` column. The key
   and the `dead_money = 0` in the Build amendment below are the 2026-06-14
-  build's.
+  build's. Dead Money is `fact_dead_money`, derived from the ledger's `drop`
+  rows by `02f` (built 2026-10-11, #96).
 
 ## Context
 

@@ -125,7 +125,9 @@ _Avoid_: side, phase, stat group
 Cap charged to a team for dropping a player on a guaranteed contract. It follows
 the rest of the contract: each remaining guaranteed contract year charges its own
 rate in its own season, to the dropping team, even if the player is later
-re-claimed. Trades never create it.
+re-claimed. Trades never create it. Only a drop that ends a stint creates it: a
+drop by a team the ledger never saw acquire the player charges nothing. Stored
+in `fact_dead_money`, one row per season charged.
 _Avoid_: cut penalty, cap hit (that's a rostered player's charge)
 
 ### Results

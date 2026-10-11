@@ -26,7 +26,7 @@ from github_fetch import fetch_parquet
 
 _TEAMS_PATH = "data/dim_fantasy_teams.parquet"
 _ROSTER_PATH = "data/fact_fantasy_teams.parquet"
-_CONTRACT_PATH = "data/dim_contract.parquet"
+_DEAD_MONEY_PATH = "data/fact_dead_money.parquet"
 
 
 def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
@@ -55,45 +55,54 @@ def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
     return roster
 
 
+def _next_season(season_id: str) -> str:
+    """'2026-2027' -> '2027-2028' (dim_season's season_id format)."""
+    start = int(season_id.split("-")[0]) + 1
+    return f"{start}-{start + 1}"
+
+
 def teams_with_cap(cfg: Config) -> pd.DataFrame:
     """dim_fantasy_teams joined with live cap figures computed from
-    fact_fantasy_teams. Dead money is COMPUTED (fact_fantasy_teams no longer
-    stores a dead_money column, dropped 2026-07-13 like cap_hit before it):
-    only players actually Cut on a Guaranteed contract price in, at
-    ContractValue x Dim_Contract[CapHitPct] -- mirrors the DAX
-    'Dead Money - Active - Current Year'. remaining_cap_next_yr has no year-2
-    contract tracking yet, so it's original_cap - active_roster_salary only
-    (same placeholder the retired ETL rollup used)."""
+    fact_fantasy_teams and fact_dead_money. Dead Money is its own fact
+    (ADR-0016 decision 5; 02f derives it from the ledger's drops, one row per
+    season charged): this season's rows per team are `dead_money` and come off
+    current cap room; next season's rows come off remaining_cap_next_yr. The
+    season is the roster's own `season`. remaining_cap_next_yr has no year-2
+    contract tracking yet, so it's original_cap - active_roster_salary - next
+    season's Dead Money."""
     teams = fetch_parquet(_TEAMS_PATH, cfg)
     if teams.empty:
         return teams
 
     roster = roster_with_cap_hit(cfg)
     if roster.empty:
-        roll = pd.DataFrame(columns=["team_key", "active_roster_salary", "dead_money"])
+        roll = pd.DataFrame(columns=["team_key", "active_roster_salary",
+                                     "dead_money", "dead_money_next_yr"])
     else:
-        contracts = fetch_parquet(_CONTRACT_PATH, cfg)
-        pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
-        guaranteed = dict(zip(contracts["contract_id"], contracts["guaranteed"]))
-        roster = roster.copy()
-        is_dead = (roster["status"].eq("Cut")
-                   & roster["contract_id"].map(guaranteed).fillna(False).astype(bool))
-        roster["dead_money"] = 0.0
-        roster.loc[is_dead, "dead_money"] = (
-            roster.loc[is_dead, "contract_value"]
-            * roster.loc[is_dead, "contract_id"].map(pct)
-        )
+        seasons = roster["season"].dropna()
+        season = seasons.max() if len(seasons) else None   # no season: nothing to charge
+        dead = fetch_parquet(_DEAD_MONEY_PATH, cfg)
+        by_season = {
+            col: dead[dead["season_id"] == s].groupby("team_key")["dead_money"].sum().rename(col)
+            for col, s in (("dead_money", season),
+                           ("dead_money_next_yr", _next_season(season) if season else None))
+        }
         roll = (
             roster.groupby("team_key")
-            .agg(active_roster_salary=("cap_hit", "sum"), dead_money=("dead_money", "sum"))
+            .agg(active_roster_salary=("cap_hit", "sum"))
+            .join(by_season["dead_money"], how="outer")
+            .join(by_season["dead_money_next_yr"], how="outer")
+            .rename_axis("team_key")
             .reset_index()
         )
 
     t = teams.merge(roll, on="team_key", how="left")
-    for col in ("active_roster_salary", "dead_money"):
+    for col in ("active_roster_salary", "dead_money", "dead_money_next_yr"):
         t[col] = t[col].fillna(0)
     t["remaining_cap_current_yr"] = t["original_cap"] - (
         t["active_roster_salary"] + t["dead_money"] + t["reinvestment_cap"]
     )
-    t["remaining_cap_next_yr"] = t["original_cap"] - t["active_roster_salary"]
+    t["remaining_cap_next_yr"] = t["original_cap"] - (
+        t["active_roster_salary"] + t["dead_money_next_yr"]
+    )
     return t

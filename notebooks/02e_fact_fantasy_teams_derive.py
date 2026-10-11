@@ -22,9 +22,8 @@
 #
 # **Output schema:** team_key, gsis_id, player_key, contract_id, contract_value,
 # contract_year, status, acquired_method, roster_status, season.
-# `dead_money` is NOT stored (dropped 2026-07-13): it's computed from
-# status/Dim_Contract (Cut + Guaranteed -> contract_value x cap_hit_pct)
-# wherever it's consumed, like cap_hit before it.
+# `dead_money` is NOT stored here (dropped 2026-07-13): Dead Money is its own
+# fact, `fact_dead_money`, written by 02f from the ledger's drops (#96).
 # `roster_status` (added 2026-07-13) is OBSERVED state stamped from the newest
 # Scoring Period in `fact_roster_state` — Minors placement is cap-exempt
 # downstream.
@@ -38,7 +37,7 @@
 # Dim_Contract is dead-money-only (prices a CUT, never a kept player).
 #
 # **Run:**  python notebooks/02e_fact_fantasy_teams_derive.py
-#   (after 02d; re-run during the live draft to refresh roster state.)
+#   (after 02d and 02f; re-run during the live draft to refresh roster state.)
 
 # %%
 import sys
@@ -56,6 +55,7 @@ LEDGER_PATH    = DATA / "fact_roster_transactions.parquet"
 FFT_PATH       = DATA / "fact_fantasy_teams.parquet"
 TEAMS_PATH     = DATA / "dim_fantasy_teams.parquet"
 STATE_PATH     = DATA / "fact_roster_state.parquet"
+DEAD_PATH      = DATA / "fact_dead_money.parquet"
 
 # fact_roster_state.roster_slot -> the roster_status values this fact has always
 # carried. They stay until #110 renames the column to roster_slot.
@@ -162,24 +162,20 @@ fact_fantasy_teams["cap_hit"] = fact_fantasy_teams["contract_value"]
 # null roster_status charges — same rule as capmath / DAX.
 fact_fantasy_teams.loc[
     fact_fantasy_teams["roster_status"] == "Minors", "cap_hit"] = 0.0
-# dead_money is COMPUTED, not stored (column dropped 2026-07-13, same
-# stale-under-filter defect that killed the stored cap_hit): only players
-# actually Cut on a Guaranteed contract price in, at contract_value x
-# cap_hit_pct — mirrors DAX 'Dead Money - Active - Current Year' and
-# capmath.teams_with_cap.
-contracts = pd.read_parquet(DATA / "dim_contract.parquet")
-_pct = dict(zip(contracts["contract_id"], contracts["cap_hit_pct"]))
-_gtd = dict(zip(contracts["contract_id"], contracts["guaranteed"]))
-_is_dead = (fact_fantasy_teams["status"].eq("Cut")
-            & fact_fantasy_teams["contract_id"].map(_gtd).fillna(False).astype(bool))
-fact_fantasy_teams["dead_money"] = 0.0
-fact_fantasy_teams.loc[_is_dead, "dead_money"] = (
-    fact_fantasy_teams.loc[_is_dead, "contract_value"]
-    * fact_fantasy_teams.loc[_is_dead, "contract_id"].map(_pct))
+# Dead Money is its own fact (fact_dead_money, written by 02f from the
+# ledger's drops; ADR-0016 decision 5), not a column here: this season's rows
+# per team come off the cap — same rule as capmath.teams_with_cap.
 roll = (fact_fantasy_teams.groupby("team_key")
-        .agg(active_roster_salary=("cap_hit", "sum"),
-             dead_money=("dead_money", "sum"))
+        .agg(active_roster_salary=("cap_hit", "sum"))
         .reset_index())
+if DEAD_PATH.exists():
+    _dead = pd.read_parquet(DEAD_PATH)
+    _dead = _dead[_dead["season_id"].isin(set(fact_fantasy_teams["season"]))]
+    roll = roll.merge(_dead.groupby("team_key")["dead_money"].sum().reset_index(),
+                      on="team_key", how="outer")
+else:
+    roll["dead_money"] = 0.0
+    print("[warn] no fact_dead_money.parquet — run 02f; the summary charges no Dead Money")
 chk = teams.merge(roll, on="team_key", how="left")
 for c in ("active_roster_salary", "dead_money"):
     chk[c] = chk[c].fillna(0)

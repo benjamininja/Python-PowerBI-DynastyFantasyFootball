@@ -33,6 +33,7 @@
    - **Schedule: the rest of the contract, by year.** Each remaining guaranteed contract year charges its own `cap_hit_pct × contract_value` in its own season. A 1st-year drop costs .50 now and .40 next season. A 2nd-year drop costs .40. A 3rd-year drop costs 0.
    - The contract at the time of the drop is taken from the last Roster State before it.
    - If the same team re-claims the player, the Dead Money stands and the claim starts fresh terms. A commissioner-reversed drop disappears from the log, so it never produces Dead Money.
+   - *Built 2026-10-11 (#96). `02f` writes `fact_dead_money`, grain `(transaction_id, scorer_id, team_key, season_id)`, from the ledger's drops; the schedule is read from `dim_contract`. The contract at the drop is the ledger row's (`02d` reads it off Roster State, the preseason capture or the default). Only a drop that ends a stint is charged: a drop with no draft pick, claim or trade into that team before it (`contract_source = no_stint`) writes no row and is listed by a Review check (#96 decision 2). Preseason drops are charged, as Fantrax does. Measured on the ledger to 2026-10-01: 12 charged drops, 24 rows, 22,819,500 this season and 18,255,600 next; `300,000,000 − non-Minors salary − Dead Money` equals Fantrax's Salary Remaining of 2026-10-04 on 28 of 28 teams.*
 6. **Move identity** is the natural key `(txSetId, scorer_id, team_key, event_type)`. `event_seq` is a sort order only. Startup-draft rows keep their ADR-0004 key.
    - *Built 2026-10-04 (#96). `txSetId` is stored as `transaction_id`, and `fact_roster_transactions` has one grain for every row: `(transaction_id, scorer_id, team_key, event_type)`.*
    - *A startup-draft row does not keep its ADR-0004 key (owner's decision, 2026-10-04): that key ends in `event_seq`. Its `transaction_id` is the slot's `pick_ref` from `fact_draft_pick`, which a rebuild does not change either.*
@@ -59,6 +60,7 @@
 
 - `02e` becomes "snapshot + provenance + reconciliation", no longer a replay projection.
 - `capmath.py`'s `remaining_cap_next_yr` must include next-season Dead Money. The trade-bud monkeypatch goes away.
+  - *Built 2026-10-11 (#96): `capmath.teams_with_cap` reads `fact_dead_money` (this season's rows off current cap room, next season's off next-year room) and its `"Cut"` branch is gone. The monkeypatch and the move of the sum into the shared cap module stay with #97.*
 - `04t` joins `run_pipeline.py` (build #93). The Change Poll now writes Roster State as well as triggering.
 - #79 must confirm the public roster fields, including Roster Slot. #81 attributes Period Scoring from the period roster.
 - **Build acceptance:**
