@@ -32,6 +32,7 @@ graph LR
     fact_nfl_combine_pro_day_metrics[(fact_nfl_combine_pro_day_metrics)]
     fact_fantasy_teams[(fact_fantasy_teams)]
     fact_roster_transactions[(fact_roster_transactions)]
+    fact_dead_money[(fact_dead_money)]
     fact_trade_log[(fact_trade_log)]
     fact_roster_state[(fact_roster_state)]
     fact_period_scoring[(fact_period_scoring)]
@@ -73,6 +74,12 @@ graph LR
     fact_roster_transactions --> dim_contract
     fact_roster_transactions --> dim_nfl_players
     fact_roster_transactions -.via dim_fantrax_crosswalk.-> dim_nfl_players
+    fact_dead_money --> fact_roster_transactions
+    fact_dead_money --> dim_fantasy_teams
+    fact_dead_money --> dim_season
+    fact_dead_money --> dim_contract
+    fact_dead_money --> dim_nfl_players
+    fact_dead_money -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_trade_log --> dim_fantasy_teams
     fact_trade_log --> dim_fantrax_crosswalk
     fact_trade_log --> dim_nfl_players
@@ -131,6 +138,7 @@ graph LR
     class fact_nfl_combine_pro_day_metrics fact;
     class fact_fantasy_teams fact;
     class fact_roster_transactions fact;
+    class fact_dead_money fact;
     class fact_trade_log fact;
     class fact_roster_state fact;
     class fact_period_scoring fact;

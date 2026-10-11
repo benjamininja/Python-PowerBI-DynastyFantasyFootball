@@ -9,9 +9,11 @@ Two tiers (decision 2):
 
 Table Gates take their parameters from docs/data_model.yml (decision 16):
 grain uniqueness, required keys, schema (columns + dtypes) and shrink limit.
-Domain checks (coverage, known contracts, Unit sums, Starter slots and
-matchup mirrors today; drift, dirty edges and replay with #116) are functions
-here, registered in DOMAIN_CHECKS.
+Domain checks (coverage, known contracts, Unit sums, Starter slots, matchup
+mirrors, the Dead Money schedule and the two drop Review checks today; drift,
+dirty edges and replay with #116) are functions here, registered in
+DOMAIN_CHECKS. A Gate check returns error strings; a Review check returns
+(row_key, detail) findings, one filed row each.
 
 The Close checks (`close_errors`, decision 7) are not in the suite: 04p runs
 them on one Scoring Period before it moves that period's Update-Set from
@@ -51,6 +53,9 @@ UNIT_COLUMNS = ["fpts_offense", "fpts_defense", "fpts_special_teams"]
 POINTS_TOLERANCE = 0.01       # Fantrax serves points to the cent
 STARTER_SLOT = "Starter"
 CLOSED = "closed"             # dim_scoring_period.update_set_state (04p's CLOSED)
+DROP = "drop"                 # fact_roster_transactions.event_type
+NO_STINT = "no_stint"         # fact_roster_transactions.contract_source (02d)
+DEFAULT_SOURCE = "default"
 
 # ops.review_check columns (ADR-0018 decision 11, as amended by ADR-0008 d8/d9).
 FILING_COLUMNS = ["check_name", "table_name", "row_key", "detail", "run_id",
@@ -290,16 +295,143 @@ def close_errors(season_id: str, period: int,
     return errs
 
 
+def _drops(ledger: pd.DataFrame) -> pd.DataFrame:
+    return ledger[ledger["event_type"] == DROP]
+
+
+def dead_money_errors(dead: pd.DataFrame, ledger: pd.DataFrame,
+                      contracts: pd.DataFrame) -> list[str]:
+    """fact_dead_money follows the schedule (ADR-0016 decision 5; #96):
+
+      - dead_money is cap_hit_pct x contract_value, to the cent;
+      - the charging contract is a guaranteed dim_contract row at that pct;
+      - every row is a drop on the ledger, and never one that ends no stint;
+      - a drop's rows carry its ledger terms, number the guaranteed years left
+        on its contract, and start in the drop's season;
+      - every drop that ends a stint on a guaranteed contract, with a salary,
+        has a row (so a ledger rebuilt without 02f does not publish).
+    """
+    move = ["transaction_id", "scorer_id", "team_key"]
+    errs = []
+    off = (dead["dead_money"] - dead["cap_hit_pct"] * dead["contract_value"]).abs() > 0.01
+    if off.any():
+        errs.append(f"{int(off.sum())} rows whose dead_money is not "
+                    "cap_hit_pct x contract_value")
+
+    rate = contracts[contracts["guaranteed"].astype(bool)].set_index("contract_id")["cap_hit_pct"]
+    charged = dead["charge_contract_id"].map(rate)
+    bad = charged.isna() | ((charged - dead["cap_hit_pct"]).abs() > 1e-9)
+    if bad.any():
+        errs.append(f"{int(bad.sum())} rows whose charge_contract_id is not a guaranteed "
+                    f"dim_contract row at that cap_hit_pct: "
+                    f"{sorted(set(dead.loc[bad, 'charge_contract_id'].dropna()))}")
+
+    drops = _drops(ledger)
+    m = dead[move].drop_duplicates().merge(drops[move + ["contract_source"]], on=move,
+                                           how="left", indicator=True)
+    unknown = m["_merge"].eq("left_only")
+    if unknown.any():
+        errs.append(f"{int(unknown.sum())} charged moves are not a drop on the ledger")
+    stintless = m["contract_source"].eq(NO_STINT)
+    if stintless.any():
+        errs.append(f"{int(stintless.sum())} charged drops end no stint")
+
+    # Each charged drop against its own ledger row: the terms at the drop, one
+    # row per guaranteed year left, the first in the drop's season and the
+    # rest in later ones (the grain Gate keeps the seasons distinct).
+    led = drops[move + ["season_id", "contract_id", "contract_value"]].rename(
+        columns={"season_id": "drop_season", "contract_id": "drop_contract",
+                 "contract_value": "drop_value"})
+    j = dead.merge(led, on=move, how="inner")
+    terms = (j["contract_id"] != j["drop_contract"]) | (
+        (j["contract_value"] - j["drop_value"]).abs() > 0.01)
+    if terms.any():
+        errs.append(f"{int(terms.sum())} rows whose contract_id or contract_value is not "
+                    "the ledger drop's")
+    first = j["charge_contract_id"] == j["contract_id"]
+    season = (first & (j["season_id"] != j["drop_season"])) | (
+        ~first & (j["season_id"] <= j["drop_season"]))
+    if season.any():
+        errs.append(f"{int(season.sum())} rows charged to the wrong season")
+    by_type = contracts[contracts["guaranteed"].astype(bool)]
+    years_left = {
+        c.contract_id: int(((by_type["contract_type"] == c.contract_type)
+                            & (by_type["contract_year"] >= c.contract_year)).sum())
+        for c in contracts.itertuples() if pd.notna(c.contract_year)}
+    got = j.groupby(move)["season_id"].size()
+    want = j.drop_duplicates(move).set_index(move)["contract_id"].map(years_left)
+    short = got != want.reindex(got.index)
+    if short.any():
+        errs.append(f"{int(short.sum())} drops whose row count is not the guaranteed "
+                    "years left on the contract")
+
+    owed = drops[(drops["contract_source"] != NO_STINT) & drops["contract_value"].notna()
+                 & drops["contract_id"].isin(rate.index)]
+    missing = owed[move].merge(dead[move].drop_duplicates(), on=move, how="left", indicator=True)
+    missing = missing["_merge"].eq("left_only")
+    if missing.any():
+        errs.append(f"{int(missing.sum())} drops of a guaranteed contract have no row "
+                    "(run 02f after 02d)")
+    return errs
+
+
+def _move_key(row) -> str:
+    return f"{row.transaction_id}|{row.scorer_id}|{row.team_key}"
+
+
+def stintless_drop_findings(ledger: pd.DataFrame, state: pd.DataFrame) -> list[tuple[str, str]]:
+    """One finding per drop that ends no stint (#96 decision 2): no draft
+    pick, claim or trade into that team is on the ledger before it, so it
+    makes no Dead Money. The detail says whether Roster State ever showed the
+    copy on the dropping team before the drop took effect: if it did, the
+    ledger is missing the move in and the drop may be owed."""
+    out = []
+    for d in _drops(ledger)[lambda x: x["contract_source"] == NO_STINT].itertuples():
+        seen = state[(state["season_id"] == d.season_id) & (state["team_key"] == d.team_key)
+                     & (state["scorer_id"] == d.scorer_id)]
+        if pd.notna(d.period):
+            seen = seen[seen["period"] < d.period]
+        periods = sorted(int(p) for p in set(seen["period"]))
+        shown = (f"Roster State shows the copy on {d.team_key} in period(s) {periods}: "
+                 "the ledger is missing the move in" if periods
+                 else f"no Roster State row shows the copy on {d.team_key} before the drop")
+        when = f"period {int(d.period)}" if pd.notna(d.period) else "no period (another season)"
+        out.append((_move_key(d), f"drop of {d.scorer_id} by {d.team_key} on "
+                                  f"{pd.Timestamp(d.event_date).date()} ({when}) ends no stint; "
+                                  f"no Dead Money charged; {shown}"))
+    return out
+
+
+def default_contract_drop_findings(ledger: pd.DataFrame,
+                                   periods: pd.DataFrame) -> list[tuple[str, str]]:
+    """One finding per drop priced on a default contract whose Scoring Period
+    is not closed (#96 decision 6): no Roster State row and no preseason
+    capture showed the stint, so the contract is a rule's guess until the
+    period's Roster State is final. A drop with no period (another season's
+    move) has no Scoring Period to wait for and is not listed."""
+    closed = periods[periods["update_set_state"].eq(CLOSED)]
+    closed = set(zip(closed["season_id"], closed["period"].astype(int)))
+    out = []
+    for d in _drops(ledger)[lambda x: x["contract_source"] == DEFAULT_SOURCE].itertuples():
+        if pd.isna(d.period) or (d.season_id, int(d.period)) in closed:
+            continue
+        out.append((_move_key(d), f"drop of {d.scorer_id} by {d.team_key} in period "
+                                  f"{int(d.period)} is priced on the default contract "
+                                  f"{d.contract_id}; the period is not closed"))
+    return out
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
     tier: str                      # "gate" | "review"
     table: str
-    fn: Callable[[Callable[[str], pd.DataFrame]], list[str]]
+    # gate: error strings. review: (row_key, detail) findings, one filed each.
+    fn: Callable[[Callable[[str], pd.DataFrame]], list]
     grace_periods: int = 0         # decision 9; used from #116
 
 
-# Each fn takes a table loader (name -> DataFrame) and returns error strings.
+# Each fn takes a table loader (name -> DataFrame).
 DOMAIN_CHECKS = [
     DomainCheck("coverage", "gate", "fact_fantasy_teams",
                 lambda load: coverage_errors(load("fact_fantasy_teams"),
@@ -321,6 +453,16 @@ DOMAIN_CHECKS = [
                                                  load("fact_roster_state"))),
     DomainCheck("mirror", "gate", "fact_matchup",
                 lambda load: mirror_errors(load("fact_matchup"))),
+    DomainCheck("schedule", "gate", "fact_dead_money",
+                lambda load: dead_money_errors(load("fact_dead_money"),
+                                               load("fact_roster_transactions"),
+                                               load("dim_contract"))),
+    DomainCheck("stintless_drop", "review", "fact_roster_transactions",
+                lambda load: stintless_drop_findings(load("fact_roster_transactions"),
+                                                     load("fact_roster_state"))),
+    DomainCheck("default_contract_drop", "review", "fact_roster_transactions",
+                lambda load: default_contract_drop_findings(load("fact_roster_transactions"),
+                                                            load("dim_scoring_period"))),
 ]
 
 
@@ -334,6 +476,7 @@ class Result:
     ok: bool
     detail: str = ""
     findings: list[tuple[str, str]] = field(default_factory=list)  # review: (row_key, detail)
+    ran: bool = True               # False: the check raised before it could look
 
 
 def run_suite(tables: Iterable[str] | None = None,
@@ -388,12 +531,21 @@ def run_suite(tables: Iterable[str] | None = None,
     for dc in DOMAIN_CHECKS:
         if dc.table not in tables:
             continue
+        chain = registry[dc.table].get("chain")
         try:
-            errs = dc.fn(load)
+            found = dc.fn(load)
         except Exception as e:
-            errs = [f"check raised: {e}"]
-        results.append(Result(dc.name, dc.table, registry[dc.table].get("chain"),
-                              dc.tier, not errs, "; ".join(errs)))
+            # A Review check that cannot run is reported, files nothing and
+            # clears nothing (`ran` False); a Gate that cannot run blocks.
+            results.append(Result(dc.name, dc.table, chain, dc.tier, False,
+                                  f"check raised: {e}", ran=False))
+            continue
+        if dc.tier == "review":
+            results.append(Result(dc.name, dc.table, chain, dc.tier, not found,
+                                  findings=list(found)))
+        else:
+            results.append(Result(dc.name, dc.table, chain, dc.tier, not found,
+                                  "; ".join(found)))
     return results
 
 
@@ -445,7 +597,7 @@ def review_findings(results: list[Result]) -> tuple[list[dict], set[tuple[str, s
     """Review-tier Results -> (findings, the (check, table) pairs that ran)."""
     findings, ran = [], set()
     for r in results:
-        if r.tier != "review":
+        if r.tier != "review" or not r.ran:
             continue
         ran.add((r.check, r.table))
         findings += [{"check_name": r.check, "table_name": r.table,

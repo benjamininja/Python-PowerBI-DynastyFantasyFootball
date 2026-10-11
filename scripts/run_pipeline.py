@@ -151,6 +151,10 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "chain": "fantrax_core", "group": "regular_season"},
+        # Dead Money from the ledger's drops (no network). 02e's cap summary
+        # reads it, so it sits between the ledger and the roster.
+        {"name": "02f_dead_money", "cmd": _script("02f_fact_dead_money.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02e_derive", "cmd": _script("02e_fact_fantasy_teams_derive.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04b_ktc_dynasty", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),

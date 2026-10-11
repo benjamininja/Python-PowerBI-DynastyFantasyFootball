@@ -561,6 +561,56 @@ tables:
       cap_hit is read by nothing (#97 replaces it). The dead_money column,
       always 0, was dropped in #96: Dead Money is its own fact.
 
+  - name: fact_dead_money
+    type: fact
+    grain: "(transaction_id, scorer_id, team_key, season_id)"
+    chain: fantrax_core
+    required_keys: [transaction_id, scorer_id, team_key, season_id, drop_date, contract_id, contract_value, charge_contract_id, cap_hit_pct, dead_money, contract_source]
+    columns:
+      - { name: transaction_id, dtype: str }
+      - { name: scorer_id, dtype: str }
+      - { name: team_key, dtype: str }
+      - { name: season_id, dtype: str }
+      - { name: drop_date, dtype: "datetime64[us]" }
+      - { name: drop_period, dtype: Int64 }
+      - { name: gsis_id, dtype: str }
+      - { name: contract_id, dtype: str }
+      - { name: contract_value, dtype: float64 }
+      - { name: charge_contract_id, dtype: str }
+      - { name: cap_hit_pct, dtype: float64 }
+      - { name: dead_money, dtype: float64 }
+      - { name: contract_source, dtype: str }
+    edges:
+      - { to: fact_roster_transactions, via: direct, on: "transaction_id, scorer_id, team_key" }
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_season, via: direct, on: season_id }
+      - { to: dim_contract, via: direct, on: "contract_id, charge_contract_id -> contract_id" }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      Dead Money (ADR-0016 decision 5, built in #96): one row per season
+      charged for each drop of a guaranteed contract. 02f derives it from the
+      drop rows of fact_roster_transactions and rewrites the whole table on
+      every run. The schedule is read from dim_contract: the guaranteed rows
+      of the dropped contract's contract_type from its contract_year on, each
+      at its cap_hit_pct of the salary at the drop. A `1st` drop is two rows
+      (.50 in the drop's season, .40 in the next); `2nd` and `Tag` one;
+      `3rd`, `X`, `FA` and `Minor` none. season_id is the season charged,
+      contract_id the contract at the drop, charge_contract_id the schedule
+      row that prices this season, drop_date and drop_period the ledger's
+      event_date and period (period is null on a drop of another season). A
+      next-season charge uses the salary at the drop. Only a drop that ends a
+      stint is charged: a drop with contract_source no_stint writes no row
+      (#96 decision 2) and is listed by the stintless_drop Review check.
+      Re-claiming the player does not cancel the charge. Preseason drops are
+      charged, as Fantrax does. Gate `schedule`: dead_money is cap_hit_pct x
+      contract_value; the charging contract is a guaranteed dim_contract row
+      at that rate; every row is a drop on the ledger that ends a stint; every
+      such drop of a guaranteed contract has a row. Read by
+      discord_bot/capmath.py (the bot and trade-bud): this season's rows come
+      off current cap room, next season's off next-year room. Power BI does
+      not load it yet (#140).
+
   - name: fact_trade_log
     type: fact
     grain: "(transaction_id, asset_kind, scorer_id, draft_year, draft_round, pick_in_round)"

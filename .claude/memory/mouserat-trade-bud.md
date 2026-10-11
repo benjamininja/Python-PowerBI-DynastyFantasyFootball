@@ -1486,6 +1486,11 @@ capture / `dim_position` sort order / trade-bud cap panel / parquet refresh.
 both DAX measures use for the cap exemption. Stop running it → `roster_status`
 null league-wide → all 125 Minors-placed players charge full salary.
 
+**Dead Money (2026-10-11, #96):** `capmath.teams_with_cap` reads
+`fact_dead_money` (this season's rows off `remaining_cap_current_yr`, next
+season's off `remaining_cap_next_yr`), so trade-bud's cap room includes it
+with no trade-bud code change. `export_static.py` runs clean on it.
+
 `roster_status == "Minors"` is hardcoded in **four** places, not two:
 `discord_bot/capmath.py`, `notebooks/02e_fact_fantasy_teams_derive.py`, and
 *both* PBI measures (`Active Roster Salary`, `Remaining Salary Cap`). Any future

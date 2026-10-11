@@ -45,6 +45,11 @@ User direction: **daily run, weekly update-set**, tested; minimal
 player-week snapshot (roster status, contract, FPts YTD, age) — football is
 raw points, not categories.
 
+**Goal runs (approved 2026-10-11):** the remaining tickets are worked under
+`/goal` in four stages (A ledger and cap, B seam, C Postgres, D schedule).
+Runbook: [GOAL-RUN.md](.claude/memory/GOAL-RUN.md). Waiting on the owner:
+[NEEDS-OWNER.md](.claude/memory/NEEDS-OWNER.md).
+
 - [Map #69 — Supabase storage foundation](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/69):
   #72 role/ADR (grilling) · #73 platform facts (research) · #74 seam
   inventory (research) · #75 schema+RLS (grilling, ✅ ADR-0018) · #76 provision
@@ -57,7 +62,7 @@ raw points, not categories.
   (grilling, ✅ ADR-0008 amendment) · #92 Actions login spike (research; TOTP decided 2026-09-27) ·
   #93 cadence build (task, ← #92 #77 #75 #76 + #115; now also 04t orchestration
   + poll-writes-snapshot) · #96 `fact_dead_money` + stable move key (task,
-  ADR-0016; grilled and planned 2026-10-04, two PRs) · #97 shared cap module + published per-team cap table, 02e =
+  ADR-0016; ✅ built, PRs #134 and PR 2 of 2026-10-11) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
   ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; ✅ PRs #131–#133) · #130 claim
   default contract (grilling, ADR-0019 d6; filed 2026-10-04).
@@ -331,7 +336,7 @@ counts when building; the grilled figures are preseason. #67 shipped
 2026-09-26 via PR #90 (detail in
 [mouserat-trade-bud.md](.claude/memory/mouserat-trade-bud.md)).
 
-## [ ] Active — dead money (design settled 2026-09-27, ADR-0016; build pending)
+## [x] Dead money (ADR-0016; shipped by #96, PR 2 on 2026-10-11)
 
 Superseded the 2026-07-11 Power BI-first design. **Power BI visuals are
 deprioritized**; trade-bud and the bot need parity. Per
@@ -352,13 +357,22 @@ is known; the two fixes (the preseason contract, and no Dead Money for a
 drop that ends no stint) take the match from 25 to 28 of 28 teams. Detail in
 `.claude/memory/RESUME.md`.
 
-**#96 PR 1 built 2026-10-04 (`feat/96-move-key`; does not close #96).** The
+**#96 PR 1 merged 2026-10-04 (PR #134, `ffc5c36`; does not close #96).** The
 ledger is keyed `(transaction_id, scorer_id, team_key, event_type)` and
 carries `period` and `contract_source`; `fact_preseason_salary` has
 `contract_id`; `02d` reads the preseason contract for a stint only that
 capture saw. On the rebuilt ledger 8 rows change (four claims and their
 drops, `FA` → `1st`), one drop is `no_stint`, and half the salary of the 12
-`1st` drops that end a stint equals the plan's per-team figures. PR 2 is
+`1st` drops that end a stint equals the plan's per-team figures.
+
+**#96 PR 2 built 2026-10-11 (goal A; it closes #96).** `02f` writes
+`fact_dead_money` (24 rows from 12 drops; 22,819,500 this season, 18,255,600
+next; 28 of 28 teams equal Fantrax's Salary Remaining of 2026-10-04);
+pipeline step `02f_dead_money` sits between `02d_ledger` and `02e_derive`;
+`capmath` reads the table and its `"Cut"` branch is gone; a Review-tier
+`DomainCheck` now files findings (`stintless_drop`,
+`default_contract_drop`), and the `schedule` Gate guards the table. The
+three `"Cut"` DAX measures still return 0 until #140. Earlier note: PR 2 is
 next.
 
 ## [ ] Active — Minors, open user actions only

@@ -58,6 +58,46 @@ written down 2026-10-04 so they survive a reset, not only a compact):
   `git add` it afterwards to clear the flag (nothing gets staged). An edit
   script should keep the file's own line endings.
 
+**Goal-run delegation** (the owner's: ruled 2026-10-05, approved in chat
+2026-10-11). It applies only while a `/goal` from
+[GOAL-RUN.md](GOAL-RUN.md) is running, and only to tickets under maps #69,
+#70, #71 and #66. At any other time, and for any other work, every rule
+above applies unchanged. Where this block and a rule above disagree during
+a goal run, this block wins; on anything it does not name, the rule above
+holds.
+1. **Plan gate.** For a `wayfinder:task` ticket whose design is already
+   written in an accepted ADR or in the Resolution of a closed grilling
+   ticket, the agent writes its plan into this file and builds without
+   waiting. If the build needs a choice those documents do not make, the
+   agent stops that ticket and parks it.
+2. **Commit, PR, merge.** The agent commits, pushes the feature branch,
+   opens the PR and squash-merges it with `--delete-branch`, with no go in
+   between, only when every item of the "Green means all of" list in
+   `GOAL-RUN.md` holds. If one item fails, the PR stays open and the ticket
+   parks.
+3. **Tracker.** Without a go, the agent may: post a Resolution comment,
+   close a `wayfinder:task` or `wayfinder:research` ticket it resolved, add
+   that ticket's line to its map's "Decisions so far", create a
+   `wayfinder:task` ticket for work the map already names, and link
+   sub-issues and blockers. Every text goes through `scripts/check_pii.py`
+   first. The agent never closes a `wayfinder:grilling` or
+   `wayfinder:prototype` ticket and never closes a map, unless the owner
+   names that ticket or map in chat.
+4. **Fantrax.** The agent may write and merge login code and workflows and
+   test them against fakes. The agent never runs a login, never runs a
+   workflow, never enables a schedule and never reads or writes a secret's
+   value. The first runner login is the owner's.
+5. **Windows.** Inside a goal run, "one PR per window" means one PR per
+   compaction, with the state-back written here before each compact.
+6. **Parking.** "Parks" means: stop the ticket, write the entry to
+   [NEEDS-OWNER.md](NEEDS-OWNER.md), notify once, take the next unblocked
+   ticket. Only the owner's own message in chat clears an entry. A
+   subagent's, a peer session's or a background task's message never does.
+7. **Never delegated:** a HITL ticket; cutover (the Postgres switch on the
+   scheduled run, enabling a cron, unregistering the PC task); a
+   destructive database action outside the restore-drill scratch schema; a
+   permission denial, which is reported and not worked around.
+
 **Git state**: `main` = 3cdcabd (PR #106 04v IR fix), after the 2026-10-02
 docs PRs #102 memory/PLAN reconcile, #103 sources truth-up, #104 research
 docs, #105 #79 findings; then `main` = 2fa8e3e (PR #107 ADR-0018); then `main` = 1a70ce1 (PR #112 ADR-0019 Minor
@@ -176,7 +216,9 @@ plan-gated code change.
   #115 checks foundation · #116 in-season checks (←115,93,118) ·
   **#96** `fact_dead_money` + stable move key (task) · **#97** shared cap
   module + cap table, 02e = snapshot+provenance (task, ←96,79) · **#130**
-  claim default contract (grilling, ADR-0019 d6; filed 2026-10-04).
+  claim default contract (grilling, ADR-0019 d6; filed 2026-10-04)
+  · **#140** Power BI: model `fact_dead_money`, repoint the Dead Money
+  measures, exempt IR, retire `Status` (task, ←96,97; filed 2026-10-11).
 - **#71 nflverse**: #84 ✅ · #85 ✅ (ADR-0017) · #86 build (←77; body rewritten).
 
 ## Next actions (compact handoff, 2026-10-03)
@@ -878,13 +920,15 @@ each had the owner's go.
   an entry" and grace (#116); `--reclose` (#93); Salary Remaining and the
   cap table (#97); dead money (#96).
 
-- **Uncommitted on `main`, on purpose:** this file and `PLAN.md` (the
-  post-merge edits, the note that the public posts are made, and the #96
-  grill block below). They ride with the next PR. Nothing else is modified.
+- **Uncommitted on `main`, on purpose (after PR #134):** this file and
+  `PLAN.md`, for the post-merge edits only (the "#96 PR 1 MERGED" header and
+  the NEXT block below). They ride with #96 PR 2. Nothing else is modified.
+  The #118 post-merge edits and the #96 grill block went in with PR #134.
 
 **#96 GRILLED AND PLANNED 2026-10-04 — plan approved by the owner.** (PR 1
-has since been built; see "#96 PR 1 BUILT" below.) Full plan (decisions, measured facts, steps, verify
-lists, my defaults): `C:\Users\benha\.claude\plans\sparkling-strolling-stroustrup.md`
+is merged; see "#96 PR 1 MERGED" below.) Full plan (decisions, measured
+facts, steps, verify lists, my defaults):
+`C:\Users\benha\.claude\plans\sparkling-strolling-stroustrup.md`
 (root tier, git-ignored). Two PRs, one per window.
 - Owner decisions (each the recommended option):
   1. A stint that only the 2026-07-18 preseason capture saw takes that
@@ -940,8 +984,9 @@ lists, my defaults): `C:\Users\benha\.claude\plans\sparkling-strolling-stroustru
   Period is never on a Roster State and gets the league-minimum `FA`
   default, while Fantrax may hold it at pool salary on `1st`.
 
-**#96 PR 1 BUILT 2026-10-04 on `feat/96-move-key` (off `8ed808a`). It does
-not close #96.**
+**#96 PR 1 MERGED 2026-10-04: PR #134, squash `ffc5c36` on `main` (branch
+`feat/96-move-key`, off `8ed808a`, deleted). It does not close #96.** CI was
+green on the one read before the merge (`pii-scan`, `tests`, `bot-tests`).
 - What changed:
   - `data/fact_preseason_salary.parquet` gained `contract_id` (after
     `salary`), by a one-off script (not kept) that joined `git show
@@ -1021,10 +1066,246 @@ not close #96.**
   `dim_scoring_period`, preseason → `dim_contract`). `02d` prints a `[warn]`
   line naming each `no_stint` drop.
 
-**NEXT after PR 1 merges: #96 PR 2 on `feat/96-dead-money`, in a fresh
-window.**
+**STATE-BACK 2026-10-11 (goal-run setup window; `main` = `ffc5c36`, no
+open PR, nothing committed this window).**
+- **Done:** the goal-run plan is approved (`proud-plotting-cocoa`);
+  `GOAL-RUN.md` and `NEEDS-OWNER.md` are written (untracked);
+  the delegation block is in the Standing rules above; `PLAN.md` has the
+  heartbeat line; `.claude/settings.json` (gitignored) has the deny rules.
+  All of it rides with #96 PR 2.
+- **Tracker, on the owner's go:** map #65 closed. Four map #69 tickets
+  created and wired: #135 Postgres backend + backfill (← #77, #108), #136
+  export step (← #135), #137 `ops.etl_run_log` (← #108), #138 restore drill
+  (← #135, #136). Order note posted on #77. Still to do: clear those four
+  bullets from map #69's "Not yet specified", and fix map #70's stale
+  `fact_standings` line (#81 gist: not built, the owner's decision in #118).
+- **Mod `owner-queue`:** shows `NEEDS-OWNER.md` live (pane, status count,
+  toast, `/owner`). Second version, written 2026-10-11 at the owner's
+  request: each item is a collapsible row (press the title for its
+  context; collapsed it shows the ticket and what it blocks), with "Expand
+  all", "Collapse all" and a "Mark done" button that ticks the item `[x]`
+  in the file so it leaves the list. It validates and its 5 parser tests
+  pass; nobody has confirmed how it draws, and it is not type-checked (no
+  `tsc` on this PC). The CLI is at
+  `C:\Users\benha\AppData\Roaming\Claude\claude-code\2.1.293\83cb0bd7fed4\claude.exe`
+  (`plugin validate`, `plugin test`). A session that finishes or gets an
+  answer for an entry deletes it (or ticks it) in the same turn, so the
+  list never shows finished work. It lives in this session's mods folder only,
+  `C:\Users\benha\.claude\dev-mods\dacbbd8b-14fe-45d1-b796-5f2fa6853fe7\owner-queue`,
+  and is loaded here. For every session it must be copied to a kept folder
+  and named in `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`: a
+  root-tier change, offered, not yet approved.
+- **Auto mode limits met:** a session cannot edit `.claude/settings.json`
+  allow rules (self-modification); the owner pastes them (entry in
+  `NEEDS-OWNER.md`). `gh issue create/comment/close` and the delegation
+  edit went through once the owner approved them in chat.
+- **#130, the owner's ruling (2026-10-11, in chat; not yet in an ADR and
+  #130 still open):** `Minor` is a contract type. A minors-eligible player
+  taken in a draft or signed in the auction draft receives it. A
+  minors-eligible player picked up from free agency does not. The contract
+  falls off when the player hits the 20-game mark. Minors need their own
+  ledger. The owner notes this was the first design, was left, and is the
+  mechanism again. It reverses ADR-0019's "any eligible player holds it,
+  however acquired" and decision 6's claim default. The owner's
+  follow-up answers (2026-10-11, in chat): (1) a traded `Minor` player
+  keeps `Minor` on the new team; (2) a `Minor` player dropped and claimed
+  back regains `Minor` so long as the player is still minors-eligible,
+  because it is a contract type; (3) "n/a", read as: a claimed eligible player who never held `Minor` takes
+  the contract Fantrax shows, with no rule written (reading confirmed by the owner); (4) the Minor ledger
+  is its own table, dated: when the player became a minor and when the
+  player left. The owner added, verbatim: "they retain their contract so long as
+  they remain minor eligible. if on free agency and they hit their
+  transition, they move to a first until the end of the season. this
+  resets at end of year but players with contracts retains contracts
+  for entire season." "A first" is the `1st` contract type (owner, confirmed).
+  All points are answered. Next: draft the ADR-0019 amendment as a plan for
+  approval. Do not touch `02d` before that.
+- **Owner's hand, 2026-10-11:** allow rules pasted into
+  `.claude/settings.json` (15 entries, verified). `04t` capture landed
+  10:02. The weekly pull of 10:01 ran no step (unquoted
+  `--steps` list split by PowerShell; `run_pipeline.py` accepts an
+  empty step list silently, worth a fix). Supabase project created:
+  ref `vulbdywraotfodcmlawy`, AWS `us-east-1`, session pooler port
+  5432; `SUPABASE_DB_URL` is in `.env` (shape checked, no connection
+  yet: no Postgres driver until stage C). `.env` needs tidying:
+  `FANTRAX_TOTP_SECRET` holds the whole otpauth line, the Discord key
+  is named `DISCORD_WEBHOOK_URL_dev`, three keys have a space before
+  `=`. The GitHub `etl` environment holds no secret yet.
+- **#76 closed 2026-10-11 on the owner's word**, after one read-only
+  connection proved the `.env` URL (Postgres 17.11, TLS, `public`
+  empty, default `postgres` role). Resolution posted. Still owed: the
+  one-line pointer in map #69's Decisions so far, with the other map
+  body edits. `.env` is tidy. GitHub `etl` has five secrets, but the
+  Discord one is named `DISCORD_WEBHOOK_URL_DEV` and the TOTP one may
+  predate the trim (both queued). `workspace/totp_check.py` is a
+  one-shot for the owner; delete it with `workspace/_goal_setup/`.
+  Weekly pull still not run (no new console log).
+- **Weekly pull run by the owner 2026-10-11 11:02, chain pass.**
+  `fact_fantrax_adp` now has capture date 2026-10-11 (weeks `04` and
+  `YTD`, 3,962 rows; `overall_rank` filled on every row, so
+  `scorer.rank` is served in season; week 03 was never captured).
+  Uncommitted in the tree from that run:
+  `data/fact_fantrax_adp.parquet`, `data/dim_fantrax_crosswalk.parquet`,
+  `notebooks/04z_fantrax_crosswalk.ipynb`. They need a data PR or a
+  restore before goal A (its condition wants a clean tree); the owner
+  has not chosen. Review queue grew to 37 crosswalk rows.
+- **TOTP key proven 2026-10-11:** the owner's app and the `.env` key
+  give the same code. The GitHub copy was re-saved at 11:25, after the
+  trim, so all five `etl` secrets are in place.
+- **Discord targets (owner's wish, for #116):** one alert output, easy
+  to swap. `.env` and the GitHub `etl` environment hold four real addresses
+  (checked 11:31): the plain name (same as `_dev`), `_dev`, `_admin`
+  (admin server) and `_main` (main league chat). Names are tabled in
+  `project-fantasy-football.md` and listed in `.env.example` (edited,
+  uncommitted). Plan: a
+  `DISCORD_WEBHOOK_TARGET` setting picks among them, in `.env` and as a
+  GitHub repository variable. Not built; `run_pipeline.py` still reads
+  the plain name only.
+- **STATE 2026-10-11, after the compact (supersedes the block below
+  where they differ):** the weekly-pull data landed as PR #139; `main` is
+  `8e3eff8`. `workspace/_goal_setup/` is deleted. The #97 grill is done
+  and its state-back is applied; its worktree `youthful-lalande-beec19`
+  is removed, its branch deleted and its session archived. One empty
+  record, `.git/worktrees/youthful-lalande-beec19`, is still locked by
+  Windows; `git worktree prune` clears it later and it harms nothing. Left
+  uncommitted for #96 PR 2's first commit: `RESUME.md`,
+  `project-fantasy-football.md`, `.env.example`, `PLAN.md`,
+  `GOAL-RUN.md`, `NEEDS-OWNER.md`. The `owner-queue` mod is PR #39 on
+  `skills-plugins-hooks-agents` (open; the merge, the fast-forward of
+  that checkout and the owner's `env` paste in root `settings.json` are
+  still to do). PR #39 was built in a git worktree of that repo, branch
+  `owner-queue-mod`, under the old session's temp scratchpad (`spha-wt`):
+  after the merge run `git worktree prune` in that repo and delete the
+  local branch. Other copies of the mod to delete once the shared one
+  loads: `C:\Users\benha\.claude\mods\owner-queue` and the old session's
+  `dev-mods` folder. Open question to the owner: what "test v1 attempt"
+  meant (asked twice, unanswered; if it is the `04t` capture it stays the
+  owner's to run). Goal A is ready to start in the main checkout.
+  **Session hand-over:** the owner is replacing the managing session
+  (`local_2bb79438-2f61-4666-a3f3-b038797572fd`, title
+  `dynastyFantasyFootball-central-builder`) with a new one of the same
+  title; the new one archives the old one first.
+- **STATE AT COMPACT, 2026-10-11 (second):** nothing committed; `main`
+  is `ffc5c36`. Tree: modified `RESUME.md`, `PLAN.md`,
+  `project-fantasy-football.md`, `.env.example`, the two parquet files
+  and the `04z` notebook from the owner's weekly pull; untracked
+  `GOAL-RUN.md`, `NEEDS-OWNER.md`, `workspace/_goal_setup/` (delete
+  before a commit). `NEEDS-OWNER.md` holds three actions: the #97 grill
+  (ongoing in its own session) and the two later checkpoints.
+  **Waiting on the owner's go:** (1) a data PR for the weekly-pull
+  files, so goal A starts on a clean tree; (2) installing the mod for
+  every session (`CLAUDE_CODE_PLUGIN_DIRS`, root tier).
+  **Owed by the agent:** the ADR-0019 amendment plan for #130 (all
+  points answered; plan gate applies); map #69 body edits (clear the
+  four ticketed bullets, add the #76 pointer) and map #70's stale
+  `fact_standings` line; a fix so `run_pipeline.py` rejects an empty
+  `--steps` list.
+- **Supabase connector (2026-10-11):** the owner connected Supabase to
+  Claude. `list_projects` confirms the project healthy. The connector
+  can write and pause; the look-only rule is in
+  `project-fantasy-football.md` (Supabase access) and in `GOAL-RUN.md`'s
+  never list. The agent-skills plugin itself was not seen installed.
+  For #108: keep tables off the Data API (row-level security or an
+  unexposed schema).
+- **Mod `owner-queue` v3 (2026-10-11):** a band above the prompt
+  shows the counts and a Show queue / Hide queue button; each open item
+  has a Copy button. The `/owner` command answered with the right
+  counts, so the mod loads. Validated, 5
+  tests pass; drawing still unconfirmed, not type-checked.
+- **#97:** grilled and planned 2026-10-11; the owner approved the plan.
+  See the "#97 GRILLED AND PLANNED" block below.
+- **By-hand items done by the agent 2026-10-11:** GitHub environment
+  `etl` created, deploys from `main` only (no secrets yet); ruleset on
+  `main` now requires `pii-scan`, `tests` and `bot-tests`. Open risk:
+  the ruleset has no bypass actor, so `run_pipeline.py`'s direct snapshot
+  push to `main` may be refused; unverified. The weekly pull and `04t`
+  stay with the owner (deny rules; own browser profile).
+- **Next in this window's thread (the owner's last request):** help with
+  the by-hand actions in `NEEDS-OWNER.md`. The agent can do, on the
+  owner's request already given: create the GitHub `etl` environment
+  limited to `main` (`gh api`), and add `tests` and `bot-tests` to the
+  `main` ruleset. Walk the owner through the rest: the Supabase project and
+  `.env`, the secrets (the agent never handles a secret's value), the
+  Fantrax authenticator, the weekly pull and `04t`, and pasting the allow
+  rules.
+- `workspace/_goal_setup/` holds the posted drafts and one edit script;
+  delete it before the next commit.
+
+**#97 GRILLED AND PLANNED 2026-10-11 — plan approved by the owner.** Full
+plan (decisions, measured facts, my defaults, the three PRs, verify lists):
+`C:\Users\benha\.claude\plans\squishy-toasting-minsky.md` (root tier,
+git-ignored). No code was written. Blocked by #96 PR 2. Three PRs, one per
+window; commit, PR and merge each on the owner's go outside a goal run.
+- Owner decisions (one AskUserQuestion each):
+  1. The cap module lives in `notebooks/`, ETL-only. The bot and trade-bud
+     import no cap math; they read published tables.
+  2. #97 goes before #110. #97 writes `scorer_id` and the grain `(team_key,
+     scorer_id)` on `fact_fantasy_teams`; the `roster_slot` rename stays
+     with #110.
+  3. #97 does not wait for #130: it reads the contract as observed.
+  4. New `02g_fact_team_cap.py`; three PRs (roster + module + replay check;
+     the cap table; consumers).
+  5. Recorded as an in-place amendment of ADR-0016, with notes on ADR-0011,
+     ADR-0019, ADR-0008 and a `CONTEXT.md` fix. The edits ride with PR 1.
+  6. `02e` builds from the no-period `getTeamRosters` reply, which `04r`
+     keeps on every run, all year.
+  7. PR 1 first measures whether that reply shows a post-lock move. Live:
+     the design stands. Lock-frozen: PR 1 parks with the numbers. `04r`
+     stamps `captured_at`. Needs a fresh `04t` capture from the owner.
+  8. No reply to build from: `02e` raises in the regular season and
+     playoffs; otherwise it builds from the replay, slots blank, with one
+     Review finding.
+  9. `fact_fantasy_teams` is additive: `scorer_id`, `acquired_date`,
+     `cap_hit`, `cap_exempt`; `acquired_method` gains `unknown`; `status`
+     stays.
+  10. The replay check is a Review check on membership only, zero grace
+      (ADR-0008 decision 9 stands), with one "ledger is stale" finding that
+      holds back the per-row ones.
+  11. **New ruling: salary in the Minors slot and in the IR slot is not
+      counted against the cap, whatever the contract.** Dropping an IR
+      player still creates Dead Money. Reverses ADR-0011's IR line; Fantrax,
+      which charges IR, is treated as wrong on this point.
+  12. `02e` stamps the per-player charge; `fact_team_cap` sums it.
+  13. `fact_team_cap`, grain `(season_id, team_key)`, this season and next.
+  14. Next-season row: a contract with a following year, or `Minor`, counts
+      at the same salary; no slot is exempt next season.
+  15. Fantrax's Salary Remaining and its capture instant sit on the
+      current-season row.
+  16. Salary Remaining check: Review, on Fantrax's basis (`original_cap −
+      charged salary − IR salary − Dead Money`), $1 tolerance, compared only
+      when both sides are from the same league day, zero grace for now
+      (revisit after decision 7's measurement).
+  17. Bot: the league's cap room as headline, plus a line with the team's
+      IR-exempt salary.
+  18. trade-bud what-if: the giver sheds today's charge, the receiver
+      absorbs full `contract_value`.
+  19. Power BI is its own issue, a later item on map #70: model
+      `fact_dead_money`, repoint the three `Dead Money - Active` measures,
+      exempt IR in the DAX, and remove `Status` together with `status` in
+      `02e`. #97 touches no Power BI file.
+- Measured (counts only): period 4 has 152 Minors-slot rows ($430.2M; 137
+  `Minor`, 14 `FA`, 1 `1st`) and 58 IR rows on 21 teams ($320.2M; $2.0M to
+  $34.0M a team). `fact_fantasy_teams` has 0 duplicates on `(team_key,
+  gsis_id)` (#110's body says 15) and 4 rows with no `gsis_id`.
+- `cap-ledger-auditor` challenged the design before approval. Its two
+  blocking findings became decisions 7 and 10; the rest are in the plan's
+  defaults. It confirmed `etl_checks` has no grace mechanism and that a
+  Review `DomainCheck` cannot file findings until #96 PR 2's plumbing.
+- Posted 2026-10-11 on the owner's go (PII scan clean; do not post again):
+  new issue **#140** (the Power BI task; `wayfinder:task`, sub-issue of map
+  #70, blocked by #96 and #97, links verified), a comment on #97 (the
+  settled design, naming #140) and a comment on #110 (the grain bullet moves
+  to #97; the 15-duplicates count is now 0).
+- A hook stops a worktree session editing the base repo's `.claude/`; this
+  block was applied by the managing session in the main checkout.
+
+**NEXT: #96 PR 2 on `feat/96-dead-money`, in a fresh window. `main` =
+`ffc5c36`.**
 - `02f_fact_dead_money.py`, the checks, the pipeline step, `capmath`, the
   bot tests. It closes #96. Steps and the verify list are in the plan file.
+- Check `git status` first: `RESUME.md` and `PLAN.md` are uncommitted on
+  `main` on purpose and ride with PR 2. `.agents/` and `GEMINI.md` are
+  untracked and not ours.
 - From the PR 1 audit, for `02f` and its checks:
   - Skip a stintless drop by `contract_source = no_stint`, never by its
     terms: the one such row carries another team's contract and salary
@@ -1034,10 +1315,78 @@ window.**
   - Make the `stintless_drop` finding say whether a Roster State row shows
     the copy on the dropping team. That is the case the owner kept as
     `no_stint`, and the finding is its only net until #97.
-- Stop for the owner's go before each commit, PR and merge.
-- Public posts after the merges, on the owner's go, drafts first: a
-  Resolution on #96 and notes on #97, #130, #116 and #93 (listed in the
-  plan).
+- It now runs as the first ticket of goal A (`GOAL-RUN.md`), under the
+  goal-run delegation: the agent commits, opens the PR and merges on green.
+  Outside a goal run, stop for the owner's go before each commit, PR and
+  merge.
+- Public posts after the merge: a Resolution on #96 and notes on #97, #130,
+  #116 and #93 (listed in the plan). Pre-authorized inside a goal run,
+  PII-checked; otherwise drafts first, on the owner's go.
+- `GOAL-RUN.md` and `NEEDS-OWNER.md` are new and untracked; they ride with
+  PR 2 too.
+
+**#96 PR 2 PLAN (goal A, written 2026-10-11 before the build; design is the
+approved plan file's PR 2 section, nothing new decided).**
+- *Outline:* (1) `notebooks/02f_fact_dead_money.py`: schedule from
+  `dim_contract`, seasons from `dim_season`, one row per charged season of
+  each drop that ends a stint; whole table rewritten. (2) `etl_checks.py`: a
+  Review `DomainCheck` returns `(row_key, detail)` findings and `run_suite`
+  files them; Gate `schedule` on `fact_dead_money`; Review `stintless_drop`
+  and `default_contract_drop` on the ledger. (3) `run_pipeline.py`: step
+  `02f_dead_money` between `02d_ledger` and `02e_derive`. (4) `02e`: its cap
+  summary reads `fact_dead_money`. (5) `capmath.teams_with_cap` reads
+  `fact_dead_money`; the `"Cut"` branch and its bot tests go. (6) registry,
+  docs, memory. (7) tests.
+- *Build mode:* new files FULL; `etl_checks.py`, `capmath.py`, `02e`,
+  `run_pipeline.py` and the bot tests BEFORE/AFTER PATCH.
+- *Rationale:* ADR-0016 decisions 5 and 6 and the six #96 decisions; the
+  table and its reader land in one merge because `fetch_parquet` raises on
+  a missing file.
+- *Data:* `fact_dead_money` is built from the ledger on `main` (moves to
+  2026-10-01), so the parity target (Salary Remaining of 2026-10-04) holds.
+  The raw transaction capture is newer (2026-10-11); `02d` is not rerun
+  into the commit. A trial `02d` → `02f` run on the new capture is made and
+  restored, to prove the step survives it.
+- *My calls inside the plan (reported in the PR):* a drop with a null
+  `period` (another season) is charged like any other and is not listed by
+  `default_contract_drop`; the `schedule` Gate also fails when a chargeable
+  drop has no row; a Review check that raises files nothing and clears
+  nothing.
+
+**#96 PR 2 BUILT 2026-10-11 (goal A, branch `feat/96-dead-money`).**
+- Files: `notebooks/02f_fact_dead_money.py` (`schedule`, `season_after`,
+  `chargeable`, `build_dead_money`, `main`), `etl_checks.py`
+  (`dead_money_errors`, `stintless_drop_findings`,
+  `default_contract_drop_findings`; `Result.ran`; a Review `DomainCheck`
+  returns `(row_key, detail)` tuples), `run_pipeline.py` step
+  `02f_dead_money`, `02e` summary, `capmath.teams_with_cap`
+  (`dead_money`, new `dead_money_next_yr`), bot tests, registry, docs,
+  `tests/test_02f_dead_money.py`, check and step tests.
+- Verified: 24 rows from 12 of 46 drops; 22,819,500 this season, 18,255,600
+  next; per-team figures equal the plan; parity with Fantrax's Salary
+  Remaining of 2026-10-04 on 28 of 28 teams; a second `02f` run
+  byte-identical; cap room drops on those 8 teams only; trade-bud export
+  runs, 32 JSON files parse strictly; `--check-only` 170 checks, 0 Gate
+  failures; one new Review finding by design (`stintless_drop`, `06anf`
+  B09).
+- The committed ledger is `main`'s (moves to 2026-10-01). A trial `02d` →
+  `02f` → `02e` on the owner's 2026-10-11 capture ran clean (1,294 ledger
+  rows, 58 drops, 34 Dead Money rows from 17 drops, 31,687,000 this season
+  on 12 teams, 0 Gate failures) and was restored. The next scheduled run
+  publishes it.
+- `cap-ledger-auditor`: no blocking finding. Fixed from its list: the
+  `schedule` Gate now also checks each drop's terms against its ledger row,
+  its row count against the guaranteed years left, and the seasons; "not a
+  drop" uses a merge indicator; `capmath` tolerates a roster with no
+  season. Left as notes: a guaranteed drop in the last `dim_season` season
+  makes `02f` raise until `01f` extends the dim (deliberate); `02e` sums
+  Dead Money over every season on the roster while `capmath` takes the
+  newest (same today); the period-1 `stintless_drop` detail can only say
+  "no Roster State row"; the three `"Cut"` DAX measures now disagree with
+  the bot until #140.
+- Bot suite venv: scratchpad `botvenv` of session `56063cf0…`.
+- The `discord-bot-github-fetch` skill has a Dead Money paragraph (the root
+  repo ignores that file; nothing to commit there).
 
 **Earlier (#118 is closed):**
 - **Public posts: all made 2026-10-04, on the owner's go** (drafts reviewed

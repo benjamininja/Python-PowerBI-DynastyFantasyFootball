@@ -73,6 +73,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02a | `02a_fact_nfl_combine_pro_day_metrics.ipynb` | `fact_nfl_combine_pro_day_metrics` |
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed) |
 | 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` ledger + `dim_roster_asset` + `fact_draft_pick` (replay from 04w JSON), plus the trade / claim / drop legs and `fact_trade_log` from 04t's capture. Each move's contract is read off `fact_roster_state` by the Scoring Period Fantrax says the move takes effect in (the `week` cell): a draft pick and a claim read the first Roster State inside the stint they start, a trade and a drop the latest one before they take effect; a pick or a claim that no Roster State shows takes the preseason capture's contract when the capture falls inside its stint and the player is not minors-eligible; else it is defaulted (`Minor` if minors-eligible; ADR-0019). `contract_source` records which, and marks a drop that ends no stint (`no_stint`). Ledger rows are keyed `(transaction_id, scorer_id, team_key, event_type)` — Fantrax's `txSetId`, or the slot's `pick_ref` on a draft pick — and `event_seq` is sort order only (ADR-0016 decision 6). A pick's or a claim's salary is read off the preseason capture (`fact_preseason_salary`) or that first Roster State, else the draft-season ADP salary floored at the league minimum (pick) or the inherited salary / league minimum (claim) |
+| 02f | `02f_fact_dead_money.py` | `fact_dead_money`: Dead Money from the ledger's drops, one row per season charged (ADR-0016 decision 5, #96). The schedule is read from `dim_contract` (the guaranteed rows of the dropped contract's type from its year on) and the seasons from `dim_season`. A drop that ends no stint (`contract_source = no_stint`) and a drop with no salary are skipped. Rewrites the whole table; no network |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster/contracts). `roster_status` is stamped from the newest Scoring Period in `fact_roster_state` (Starter → `Active`, Bench → `Reserve`, IR → `Inj Res`, Minors → `Minors`) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
@@ -95,7 +96,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
-The `.py` rows (`02d`, `02e`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
+The `.py` rows (`02d`, `02e`, `02f`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 
 ## Scheduled pipeline (orchestrator)
@@ -103,7 +104,7 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 04p → 04r → (04s, in-season) → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02e
+`01f → 04p → 04r → (04s, in-season) → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e
 → (04b, offseason)`, surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
@@ -116,7 +117,7 @@ notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
   [--steps a,b] [--no-commit] [--no-push]`.
 - `--profile dynasty` appends `04b → 04c → 04y` (run after refreshing the
   04x manual Excel).
-- **Never scheduled**: the live-draft chain (`04w → 02d → 02e → 05a`), the
+- **Never scheduled**: the live-draft chain (`04w → 02d → 02f → 02e → 05a`), the
   03-group rookie chain (manual Excel gates), and review applies (`03z`,
   `apply_fantrax_crosswalk_review`). No step writes to Fantrax — the one
   write-side path (`04v --apply`) was removed along with its contract

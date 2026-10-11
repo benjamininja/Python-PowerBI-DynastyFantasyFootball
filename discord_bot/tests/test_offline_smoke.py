@@ -139,72 +139,73 @@ def test_capmath_minors_exempt():
     assert r["contract_value"].tolist()[2] == 2_000_000.0
 
 
-def test_capmath_dead_money_computed():
-    """teams_with_cap computes dead money (stored column dropped 2026-07-13):
-    only Cut + Guaranteed prices in, at contract_value x cap_hit_pct. The trap
-    case is 'X' (cap_hit_pct 0.5 but guaranteed False) — must price 0."""
-    frames = {
-        "dim_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":         ["A01"],
-            "original_cap":     [300_000_000.0],
-            "reinvestment_cap": [0.0],
-        }),
-        "fact_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":       ["A01", "A01", "A01", "A01"],
-            "contract_id":    ["1st", "1st", "X", "3rd"],
-            "contract_value": [10_000_000.0, 8_000_000.0, 4_000_000.0, 6_000_000.0],
-            "status":         ["active", "Cut", "Cut", "Cut"],
-            "roster_status":  ["Active", None, None, None],
-        }),
-        "dim_contract.parquet": pd.DataFrame({
-            "contract_id": ["1st", "X", "3rd"],
-            "cap_hit_pct": [0.5, 0.5, 0.0],
-            "guaranteed":  [True, False, False],
-        }),
-    }
+def _teams_with(frames):
     orig = capmath.fetch_parquet
     capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
     try:
-        t = capmath.teams_with_cap(CFG)
+        return capmath.teams_with_cap(CFG)
     finally:
         capmath.fetch_parquet = orig
-    row = t.iloc[0]
-    # Cut+Guaranteed 1st: 8M x 0.5 = 4M. Cut X (not guaranteed) and Cut 3rd
-    # (guaranteed False, pct 0) price 0.
-    assert row["dead_money"] == 4_000_000.0
-    # active salary is full contract_value of every row (Cut exclusion is a
-    # known open item pending drop events — parity with the DAX measure).
-    assert row["active_roster_salary"] == 28_000_000.0
-    assert row["remaining_cap_current_yr"] == 300_000_000.0 - 28_000_000.0 - 4_000_000.0
 
 
-def test_capmath_minor_cut_costs_no_dead_money():
-    """ADR-0019: a Minor drop costs no dead money. dim_contract's Minor row is
-    cap_hit_pct 0 and not guaranteed, so a Cut player on Minor prices 0 while
-    the Cut 1st beside it still prices in."""
-    frames = {
+def _cap_frames(dead_rows):
+    return {
         "dim_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":         ["A01"],
-            "original_cap":     [300_000_000.0],
-            "reinvestment_cap": [0.0],
+            "team_key":         ["A01", "A02"],
+            "original_cap":     [300_000_000.0, 300_000_000.0],
+            "reinvestment_cap": [0.0, 0.0],
         }),
         "fact_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":       ["A01", "A01"],
-            "contract_id":    ["Minor", "1st"],
-            "contract_value": [5_000_000.0, 8_000_000.0],
-            "status":         ["Cut", "Cut"],
-            "roster_status":  [None, None],
+            "team_key":       ["A01", "A01", "A02"],
+            "contract_id":    ["1st", "1st", "1st"],
+            "contract_value": [10_000_000.0, 8_000_000.0, 5_000_000.0],
+            "status":         ["active", "active", "active"],
+            "roster_status":  ["Active", None, "Active"],
+            "season":         ["2026-2027"] * 3,
         }),
-        "dim_contract.parquet": pd.DataFrame({
-            "contract_id": ["Minor", "1st"],
-            "cap_hit_pct": [0.0, 0.5],
-            "guaranteed":  [False, True],
-        }),
+        "fact_dead_money.parquet": pd.DataFrame(
+            dead_rows, columns=["team_key", "season_id", "dead_money"]),
     }
-    orig = capmath.fetch_parquet
-    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
-    try:
-        t = capmath.teams_with_cap(CFG)
-    finally:
-        capmath.fetch_parquet = orig
-    assert t.iloc[0]["dead_money"] == 4_000_000.0      # the 1st alone: 8M x 0.5
+
+
+def test_capmath_reads_fact_dead_money():
+    """teams_with_cap takes Dead Money from fact_dead_money (#96): this
+    season's rows come off current cap room, next season's off next-year room,
+    and a later season's off neither. A team with no row owes nothing."""
+    t = _teams_with(_cap_frames([
+        ("A01", "2026-2027", 4_000_000.0),
+        ("A01", "2026-2027", 1_000_000.0),
+        ("A01", "2027-2028", 3_200_000.0),
+        ("A01", "2028-2029", 9_999_999.0),
+    ])).set_index("team_key")
+    a01, a02 = t.loc["A01"], t.loc["A02"]
+    assert a01["dead_money"] == 5_000_000.0
+    assert a01["active_roster_salary"] == 18_000_000.0
+    assert a01["remaining_cap_current_yr"] == 300_000_000.0 - 18_000_000.0 - 5_000_000.0
+    assert a01["remaining_cap_next_yr"] == 300_000_000.0 - 18_000_000.0 - 3_200_000.0
+    assert a02["dead_money"] == 0.0
+    assert a02["remaining_cap_current_yr"] == a02["remaining_cap_next_yr"] == 295_000_000.0
+
+
+def test_capmath_dead_money_outlives_the_roster_row():
+    """A dropped player is off fact_fantasy_teams, so the charge can belong to
+    a team with no roster row at all, and a roster `status` prices nothing."""
+    frames = _cap_frames([("A03", "2026-2027", 2_000_000.0)])
+    frames["dim_fantasy_teams.parquet"] = pd.DataFrame({
+        "team_key":         ["A01", "A03"],
+        "original_cap":     [300_000_000.0, 300_000_000.0],
+        "reinvestment_cap": [0.0, 0.0],
+    })
+    frames["fact_fantasy_teams.parquet"].loc[1, "status"] = "Cut"
+    t = _teams_with(frames).set_index("team_key")
+    assert t.loc["A01", "dead_money"] == 0.0            # "Cut" is not read
+    assert t.loc["A03", "dead_money"] == 2_000_000.0
+    assert t.loc["A03", "active_roster_salary"] == 0.0
+    assert t.loc["A03", "remaining_cap_current_yr"] == 298_000_000.0
+
+
+def test_capmath_empty_dead_money():
+    """No drop has been charged yet: the table is empty and nobody owes."""
+    t = _teams_with(_cap_frames([]))
+    assert t["dead_money"].tolist() == [0.0, 0.0]
+    assert t["remaining_cap_next_yr"].tolist() == [282_000_000.0, 295_000_000.0]
