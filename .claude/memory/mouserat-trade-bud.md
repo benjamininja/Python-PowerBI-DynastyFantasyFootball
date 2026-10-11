@@ -993,7 +993,7 @@ Round 4 below — see there for the current shape). Summary of what landed:
 new `pbi/mouserat2/Mouserat2.SemanticModel/definition/tables/Dim_DraftPick.tmdl`
 (9 columns: PickRef/DraftSeason/Round/PickInRound/OverallSlot/OriginalOwner/
 CurrentOwner/IsMade/IsSlotted), M-query unions `dim_draft_pick.parquet` +
-`dim_draft_pick_future.parquet` via `Table.Combine`, drops `divisionId`.
+`dim_draft_pick_future.parquet` via `Table.Combine`, drops `division_id` (renamed from `divisionId` by #110, 2026-10-11).
 Two new relationships in `relationships.tmdl`
 (`Dim_DraftPick_to_Dim_FantasyTeams_via_CurrentOwner`,
 `Dim_DraftPick_to_Dim_Season_via_DraftSeason`). `cultures/en-US.tmdl` got

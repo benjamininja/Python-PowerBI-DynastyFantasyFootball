@@ -163,7 +163,7 @@ def value_for_pick_row(
     which resolves to the "Mid" tier via _tier_for_slot. A neutral estimate,
     not a real slot -- refined once the pick is actually made/traded to a slot.
     """
-    n_teams = inventory[inventory["divisionId"] == row["divisionId"]]["current_owner"].nunique()
+    n_teams = inventory[inventory["division_id"] == row["division_id"]]["current_owner"].nunique()
     draft_year = int(str(row["draft_season"]).split("-")[0])
     if row.get("is_slotted", True) and pd.notna(row.get("pick_in_round")):
         pick_in_round = int(row["pick_in_round"])

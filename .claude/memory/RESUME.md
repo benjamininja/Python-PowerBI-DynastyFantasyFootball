@@ -34,6 +34,13 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     (`snake_draft_order`), trade-bud `pick_value.py`, two tests; Power BI
     only drops it in one M step of `Fact_DraftPick.tmdl`. All-null
     untyped columns: 11, in 6 tables (list in seam inventory §5).
+  - **Progress:** PR 1 merged as #145 (`ebb60a3`) on the owner's "merge".
+    PR 2 is built on branch `fix/110-division-id`; `cap-ledger-auditor`
+    found nothing to fix. Lesson from PR 2: `load_replace_partition`
+    concats the old file with the new frame, so a renamed column must be
+    renamed in the published file first, or the table keeps both.
+    Next: PR 3 (combine orphans), then PR 4 (`sql_type`). Ask before each
+    merge.
   - PR 1 Composite: `04y` writes `source_player_id = gsis_id` and
     `source_uid = "Composite|<gsis_id>"`; rerun `04y` (offline) as the
     backfill; `check_grain` docstring and `test_composite_grain`; registry

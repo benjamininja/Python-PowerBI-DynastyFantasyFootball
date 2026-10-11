@@ -642,9 +642,9 @@ def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
 
 
 def expand_snake_draft_order(round1_order: pd.DataFrame, total_rounds: int) -> pd.DataFrame:
-    """round1_order: (divisionId, pick_in_round, team_key), one row per round-1
+    """round1_order: (division_id, pick_in_round, team_key), one row per round-1
     slot -- taken as the draft order by definition. Returns one row per
-    (divisionId, round, pick_in_round) -> team_key, alternating direction each
+    (division_id, round, pick_in_round) -> team_key, alternating direction each
     round (snake)."""
     frames = []
     for rnd in range(1, total_rounds + 1):
@@ -656,7 +656,7 @@ def expand_snake_draft_order(round1_order: pd.DataFrame, total_rounds: int) -> p
         )
         frames.append(block)
     return pd.concat(frames, ignore_index=True)[
-        ["divisionId", "round", "pick_in_round", "team_key"]
+        ["division_id", "round", "pick_in_round", "team_key"]
     ]
 
 
