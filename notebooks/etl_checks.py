@@ -94,8 +94,7 @@ def check_grain(df: pd.DataFrame, key: list[str]) -> tuple[int, int]:
     """(duplicate rows among complete-key rows, rows with a null key column).
 
     Uniqueness is checked only where every key column is non-null, so a new
-    duplicate still blocks while known null-key rows (e.g. Composite dynasty
-    rows with no source_player_id) are filed for review instead."""
+    duplicate still blocks while null-key rows are filed for review instead."""
     complete = df[key].notna().all(axis=1)
     dupes = int(df.loc[complete].duplicated(subset=key).sum())
     return dupes, int((~complete).sum())

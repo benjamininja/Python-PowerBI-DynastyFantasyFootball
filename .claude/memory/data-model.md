@@ -227,8 +227,11 @@ KTC `adp` (crowd Elo) and DS `adp` (projection model) measure different things o
 incommensurable scales (KTC overall-pick ints; DS round.pick, ~0.13 rank-corr), so `adp`
 was **split** into `ktc_adp` / `ds_adp`. 04y blends them: percentile-within-`(source,
 format)` → mean → re-rank to 1..N = `composite_adp`, plus `sources_count` (1|2)
-confidence. Written as a `source_name="Composite"` partition keyed by **gsis_id** (no
-source row → relates to players via gsis only); single-source players keep their sole
+confidence. Written as a `source_name="Composite"` partition keyed by **gsis_id**: since
+#110 (2026-10-11, ADR-0018 decision 5) `source_player_id` = the `gsis_id` and `source_uid`
+= `Composite|<gsis_id>`, so the fact's grain is non-null and unique (0 null, 0 duplicate;
+it had 1,812 null-key rows before). No crosswalk row carries that `source_uid`; the rows
+relate to players through `gsis_id` only. Single-source players keep their sole
 percentile. KTC `adp`/`startup_adp` `0` = "no ADP recorded" sentinel → treated as missing
 (else it false-ranks #1). Runs AFTER 04b+04x.
 
