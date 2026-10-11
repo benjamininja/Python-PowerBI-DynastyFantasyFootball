@@ -1342,6 +1342,48 @@ class TestTransactionLegs:
         assert sourcing == {**NO_FLAGS, "after_newest": 1, "left_list": 1, "stale_capture": 1}
 
 
+class TestClaimMethod:
+    """#68: a row keeps its leg's claim_method and claim_bid; neither changes
+    its contract or its salary."""
+
+    @staticmethod
+    def _claim(**claim):
+        return {**leg(rt.CLAIM_EVENT, "p2", "A01"), **claim}
+
+    def test_a_claim_and_its_drop_carry_the_method(self):
+        legs = [self._claim(claim_method=rt.CLAIM_WAIVER, claim_bid=7.0),
+                {**leg(rt.DROP_EVENT, "p1", "A01"), "claim_method": rt.CLAIM_WAIVER,
+                 "claim_bid": pd.NA}]
+        rows = resolve(legs, source()).set_index("event_type")
+        assert rows.loc[rt.CLAIM_EVENT, ["claim_method", "claim_bid"]].tolist() == ["waiver", 7.0]
+        assert rows.loc[rt.DROP_EVENT, "claim_method"] == "waiver"
+        assert pd.isna(rows.loc[rt.DROP_EVENT, "claim_bid"])
+
+    def test_a_trade_has_neither(self):
+        rows = resolve([leg(rt.TRADE_IN, "p1", "B01", team_from="A01")], source())
+        assert len(rows) == 2
+        assert rows["claim_method"].isna().all() and rows["claim_bid"].isna().all()
+
+    def test_the_method_changes_no_contract_or_salary(self):
+        terms = ["contract_id", "contract_year", "contract_value", "cap_hit", "contract_source"]
+        plain = resolve([leg(rt.CLAIM_EVENT, "p2", "A01")], source())
+        bid = resolve([self._claim(claim_method=rt.CLAIM_WAIVER, claim_bid=99.0)], source())
+        pd.testing.assert_frame_equal(plain[terms], bid[terms])
+
+    def test_the_columns_are_typed_when_no_row_fills_them(self):
+        frame = rt.claim_dtypes(pd.DataFrame({"claim_method": [pd.NA, None, float("nan")],
+                                              "claim_bid": [pd.NA, None, float("nan")]}))
+        assert pd.api.types.is_string_dtype(frame["claim_method"])
+        assert str(frame["claim_bid"].dtype) == "float64"
+        assert frame.isna().all().all()
+
+    def test_a_missing_method_is_never_written_as_text(self):
+        frame = rt.claim_dtypes(pd.DataFrame({"claim_method": ["waiver", pd.NA, None, float("nan")],
+                                              "claim_bid": [1.0, pd.NA, None, float("nan")]}))
+        assert frame["claim_method"].isna().tolist() == [False, True, True, True]
+        assert frame["claim_method"].dropna().tolist() == ["waiver"]
+
+
 class TestRepriced:
     TERMS = dict(contract_id="1st", contract_year=1.0, contract_value=9_000_000,
                  cap_hit=4_500_000, status="active")

@@ -510,6 +510,8 @@ tables:
       - { name: pick_in_round, dtype: float64 }
       - { name: pick_overall, dtype: float64 }
       - { name: source, dtype: str }
+      - { name: claim_method, dtype: str }
+      - { name: claim_bid, dtype: float64 }
     edges:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_roster_asset, via: direct, on: asset_id }

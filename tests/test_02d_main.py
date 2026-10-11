@@ -235,6 +235,20 @@ class TestMain:
         assert ledger[rt.LEDGER_KEY].notna().all().all()
         assert keys(ledger) == keys(first)
 
+    def test_the_claim_columns_keep_their_types(self, data, monkeypatch):
+        # With moves, and on a ledger of draft rows only.
+        rt.main()
+        with_moves = pd.read_parquet(rt.FACT_PATH)
+        monkeypatch.setattr(rt, "load_txn_rows", lambda: [])
+        with_moves[with_moves["event_type"] == rt.EVENT_TYPE].to_parquet(rt.FACT_PATH, index=False)
+        rt.main()
+        for ledger in (with_moves, pd.read_parquet(rt.FACT_PATH)):
+            assert pd.api.types.is_string_dtype(ledger["claim_method"])
+            assert str(ledger["claim_bid"].dtype) == "float64"
+            others = ~ledger["event_type"].isin([rt.CLAIM_EVENT, rt.DROP_EVENT])
+            assert ledger.loc[others, ["claim_method", "claim_bid"]].isna().all().all()
+            assert set(ledger["claim_method"].dropna()) <= {rt.CLAIM_WAIVER, rt.CLAIM_FREE_AGENT}
+
     def test_a_dropped_column_goes_when_no_move_is_rebuilt(self, data, monkeypatch):
         # No transaction history on this machine: only the draft rows are
         # rebuilt, and the older file's `dead_money` still must not ride along.

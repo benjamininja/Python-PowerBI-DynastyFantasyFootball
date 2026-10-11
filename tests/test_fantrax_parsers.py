@@ -524,6 +524,79 @@ class TestTxnHistory:
         _, legs, stats = rt.parse_txn_rows(rows, lut, {})
         assert stats["no_team"] == 1 and len(legs) == 5
 
+    @staticmethod
+    def _with_bids(rows, bids):
+        """Give each CLAIM/DROP row a `bid` cell, in capture order (None: no cell)."""
+        churn = [r for r in rows if r.get("transactionCode") in ("CLAIM", "DROP")]
+        for r, bid in zip(churn, bids, strict=True):
+            if bid is not None:
+                r["cells"].append({"key": "bid", "content": bid, "align": "right"})
+        return rows
+
+    def _churn(self, rows, bids):
+        rows = self._with_bids(rows, bids)
+        legs = rt.parse_txn_rows(rows, self._lut(rows), {})[1][2:]
+        return [(l["kind"], l["claim_method"], l["claim_bid"]) for l in legs]
+
+    def test_a_bid_makes_a_claim_a_waiver_claim(self, rows):
+        # Capture order: a claim and its drop, a lone claim, a lone drop.
+        got = self._churn(rows, ["12.50", "", "", ""])
+        assert got[0] == ("claim", "waiver", 12.5)
+        assert got[2][:2] == ("claim", "free_agent") and pd.isna(got[2][2])
+
+    def test_a_zero_bid_is_still_a_waiver_claim(self, rows):
+        assert self._churn(rows, ["0.00", "", "$1,250.00", ""])[::2] == [
+            ("claim", "waiver", 0.0), ("claim", "waiver", 1250.0)]
+
+    def test_a_drop_takes_its_claims_method_and_no_bid(self, rows):
+        for bid, method in (("3.00", "waiver"), ("", "free_agent")):
+            kind, got, amount = self._churn(copy.deepcopy(rows), [bid, "", "", ""])[1]
+            assert (kind, got) == ("drop", method) and pd.isna(amount)
+
+    def test_a_bid_that_is_not_a_number_is_a_waiver_claim_with_no_amount(self, rows):
+        kind, method, amount = self._churn(rows, ["n/a", "", "", ""])[0]
+        assert (kind, method) == ("claim", "waiver") and pd.isna(amount)
+
+    def test_a_drop_takes_the_first_method_its_transaction_has(self, rows):
+        # Two claims and a drop by one team in one transaction: the first
+        # claim's capture has no bid cell, so the second one's method stands.
+        claim = next(r for r in rows if r.get("transactionCode") == "CLAIM")
+        second = copy.deepcopy(claim)
+        second["cells"] = [{"key": "week", "content": "1"},
+                           {"key": "bid", "content": "", "align": "right"}]
+        rows.insert(rows.index(claim) + 1, second)
+        legs = [l for l in rt.parse_txn_rows(rows, self._lut(rows), {})[1]
+                if l["transaction_id"] == claim["txSetId"]]
+        assert [l["kind"] for l in legs] == ["claim", "claim", "drop"]
+        assert pd.isna(legs[0]["claim_method"])
+        assert [l["claim_method"] for l in legs[1:]] == ["free_agent", "free_agent"]
+
+    def test_a_drop_on_its_own_has_no_method(self, rows):
+        kind, method, amount = self._churn(rows, ["3.00", "", "", ""])[3]
+        assert kind == "drop" and pd.isna(method) and pd.isna(amount)
+
+    def test_a_drop_listed_above_its_claim_still_takes_the_method(self, rows):
+        rows = self._with_bids(rows, ["3.00", "", "", ""])
+        i = next(n for n, r in enumerate(rows) if r.get("transactionCode") == "CLAIM")
+        claim, drop = rows[i], rows[i + 1]
+        assert claim["txSetId"] == drop["txSetId"]
+        # The group's first row carries the team/date/week cells: move them too.
+        head = [c for c in claim["cells"] if c["key"] in ("team", "date", "week")]
+        claim["cells"] = [c for c in claim["cells"] if c["key"] == "bid"] + [
+            c for c in drop["cells"] if c["key"] == "week"]
+        drop["cells"] = head + [c for c in drop["cells"] if c["key"] == "bid"]
+        rows[i], rows[i + 1] = drop, claim
+        legs = rt.parse_txn_rows(rows, self._lut(rows), {})[1][2:4]
+        assert [(l["kind"], l["claim_method"]) for l in legs] == [
+            ("drop", "waiver"), ("claim", "waiver")]
+
+    def test_a_capture_with_no_bid_cell_leaves_the_method_unknown(self, parsed):
+        # The fixture predates the bid cell.
+        assert all(pd.isna(l["claim_method"]) and pd.isna(l["claim_bid"]) for l in parsed[1][2:])
+
+    def test_a_trade_leg_has_no_claim_fields(self, parsed):
+        assert all("claim_method" not in l for l in parsed[1][:2])
+
     def test_legs_resolve_in_time_order(self, parsed):
         # Same timestamp: the drop frees the spot its paired claim fills.
         order = [(l["kind"], l["scorer_id"]) for l in rt.sort_legs(parsed[1])]

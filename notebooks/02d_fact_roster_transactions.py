@@ -35,7 +35,10 @@
 #   `claim` / `drop` (TERMINAL) for FA churn. All four share one chronological
 #   `event_seq` and resolve contract terms by walking the stream forward — see
 #   that section below. Every row carries `period`, the Scoring Period the
-#   move takes effect in (null on a move of another season).
+#   move takes effect in (null on a move of another season). A claim also
+#   carries `claim_method` (`waiver` / `free_agent`) and `claim_bid`, read off
+#   its `bid` cell; a drop made with a claim takes that claim's method ("Claim
+#   method" below).
 # - **`fact_trade_log.parquet`** — one row per traded ASSET (players AND draft
 #   picks), grouped by `transaction_id` (Fantrax's `txSetId`) so a multi-asset
 #   trade's legs stay linked. Deliberately kept OUT of the polymorphic
@@ -111,7 +114,7 @@ LEDGER_COLS = ["transaction_id", "season_id", "event_type", "team_key", "asset_i
                "event_seq", "event_date", "period",
                "contract_id", "contract_year", "contract_value", "cap_hit", "contract_source",
                "status", "scorer_id", "gsis_id", "draft_round", "pick_in_round",
-               "pick_overall", "source"]
+               "pick_overall", "source", "claim_method", "claim_bid"]
 
 TRADE_SOURCE   = "getTransactionDetailsHistory"
 TXN_SEQ_BASE   = 100_000
@@ -120,6 +123,10 @@ TRADE_IN       = "trade"
 CLAIM_EVENT    = "claim"
 DROP_EVENT     = "drop"
 TXN_EVENT_TYPES = (TRADE_AWAY, TRADE_IN, CLAIM_EVENT, DROP_EVENT)
+
+# How a claim was made (the ledger's `claim_method`), read off its `bid` cell.
+CLAIM_WAIVER     = "waiver"       # the claim carried a bid, 0.00 included
+CLAIM_FREE_AGENT = "free_agent"   # the bid cell was empty
 
 MINOR_CONTRACT_ID = "Minor"   # the stage before 1st, held while minors-eligible
 DRAFT_CONTRACT_ID = "1st"     # a drafted player who is not minors-eligible
@@ -753,9 +760,11 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
             "pick_in_round":  int(p["pickNumber"]),
             "pick_overall":   int(p["overall_slot"]),
             "source":         SOURCE,
+            "claim_method":   pd.NA,
+            "claim_bid":      pd.NA,
         })
 
-    fact = pd.DataFrame(fact_rows)[LEDGER_COLS]
+    fact = claim_dtypes(pd.DataFrame(fact_rows)[LEDGER_COLS])
     fact["event_date"] = pd.to_datetime(fact["event_date"])
     fact["period"] = fact["period"].astype("Int64")
     # key integrity: the ADR grain must be unique.
@@ -798,6 +807,18 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
 # through "Contract sourcing": Roster State wins, then the preseason capture
 # for a claim, and the inherited contract is only the fallback for a player
 # who is not minors-eligible.
+#
+# **Claim method** (#68). Fantrax's history does not say whether a claim went
+# through the waiver run or was a free-agent add: `claimType` reads the same
+# on every claim. The row's `bid` cell is the only field that separates them,
+# so the method is INFERRED from it: a claim with a bid, 0.00 included, is
+# `waiver`; a claim whose bid cell is empty is `free_agent`. (In the capture
+# of 2026-10-11 every claim stamped 08:00, the waiver run, carried a bid and
+# no claim without one was stamped 08:00.) `claim_bid` keeps the amount. A
+# drop takes the method of the claim it was made with -- same `txSetId`, same
+# team -- and no bid; a drop made on its own has no method. A capture with no
+# `bid` cell on a claim leaves the method null: it cannot be told. Neither
+# column changes a contract or a salary.
 #
 # Every leg carries `period`: the Scoring Period Fantrax says the move takes
 # effect in (the row's `week` cell). It decides which Roster State the leg
@@ -927,14 +948,42 @@ def _parse_trades(trade_rows, team_lut, gsis_lut):
     return trade_log_rows, legs
 
 
+def _claim_bid(row) -> tuple:
+    """A CLAIM row -> (claim_method, claim_bid), read off its `bid` cell
+    ("Claim method" above). No such cell: neither is known."""
+    cell = next((c for c in row["cells"] if c["key"] == "bid"), None)
+    if cell is None:
+        return pd.NA, pd.NA
+    content = cell.get("content")
+    text = "" if content is None else str(content).strip()
+    if not text:
+        return CLAIM_FREE_AGENT, pd.NA
+    amount = pd.to_numeric(text.replace("$", "").replace(",", ""), errors="coerce")
+    return CLAIM_WAIVER, (float(amount) if pd.notna(amount) else pd.NA)
+
+
+def claim_dtypes(ledger: pd.DataFrame) -> pd.DataFrame:
+    """The claim columns typed the same whether or not any row fills them.
+    The nullable string type keeps a missing method missing on pandas 2 and 3
+    alike (a plain `str` cast writes the text "<NA>" on pandas 2)."""
+    ledger["claim_method"] = ledger["claim_method"].astype("string")
+    ledger["claim_bid"] = pd.to_numeric(ledger["claim_bid"], errors="coerce").astype("float64")
+    return ledger
+
+
 def _parse_claim_drops(cd_rows, team_lut):
     """Claim/drop rows -> (legs, rows skipped for no scorer, for no team).
 
     Same HTML-rowspan shape as trades: only the FIRST row of a txSetId group
     carries the `team`/`date`/`week` cells, and a paired DROP inherits all
     three from the CLAIM above it. Rows with no `scorer` block (or an unmapped team) can't be
-    posted to an asset-keyed ledger, so they're counted and skipped."""
+    posted to an asset-keyed ledger, so they're counted and skipped.
+
+    A claim leg carries `claim_method` and `claim_bid`; a drop takes the
+    method of the claim of its own txSetId and team, wherever in the group
+    that claim sits."""
     last_cd_team, last_cd_date, last_cd_week = {}, {}, {}
+    methods = {}                         # (txSetId, team_key) -> its claim's method
     legs, n_no_player, n_no_team = [], 0, 0
     for r in cd_rows:
         txset = r["txSetId"]
@@ -956,15 +1005,25 @@ def _parse_claim_drops(cd_rows, team_lut):
         if not team_key:
             n_no_team += 1
             continue
+        is_claim = r["transactionCode"] == "CLAIM"
+        method, bid = _claim_bid(r) if is_claim else (pd.NA, pd.NA)
+        if is_claim and pd.notna(method):
+            # One method per transaction and team: its first claim that has one.
+            methods.setdefault((txset, team_key), method)
         legs.append({
-            "kind":      CLAIM_EVENT if r["transactionCode"] == "CLAIM" else DROP_EVENT,
+            "kind":      CLAIM_EVENT if is_claim else DROP_EVENT,
             "transaction_id": txset,
             "scorer_id": sid,
             "team_from": pd.NA,
             "team_to":   team_key,
             "event_dt":  pd.to_datetime(last_cd_date.get(txset), errors="coerce"),
             "period":    _period(last_cd_week.get(txset)),
+            "claim_method": method,
+            "claim_bid":    bid,
         })
+    for l in legs:
+        if l["kind"] == DROP_EVENT:
+            l["claim_method"] = methods.get((l["transaction_id"], l["team_to"]), pd.NA)
     return legs, n_no_player, n_no_team
 
 
@@ -975,7 +1034,8 @@ def parse_txn_rows(raw_rows, team_lut, gsis_lut):
       fact_trade_log, or None when the capture holds no trade.
     - `legs`: one dict per player-asset leg (`kind`, `transaction_id`,
       `scorer_id`, `team_from`, `team_to`, `event_dt`, `period`), trades first
-      then claim/drops, in capture order.
+      then claim/drops, in capture order. A claim or drop leg also carries
+      `claim_method` and `claim_bid`.
     - `stats`: row counts (`trade_rows`, `claim_drop_rows`) and the claim/drop
       rows skipped (`no_player`, `no_team`)."""
     trade_rows = [r for r in raw_rows if r.get("transactionCode") is None]
@@ -1135,7 +1195,9 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
         common = dict(transaction_id=l["transaction_id"], season_id=season, period=period,
                       **terms, scorer_id=sid,
                       gsis_id=gsis_lut.get(sid), draft_round=pd.NA,
-                      pick_in_round=pd.NA, pick_overall=pd.NA, source=TRADE_SOURCE)
+                      pick_in_round=pd.NA, pick_overall=pd.NA, source=TRADE_SOURCE,
+                      claim_method=l.get("claim_method", pd.NA),
+                      claim_bid=l.get("claim_bid", pd.NA))
         if kind == TRADE_IN:
             rows.append({**common, "event_type": TRADE_AWAY, "team_key": l["team_from"],
                          "asset_id": aid, "event_seq": seq, "event_date": l["event_dt"]})
@@ -1255,7 +1317,7 @@ def main():
     # column that has since been dropped.
     kept = pd.read_parquet(FACT_PATH)
     if list(kept.columns) != LEDGER_COLS:
-        kept.reindex(columns=LEDGER_COLS).to_parquet(FACT_PATH, index=False)
+        claim_dtypes(kept.reindex(columns=LEDGER_COLS)).to_parquet(FACT_PATH, index=False)
     print(f"[ok] fact_roster_transactions: +{len(fact)} {EVENT_TYPE} rows "
           f"({total} total) -> {FACT_PATH.name}")
     print(f"[info] {EVENT_TYPE} contracts: {fact['contract_id'].value_counts().to_dict()} "
@@ -1333,7 +1395,7 @@ def main():
                   f"are on no roster -- priced at the league minimum "
                   f"(${fa['contract_value']:,.0f})")
 
-        txn_fact = pd.DataFrame(txn_fact_rows)[LEDGER_COLS]
+        txn_fact = claim_dtypes(pd.DataFrame(txn_fact_rows)[LEDGER_COLS])
         txn_fact["event_date"] = pd.to_datetime(txn_fact["event_date"])
         txn_fact["period"] = txn_fact["period"].astype("Int64")
         assert txn_fact["season_id"].notna().all(), "event_date outside every dim_season span"
@@ -1346,8 +1408,9 @@ def main():
         # on the rows that were kept.
         _led    = pd.read_parquet(FACT_PATH)
         _stale  = int(_led["event_type"].isin(TXN_EVENT_TYPES).sum())
-        out     = pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],
-                            ignore_index=True)[LEDGER_COLS]
+        out     = claim_dtypes(
+            pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],
+                      ignore_index=True)[LEDGER_COLS])
         assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
         assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
         out.to_parquet(FACT_PATH, index=False)
@@ -1358,6 +1421,11 @@ def main():
               f"{txn_fact['contract_id'].value_counts(dropna=False).to_dict()} "
               f"({txn_sourcing['observed']} leg(s) read off Roster State, "
               f"{txn_sourcing['preseason']} off the preseason capture)")
+        claims = txn_fact[txn_fact["event_type"] == CLAIM_EVENT]
+        print(f"[info] claim_method: "
+              f"{claims['claim_method'].value_counts(dropna=False).to_dict()} on claims, "
+              f"{txn_fact.loc[txn_fact['event_type'] == DROP_EVENT, 'claim_method'].value_counts(dropna=False).to_dict()} "
+              f"on drops")
         print(f"[info] contract_source, all rows: "
               f"{out['contract_source'].value_counts(dropna=False).to_dict()}")
         stintless = txn_fact[txn_fact["contract_source"] == NO_STINT]
