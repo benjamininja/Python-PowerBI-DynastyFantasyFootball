@@ -111,7 +111,7 @@ class TestFuturePicks:
         assert len(df) == len(raw["futureDraftPicks"]) == 18
         assert df["pick_ref"].is_unique
         assert int((df["original_owner"] != df["current_owner"]).sum()) == 1
-        assert set(df["divisionId"]) == set(fu.DIVISION_ID_BY_NAME.values())
+        assert set(df["division_id"]) == set(fu.DIVISION_ID_BY_NAME.values())
         assert not df["is_slotted"].any() and not df["is_made"].any()
         assert set(df["draft_season"]) == {"2027-2028", "2028-2029"}
 

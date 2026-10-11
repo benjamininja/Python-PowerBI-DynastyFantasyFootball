@@ -11,7 +11,7 @@
 #   (the player's stable natural key), so the surrogate survives a prospect
 #   signing (`player_key` → `gsis_id` fills underneath the same `asset_id`).
 # - **`fact_draft_pick`** — the 2026 startup pick grid (every slot, made or not).
-#   Keyed on the slot: `pick_ref = (draft_season, divisionId, overall_slot)`.
+#   Keyed on the slot: `pick_ref = (draft_season, division_id, overall_slot)`.
 #   Records `current_owner` (getDraftResults `teamId`, post-trade) and
 #   `original_owner`, inferred from round 1's own slot assignment expanded via
 #   the snake rule (Fantrax's API carries no pre-trade allocation field at all —
@@ -229,9 +229,10 @@ def _read_assets():
 # %%
 # ---- fact_draft_pick: 2026 startup grid (all slots) -------------------------
 def pick_refs(season_id: str, picks: pd.DataFrame) -> pd.Series:
-    """Each slot's `pick_ref`: (draft_season, divisionId, overall_slot) as one
+    """Each slot's `pick_ref`: (draft_season, division_id, overall_slot) as one
     string. It keys the pick grid, and a made pick's ledger row carries it as
-    its `transaction_id`."""
+    its `transaction_id`. `picks` is the parsed payload, so the division is
+    still under Fantrax's own key, `divisionId`."""
     return (season_id + "|" + picks["divisionId"]
             + "|S" + picks["overall_slot"].astype(int).map("{:03d}".format))
 
@@ -248,27 +249,29 @@ def build_draft_picks(picks: pd.DataFrame, team_lut: dict, season_id: str = SEAS
     the draft's own round 1: round-1 slot assignment defines the draft order by
     construction, and a snake expansion of that order reconstructs every later
     round's pre-trade owner. The unique slot identity is
-    (draft_season, divisionId, overall_slot)."""
+    (draft_season, division_id, overall_slot). The payload's `divisionId` is
+    renamed `division_id` here, where the table's columns are made (ADR-0018
+    decision 8)."""
     dp = picks.copy()
     dp["draft_season"]  = season_id
     dp["current_owner"] = dp["teamId"].map(team_lut)
     dp["is_made"]       = dp["scorerId"].notna()
     dp["pick_ref"]      = pick_refs(season_id, dp)
-    dp = dp.rename(columns={"pickNumber": "pick_in_round"})
+    dp = dp.rename(columns={"pickNumber": "pick_in_round", "divisionId": "division_id"})
     dp["draft_type"] = etl.classify_draft_type(dp["round"])
 
-    round1_order = dp.loc[dp["round"] == 1, ["divisionId", "pick_in_round", "current_owner"]] \
+    round1_order = dp.loc[dp["round"] == 1, ["division_id", "pick_in_round", "current_owner"]] \
         .rename(columns={"current_owner": "team_key"})
     snake_order = etl.expand_snake_draft_order(round1_order, int(dp["round"].max()))
     dp = dp.merge(snake_order.rename(columns={"team_key": "original_owner"}),
-                  on=["divisionId", "round", "pick_in_round"], how="left")
+                  on=["division_id", "round", "pick_in_round"], how="left")
     dp.loc[dp["round"] == 1, "original_owner"] = dp.loc[dp["round"] == 1, "current_owner"]
 
     grid = dp[
-        ["pick_ref", "draft_season", "divisionId", "round", "pick_in_round",
+        ["pick_ref", "draft_season", "division_id", "round", "pick_in_round",
          "overall_slot", "current_owner", "original_owner", "is_made", "draft_type"]
-    ].sort_values(["divisionId", "overall_slot"]).reset_index(drop=True)
-    assert not grid.duplicated(["draft_season", "divisionId", "overall_slot"]).any()
+    ].sort_values(["division_id", "overall_slot"]).reset_index(drop=True)
+    assert not grid.duplicated(["draft_season", "division_id", "overall_slot"]).any()
     assert grid["pick_ref"].is_unique
     assert grid["original_owner"].notna().all(), "original_owner inference left gaps"
     return grid

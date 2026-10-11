@@ -272,7 +272,7 @@ live status in PLAN.md.*
   picks resolve to gsis_id+salary.
 - **⚠ Finding — startup picks WERE traded** (some teams hold 2 picks/round). So
   getDraftResults' slot `teamId` = *current* owner → `dim_draft_pick` is keyed on
-  the slot `(draft_season, divisionId, overall_slot)` and `original_owner` is left
+  the slot `(draft_season, division_id, overall_slot)` and `original_owner` is left
   NULL until `draftPicks.go` is captured (which also lights up `pick_allocation`/
   `trade`, dormant v1, + 2027/2028 forward picks). Made-pick fact unaffected.
 - **Status update 2026-07-11**: both divisions now live — Riddell 485/490 picks made,

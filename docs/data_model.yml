@@ -255,7 +255,7 @@ tables:
       - { name: pick_in_round, dtype: int64 }
       - { name: overall_slot, dtype: int64 }
       - { name: original_owner, dtype: str }
-      - { name: divisionId, dtype: str }
+      - { name: division_id, dtype: str }
       - { name: current_owner, dtype: str }
       - { name: is_made, dtype: bool }
       - { name: draft_type, dtype: str }
@@ -277,7 +277,7 @@ tables:
       - { name: pick_in_round, dtype: object }
       - { name: overall_slot, dtype: object }
       - { name: original_owner, dtype: str }
-      - { name: divisionId, dtype: str }
+      - { name: division_id, dtype: str }
       - { name: current_owner, dtype: str }
       - { name: is_made, dtype: bool }
       - { name: is_slotted, dtype: bool }

@@ -88,7 +88,7 @@ def build_future_picks(draft_picks: dict, teams: pd.DataFrame) -> pd.DataFrame:
             "pick_in_round": pd.NA,
             "overall_slot": pd.NA,
             "original_owner": original_owner,
-            "divisionId": DIVISION_ID_BY_NAME[division_by_team_key[original_owner]],
+            "division_id": DIVISION_ID_BY_NAME[division_by_team_key[original_owner]],
             "current_owner": current_owner,
             "is_made": False,
             "is_slotted": False,
