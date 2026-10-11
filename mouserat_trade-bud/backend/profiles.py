@@ -30,9 +30,10 @@ _STATIC_LOW_CONFIDENCE_FIELDS = ["risk_tolerance", "injury_tolerance"]
 _TRADE_ACTIVITY_ACTIVE = 4  # nunique transaction_id at/above this -> "active"
 _TRADE_ACTIVITY_OCCASIONAL = 1  # at/above this (below ACTIVE) -> "occasional"
 
-_WAIVER_EVENT_TYPES = ["claim", "drop"]  # fact_roster_transactions.event_type
-_WAIVER_ACTIVITY_ACTIVE = 4  # claim + drop rows at/above this -> "active"
-_WAIVER_ACTIVITY_OCCASIONAL = 1  # at/above this (below ACTIVE) -> "occasional"
+_CLAIM_EVENT_TYPES = ["claim", "drop"]  # fact_roster_transactions.event_type
+_CLAIM_WAIVER = "waiver"  # fact_roster_transactions.claim_method: the claim carried a bid
+_CLAIM_FREE_AGENT = "free_agent"  # ...and: it carried none
+_CLAIM_ACTIVITY_TOP_SHARE = 1 / 3  # this share of the league, by count -> "active"
 
 
 def _roster_avg_age(team_key: str) -> float | None:
@@ -122,34 +123,58 @@ def infer_trade_activity(team_key: str) -> dict:
     }
 
 
-def infer_waiver_activity(team_key: str) -> dict:
-    """Waiver-wire churn signal (#68; design from #63) -- the count of this
-    team's claim and drop rows on the roster ledger, combined. A claim paired
-    with a drop counts twice: it is two roster moves. Read straight off
-    fact_roster_transactions (02d has already parsed Fantrax's CLAIM/DROP
-    rows), so no raw-JSON re-read.
+def _claim_activity(team_key: str, method: str, field: str) -> dict:
+    """One claim-activity signal (#68): the count of this team's claim and
+    drop rows on the roster ledger whose `claim_method` is `method`, and the
+    team's tier by that count. Read straight off fact_roster_transactions
+    (02d has already parsed Fantrax's CLAIM/DROP rows and their bid cell), so
+    no raw-JSON re-read.
 
-    Same shape as infer_trade_activity: a count over whatever history
-    exists, not windowed and not normalized per season. Revisit the
-    thresholds as the season fills in."""
+    A drop made with a claim carries that claim's method, so the pair counts
+    twice: it is two roster moves. A drop made on its own has no method and
+    counts toward neither signal (owner's decision, 2026-10-11).
+
+    The count runs over whatever history exists, so it grows all season
+    and a fixed cut point drifts (4 or more made 18 of 28 teams "active"
+    five weeks in). The tier is therefore the team's rank inside the league
+    (owner's decision, 2026-10-11): no moves -> "inactive"; a count at or
+    above that of the last team in the top _CLAIM_ACTIVITY_TOP_SHARE of
+    dim_fantasy_teams -> "active", every team tied at that count included;
+    the rest -> "occasional". Each signal is ranked on its own count."""
     ledger = da.read_parquet("fact_roster_transactions")
-    moves = ledger[ledger["event_type"].isin(_WAIVER_EVENT_TYPES)
-                   & (ledger["team_key"] == team_key)]
-    waiver_count = int(len(moves))
-    if waiver_count >= _WAIVER_ACTIVITY_ACTIVE:
-        tier = "active"
-    elif waiver_count >= _WAIVER_ACTIVITY_OCCASIONAL:
-        tier = "occasional"
-    else:
+    moves = ledger[ledger["event_type"].isin(_CLAIM_EVENT_TYPES)
+                   & ledger["claim_method"].eq(method).fillna(False).astype(bool)]
+    league = da.read_parquet("dim_fantasy_teams")["team_key"]
+    counts = moves.groupby("team_key").size().reindex(league.unique(), fill_value=0)
+    count = int(counts.get(team_key, 0))
+    top = max(1, int(len(counts) * _CLAIM_ACTIVITY_TOP_SHARE))
+    cut = int(counts.sort_values(ascending=False).iloc[top - 1]) if len(counts) else 0
+    if count == 0:
         tier = "inactive"
+    elif count >= cut:
+        tier = "active"
+    else:
+        tier = "occasional"
     # Same reasoning as trade activity: 0 doesn't distinguish "inactive
-    # owner" from "no waiver target worth a move yet".
-    confidence = "medium" if waiver_count > 0 else "low"
+    # owner" from "no target worth a move yet".
+    confidence = "medium" if count > 0 else "low"
     return {
-        "waiver_activity": tier,
-        "waiver_activity_confidence": confidence,
-        "waiver_count": waiver_count,
+        f"{field}_activity": tier,
+        f"{field}_activity_confidence": confidence,
+        f"{field}_count": count,
     }
+
+
+def infer_waiver_activity(team_key: str) -> dict:
+    """Waiver churn (#68; design from #63): the team's bid claims, the ones
+    the league's waiver run executes, and the drops made with them."""
+    return _claim_activity(team_key, _CLAIM_WAIVER, "waiver")
+
+
+def infer_free_agent_activity(team_key: str) -> dict:
+    """Free-agency churn (#68): the team's claims made without a bid, after
+    the waiver run, and the drops made with them."""
+    return _claim_activity(team_key, _CLAIM_FREE_AGENT, "free_agent")
 
 
 def low_confidence_fields(profile: dict) -> list[str]:
@@ -167,6 +192,8 @@ def low_confidence_fields(profile: dict) -> list[str]:
         fields.append("trade_activity")
     if profile.get("waiver_activity_confidence") == "low":
         fields.append("waiver_activity")
+    if profile.get("free_agent_activity_confidence") == "low":
+        fields.append("free_agent_activity")
     return fields
 
 
@@ -181,6 +208,7 @@ def build_profile(team_key: str, mode: str) -> dict:
         **infer_risk_threshold(team_key),
         **infer_trade_activity(team_key),
         **infer_waiver_activity(team_key),
+        **infer_free_agent_activity(team_key),
     }
     if mode == "counterparty":
         profile["low_confidence_fields"] = low_confidence_fields(profile)

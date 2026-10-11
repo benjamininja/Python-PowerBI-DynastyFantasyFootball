@@ -2380,17 +2380,30 @@ in `build_profile()`. No decision yet on window, whether CLAIM and DROP
 count separately or combined, or which profile field it'd land in — flag
 for a future grilling session, not scoped into #57.
 
-**Built 2026-10-11 (#68; design grilled in #63).** `profiles.py` has
-`infer_waiver_activity(team_key)`: the count of the team's `claim` + `drop`
-rows in `fact_roster_transactions`, combined, over all history;
-`waiver_activity` (`active` ≥ 4, `occasional` ≥ 1, else `inactive`),
-`waiver_count`, `waiver_activity_confidence` (`medium` if the count > 0, else
-`low`). Wired into `build_profile()` and `low_confidence_fields()`. Backend
-only: the frontend does not render it (the design did not decide a line).
-Tests: `tests/test_waiver_activity.py`. **The cut points no longer spread the
-league:** on the ledger to 2026-10-01 the counts are 0–27 (median 5), 18
-teams `active`, 5 `occasional`, 5 `inactive`, against 6 / 4 / 17 when #63
-chose 4 and 1. New cut points are the owner's decision (`NEEDS-OWNER.md`).
+**Built 2026-10-11 (#68; design grilled in #63, widened by the owner
+2026-10-11).** Two signals, not one: the owner separates waiver claims from
+free-agent adds. `profiles.py` has `infer_waiver_activity(team_key)` and
+`infer_free_agent_activity(team_key)`, both thin calls of
+`_claim_activity(team_key, method, field)`: the count of the team's `claim`
+and `drop` rows in `fact_roster_transactions` whose `claim_method` is
+`waiver` (the claim carried a bid) or `free_agent` (it carried none), over
+all history. A drop made with a claim carries the claim's method and counts
+with it; a drop made on its own has no method and counts toward neither.
+Each returns `<field>_activity`, `<field>_count`,
+`<field>_activity_confidence` (`medium` if the count > 0, else `low`), with
+`<field>` = `waiver` or `free_agent`. The tier is the team's rank inside the
+league on that signal's own count: no moves `inactive`; the top third of
+`dim_fantasy_teams` `active`, ties at the cut included; the rest
+`occasional` (`_CLAIM_ACTIVITY_TOP_SHARE`). Fixed cut points were dropped:
+4 and 1, chosen in #63, made 18 of 28 teams `active` five weeks in. Both are
+wired into `build_profile()` and `low_confidence_fields()`. Backend only:
+the frontend does not render them (the design did not decide a line).
+Tests: `tests/test_waiver_activity.py`. On the ledger of the 2026-10-11
+capture: waiver 9 `active` / 8 `occasional` / 11 `inactive` (counts 0–19);
+free agency 10 / 7 / 11 (counts 0–12). The method is inferred in `02d` from
+the bid cell (`data-model.md`, `fact_roster_transactions`); the league's
+Fantrax rules page says bids are processed Wednesday and Thursday at 08:00
+and Fantrax's own Waiver Wire is not used.
 
 **[NEW 2026-08-04] #57 design RESOLVED via grilling + adversarial review —
 approved, not yet built.** Plan file:

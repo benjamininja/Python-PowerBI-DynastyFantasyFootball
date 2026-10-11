@@ -819,6 +819,10 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
 # team -- and no bid; a drop made on its own has no method. A capture with no
 # `bid` cell on a claim leaves the method null: it cannot be told. Neither
 # column changes a contract or a salary.
+# The league's Fantrax rules page (read 2026-10-11) fits the rule: "Free Agent
+# Claim System: Bidding", bids "processed on: Wed, Thu at 8:00 am", minimum bid
+# $0.00, and Fantrax's own Waiver Wire process "Not used". So what the league
+# calls waivers is Fantrax's bid run, and a 0.00 bid is a real bid.
 #
 # Every leg carries `period`: the Scoring Period Fantrax says the move takes
 # effect in (the row's `week` cell). It decides which Roster State the leg
