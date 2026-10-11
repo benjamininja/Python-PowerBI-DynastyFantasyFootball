@@ -39,8 +39,19 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     found nothing to fix. Lesson from PR 2: `load_replace_partition`
     concats the old file with the new frame, so a renamed column must be
     renamed in the published file first, or the table keeps both.
-    Next: PR 3 (combine orphans), then PR 4 (`sql_type`). Ask before each
-    merge.
+    PR 2 merged as #146 (`a3d4255`). PR 3 is built on branch
+    `chore/110-combine-orphans`: `02a` rerun, same 7,434 rows, only
+    `gsis_id` moved in 5 rows (2 orphans to null, 3 nulls now resolved).
+    Next: PR 4 (`sql_type`). Ask before each merge.
+  - **Slip, do not repeat:** #145's title began "fix: #110", which GitHub
+    reads as a closing keyword, so the merge closed #110. Reopened at
+    once. Never start a PR title or commit subject with fix/close/resolve
+    followed by a ticket number unless the PR finishes the ticket.
+  - **Open point for the owner (raised in PR 3):** `01e` rebuilds
+    `dim_nfl_players` on the schedule and `02a` is manual, so a combine
+    orphan can come back when a player leaves the dim. With the `gsis_id`
+    FK of ADR-0018 that would fail the dim's load. Candidate fix: put
+    `02a` in the `nflverse` Chain after `01e`.
   - PR 1 Composite: `04y` writes `source_player_id = gsis_id` and
     `source_uid = "Composite|<gsis_id>"`; rerun `04y` (offline) as the
     backfill; `check_grain` docstring and `test_composite_grain`; registry
