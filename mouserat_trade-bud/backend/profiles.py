@@ -30,6 +30,10 @@ _STATIC_LOW_CONFIDENCE_FIELDS = ["risk_tolerance", "injury_tolerance"]
 _TRADE_ACTIVITY_ACTIVE = 4  # nunique transaction_id at/above this -> "active"
 _TRADE_ACTIVITY_OCCASIONAL = 1  # at/above this (below ACTIVE) -> "occasional"
 
+_WAIVER_EVENT_TYPES = ["claim", "drop"]  # fact_roster_transactions.event_type
+_WAIVER_ACTIVITY_ACTIVE = 4  # claim + drop rows at/above this -> "active"
+_WAIVER_ACTIVITY_OCCASIONAL = 1  # at/above this (below ACTIVE) -> "occasional"
+
 
 def _roster_avg_age(team_key: str) -> float | None:
     roster = da.read_parquet("fact_fantasy_teams")
@@ -118,6 +122,36 @@ def infer_trade_activity(team_key: str) -> dict:
     }
 
 
+def infer_waiver_activity(team_key: str) -> dict:
+    """Waiver-wire churn signal (#68; design from #63) -- the count of this
+    team's claim and drop rows on the roster ledger, combined. A claim paired
+    with a drop counts twice: it is two roster moves. Read straight off
+    fact_roster_transactions (02d has already parsed Fantrax's CLAIM/DROP
+    rows), so no raw-JSON re-read.
+
+    Same shape as infer_trade_activity: a count over whatever history
+    exists, not windowed and not normalized per season. Revisit the
+    thresholds as the season fills in."""
+    ledger = da.read_parquet("fact_roster_transactions")
+    moves = ledger[ledger["event_type"].isin(_WAIVER_EVENT_TYPES)
+                   & (ledger["team_key"] == team_key)]
+    waiver_count = int(len(moves))
+    if waiver_count >= _WAIVER_ACTIVITY_ACTIVE:
+        tier = "active"
+    elif waiver_count >= _WAIVER_ACTIVITY_OCCASIONAL:
+        tier = "occasional"
+    else:
+        tier = "inactive"
+    # Same reasoning as trade activity: 0 doesn't distinguish "inactive
+    # owner" from "no waiver target worth a move yet".
+    confidence = "medium" if waiver_count > 0 else "low"
+    return {
+        "waiver_activity": tier,
+        "waiver_activity_confidence": confidence,
+        "waiver_count": waiver_count,
+    }
+
+
 def low_confidence_fields(profile: dict) -> list[str]:
     """Per-team low-confidence field list (Phase A #6): starts from the
     fields with no data source at all (_STATIC_LOW_CONFIDENCE_FIELDS), then
@@ -131,6 +165,8 @@ def low_confidence_fields(profile: dict) -> list[str]:
         fields.append("risk_threshold")
     if profile.get("trade_activity_confidence") == "low":
         fields.append("trade_activity")
+    if profile.get("waiver_activity_confidence") == "low":
+        fields.append("waiver_activity")
     return fields
 
 
@@ -144,6 +180,7 @@ def build_profile(team_key: str, mode: str) -> dict:
         **infer_stance(team_key),
         **infer_risk_threshold(team_key),
         **infer_trade_activity(team_key),
+        **infer_waiver_activity(team_key),
     }
     if mode == "counterparty":
         profile["low_confidence_fields"] = low_confidence_fields(profile)

@@ -2375,6 +2375,18 @@ in `build_profile()`. No decision yet on window, whether CLAIM and DROP
 count separately or combined, or which profile field it'd land in — flag
 for a future grilling session, not scoped into #57.
 
+**Built 2026-10-11 (#68; design grilled in #63).** `profiles.py` has
+`infer_waiver_activity(team_key)`: the count of the team's `claim` + `drop`
+rows in `fact_roster_transactions`, combined, over all history;
+`waiver_activity` (`active` ≥ 4, `occasional` ≥ 1, else `inactive`),
+`waiver_count`, `waiver_activity_confidence` (`medium` if the count > 0, else
+`low`). Wired into `build_profile()` and `low_confidence_fields()`. Backend
+only: the frontend does not render it (the design did not decide a line).
+Tests: `tests/test_waiver_activity.py`. **The cut points no longer spread the
+league:** on the ledger to 2026-10-01 the counts are 0–27 (median 5), 18
+teams `active`, 5 `occasional`, 5 `inactive`, against 6 / 4 / 17 when #63
+chose 4 and 1. New cut points are the owner's decision (`NEEDS-OWNER.md`).
+
 **[NEW 2026-08-04] #57 design RESOLVED via grilling + adversarial review —
 approved, not yet built.** Plan file:
 `C:\Users\benha\.claude\plans\review-and-let-s-think-merry-bird.md`.
