@@ -1,4 +1,4 @@
-/// Roster fact: one row per team and player, with contract, status, and squad placement. Dual-conference rosters supported. CapHit and DeadMoney are NOT stored -- a kept player charges full ContractValue; dead money is computed from Status/Dim_Contract[CapHitPct]. See the Salary & Cap measures in _Measures.tmdl.
+/// Roster fact: one row per team and player, with contract and squad placement. A kept player charges full ContractValue (CapHit is not stored). Dead money lives in Fact_DeadMoney.
 table Fact_FantasyTeams
 	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
 
@@ -82,19 +82,6 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["contract year","year of deal","deal year"]
 
-	/// Roster status (e.g. Active, IR, Taxi, Cut).
-	column Status
-		dataType: string
-		lineageTag: 87aa8949-6a1a-4787-8c59-cafa7234d17d
-		summarizeBy: none
-		sourceColumn: status
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = status|roster status|state
-
-		annotation SynonymCollection = ["status","roster status","state"]
-
 	/// How the player was acquired (draft, FA, trade).
 	column AcquiredMethod
 		dataType: string
@@ -121,7 +108,7 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["season","year","league year"]
 
-	/// Observed squad placement from the latest weekly roster snapshot: Active, Reserve, or Minors. Minors placement is cap-exempt (salary excluded from Active Roster Salary). Blank = not in the latest snapshot, charged normally.
+	/// Observed squad slot from the latest roster snapshot: Active, Reserve, Inj Res or Minors. Minors and Inj Res salary is cap-exempt. Blank = not in the snapshot, charged normally.
 	column RosterStatus
 		dataType: string
 		lineageTag: a3fc80c9-b244-4ac9-99c5-e17adcc8ea30

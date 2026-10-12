@@ -1,0 +1,185 @@
+/// Dead Money charged to a team's cap: one row per dropped guaranteed contract and season charged (a 1st-contract drop is two rows). The Dead Money measures sum it.
+table Fact_DeadMoney
+	lineageTag: 4c7e2a91-5b3d-4f08-a6e1-9d2b7c3f8a10
+
+	/// Fantrax transaction id of the drop. Part of the row key with ScorerID, TeamKey and SeasonID.
+	column TransactionID
+		dataType: string
+		isHidden
+		lineageTag: 7d1f3b52-8a4c-4e6d-b9f0-2c5a8e1d4b73
+		summarizeBy: none
+		sourceColumn: transaction_id
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Fantrax player id of the dropped player. Part of the row key.
+	column ScorerID
+		dataType: string
+		isHidden
+		lineageTag: 2e9a6c14-3f7b-4d85-a1c2-6b8d0f4e5a97
+		summarizeBy: none
+		sourceColumn: scorer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Fantasy team that dropped the player and carries the charge; links to Dim_FantasyTeams.
+	column TeamKey
+		dataType: string
+		lineageTag: 9b4d7e03-6c1a-4f52-8e3b-1a7c9d2f6e48
+		summarizeBy: none
+		sourceColumn: team_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|team key|franchise|dropping team
+
+		annotation SynonymCollection = ["team","team key","franchise","dropping team"]
+
+	/// Season the charge falls in, e.g. 2026-2027; links to Dim_Season. Not the season of the drop.
+	column SeasonID
+		dataType: string
+		lineageTag: 5a8c1e47-2d9b-4b36-9f70-4e6a3c8b1d25
+		summarizeBy: none
+		sourceColumn: season_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = season|charged season|league year|cap season
+
+		annotation SynonymCollection = ["season","charged season","league year","cap season"]
+
+	/// Day the player was dropped (Eastern clock).
+	column DropDate
+		dataType: dateTime
+		formatString: Short Date
+		lineageTag: 3f6b9d20-7e4a-4c18-b5d1-8a2e5c7f0b64
+		summarizeBy: none
+		sourceColumn: drop_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = drop date|date dropped|cut date|release date
+
+		annotation SynonymCollection = ["drop date","date dropped","cut date","release date"]
+
+	/// Scoring Period the drop took effect in. Blank on a drop of another season.
+	column DropPeriod
+		dataType: int64
+		formatString: 0
+		lineageTag: 8c2e5a79-1b6d-4e03-a4f8-7d9b2c6e1a30
+		summarizeBy: none
+		sourceColumn: drop_period
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = drop period|scoring period|week dropped
+
+		annotation SynonymCollection = ["drop period","scoring period","week dropped"]
+
+	/// nflverse universal player id of the dropped player; links to Dim_NFLPlayers. Blank when the player has no gsis id.
+	column GSISID
+		dataType: string
+		lineageTag: 1d7f4b86-9a3c-4e25-8b60-5c2a9e7d3f19
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id"]
+
+	/// Contract the player was on at the drop (1st, 2nd, Tag, FA and so on).
+	column ContractID
+		dataType: string
+		lineageTag: 6e0a3d58-4c7b-4f91-a2d4-9b1f8c5e7a02
+		summarizeBy: none
+		sourceColumn: contract_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract id|contract|deal at drop
+
+		annotation SynonymCollection = ["contract id","contract","deal at drop"]
+
+	/// Salary at the drop ($). Each season's charge is this times CapHitPct.
+	column ContractValue
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 4b9e2c71-8d5a-4a37-b6e0-3f7a1d9c5b86
+		summarizeBy: none
+		sourceColumn: contract_value
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = salary at drop|contract value|dropped salary
+
+		annotation SynonymCollection = ["salary at drop","contract value","dropped salary"]
+
+	/// Contract row whose rate prices this season's charge (the schedule row, not always the contract at the drop).
+	column ChargeContractID
+		dataType: string
+		isHidden
+		lineageTag: a0c5f3e6-2b8d-4719-9e4a-6d1b7f2c8e53
+		summarizeBy: none
+		sourceColumn: charge_contract_id
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Share of the salary charged in this season, from the guaranteed Dim_Contract row (e.g. 0.50 then 0.40 on a 1st).
+	column CapHitPct
+		dataType: double
+		formatString: 0%
+		lineageTag: 7a2d8f14-5c9e-4b60-a3b7-1e6c4d9a0f35
+		summarizeBy: none
+		sourceColumn: cap_hit_pct
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = cap hit pct|charge rate|dead money rate
+
+		annotation SynonymCollection = ["cap hit pct","charge rate","dead money rate"]
+
+	/// Dead money in dollars charged to the team's cap in SeasonID: salary at the drop times CapHitPct.
+	column DeadMoney
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: c3e7a5b9-0d4f-4c82-b1a6-8f2d6e9b4a71
+		summarizeBy: sum
+		sourceColumn: dead_money
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = dead money|dead cap|cap charge|dropped salary charge
+
+		annotation SynonymCollection = ["dead money","dead cap","cap charge","dropped salary charge"]
+
+	/// Where the contract at the drop came from: roster_state, preseason or default (default is the least certain).
+	column ContractSource
+		dataType: string
+		lineageTag: e5b1c8d3-6a7f-4d29-8c40-2a9e3f7b1d68
+		summarizeBy: none
+		sourceColumn: contract_source
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract source|source of contract|data source
+
+		annotation SynonymCollection = ["contract source","source of contract","data source"]
+
+	partition Fact_DeadMoney = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_dead_money.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Dead Money|Dead Cap|Cut Charges|Dropped Contract Charges
+
+	annotation SynonymCollection = ["Dead Money","Dead Cap","Cut Charges","Dropped Contract Charges"]

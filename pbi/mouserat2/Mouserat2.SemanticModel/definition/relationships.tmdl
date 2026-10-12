@@ -115,3 +115,15 @@ relationship Fact_DraftPick_to_Dim_Contract_via_ContractID
 	fromColumn: Fact_DraftPick.ContractID
 	toColumn: Dim_Contract.ContractID
 
+relationship Fact_DeadMoney_to_Dim_FantasyTeams_via_TeamKey
+	fromColumn: Fact_DeadMoney.TeamKey
+	toColumn: Dim_FantasyTeams.TeamKey
+
+relationship Fact_DeadMoney_to_Dim_Season_via_SeasonID
+	fromColumn: Fact_DeadMoney.SeasonID
+	toColumn: Dim_Season.season_id
+
+relationship Fact_DeadMoney_to_Dim_NFLPlayers_via_GSISID
+	fromColumn: Fact_DeadMoney.GSISID
+	toColumn: Dim_NFLPlayers.GSISID
+

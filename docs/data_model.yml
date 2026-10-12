@@ -488,7 +488,6 @@ tables:
       - { name: contract_id, dtype: str }
       - { name: contract_value, dtype: float64 }
       - { name: contract_year, dtype: float64 }
-      - { name: status, dtype: str }
       - { name: acquired_method, dtype: str }
       - { name: roster_status, dtype: str }
       - { name: season, dtype: str }
@@ -624,8 +623,9 @@ tables:
       at that rate; every row is a drop on the ledger that ends a stint; every
       such drop of a guaranteed contract has a row. Read by
       discord_bot/capmath.py (the bot and trade-bud): this season's rows come
-      off current cap room, next season's off next-year room. Power BI does
-      not load it yet (#140).
+      off current cap room, next season's off next-year room. Power BI loads
+      it as Fact_DeadMoney (#140): the three Dead Money - Active measures
+      sum it by Dim_Season.relative_nfl_season_number.
 
   - name: fact_trade_log
     type: fact

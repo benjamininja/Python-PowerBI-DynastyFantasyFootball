@@ -52,8 +52,7 @@ def _player_line(row: pd.Series) -> str:
     name = render.safe_str(row.get("player_name"), 18) or "(unknown)"
     pos = render.safe_str(row.get("position_group"), 3) or "?"
     contract = render.fmt_money(row.get("contract_value"))
-    status = render.safe_str(row.get("status"), 6) or "—"
-    return f"{cap_hit:>8} {name:<18} {pos:<3} {contract:>8} {status}"
+    return f"{cap_hit:>8} {name:<18} {pos:<3} {contract:>8}"
 
 
 def build_roster_embeds(cfg: Config, team: str) -> list[discord.Embed]:
@@ -79,7 +78,7 @@ def build_roster_embeds(cfg: Config, team: str) -> list[discord.Embed]:
     )
     board = board.sort_values("cap_hit", ascending=False).reset_index(drop=True)
 
-    header = f"{'Cap':>8} {'Player':<18} {'Pos':<3} {'Salary':>8} Status"
+    header = f"{'Cap':>8} {'Player':<18} {'Pos':<3} {'Salary':>8}"
     fields: list[tuple[str, str]] = []
     for start in range(0, len(board), _PLAYERS_PER_FIELD):
         chunk = board.iloc[start : start + _PLAYERS_PER_FIELD]
