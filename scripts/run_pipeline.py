@@ -146,6 +146,12 @@ def build_steps(profile: str | None) -> list[dict]:
         # dropped or changed (#149).
         {"name": "02a_combine_metrics", "cmd": _nbconvert("02a_fact_nfl_combine_pro_day_metrics.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "pre_season"},
+        # Snap counts and the injury report (nflverse, no login; ADR-0017).
+        # It maps players through 01e's season and stamps each row with a
+        # Scoring Period from 04p's table, which an earlier run has written.
+        # Its own group, so `--group injury` refreshes it between weekly runs.
+        {"name": "02g_nflverse_inseason", "cmd": _script("02g_nflverse_inseason.py"),
+         "phases": {"INSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "injury"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),

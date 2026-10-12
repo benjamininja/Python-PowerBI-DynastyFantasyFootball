@@ -203,6 +203,7 @@ Shared helpers/config live in `notebooks/etl_helpers.py` (imported, not copied).
 | 02c | `02c_fact_rookie_rankings_seed.ipynb` | `fact_rookie_rankings` (schema seed only) |
 | 02d | `02d_fact_roster_transactions.py` | `fact_roster_transactions` (ledger, replay from `04w` draft-results JSON) + `dim_roster_asset` + `dim_draft_pick` |
 | 02f | `02f_fact_dead_money.py` | `fact_dead_money` (Dead Money from the ledger's drops, one row per season charged; ADR-0016 d5, #96, built 2026-10-11) |
+| 02g | `02g_nflverse_inseason.py` | `fact_nfl_snap_counts`, `fact_nfl_injuries` (nflverse, current season, `injury` group of the scheduled run; ADR-0017, #86, built 2026-10-12) |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams` (ledger replay → current roster). Since 2026-07-11 this is the **only** location for contract/salary/cap-hit data — no longer rolls anything up into `dim_fantasy_teams` (see "Cap architecture" below) |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |

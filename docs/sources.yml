@@ -159,12 +159,14 @@ sources:
     name: "nflverse (via nflreadpy)"
     status: live
     locator: "nflreadpy package (nflverse release data)"
-    purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id)"
+    purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id), in-season snap counts and injury report"
     auth: "None (public package)"
     cadence: "Per pipeline run"
     feeds:
       - { notebook: 01e_dim_nfl_players_seed.ipynb, table: dim_nfl_players }
       - { notebook: 02a_fact_nfl_combine_pro_day_metrics.ipynb, table: fact_nfl_combine_pro_day_metrics }
+      - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_snap_counts }
+      - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_injuries }
       - { notebook: 05a_startup_draft_board.py, table: "(career-games lookup)" }
     match: ["nflreadpy"]
 
