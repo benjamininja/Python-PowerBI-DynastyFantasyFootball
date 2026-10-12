@@ -49,7 +49,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import DATA, load_replace_partition, classify_draft_type, fantrax_public_get
+from etl_helpers import DATA, write_table, classify_draft_type, fantrax_public_get
 
 # league_id/raw_dir live on 04a's own LeagueConfig (separate from
 # etl_helpers.CFG) -- reuse it rather than re-declaring the league id here,
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     )
 
     future = build_future_picks(draft_picks, teams)
-    n = load_replace_partition(future, FUTURE_PATH, part_cols=("draft_season",))
+    n = write_table("fact_draft_pick_future", future, mode="replace_partition", keys=("draft_season",))
     traded = int((future["original_owner"] != future["current_owner"]).sum())
     print(f"[ok] dim_draft_pick_future: {len(future)} picks written this run "
           f"({traded} already traded) -> {n} total rows -> {FUTURE_PATH.name}")

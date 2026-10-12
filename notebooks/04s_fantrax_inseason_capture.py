@@ -82,7 +82,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "04a_fantrax_weekly_scrape.py").exists():
         sys.path.insert(0, str(_p))
         break
-from etl_helpers import DATA, fantrax_public_get, load_replace_partition
+from etl_helpers import DATA, fantrax_public_get, write_table
 
 # The season id and the Update-Set states are 04p's; the league clock is 04r's.
 fx = importlib.import_module("04a_fantrax_weekly_scrape")
@@ -405,8 +405,10 @@ def load(periods: list[int], teams: pd.DataFrame, season_id: str) -> int:
     if scoring.empty:
         print(f"[ok] fact_period_scoring, fact_matchup: no final period of {season_id} to load")
         return 0
-    total_s = load_replace_partition(scoring, SCORING_PATH, part_cols=("season_id", "period"))
-    total_m = load_replace_partition(matchups, MATCHUP_PATH, part_cols=("season_id", "period"))
+    total_s = write_table("fact_period_scoring", scoring, mode="replace_partition",
+                          keys=("season_id", "period"))
+    total_m = write_table("fact_matchup", matchups, mode="replace_partition",
+                          keys=("season_id", "period"))
     print(f"[ok] fact_period_scoring: {len(scoring)} rows for {season_id}, periods "
           f"{scoring.groupby('period').size().to_dict()} "
           f"({int(scoring['is_starter'].sum())} Starters) -> {total_s} total rows "
