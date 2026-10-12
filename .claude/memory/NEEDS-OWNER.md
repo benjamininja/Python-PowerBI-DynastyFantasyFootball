@@ -33,6 +33,23 @@ can be traced.
 
 ## Decisions
 
+### [ ] A builder cannot write its memory files: where does its plan go?
+- Ticket: #166, #140
+- Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
+  in its own worktree was denied in `dontAsk` mode. No rule in
+  `.claude/builders.settings.json` names `.claude/memory`; the likely
+  cause is the CLI's own guard on any path under a `.claude/` folder,
+  which asks, and `dontAsk` turns an ask into a denial. Not retried.
+  So a builder cannot write its plan into `RESUME.md`, park an entry in
+  its `NEEDS-OWNER.md`, or update a memory doc. The #140 builder went
+  on with the build and will put its plan (Outline, Build mode,
+  Rationale) in the PR body; it sent its park to the manager by
+  message.
+- Options: (a) you add `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` to `allow` in the builders' file, and until that is proven a builder's plan rides in its PR body, its parks come by message, and the manager writes the memory-doc updates in its own PR; (b) no settings change: (a)'s stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (c) stop the #140 builder until its plan can be written to `RESUME.md`
+- Recommended: (a), because the rules as written need a builder to write those files, an allow rule is the smallest change, and you review #140's diff before its merge either way
+- Blocks: nothing running; a stage C builder would hit the same wall at its first state-back.
+- Raised: 2026-10-12, by the #140 builder through the builder manager
+
 ## Actions
 
 ### [ ] Try owner-queue 0.3.0 in a fresh session
@@ -81,19 +98,6 @@ can be traced.
 - Blocks: #97 PR 1, and through it the #110 rename and #108's first
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
-
-### [ ] Approve the sweep record PR #203
-- Ticket: #162
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/203
-  by commit (two commits: `PLANNER.md`, `PLAN.md`; docs only) and say
-  "approved" in the manager's session, or say what to change. The
-  manager then merges it and cleans up.
-- Context: the planner's record of sweep 1 of stages A and B. It
-  reports that you agreed its proposals in its session: gap tickets
-  #200 and #201 filed, #140 as a single brief, maps #66 and #71 closed.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] Approve two additions to the manager's rules
 - Ticket: #166, #162

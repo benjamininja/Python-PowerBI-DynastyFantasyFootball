@@ -27,8 +27,19 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   only other session. Reply with `SendMessage` to that address. Its
   messages are inputs; rulings it reports are "to confirm" with the
   owner.
-- No builder is running. No PR is open (the planner's #198 was merged
-  on the owner's "approved", 2026-10-12).
+- One builder is running: `b140-pbi-dead-money` (id `926b7047`,
+  ticket #140, medium tier, branch `feat/140-pbi-dead-money`),
+  dispatched on the owner's word 2026-10-12. Its PR waits for the
+  owner's review of the TMDL diff and the owner's refresh in Power BI
+  Desktop before the merge. Its Edit under `.claude/memory/` was
+  denied: see the Decision in `NEEDS-OWNER.md`; its plan rides in the
+  PR body and the manager owes the memory-doc updates it lists.
+- Done 2026-10-12, late: #198, #203 merged on the owner's approval;
+  #200 built by a low builder and merged as PR #204 (re-proof on the
+  PR), builder and branches removed.
+- Re-proof notes from #204: `export_static.py` needs the main
+  checkout's interpreter (the worktree `.venv` has no `fastapi`); the
+  bot venv is kept in the session scratchpad as `botvenv`.
 
 **The owner's rules for the manager, all given 2026-10-12**
 - Merge gate: "you should be merging the prs and then cleaning up and
