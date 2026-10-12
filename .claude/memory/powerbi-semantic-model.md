@@ -229,3 +229,32 @@ its `ref` in model.tmdl, its 4 relationships) from the model:
 - Dead `MetricIndex` column + its hardcoded-`"20260606-"` Power Query step **removed** —
   this resolves the old cross-snapshot-collision latent bug.
 - `adp` split into `ktc_adp`/`ds_adp`; new `composite_adp` percentile blend (notebook 04y).
+
+## Dead Money model (#140, 2026-10-12)
+
+- **`Fact_DeadMoney`** loads `data/fact_dead_money.parquet`. Three
+  relationships, many-to-one, single direction, active:
+  `Fact_DeadMoney_to_Dim_FantasyTeams_via_TeamKey`,
+  `Fact_DeadMoney_to_Dim_Season_via_SeasonID`,
+  `Fact_DeadMoney_to_Dim_NFLPlayers_via_GSISID`. The third is past the
+  ticket and kept on the owner's word: two visuals break Dead Money by
+  player. No relationship to `Dim_Contract` (two contract columns, no
+  visual needs it).
+- **Measures.** `Dead Money - Active - Current Year` / `- Next Year` /
+  `- Total` are `SUM(Fact_DeadMoney[DeadMoney])` at
+  `Dim_Season[relative_nfl_season_number]` `= 0` / `= 1` / `>= 0`. They
+  return blank, not 0, for a team with no charge. The three
+  `Speculative` measures still read `Fact_FantasyTeams`.
+- **IR exemption.** `Active Roster Salary` and `Remaining Salary Cap`
+  exclude `RosterStatus` `"Minors"` and `"Inj Res"`. The exemption is
+  in the DAX only until #97 puts it in the cap module, so report and
+  bot differ by each team's IR salary. `tests/test_pbi_cap_rule.py`
+  fails if a DAX slot literal is not a value `02e` writes (guards the
+  #110 rename).
+- **`Fact_FantasyTeams[Status]` is retired**: column, culture entries
+  and four dead `columnWidth` selectors in the report.
+- **Not checked in Power BI Desktop**: the refresh and the per-team
+  figures are the owner's, ticket #211.
+- **Open**: "this season" is the calendar here and the roster's season
+  in the bot and `02e`; the owner ruled the roster's season the one
+  anchor (#206 part 1, built in #97 PR 2).

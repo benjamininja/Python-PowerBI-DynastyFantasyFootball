@@ -328,7 +328,7 @@ gained `roster_with_cap_hit()` for the same join in pandas. `DeadMoney` was
 drop-event tracking, ledger `drop` event type doesn't exist); the user is
 building the 3-version design (current/next/total year) live in `_Measures.tmdl`
 themselves — superseded: Dead Money shipped as `fact_dead_money` (#96,
-2026-10-11; `capmath` reads it; the DAX side is #140). See PLAN.md "Dead
+2026-10-11; `capmath` reads it; the DAX side shipped in #140, 2026-10-12). See PLAN.md "Dead
 money". `dim_season.relative_nfl_season_number`
 (one of that design's dependencies) is **built** (`01f`, 2026-07-11) — 0 =
 season containing today via the fantasy window, negative=past/positive=future.

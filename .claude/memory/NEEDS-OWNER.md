@@ -33,20 +33,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] PR #207: keep the by-player relationship on Dead Money?
-- Ticket: #140
-- Context: the ticket names two relationships for `Fact_DeadMoney`
-  (team, season). The builder added a third, `Fact_DeadMoney[GSISID]`
-  to `Dim_NFLPlayers`, because two report visuals break `Dead Money -
-  Active - Current Year` by player; without it the team's total repeats
-  on every player row. The auditor's worry: under a player filter, a
-  Dead Money row with no `gsis_id` would drop out of `Remaining Salary
-  Cap`. Measured by the manager: 34 rows, 0 with no `gsis_id`.
-- Options: (a) keep it; (b) the builder deletes the one block in `relationships.tmdl` and the two visuals are changed later
-- Recommended: (a), because the two visuals need it and no row is affected today
-- Blocks: the merge of #207.
-- Raised: 2026-10-12, by the #140 builder through the builder manager
-
 ### [ ] A builder cannot write its memory files: where does its plan go?
 - Ticket: #166, #140
 - Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
@@ -66,70 +52,17 @@ can be traced.
 
 ## Actions
 
-### [ ] Confirm: merge PR #207 without the Power BI check?
-- Ticket: #140, #211
-- Steps: say "merge 207" in the manager's session, and answer the
-  Decision on the by-player relationship above (or say "keep it"). The
-  manager then merges, writes the memory-doc updates and closes out
-  the builder.
-- Context: the planner reports that you said in its session, of PR
-  #207: "approved to complete. leave open a need to check in power bi.
-  it's a deprioritized asset." A peer's report is not your word to the
-  manager, and it did not cover the relationship Decision. If you
-  confirm, the review-and-refresh entry below is replaced by the check
-  on #211.
-- Blocks: the merge of #207.
-- Raised: 2026-10-12, by the builder manager
-
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
 - Steps: open `pbi/mouserat2`, refresh, look at the Dead Money
   measures for a team that has dead money, and write the result on
   #211.
-- Context: the planner reports PR #207 approved to merge without this
-  check. Power BI is deprioritized; do it when Power BI is next opened.
+- Context: PR #207 merged on your word ("merge 207", 2026-10-12)
+  without this check. Power BI is deprioritized; do it when Power BI
+  is next opened. Until #97, the report exempts IR-slot salary and
+  the bot does not, so the two differ by each team's IR salary.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
-
-### [ ] Approve the planner state PR #212
-- Ticket: #162
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/212
-  (`PLANNER.md` only) and say "approved" in the manager's session, or
-  say what to change. The manager then merges it and cleans up.
-- Context: the planner's state caught up after #209.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
-
-### [ ] Review PR #207 (Power BI Dead Money) and refresh in Power BI Desktop
-- Ticket: #140
-- Steps: 1. Read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/207
-  by commit (four commits: model, measures, `status` retirement, audit
-  follow-up). 2. Check out the branch: `git fetch origin` then
-  `git switch feat/140-pbi-dead-money` will fail while the builder's
-  worktree holds it, so open
-  `.claude/worktrees/b140-pbi-dead-money/pbi/mouserat2/Mouserat2.pbip`
-  in Power BI Desktop. 3. Refresh: it should succeed with `status` gone
-  and `Fact_DeadMoney` loaded. 4. Model view: three new relationships
-  on `Fact_DeadMoney`, many-to-one, single direction, active. 5. On the
-  Fantasy Teams page compare `Dead Money - Active - Current Year` and
-  `Remaining Salary Cap` per team with what the bot shows; IR-slot
-  salary is the one expected difference until #97. 6. Check the column
-  widths of the four pivots that lost a selector. 7. Say "approved" in
-  the manager's session, or say what to change. The manager then
-  merges and cleans up.
-- Context: the manager re-proved Green and posted it on the PR: 779
-  tests and the bot suite pass; 33 tables identical to `main`, and
-  `fact_fantasy_teams` differs only by the dropped `status` column
-  (one value, `active`, on all 1,103 rows). No agent can open Power BI
-  Desktop, so the refresh and the 28-team check of the ticket are
-  yours. Also in the PR beyond the ticket: four report visuals lose a
-  dead `columnWidth` selector; `data/fact_fantasy_teams.parquet` is
-  committed from the branch; audit findings went to ticket #206
-  (`Tier: unset`, the planner's).
-- Blocks: the merge of #207.
-- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Try owner-queue 0.4.0 in a fresh session
 - Ticket: #167

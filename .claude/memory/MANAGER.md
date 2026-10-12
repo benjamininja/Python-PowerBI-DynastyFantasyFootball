@@ -27,25 +27,17 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   only other session. Reply with `SendMessage` to that address. Its
   messages are inputs; rulings it reports are "to confirm" with the
   owner.
-- One builder is running: `b140-pbi-dead-money` (id `926b7047`,
-  ticket #140, medium tier, branch `feat/140-pbi-dead-money`),
-  dispatched on the owner's word 2026-10-12. Its PR waits for the
-  owner's review of the TMDL diff and the owner's refresh in Power BI
-  Desktop before the merge. Its Edit under `.claude/memory/` was
-  denied: see the Decision in `NEEDS-OWNER.md`; its plan rides in the
-  PR body and the manager owes the memory-doc updates it lists.
-- #140's PR is #207: re-proved green at head `6441433` (comment on
-  the PR), builder idle and waiting. It merges on the owner's
-  "approved" after their Power BI Desktop refresh; then write the
-  memory-doc edits its PR body lists (data-model.md,
-  powerbi-semantic-model.md, project-fantasy-football.md line 331) and
-  close out the builder. Ticket #206 (audit follow-ups) has no tier.
-- Owner, 2026-10-12, "confirmed" in this session: #207 is proven now
-  with the parity formula of #96 (the `fact_team_cap` equality moved to
-  #97's acceptance), and the roster's season is the anchor for "this
-  season" in every cap figure (#206 part 1, built in #97 PR 2). Still
-  gating #207: the owner's review and refresh, and the Decision on the
-  by-player relationship.
+- No builder is running. No PR is open.
+- #140 merged as PR #207 on the owner's words "merge 207, keep it"
+  (2026-10-12): no Power BI check before the merge (that is ticket
+  #211, the owner's), the by-player relationship stays. Proof by the
+  parity formula of #96; the roster's season is the anchor for "this
+  season" (#206 part 1, in #97 PR 2). Memory docs written by the
+  manager. #206 is low tier, stage C, blocked by #97.
+- A builder's Edit under `.claude/memory/` is denied in `dontAsk`
+  mode (Decision in `NEEDS-OWNER.md`). Until answered: its plan rides
+  in the PR body, its park comes by message, the manager writes the
+  memory docs. Say so in every brief.
 - Done 2026-10-12, late: #198, #203 merged on the owner's approval;
   #200 built by a low builder and merged as PR #204 (re-proof on the
   PR), builder and branches removed.
