@@ -86,20 +86,6 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Merge PR #185, then PR #184
-- Ticket: #166
-- Steps: read and merge
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/185
-  (`GOAL-RUN.md`: CLI dispatch, tiers, the wider relay). Then merge
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/184
-  (the three role files).
-- Context: both are rule changes only you merge. #184 names things #185
-  defines, so #185 goes first. Your merge of #185 is your confirmation of
-  the ten decisions at
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129005307 .
-- Blocks: every dispatch; closing #166.
-- Raised: 2026-10-12, #166 grill
-
 ### [ ] Create the builders' settings file
 - Ticket: #166
 - Steps: 1. Create `.claude/builders.settings.json`. 2. Paste the one JSON
