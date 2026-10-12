@@ -33,12 +33,44 @@ planner session can resume from the repository alone. The rules are in
 - **#230** (new, Stage D, medium, child of #70): the login answers the
   TOTP code prompt. Its first step is an owner Action (report the
   prompt's field label and button text); not free to dispatch before.
-- **Then: `owner-queue` 0.6.0, a "Post comment" button** (owner,
-  2026-10-12). A one-line `Input` opens in the entry; Enter sends the
-  text to the session the entry names (else the pressing session) as
-  the owner's words, and the pane writes `- Note: <text> | pane,
-  <time>, session <id>` into the entry. No agent writes or edits a
-  Note line. Plan first, then build.
+- **In hand: `owner-queue` 0.6.0, "Post comment" replaces "Other..."**
+  Plan approved by the owner 2026-10-12
+  (`C:\Users\benha\.claude\plans\look-across-our-project-sorted-candy.md`).
+  **No code written yet.** Scratch worktree made:
+  `<planner scratchpad>\oq6`, branch `owner-queue-060` off
+  `origin/owner-queue-mod` (skills PR 39), which equals the live copy
+  at `~/.claude/mods/owner-queue` (0.5.0).
+  - Owner's rulings: one button `Post comment` on every entry, `Other...`
+    dropped; under it a one-line field with `Send as comment`, and on an
+    open decision `Send as answer`, and `Cancel`; Enter sends as a
+    comment; text goes out at once, not with `Submit`.
+  - Written by the pane: `- Note: <text> | pane, <day> <time>, session
+    <id>` (several allowed), or `- Answer: (other) <text> | pane, ...`.
+    No agent writes, edits or removes a `Note:` line.
+  - Build notes: in `parse.ts` add `notesOf`, `note` (share the insert
+    code of `answer`), `clean` (one line; no triple backtick),
+    `carriedNote`; leave `note` fields out of `detail` and `codes`. In
+    `register.tsx` remove `other()`, add `post()`, store keys `notes`
+    (lines the pane wrote, per `<file>|<id>`) and `noted:<session>`
+    (delivered), extend `deliver()`, flag a Note the pane did not
+    write. Keep the draft in `$.state` by `onInput` but read it with
+    `$.state.get`, not `read()`, so a key press does not redraw the
+    pane. Tests use `ui.input({ key, text })` and `ui.press`.
+  - Not proven until the owner uses it: that the send buttons read what
+    was typed on the desktop app. Fallback: Enter is the only send and
+    a switch says `as comment` or `as answer`.
+  - After the build: the owner's word before the live copy is updated;
+    the `Note:` rule for the format head of `NEEDS-OWNER.md` goes to
+    the manager as text, and into the plugin's template (skills PR 46).
+  - The owner's complaint (via the manager, 2026-10-12): `Other...`
+    opened no text box in the manager's pane. 0.6.0 removes it.
+- **From the manager, 2026-10-12, to weigh in #218 and the plugin's
+  templates:** a write under a `.claude` folder is checked before allow
+  rules and is denied in `dontAsk` mode (Claude Code docs, protected
+  paths), so a builder cannot write `.claude/memory/*`. The owner's
+  Decision is in the queue: the stopgap becomes the rule, or the
+  planner designs a move of the builders' state files out of
+  `.claude/`.
 - **Then:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
 - **Out with the manager:** the brief for #225 (the part of #92 an
   agent may do: the spike workflow, ready for the owner to fire). The
