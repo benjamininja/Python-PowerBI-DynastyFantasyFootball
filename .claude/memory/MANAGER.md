@@ -40,6 +40,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   memory-doc edits its PR body lists (data-model.md,
   powerbi-semantic-model.md, project-fantasy-football.md line 331) and
   close out the builder. Ticket #206 (audit follow-ups) has no tier.
+- Owner, 2026-10-12, "confirmed" in this session: #207 is proven now
+  with the parity formula of #96 (the `fact_team_cap` equality moved to
+  #97's acceptance), and the roster's season is the anchor for "this
+  season" in every cap figure (#206 part 1, built in #97 PR 2). Still
+  gating #207: the owner's review and refresh, and the Decision on the
+  by-player relationship.
 - Done 2026-10-12, late: #198, #203 merged on the owner's approval;
   #200 built by a low builder and merged as PR #204 (re-proof on the
   PR), builder and branches removed.
