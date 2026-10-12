@@ -271,8 +271,23 @@ class TestDtypes:
         back = etl.read_table("fact_types", columns=["small_int", "id"])
         assert list(back.columns) == ["small_int", "id"] and str(back["small_int"].dtype) == "int32"
 
+    def test_read_stored_gives_the_file_uncast(self, store):
+        """The Gates compare the store with the registry, so their read must not cast."""
+        typed().assign(small_int=[7, 8, 9]).to_parquet(store / "fact_types.parquet", index=False)
+        assert str(etl.read_stored("fact_types")["small_int"].dtype) == "int64"
 
-# ---- The legacy helpers run on the seam -------------------------------------------
+    def test_read_stored_reads_another_copy_of_the_store(self, store, tmp_path):
+        other = tmp_path / "other"
+        other.mkdir()
+        pd.DataFrame({"k": [1]}).to_parquet(other / "anything.parquet", index=False)
+        assert len(etl.read_stored("anything", other)) == 1       # no registry lookup
+
+    def test_read_stored_of_a_table_with_no_data(self, store):
+        with pytest.raises(etl.TableNotFound):
+            etl.read_stored("fact_types")
+
+
+# ---- replace_partition writes what the helpers it replaced wrote -------------------
 def legacy_load_replace_partition(df, path, part_cols):
     """`load_replace_partition` as it was before #77, kept here as the reference."""
     path = Path(path)
@@ -298,7 +313,7 @@ def legacy_upsert_dynasty_crosswalk(new_rows, path):
     return xw
 
 
-# (table, partition columns) as the notebooks call load_replace_partition
+# (table, partition columns) as the notebooks call replace_partition
 PARTITIONED = [("fact_dynasty_ranking_metrics", ("snapshot_date", "source_name")),
                ("fact_roster_state", ("season_id", "period")),
                ("fact_roster_transactions", ("season_id", "event_type")),
@@ -310,41 +325,45 @@ PARTITIONED = [("fact_dynasty_ranking_metrics", ("snapshot_date", "source_name")
                ("dim_position_ceiling", ("snapshot_date",))]
 
 
-class TestLegacyHelpers:
+class TestReplacePartitionAgainstTheOldHelpers:
+    """`load_replace_partition` and `upsert_dynasty_crosswalk` are gone (#77
+    phase 6). The reference copies above stay, so the seam is still held to
+    the bytes those helpers wrote."""
+
     @pytest.mark.parametrize("table,part_cols", PARTITIONED)
-    def test_load_replace_partition_writes_the_bytes_it_always_wrote(self, tmp_path, table, part_cols):
+    def test_keys_write_the_bytes_load_replace_partition_wrote(self, tmp_path, monkeypatch, table, part_cols):
         published = pd.read_parquet(REPO / "data" / f"{table}.parquet")
         first = published[part_cols[0]].iloc[0]
         batch = published[published[part_cols[0]] == first]       # rewrite one real slice
         old_dir, new_dir = tmp_path / "old", tmp_path / "new"
-        for d, load in ((old_dir, legacy_load_replace_partition), (new_dir, etl.load_replace_partition)):
+        for d in (old_dir, new_dir):
             d.mkdir()
             published.to_parquet(d / f"{table}.parquet", index=False)
-            assert load(batch, d / f"{table}.parquet", part_cols) == len(published)
+        assert legacy_load_replace_partition(batch, old_dir / f"{table}.parquet", part_cols) == len(published)
+        monkeypatch.setattr(etl.CFG, "data_dir", str(new_dir))
+        assert etl.write_table(table, batch, mode="replace_partition", keys=part_cols) == len(published)
         assert (new_dir / f"{table}.parquet").read_bytes() == (old_dir / f"{table}.parquet").read_bytes()
 
-    def test_upsert_dynasty_crosswalk_writes_the_bytes_it_always_wrote(self, tmp_path):
-        published = pd.read_parquet(REPO / "data" / "dim_dynasty_crosswalk.parquet")
+    def test_keys_on_source_write_the_bytes_upsert_dynasty_crosswalk_wrote(self, tmp_path, monkeypatch):
+        table = "dim_dynasty_crosswalk"
+        published = pd.read_parquet(REPO / "data" / f"{table}.parquet")
         batch = published[published["source"] == published["source"].iloc[0]]
-        out = {}
-        for d, upsert in ((tmp_path / "old", legacy_upsert_dynasty_crosswalk),
-                          (tmp_path / "new", etl.upsert_dynasty_crosswalk)):
+        old_dir, new_dir = tmp_path / "old", tmp_path / "new"
+        for d in (old_dir, new_dir):
             d.mkdir()
-            published.to_parquet(d / "dim_dynasty_crosswalk.parquet", index=False)
-            out[d.name] = upsert(batch, d / "dim_dynasty_crosswalk.parquet")
-        pd.testing.assert_frame_equal(out["new"], out["old"])
-        assert ((tmp_path / "new" / "dim_dynasty_crosswalk.parquet").read_bytes()
-                == (tmp_path / "old" / "dim_dynasty_crosswalk.parquet").read_bytes())
+            published.to_parquet(d / f"{table}.parquet", index=False)
+        old = legacy_upsert_dynasty_crosswalk(batch, old_dir / f"{table}.parquet")
+        monkeypatch.setattr(etl.CFG, "data_dir", str(new_dir))
+        etl.write_table(table, batch, mode="replace_partition", keys=("source",))
+        pd.testing.assert_frame_equal(etl.read_table(table), old)
+        assert (new_dir / f"{table}.parquet").read_bytes() == (old_dir / f"{table}.parquet").read_bytes()
 
-    def test_a_declared_table_is_guarded_through_the_shim(self, tmp_path):
+    def test_a_repeated_key_is_refused(self, tmp_path, monkeypatch):
         published = pd.read_parquet(REPO / "data" / "fact_roster_state.parquet")
+        monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path))
         with pytest.raises(etl.StorageError, match="repeated key"):
-            etl.load_replace_partition(pd.concat([published.iloc[:5]] * 2),
-                                       tmp_path / "fact_roster_state.parquet", ("season_id", "period"))
-
-    def test_a_file_the_registry_does_not_know_is_written_unguarded(self, tmp_path):
-        df = pd.DataFrame({"k": [1, 1], "v": [1, 2]})
-        assert etl.load_replace_partition(df, tmp_path / "scratch.parquet", ("k",)) == 2
+            etl.write_table("fact_roster_state", pd.concat([published.iloc[:5]] * 2),
+                            mode="replace_partition", keys=("season_id", "period"))
 
 
 # ---- Golden round-trip: every published table ---------------------------------------

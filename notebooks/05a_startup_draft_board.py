@@ -46,7 +46,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path(__file__).resolve().parent
 
 import numpy as np
 import pandas as pd
-from etl_helpers import CFG, DATA
+from etl_helpers import CFG, DATA, read_table, table_exists
 
 # ── Config ───────────────────────────────────────────────────────────
 BOARD_SIZE = 250                       # per side: Offense board 250, Defense board 250
@@ -78,10 +78,10 @@ IDP_GROUPS = {"DL", "LB", "DB"}
 
 # ── Load + join ──────────────────────────────────────────────────────
 def load_pool() -> pd.DataFrame:
-    adp = pd.read_parquet(CFG.path(CFG.fact_name))
+    adp = read_table(CFG.fact_name)
     adp = adp[adp["capture_date"] == adp["capture_date"].max()].copy()
 
-    pos = pd.read_parquet(DATA / "dim_position.parquet")
+    pos = read_table("dim_position")
     pos_map = pos.set_index("position_raw")[["position_group", "side_of_ball"]]
     # Multi-position rows ("DL,LB") fall back to their first listed position.
     first_pos = adp["position_raw"].str.split(",").str[0]
@@ -89,7 +89,7 @@ def load_pool() -> pd.DataFrame:
     adp["position_group"] = lookup.map(pos_map["position_group"])
     adp["side_of_ball"] = lookup.map(pos_map["side_of_ball"])
 
-    npl = pd.read_parquet(CFG.path(CFG.nfl_players_name))
+    npl = read_table(CFG.nfl_players_name)
     npl = npl[["gsis_id", "entry_year", "draft_year", "draft_round", "birth_date"]]
     npl = npl.dropna(subset=["gsis_id"])
     pool = adp.merge(npl, on="gsis_id", how="left")
@@ -129,7 +129,7 @@ def load_dynasty_metrics() -> pd.DataFrame:
     market, FP consensus spread, DS multi-year projections (cumulative pts)."""
     # The metrics EAV carries gsis_id directly (the old backbone fact is gone), so
     # key off it straight away — no separate rankings table to join through.
-    m = pd.read_parquet(DATA / "fact_dynasty_ranking_metrics.parquet")
+    m = read_table("fact_dynasty_ranking_metrics")
     m = m[m["format"] == "SF"].dropna(subset=["gsis_id"])
     m = m[m["snapshot_date"] == m.groupby("source_name")["snapshot_date"].transform("max")]
 
@@ -148,10 +148,9 @@ def load_drafted() -> dict:
     the `fact_roster_transactions` ledger). Returns {} if the ledger hasn't been
     built yet, so the board still runs pre-draft. Re-run 04w -> 02d -> 02e between
     picks to refresh; this surfaces who's gone and to whom on the board."""
-    p = DATA / "fact_fantasy_teams.parquet"
-    if not p.exists():
+    if not table_exists("fact_fantasy_teams"):
         return {}
-    fft = pd.read_parquet(p).dropna(subset=["gsis_id"])
+    fft = read_table("fact_fantasy_teams").dropna(subset=["gsis_id"])
     return dict(zip(fft["gsis_id"], fft["team_key"]))
 
 

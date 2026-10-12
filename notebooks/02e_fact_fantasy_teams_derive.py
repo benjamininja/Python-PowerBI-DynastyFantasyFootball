@@ -51,11 +51,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
 import etl_helpers as etl
 from etl_helpers import CFG, DATA
 
-LEDGER_PATH    = DATA / "fact_roster_transactions.parquet"
 FFT_PATH       = DATA / "fact_fantasy_teams.parquet"
-TEAMS_PATH     = DATA / "dim_fantasy_teams.parquet"
-STATE_PATH     = DATA / "fact_roster_state.parquet"
-DEAD_PATH      = DATA / "fact_dead_money.parquet"
 
 # fact_roster_state.roster_slot -> the roster_status values this fact has always
 # carried. They stay until #110 renames the column to roster_slot.
@@ -65,9 +61,9 @@ TERMINAL = {"drop", "trade_away"}   # event_types that REMOVE a player from the 
 
 # %%
 # ---- Replay the ledger -> latest contract per (team_key, asset_id) ---------
-ledger = pd.read_parquet(LEDGER_PATH)
-assets = pd.read_parquet(DATA / "dim_roster_asset.parquet")
-teams  = pd.read_parquet(TEAMS_PATH)
+ledger = etl.read_table("fact_roster_transactions")
+assets = etl.read_table("dim_roster_asset")
+teams  = etl.read_table("dim_fantasy_teams")
 print(f"[info] ledger: {len(ledger)} events, {ledger['event_type'].nunique()} type(s)")
 
 # last event wins per player+team (event_seq = canonical order: startup slots
@@ -94,8 +90,8 @@ active = active.merge(first, on=["team_key", "asset_id"], how="left")
 # Null = not on that roster (e.g. before 04r's first run) -> charged, the safe
 # default. 04r reads regular-season periods only, so the stamp stops moving
 # after the last one (#97).
-if STATE_PATH.exists():
-    _st = pd.read_parquet(STATE_PATH)
+if etl.table_exists("fact_roster_state"):
+    _st = etl.read_table("fact_roster_state")
     _st = _st[_st["season_id"] == _st["season_id"].max()]
     _period = int(_st["period"].max())
     _st = _st[_st["period"] == _period]
@@ -168,8 +164,8 @@ fact_fantasy_teams.loc[
 roll = (fact_fantasy_teams.groupby("team_key")
         .agg(active_roster_salary=("cap_hit", "sum"))
         .reset_index())
-if DEAD_PATH.exists():
-    _dead = pd.read_parquet(DEAD_PATH)
+if etl.table_exists("fact_dead_money"):
+    _dead = etl.read_table("fact_dead_money")
     _dead = _dead[_dead["season_id"].isin(set(fact_fantasy_teams["season"]))]
     roll = roll.merge(_dead.groupby("team_key")["dead_money"].sum().reset_index(),
                       on="team_key", how="outer")

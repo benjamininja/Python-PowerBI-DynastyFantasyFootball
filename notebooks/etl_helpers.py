@@ -264,9 +264,9 @@ def add_players_from_source(
     # Returns (updated_dim_rookie_prospect, review_df).
     # new_players_df must have: player_name; optionally position_raw, school_raw.
     # NOTE: review_df is returned to caller -- file write is the caller's responsibility.
-    dim_rp     = pd.read_parquet(DATA / "dim_rookie_prospect.parquet")
-    pos_map    = pd.read_parquet(DATA / "dim_position.parquet")
-    school_map = pd.read_parquet(DATA / "dim_school.parquet")
+    dim_rp     = read_table("dim_rookie_prospect")
+    pos_map    = read_table("dim_position")
+    school_map = read_table("dim_school")
 
     existing_names  = dim_rp["player_name_clean"].tolist()
     existing_lookup = dict(zip(dim_rp["player_name_clean"], dim_rp["player_key"]))
@@ -274,8 +274,8 @@ def add_players_from_source(
     # Persistent decisions: (name_clean, position_raw) already resolved in a prior
     # review -> never ask again (dim_player_alias, built by 03y, appended by 03z).
     alias_keys = set()
-    if ALIAS.exists():
-        _al = pd.read_parquet(ALIAS)
+    if table_exists("dim_player_alias"):
+        _al = read_table("dim_player_alias")
         alias_keys = set(zip(_al["name_clean"], _al["position_raw"]))
 
     new_rows, review_rows, auto_alias_rows = [], [], []
@@ -358,15 +358,15 @@ def add_players_from_source(
     if new_rows:
         dim_rp = pd.concat([dim_rp, pd.DataFrame(new_rows)], ignore_index=True)
         dim_rp.drop_duplicates(subset=["player_key"], inplace=True)
-        _write_table_file(DATA / "dim_rookie_prospect.parquet", dim_rp)
+        write_table("dim_rookie_prospect", dim_rp)
 
     # Persist auto-matches to the alias (append + dedup on the (name_clean, pos) key).
     if auto_alias_rows:
         aa = pd.DataFrame(auto_alias_rows)
-        if ALIAS.exists():
-            aa = pd.concat([pd.read_parquet(ALIAS), aa], ignore_index=True)
+        if table_exists("dim_player_alias"):
+            aa = pd.concat([read_table("dim_player_alias"), aa], ignore_index=True)
         aa.drop_duplicates(subset=["name_clean", "position_raw"], keep="last", inplace=True)
-        _write_table_file(ALIAS, aa)
+        write_table("dim_player_alias", aa)
 
     review_df = pd.DataFrame(review_rows) if review_rows else pd.DataFrame()
 
@@ -399,19 +399,19 @@ def ingest_ranking_source(
     if phase not in valid_phases:
         raise ValueError(f"phase must be one of {valid_phases}")
 
-    dim_rp = pd.read_parquet(DATA / "dim_rookie_prospect.parquet")
+    dim_rp = read_table("dim_rookie_prospect")
     name_to_key = dict(zip(dim_rp["player_name_clean"], dim_rp["player_key"]))
     key_to_pfr  = dict(zip(dim_rp["player_key"],        dim_rp["pfr_id"]))
 
     # Fold in alias decisions so a matched name-variant (X resolved to prospect Y)
     # attributes its ranking to Y's player_key instead of being dropped as unmatched.
     # setdefault: real dim_rookie_prospect names always win over an alias.
-    if ALIAS.exists():
-        _al = pd.read_parquet(ALIAS)
+    if table_exists("dim_player_alias"):
+        _al = read_table("dim_player_alias")
         for _nc, _pk in zip(_al["name_clean"], _al["player_key"]):
             name_to_key.setdefault(_nc, _pk)
 
-    dim_nfl = pd.read_parquet(DATA / "dim_nfl_players.parquet")
+    dim_nfl = read_table("dim_nfl_players")
     pfr_to_gsis = dict(zip(dim_nfl["pfr_id"].dropna(), dim_nfl["gsis_id"].dropna()))
 
     rows, unmatched = [], []
@@ -457,7 +457,7 @@ def ingest_ranking_source(
     new_df["draft_year"]      = new_df["draft_year"].astype("Int64")
     new_df["rank_date"]       = new_df["rank_date"].where(new_df["rank_date"].notna(), other=None)
 
-    existing = pd.read_parquet(DATA / "fact_rookie_rankings.parquet")
+    existing = read_table("fact_rookie_rankings")
     combined = pd.concat([existing, new_df], ignore_index=True)
     _DEDUP   = ["player_key", "source_name", "phase", "draft_year"]
     # rank_date: preserve the first non-null value ever captured — never overwrite with a later scrape.
@@ -466,7 +466,7 @@ def ingest_ranking_source(
         .transform(lambda s: s.dropna().iloc[0] if s.notna().any() else None)
     )
     combined.drop_duplicates(subset=_DEDUP, keep="last", inplace=True)
-    _write_table_file(DATA / "fact_rookie_rankings.parquet", combined)
+    write_table("fact_rookie_rankings", combined)
 
     print(f"  Ingested: {len(rows)} rows | source={source_name} | site={source_site} | phase={phase}")
     print(f"  fact_rookie_rankings total: {len(combined)}")
@@ -495,7 +495,7 @@ def append_review(reviews: list, path: Path | None = None) -> None:
         print(f"Review file created: {path} ({len(new)} rows)")
 
 
-def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
+def resolve_dynasty_crosswalk(identities, overrides=None,
                               auto_threshold=90, review_threshold=70, today=None):
     """Resolve dynasty-source player identities to registry keys for
     `dim_dynasty_crosswalk`. Single matcher shared by every section-04 dynasty
@@ -520,8 +520,8 @@ def resolve_dynasty_crosswalk(identities, data_dir="data", overrides=None,
     today = today or date.today().isoformat()
     _clean = clean_name_for_match  # shared match-normalizer (see top of module)
 
-    npl = pd.read_parquet(f"{data_dir}/dim_nfl_players.parquet").copy()
-    rp = pd.read_parquet(f"{data_dir}/dim_rookie_prospect.parquet").copy()
+    npl = read_table("dim_nfl_players").copy()
+    rp = read_table("dim_rookie_prospect").copy()
     npl["name_clean"] = npl["display_name"].map(_clean)
     rp["name_clean"] = rp["player_name"].map(_clean)
     rp_lookup = (rp.dropna(subset=["name_clean"]).drop_duplicates("name_clean")
@@ -746,11 +746,11 @@ def _check_batch(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
     return df
 
 
-def _write_parquet(path: Path, df: pd.DataFrame, mode: str = "replace", keys=None,
-                   partition=None, entry: dict | None = None) -> pd.DataFrame:
-    """The parquet backend: apply `mode` against the file at `path`, write it
-    atomically and return the table as written. `entry` switches the guards
-    on; the legacy helpers pass None for a file the registry does not know."""
+def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
+                   entry: dict) -> pd.DataFrame:
+    """The parquet backend: check `df` against the registry `entry`, apply
+    `mode` against the file at `path`, write it atomically and return the
+    table as written."""
     path = Path(path)
     if mode not in ("replace", "replace_partition", "upsert"):
         raise StorageError(f"unknown write mode {mode!r}")
@@ -758,12 +758,9 @@ def _write_parquet(path: Path, df: pd.DataFrame, mode: str = "replace", keys=Non
         raise StorageError("replace_partition takes exactly one of keys= / partition=")
     if mode != "replace_partition" and partition is not None:
         raise StorageError(f"partition= is for replace_partition, not {mode}")
-    if entry is not None:
-        df = _check_batch(df, entry)
-        if mode == "upsert" and keys is None:
-            keys = table_grain(entry)
+    df = _check_batch(df, entry)
     if mode == "upsert" and keys is None:
-        raise StorageError("upsert needs keys= for a table the registry does not declare")
+        keys = table_grain(entry)
 
     if mode != "replace" and path.exists():
         old = pd.read_parquet(path)
@@ -804,6 +801,17 @@ def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
     return _coerce(df, entry)
 
 
+def read_stored(name: str, data_dir: Path | str | None = None) -> pd.DataFrame:
+    """The table `name` exactly as the store holds it: no cast and no registry
+    lookup. For the checks that compare the store with the registry (the
+    Table Gates in etl_checks, check_data_model); ETL code calls `read_table`.
+    `data_dir` points a check at another copy of the store."""
+    path = _table_path(name) if data_dir is None else Path(data_dir) / f"{name}.parquet"
+    if not path.exists():
+        raise TableNotFound(f"{name}: no data at {path}")
+    return pd.read_parquet(path)
+
+
 def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
                 keys: Sequence[str] | None = None,
                 partition: Mapping[str, Collection] | None = None) -> int:
@@ -819,32 +827,6 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
                          grain); other rows untouched.
     """
     return len(_write_parquet(_table_path(name), df, mode, keys, partition, _table_entry(name)))
-
-
-def _legacy_entry(path) -> dict | None:
-    """The registry entry behind a legacy helper's file path, when the file
-    is named after a declared table. Any other file is written unguarded."""
-    path = Path(path)
-    return _registry().get(path.stem) if path.suffix == ".parquet" else None
-
-
-def _write_table_file(path, df: pd.DataFrame) -> int:
-    """Replace the table file at `path` through the seam's backend. For the
-    helpers in this module that still address a table by path (#77 moves
-    them to `write_table` with their callers)."""
-    return len(_write_parquet(path, df, "replace", entry=_legacy_entry(path)))
-
-
-def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name")):
-    """Idempotent replace-by-partition append: drop existing rows whose `part_cols`
-    match any present in `df`, then append `df`. Each source/snapshot run replaces
-    its own slice (no orphans when composition shifts). Returns total row count.
-    Shared by the section-04 dynasty loaders (and any snapshot fact).
-
-    Deprecated shim over the storage seam (#77): new code calls
-    `write_table(name, df, mode="replace_partition", keys=part_cols)`."""
-    return len(_write_parquet(path, df, "replace_partition", keys=list(part_cols),
-                              entry=_legacy_entry(path)))
 
 
 def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
@@ -874,17 +856,6 @@ def expand_snake_draft_order(round1_order: pd.DataFrame, total_rounds: int) -> p
     return pd.concat(frames, ignore_index=True)[
         ["division_id", "round", "pick_in_round", "team_key"]
     ]
-
-
-def upsert_dynasty_crosswalk(new_rows, path):
-    """Replace the source(s) present in `new_rows` within dim_dynasty_crosswalk,
-    keep all other sources, write, and return the full crosswalk DataFrame.
-
-    Deprecated shim over the storage seam (#77): new code calls
-    `write_table("dim_dynasty_crosswalk", rows, mode="replace_partition",
-    keys=("source",))`."""
-    return _write_parquet(path, new_rows, "replace_partition", keys=["source"],
-                          entry=_legacy_entry(path))
 
 
 def write_dynasty_review(crosswalk, path):

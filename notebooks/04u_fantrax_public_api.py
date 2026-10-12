@@ -49,7 +49,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import DATA, write_table, classify_draft_type, fantrax_public_get
+from etl_helpers import DATA, read_table, write_table, classify_draft_type, fantrax_public_get
 
 # league_id/raw_dir live on 04a's own LeagueConfig (separate from
 # etl_helpers.CFG) -- reuse it rather than re-declaring the league id here,
@@ -101,7 +101,7 @@ def build_future_picks(draft_picks: dict, teams: pd.DataFrame) -> pd.DataFrame:
 
 # %%
 if __name__ == "__main__":
-    teams = pd.read_parquet(DATA / "dim_fantasy_teams.parquet")
+    teams = read_table("dim_fantasy_teams")
 
     draft_picks = fantrax_public_get("getDraftPicks", FX_CFG.league_id,
                                      expect=("futureDraftPicks",))
