@@ -94,7 +94,7 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     now cast before the concat). The file is not in the PR; the next
     `02d` run rewrites it once. `04a` and `04v` need a login and were
     not run.
-  - **#77 phase 4: built on branch `feat/77-seam-phase4`.** Whole-table
+  - **#77 phase 4: MERGED as PR #175 (`00b3237`).** Whole-table
     `write_table(name, df)` (mode replace; the caller still does the
     read-modify-write) in `02d` (`dim_roster_asset`, 5 sites), `03y`,
     `03z` (alias, prospect), `01a` (prospect only), `04z` (2) and
@@ -105,6 +105,26 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     are not the seam: no `data/review`). Result: 32 of 32 byte-identical
     after `02d`, `03y`, `04z`, `03z`. `01a` cannot run here (no
     `nflreadpy` in the shim venv).
+  - **#77 phase 5: built on branch `feat/77-seam-phase5b`, and #77 is
+    PARKED on two writes** (two entries in `NEEDS-OWNER.md`: three
+    whole-number columns of `fact_trade_log`; the `fact_fantasy_teams`
+    grain against a rostered player with no `gsis_id`, found by the
+    auditor). Both writes are still `to_parquet`. Everything else in
+    phase 5 goes through `write_table`. `02d` after the audit: the
+    old-schema fix-up writes only when there are no legs; with legs the
+    ledger is written once at the end as the whole frame (replace
+    mode), so a raise in between loses nothing.
+    `tests/test_02f_dead_money.py`
+    points `CFG.data_dir` at its temp dir: **a test that patches only a
+    module's `*_PATH` now writes into the real `data/`; check
+    `git status data/` after every test run.** A/B proof (scratchpad
+    `run_p5.sh`, `cmp_dirs.py`, `arrow_types.py`): 30 of 32 tables
+    byte-identical old against new; `dim_season` differs only because
+    the notebook kernel here is the system Python with another pandas
+    (it writes ns timestamps, the seam casts to the registry's ms, which
+    is what is published); `fact_trade_log` is the parked one. `01a`,
+    `01b`, `01d` and `02a` do not run in this environment, old or new.
+    When the owner answers: apply it, then phase 6.
   - **Phases 5 to 6 notes:** phase 5 = the remaining `to_parquet`
     sites: `01a` (dim_position, dim_school), `01b`, `01c`, `01d`, `01f`,
     `02a`, `02c`, `02e` (write call only), `02f`, `04c`,
