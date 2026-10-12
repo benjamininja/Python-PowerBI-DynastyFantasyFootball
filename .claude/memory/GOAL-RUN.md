@@ -12,8 +12,9 @@ Any other work keeps the standing rules in `RESUME.md` unchanged.
 
 Owner's ruling 2026-10-12, #166. The builder manager starts every
 builder from PowerShell with the CLI at its full path. It copies the
-tier from the brief or, for a stage, from the Tier column under
-"Stages"; it never picks one. No tier, no dispatch: it asks the planner.
+tier: for a stage, from the Tier column under "Stages"; for a single
+ticket, from the ticket's own `Tier:` line; otherwise from the brief.
+It never picks one. No tier, no dispatch: it asks the planner.
 
 | Tier | Model and effort | For | Turn cap |
 |---|---|---|---|
