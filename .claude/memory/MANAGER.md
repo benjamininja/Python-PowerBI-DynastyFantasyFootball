@@ -58,11 +58,29 @@ are out of date. This block is the current state.
 - **Two-key merge (owner, 2026-10-12):** a builder commits, pushes its
   own branch, opens the PR and messages the manager. The manager
   re-proves Green, merges, cleans up, wakes the builder.
-- **Not yet dispatched for real, and why:** the builders' file sits in
-  the owner's user folder (`C:\Users\benha\.claude\`) with the base
-  48 rules. The owner moves it into the repo and applies the changes
-  listed on #166 (entry in `NEEDS-OWNER.md`). Then #186 (`Tier: low`,
-  alone) is the first real dispatch.
+- **First real dispatch done: #186** (2026-10-12, evening). Builder
+  `b186-compare-tables`, low tier, PR #195 merged by the manager as the
+  second key, ticket closed by the closing keyword, session and
+  worktree removed. On `main`: `scripts/compare_tables.py` (`HEAD`, or
+  two folders; counts only) and `--raw-dir` on `02d`.
+- **Lessons from it:** the worktree `.venv` has no `discord`; run the
+  bot suite from a throwaway venv built from
+  `discord_bot/requirements.txt`. `run_pipeline.py --check-only` in a
+  fresh worktree calls the one open review finding "new" on its first
+  run; it is the same repeat finding as on `main`. After `02d`, four
+  tables are frame-equal with different bytes; that passes (owner's
+  ruling) and is named in the PR. `gh pr merge --delete-branch` cannot
+  delete a branch a worktree still holds: remove the builder first or
+  delete the branches after. `claude rm` right after `claude stop`
+  fails on a lock; retry once. `git worktree prune` is refused to the
+  manager.
+- **Settings files:** `.claude/builders.settings.json` (51 allow, 30
+  deny) and `.claude/managers.settings.json` (37 allow, 19 deny) are
+  the owner's, match the text on #166, and are still untracked. Pass
+  the builders' file by the main checkout's absolute path. Until the
+  owner's file was right, the eleven deny rules were also passed with
+  `--disallowedTools` (deny only); keep doing that as a belt unless the
+  owner or planner says otherwise.
 - **Then stage C** (`Tier: high`), after the owner's `04t` capture
   (after Thursday 2026-10-15). First check the claim row has
   `claim_method = waiver` and a `claim_bid`. The brief must carry:
