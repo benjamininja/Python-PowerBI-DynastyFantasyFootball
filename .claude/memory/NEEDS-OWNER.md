@@ -33,6 +33,20 @@ can be traced.
 
 ## Decisions
 
+### [ ] Confirm the proof-command rule for GOAL-RUN.md
+- Ticket: #166
+- Context: the planner reports that you said "yes, make it a rule" in
+  its session. A rule change in `GOAL-RUN.md` waits for your word to
+  the manager. Proposed text, under "Stages and gap tickets": "Each
+  proof command on a ticket is one a builder may run under
+  `.claude/builders.settings.json`, or the ticket says the manager
+  runs it at re-proof. The planner writes tickets so; a ticket that
+  does not is sent back to the planner before dispatch."
+- Options: (a) write it as worded above; (b) not a rule
+- Recommended: (a), because a builder that cannot run its own proof parks, as the #140 builder did on `compare_tables.py`
+- Blocks: nothing.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] A builder cannot write its memory files: where does its plan go?
 - Ticket: #166, #140
 - Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
@@ -51,6 +65,30 @@ can be traced.
 - Raised: 2026-10-12, by the #140 builder through the builder manager
 
 ## Actions
+
+### [ ] Approve the planner state PR #216
+- Ticket: #151, #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/216
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's record of the GitHub Project it built and of
+  the correction to #140.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Finish the GitHub Project's views by hand
+- Ticket: #151
+- Steps: 1. Open https://github.com/users/benjamininja/projects/2
+  2. In view "By stage" open the view menu, Group by, Milestone. 3. In
+  view "By map", Group by, Parent issue. 4. Three-dot menu, Workflows,
+  "Auto-add to project": pick this repository, filter
+  `is:issue,pr is:open`, turn it on and save.
+- Context: the Project and its three views exist; the API cannot set a
+  view's grouping or the auto-add workflow.
+- Blocks: nothing; until auto-add is on the planner adds new tickets
+  itself.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
@@ -132,21 +170,6 @@ can be traced.
   builder parks at its first "tables identical" proof.
 - Blocks: stage C's proofs. Not #97's start.
 - Raised: 2026-10-12, by the builder manager
-
-### [ ] Turn on Projects and give the planner's token the project scope
-- Ticket: #151
-- Steps: 1. Repository Settings, Features: tick Projects. 2. In a
-  terminal run `gh auth refresh -s project` and finish the browser step.
-  3. Say "projects ready" in the planner's session. The planner then
-  creates the Project and adds the tickets, and gives you the steps for
-  the saved views and the auto-add workflow, which GitHub lets only a
-  person set in the page.
-- Context: you ruled a Project as a derived view of the maps, stages as
-  milestones. Projects are off on the repository and the token has the
-  scopes gist, read:org, repo and workflow only. Milestones work without
-  this.
-- Blocks: the board only; nothing in the build.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] Free the last leftover worktree folder
 - Ticket: #164 (closeout)

@@ -30,7 +30,11 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- No builder is running. No PR is open. `main` is clean; 779 tests.
+- No builder is running. One PR is open: the planner's #216, waiting
+  for the owner's "approved". `main` is clean; 779 tests.
+- The planner built the GitHub Project (`projects/2`, private). Tell
+  the planner the number of any ticket the manager creates, so it is
+  added to the Project until auto-add is on.
 
 **The owner's rules for the manager, all given 2026-10-12**
 - Merge gate: "you should be merging the prs and then cleaning up and
@@ -144,8 +148,11 @@ the two rule additions (#214).
 **Left with the owner** (all in `NEEDS-OWNER.md`): the Decision on a
 builder writing under `.claude/memory/`; the two proof-command allow
 rules for the builders' file, then "commit the settings files"; the
-`04t` capture; the Power BI check (#211); try the 0.4.0 pane; Projects
-token scope for the planner; the idle session in
+`04t` capture; the Power BI check (#211); try the 0.4.0 pane; the
+planner's PR #216 (merge on "approved"); the Decision on the
+proof-command rule (on (a), write the quoted text into `GOAL-RUN.md`
+"Stages and gap tickets", a rule PR merged on green); the Project's
+views by hand; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
 upstream scratch worktrees; later: the `migrate.yml` secret, the first
 runner login, cutover. Also told in chat: two `git commit --no-verify`
