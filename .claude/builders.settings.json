@@ -89,7 +89,9 @@
       "Bash(gh pr merge*--admin*)",
       "Bash(gh pr merge*--auto*)",
       "Edit(.claude/managers.settings.json)",
-      "Write(.claude/managers.settings.json)"
+      "Write(.claude/managers.settings.json)",
+      "Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
+      "Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
     ]
   }
 }

@@ -17,7 +17,8 @@
       "Bash(.venv/Scripts/python.exe scripts/run_pipeline.py --check-only*)",
       "PowerShell(python -m venv *)",
       "PowerShell(*claude.exe --bg *)", "PowerShell(*claude.exe agents *)",
-      "PowerShell(*claude.exe --resume *)", "PowerShell(*claude.exe stop *)"
+      "PowerShell(*claude.exe --resume *)", "PowerShell(*claude.exe stop *)",
+      "PowerShell(*session-dispatch-managers-build-review\\scripts\\dispatch.ps1 *)"
     ],
     "deny": [
       "Bash(git push*--force*)", "Bash(git push* -f*)", "Bash(git push*origin main*)",
@@ -30,7 +31,9 @@
       "Write(.claude/builders.settings.json)", "Write(.claude/managers.settings.json)",
       "Read(.env)", "Edit(.env)", "Write(.env)",
       "Edit(.claude/agents/**)",
-      "Write(.claude/agents/**)"
+      "Write(.claude/agents/**)",
+      "Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
+      "Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
     ]
   }
 }
