@@ -74,6 +74,7 @@
 
 # %%
 import sys
+import argparse
 import json
 import glob
 import re
@@ -102,6 +103,21 @@ PICK_REVIEW_PATH = REVIEW / "review_trade_log_picks.csv"
 PICK_OWNER_REVIEW_PATH = REVIEW / "review_pick_ownership.csv"
 DRAFT_GLOB     = str(DATA / "raw" / "fantrax_draftresults_2026*.json")
 TXN_GLOB       = str(DATA / "raw" / "fantrax_txn_history_*.json")
+
+
+def use_raw_dir(raw_dir) -> None:
+    """Point both raw globs at `raw_dir`, read in place (a worktree has no data/raw)."""
+    global DRAFT_GLOB, TXN_GLOB
+    folder = Path(raw_dir)
+    DRAFT_GLOB = str(folder / Path(DRAFT_GLOB).name)
+    TXN_GLOB   = str(folder / Path(TXN_GLOB).name)
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description="Build the roster-transaction ledger.")
+    parser.add_argument("--raw-dir", type=Path, default=None,
+                        help="folder holding the raw captures (default: data/raw)")
+    return parser.parse_args(argv)
 
 ASSET_COLS  = ["asset_id", "asset_type", "scorer_id", "gsis_id", "player_key", "pick_ref"]
 # The ledger's grain (ADR-0016 decision 6). `transaction_id` is the pick's
@@ -1725,4 +1741,7 @@ def main():
 
 
 if __name__ == "__main__":
+    _args = parse_args()
+    if _args.raw_dir is not None:
+        use_raw_dir(_args.raw_dir)
     main()
