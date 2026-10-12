@@ -47,42 +47,54 @@ can be traced.
 - Blocks: nothing
 - Raised: 2026-10-12, by the planner
 - Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Note: i LIKE THIS BETTER. THERE ARE THREE BUTTONS, TWO FOR SEND AS COMMENT AND ONE FOR SEND AS ANSWER. THS IS LARGER TEXT ENTRY BUT IS NOT GROWING VETRICALLY. TREAT AS TEST, NO ACTION TAKEN AND COMMENT NOT TO POST. | pane, 2026-10-12 17:52:25, session 22ca1b72-576b-45a1-8435-30ad14e53bda
 
 ## Actions
 
-### [ ] Read the spike workflow in PR #228, then say "merge 228"
-- Ticket: #225, #92
-- Steps: 1. Open
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/228/files
-  and read `.github/workflows/fantrax-runner-spike.yml` (53 lines); the
-  driver it runs is `scripts/runner_spike.py`. 2. The PR body lists
-  eight judgement calls to check. 3. Say "merge 228" in the manager's
-  session, or say what to change.
-- Context: the ticket names your read before the merge, because the
-  workflow handles secrets and a login. It cannot run on its own: its
-  only trigger is a manual run, from `main`, in an environment named
-  `fantrax-spike` that does not exist until you make it. The manager
-  re-proved Green (output on the PR): 816 tests, 0 Gate failures. The
-  run log of a public repository is public; the driver prints verdicts,
-  HTTP statuses and seconds only. The planner read the PR as no
-  breach. You answered in the pane (2026-10-12 17:19): the error
-  code and exception class name on the log are accepted as built,
-  and the spike is fired as soon as the secrets are stored. So one
-  word is left: "merge 228". After the merge the next Action (make
-  the environment, store the secrets, fire the run) is added here.
-- Blocks: #225, and through it #92.
+### [ ] Store the spike secrets and fire the Fantrax runner spike
+- Ticket: #92, #225
+- Steps: 1. On GitHub: Settings, Environments, New environment, name
+  `fantrax-spike`, and limit its deployment branches to `main`. Do
+  this **before the first run**: if the workflow runs first, GitHub
+  makes the environment itself, with no branch rule. 2. In that
+  environment add three secrets by name: `FANTRAX_EMAIL`,
+  `FANTRAX_PASSWORD`, `FANTRAX_TOTP_SECRET` (the bare base32 setup
+  key, no spaces). Which account is your choice; question 2 of #92
+  asks about one without commissioner rights. 3. Fire the run:
+  Actions tab, `fantrax-runner-spike`, Run workflow, branch `main`,
+  or the block below. 4. Report in the manager's session what the
+  run's summary page shows: the Login line, the read table and the
+  step seconds.
+
+```bash
+gh workflow run fantrax-runner-spike.yml --ref main
+```
+
+- Context: checkpoint 1 of stage D. PR #228 merged on your "merge
+  228" (2026-10-12). The run prints verdicts, HTTP statuses,
+  exception class names and seconds only, on a public log. Question 1
+  of #92 wants several runs on different days. Until the login code
+  of #230 merges a run ends at `needs_code`; you chose to fire anyway
+  and again after (pane, 2026-10-12 17:19). No agent fires this or
+  stores a secret. The page: `docs/research/fantrax-runner-spike.md`.
+  If the runner is blocked, authed captures stay on the home PC
+  (ADR-0015).
+- Blocks: #92, and through it enabling the crons.
 - Raised: 2026-10-12, by the builder manager
 
-### [ ] Approve the planner state PR #226
-- Ticket: #167, #225
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/226
-  (`PLANNER.md` only) and say "approved" in the manager's session, or
-  say what to change. The manager then merges it and cleans up.
-- Context: the planner's state before its compact: the dispatch plugin
-  in hand, the milestones, #225.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
+### [ ] Delete two local branches of the finished #225 builder
+- Ticket: #225
+- Steps: run the block below in the main checkout.
+
+```bash
+git branch -D feat/225-runner-spike-workflow worktree-b92-runner-spike
+```
+
+- Context: both are merged (squash) and gone from GitHub; the
+  builder's session and worktree are removed. Your git guard hook
+  blocks `git branch -D` for an agent, so the manager did not run it.
+- Blocks: nothing.
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] #230: report what the Fantrax code prompt looks like
 - Ticket: #230
@@ -153,36 +165,6 @@ can be traced.
   second (your ruling to the planner, 2026-10-12). No agent writes
   either. The setup lines and the read line are today's, from
   `GOAL-RUN.md`.
-- Blocks: the first dispatch with the script.
-- Raised: 2026-10-12, by the planner
-
-### [ ] #167: settings rules for the dispatch script
-- Ticket: #167
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Steps: 1. In `.claude/managers.settings.json`, add the first block's
-  line to `permissions.allow`. 2. In both
-  `.claude/managers.settings.json` and `.claude/builders.settings.json`,
-  add the second block's lines to `permissions.deny`. 3. Optional,
-  once the script has made one real dispatch: remove the allow rule
-  `PowerShell(*claude.exe --bg *)` from the managers' file, so a
-  builder can only be started through the script. 4. Say "commit the
-  settings files" in the manager's session.
-
-```
-"PowerShell(*session-dispatch-managers-build-review\\scripts\\dispatch.ps1 *)"
-```
-
-```
-"Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
-"Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
-```
-
-- Context: you ticked this done in the pane (2026-10-12) and the
-  rules are in both files in the main checkout, uncommitted; both
-  parse. What is left is step 4: say "commit the settings files".
-  The allow rule lets the manager run
-  the script without a prompt. The deny rules keep every session from
-  writing the two owner-only files.
 - Blocks: the first dispatch with the script.
 - Raised: 2026-10-12, by the planner
 
@@ -288,15 +270,6 @@ git -C ..\skills-plugins-hooks-agents worktree prune -v
   secret.
 - Blocks: merging #108.
 - Raised: 2026-10-12, by the builder manager
-
-### [ ] Fire the first Fantrax runner login (later)
-- Ticket: #92, #93
-- Steps: once stage D has merged the spike workflow, run it with
-  `workflow_dispatch` and report the result in chat.
-- Context: checkpoint 1. If the runner is blocked, authed captures stay on
-  the home PC (ADR-0015).
-- Blocks: enabling the crons.
-- Raised: 2026-10-11, goal-run setup
 
 ### [ ] Cutover (later)
 - Ticket: #93
