@@ -185,6 +185,7 @@ class TestMain:
         pd.DataFrame({"transaction_id": ["gone"]}).to_parquet(out, index=False)
         for name in ("LEDGER_PATH", "CONTRACT_PATH", "SEASON_PATH", "OUT_PATH"):
             monkeypatch.setattr(dm, name, tmp_path / getattr(dm, name).name)
+        monkeypatch.setattr(sys.modules["etl_helpers"].CFG, "data_dir", str(tmp_path))   # where the seam writes
 
         assert dm.main() == 0
         first = out.read_bytes()
