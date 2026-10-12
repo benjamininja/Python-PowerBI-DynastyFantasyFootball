@@ -93,21 +93,18 @@ gh workflow run fantrax-runner-spike.yml --ref main
 - Blocks: the dispatch of #230.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Skills PR 46: review, run the security review, merge
+### [ ] Make the live clone and name both plugin folders, before the next app restart
 - Ticket: #167
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Steps: 1. Open a session rooted in the skills repository and run
-  `/security-review` on branch `session-dispatch-plugin`. It did not
-  run from the planner's session, where the command is not available.
-  2. Read https://github.com/benjamininja/skills-plugins-hooks-agents/pull/46
-  , most of all `scripts/dispatch.ps1`. 3. Merge it. 4. Pull the live
-  clone at `C:\Users\benha\claude-live\skills-plugins-hooks-agents`.
-- Context: the dispatch plugin (#167 step 2) is a dry-run-first script
-  that starts a builder, two skills and templates. 12 tests of the
-  script pass; the full suite passed (155) before the last script
-  change; CI runs it all.
-- Blocks: the three #167 entries below, and #218.
 - Raised: 2026-10-12, by the planner
+- Why: the saved `CLAUDE_CODE_PLUGIN_DIRS` names one folder, which does not exist. At the next app start neither `owner-queue` nor the dispatch plugin would load.
+- Steps: 1. Make the live clone with block 1. 2. Save the variable with block 2; the two folders are joined by a semicolon. 3. Close the Claude app fully and open it again; `/reload-plugins` does not read a changed variable. 4. Check: the pane's first line reads `owner-queue 0.7.1`, and `/session-rules` is offered.
+  ```
+  git clone https://github.com/benjamininja/skills-plugins-hooks-agents C:\Users\benha\claude-live\skills-plugins-hooks-agents
+  ```
+  ```
+  setx CLAUDE_CODE_PLUGIN_DIRS "C:\Users\benha\.claude\mods\owner-queue;C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review"
+  ```
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
 
 ### [ ] #167: write the two owner-only files for the dispatch script
 - Ticket: #167
@@ -165,17 +162,10 @@ gh workflow run fantrax-runner-spike.yml --ref main
 C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
 ```
 
-- Context: you ran `/reload-plugins` (2026-10-12, evening). Two
-  things the manager found. 1. Your user variable
-  `CLAUDE_CODE_PLUGIN_DIRS` now holds **only** the new folder; the
-  owner-queue folder (`C:\Users\benha\.claude\mods\owner-queue`,
-  what the running session still has) is no longer in it, so the
-  pane may not load after the next restart. Put both in, most
-  likely with a semicolon between. 2. A reload does not read the
-  variable again; a restart does. Skills PR 46 is still open and
-  the plugin's folder is not in the live clone yet, so nothing can
-  load from it. PR 46 merged and the live clone pulled come first,
-  then restart the sessions. The planner has not
+- Context: skills PR 46 is merged (2026-10-12). Steps 1 and 2 are
+  now the entry above ("Make the live clone and name both plugin
+  folders"); what is left here is step 3, after that restart.
+  The planner has not
   verified how that variable separates two folders on Windows (most
   likely a semicolon). If the second folder does not load, say so and
   the planner finds out. #167 closes on the first real dispatch
