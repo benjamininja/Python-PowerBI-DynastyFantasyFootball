@@ -37,6 +37,22 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   The fire Action is in the queue ("Store the spike secrets and
   fire the Fantrax runner spike"); the owner reports the run's
   summary in chat, and fires again after #230 merges.
+- **Spike run 1 (2026-10-12, by the owner): the login stopped at
+  the second-factor code prompt, not a network block (34.5 s); no
+  read.** On #92. The owner fires again after #230 merges.
+- **Owner's rule (2026-10-12): lagging cleanup an agent could not
+  finish is not handed to the owner. Park it on the standing
+  ticket #237** for a later retry by an agent session. On it now:
+  three stale lock files under `.git` (the classifier denied their
+  delete), the two local branches of #225, the empty folder
+  `brave-euclid-5d75b2`, the stale `.git/worktrees/` entries. The
+  manager stopped two hung git commands on the owner's word. While
+  the locks sit there a git command that writes those two branches
+  fails; other branches work.
+- The owner said skills PR 46 "is for planner" (2026-10-12);
+  relayed to the planner. The owner's user variable
+  `CLAUDE_CODE_PLUGIN_DIRS` holds only the dispatch plugin's folder,
+  not owner-queue's; written in the queue.
 - The git guard hook also blocks `git branch -D` for an agent
   (2026-10-12). A builder's squash-merged local branches are left
   for the owner: one queue Action with the command. The remote
@@ -231,11 +247,9 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #225 #230 #92 #93 #116. Tooling
    and upkeep: #151 #162 #167 #218 #130 #211.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the spike
-(environment, secrets, fire, report); two local branches to delete; the
+**Left with the owner** (all in `NEEDS-OWNER.md`): the spike (fire again after #230); the
 code prompt for #230; skills PR 46 and the two #167 entries (owner-
-only files, plugin folder); the Power BI check (#211); the stale
-worktree entries (close the idle session, pause OneDrive, prune); the
+only files, plugin folder); the Power BI check (#211); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user
 settings.

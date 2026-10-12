@@ -48,10 +48,11 @@ can be traced.
 - Raised: 2026-10-12, by the planner
 - Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
 - Note: i LIKE THIS BETTER. THERE ARE THREE BUTTONS, TWO FOR SEND AS COMMENT AND ONE FOR SEND AS ANSWER. THS IS LARGER TEXT ENTRY BUT IS NOT GROWING VETRICALLY. TREAT AS TEST, NO ACTION TAKEN AND COMMENT NOT TO POST. | pane, 2026-10-12 17:52:25, session 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Note: i really appreciate what's happening. works for shorter messages. what happens when messages get longer and perhaps i want to go up a line or two? i like that it grows so this is really cool. | pane, 2026-10-12 18:21:09, session 22ca1b72-576b-45a1-8435-30ad14e53bda
 
 ## Actions
 
-### [ ] Store the spike secrets and fire the Fantrax runner spike
+### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
 - Ticket: #92, #225
 - Steps: 1. On GitHub: Settings, Environments, New environment, name
   `fantrax-spike`, and limit its deployment branches to `main`. Do
@@ -70,7 +71,12 @@ can be traced.
 gh workflow run fantrax-runner-spike.yml --ref main
 ```
 
-- Context: checkpoint 1 of stage D. PR #228 merged on your "merge
+- Context: **run 1 is done (2026-10-12): steps 1 to 4 all worked.**
+  The login stopped at the second-factor code prompt, not a network
+  block (34.5 s); all three secrets were set; no read was made. It
+  is written on #92. What is left is steps 3 and 4 again: once
+  after #230 merges, and on other days.
+  Checkpoint 1 of stage D. PR #228 merged on your "merge
   228" (2026-10-12). The run prints verdicts, HTTP statuses,
   exception class names and seconds only, on a public log. Question 1
   of #92 wants several runs on different days. Until the login code
@@ -80,20 +86,6 @@ gh workflow run fantrax-runner-spike.yml --ref main
   If the runner is blocked, authed captures stay on the home PC
   (ADR-0015).
 - Blocks: #92, and through it enabling the crons.
-- Raised: 2026-10-12, by the builder manager
-
-### [ ] Delete two local branches of the finished #225 builder
-- Ticket: #225
-- Steps: run the block below in the main checkout.
-
-```bash
-git branch -D feat/225-runner-spike-workflow worktree-b92-runner-spike
-```
-
-- Context: both are merged (squash) and gone from GitHub; the
-  builder's session and worktree are removed. Your git guard hook
-  blocks `git branch -D` for an agent, so the manager did not run it.
-- Blocks: nothing.
 - Raised: 2026-10-12, by the builder manager
 
 ### [ ] #230: report what the Fantrax code prompt looks like
@@ -157,10 +149,13 @@ git branch -D feat/225-runner-spike-workflow worktree-b92-runner-spike
 }
 ```
 
-- Context: you ticked this done in the pane (2026-10-12). The
-  manager's look found `dispatch-projects.json` in your user folder,
-  and no `.claude/dispatch.json` in the main checkout: that one is
-  still to write (step 1). Waits on skills PR 46. The script refuses to run without
+- Context: you said "done" (2026-10-12, evening) and the manager
+  sees `.claude/dispatch.json` in the main checkout, untracked. A
+  second file, `.claude/dispatch-projects.json`, also sits in the
+  main checkout: its place is your user `.claude` folder, where a
+  copy already is, so the one in the repository can go. **One
+  answer is left (step 3): is `dispatch.json` to be committed?**
+  Waits on skills PR 46. The script refuses to run without
   the first file, and refuses `-Apply` in a project that is not in the
   second (your ruling to the planner, 2026-10-12). No agent writes
   either. The setup lines and the read line are today's, from
@@ -181,10 +176,17 @@ git branch -D feat/225-runner-spike-workflow worktree-b92-runner-spike
 C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
 ```
 
-- Context: you ticked this done in the pane (2026-10-12), but skills
-  PR 46 is still open and the plugin's folder is not in the live
-  clone yet, so nothing can load from it. Merge PR 46 and pull the
-  live clone first, then restart the sessions. The planner has not
+- Context: you ran `/reload-plugins` (2026-10-12, evening). Two
+  things the manager found. 1. Your user variable
+  `CLAUDE_CODE_PLUGIN_DIRS` now holds **only** the new folder; the
+  owner-queue folder (`C:\Users\benha\.claude\mods\owner-queue`,
+  what the running session still has) is no longer in it, so the
+  pane may not load after the next restart. Put both in, most
+  likely with a semicolon between. 2. A reload does not read the
+  variable again; a restart does. Skills PR 46 is still open and
+  the plugin's folder is not in the live clone yet, so nothing can
+  load from it. PR 46 merged and the live clone pulled come first,
+  then restart the sessions. The planner has not
   verified how that variable separates two folders on Windows (most
   likely a semicolon). If the second folder does not load, say so and
   the planner finds out. #167 closes on the first real dispatch
@@ -203,43 +205,6 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
   the bot does not, so the two differ by each team's IR salary.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
-
-### [ ] Clear the stale worktree entries OneDrive will not let go
-- Ticket: #167, #164
-- Steps: 1. Archive or close the idle session "Fix null overall_rank in
-  04a in-season pulls"; it holds the empty folder
-  `.claude/worktrees/brave-euclid-5d75b2`. 2. Pause OneDrive sync (tray
-  icon, Pause syncing). 3. In a terminal at the repo root run the three
-  blocks below. 4. Resume OneDrive sync and say "done" in the manager's
-  session.
-
-```powershell
-Remove-Item -Recurse -Force .claude\worktrees\brave-euclid-5d75b2
-```
-
-```powershell
-git worktree prune -v
-```
-
-```powershell
-git -C ..\skills-plugins-hooks-agents worktree prune -v
-```
-
-- Context: on your word (2026-10-12) the manager deleted four of the
-  five leftover folders, removed the upstream scratch worktrees
-  `spha-wt` and `oq39` (the planner said it was finished with it)
-  and deleted the local branch `owner-queue-030`. What is left is harmless and only untidy: one empty folder
-  held by the idle session, five stale entries under `.git/worktrees/`
-  of this repository and two (`spha-wt`, `oq39`) in the upstream
-  repository.
-  Git reports "Permission denied" on deleting them, in the manager's
-  shell and in yours; the folders carry OneDrive's attributes, so the
-  likely holder is OneDrive sync. `git worktree list` is already
-  correct in both repositories. The planner's new scratch worktree
-  of the upstream repository (branch `session-dispatch-plugin`) is
-  live and stays.
-- Blocks: nothing.
-- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Fresh 04t capture, after Wednesday 2026-10-14, 8:00 am
 - Ticket: #97 (task, map #70)
