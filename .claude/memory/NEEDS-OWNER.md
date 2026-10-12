@@ -16,6 +16,36 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
 ## Decisions
 
+### [ ] #109: how pick legs inside one trade are resolved
+- Ticket: #109 (task, map #69). PR open, built and green locally; parked on
+  this one question from the `cap-ledger-auditor`.
+- Context: a trade row names a future pick by year and round only. `02d`
+  replays ownership leg by leg, in order: a leg moves the one pick of that
+  year and round its sender holds at that moment; if the sender holds
+  several, the row's owner hint (a team name) picks one; otherwise the leg
+  goes to review and stays out of `fact_trade_log`. On today's data all 95
+  pick legs resolve (90 by slot, 5 future), 0 in review, and the replay
+  ends on Fantrax's owner for 280 of 280 future picks. All 5 future legs
+  carry a hint. The open case is not in the data: two teams swap picks of
+  the same round in one trade and a hint is missing or names a renamed
+  team. In sequence, the second sender then holds two picks and the leg
+  goes to review.
+- Options: (a) keep it: in sequence, hint as tie-break, else review;
+  (b) resolve every leg of one trade against the holdings before the
+  trade, so a same-round swap needs no hint (a pick passing through two
+  teams inside one trade then goes to review instead).
+- Recommended: (a). Nothing is silently wrong under it, the hint has been
+  present on every future leg so far, and a leg in review is one line to
+  look at.
+- Blocks: merging the #109 PR, and #108's first migration (it needs
+  `fact_trade_log` keyed). Does not block #77, #149 or #86.
+- Also yours to see in the PR (the agent's calls, no answer needed unless
+  you disagree): `pick_owner_hint` is no longer written; all 1,260 picks
+  are minted; every leg of an asset that moves twice inside one trade goes
+  to review, because the key `(transaction_id, asset_id)` cannot hold both;
+  `04u` stays manual.
+- Raised: 2026-10-12, stage B goal run
+
 ## Actions
 
 ### [ ] Fresh 04t capture before #97 PR 1

@@ -11,7 +11,7 @@ managing session `56063cf0…`).** Read the Standing rules below, then
 - **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
   worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
   #77 phases 1 to 6 → #149 → #86. State per ticket:
-  - **#109: built on branch `feat/109-pick-legs`.** The lookup passed: all
+  - **#109: built on branch `feat/109-pick-legs`, parked (see below).** The lookup passed: all
     95 pick legs resolve from published tables. Plan as built (Outline →
     Build mode → Rationale): `02d` gains `mint_pick_assets` (one `pick`
     asset per row of `fact_draft_pick` and `fact_draft_pick_future`,
@@ -29,6 +29,19 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     The agent's calls, reported in the PR: `pick_owner_hint` is no longer
     written (it holds a team name); all 1,260 picks are minted, not only
     the traded ones (ADR-0006 d2); `04u` stays manual.
+  - **#109 is PARKED with its PR open** (entry in `NEEDS-OWNER.md`). The
+    `cap-ledger-auditor` found no wrong figure. Fixed after its report: a
+    pick that gets a slot keeps its asset (`slot_history`, the `was`
+    argument of `mint_pick_assets`; the replay is seeded from slotted and
+    future picks); ownership gaps are written to
+    `data/review/review_pick_ownership.csv` and cover slots (ADR-0006 d4);
+    every leg of an asset that moves twice inside one trade goes to review
+    instead of failing the run. Left for the owner: whether legs inside
+    one trade resolve in sequence (as built) or against pre-trade holdings.
+    `pytest tests/` 654. When the owner answers: record it, merge on
+    green, close #109 with a Resolution, add its line to map #69. Note
+    that #77's phases 2 to 4 also edit `02d`; whichever merges second
+    rebases.
   - **Worktree notes for this run:** a copy of `data/raw` captures into
     the worktree was denied by the permission classifier (PII handling)
     and was not retried. `02d` is rerun with the scratchpad `run02d.py`,

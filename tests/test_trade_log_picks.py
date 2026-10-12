@@ -125,7 +125,27 @@ class TestFutureLeg:
     def test_no_future_table_at_all(self):
         refs, reasons, holders = resolve([leg("t1", "2026-07-01", "A01", "A02", 2027, 1)],
                                          future=FUTURE.iloc[0:0])
-        assert pd.isna(refs[0]) and reasons == ["sender_holds_no_single_pick"] and holders == {}
+        assert pd.isna(refs[0]) and reasons == ["sender_holds_no_single_pick"]
+        assert not any(ref.startswith("2027") for ref in holders)
+
+    def test_a_same_round_swap_resolves_by_the_hints(self):
+        # after the first leg A02 holds two round-1 picks; the hint names its own
+        refs, _, holders = resolve([leg("t1", "2026-07-01", "A01", "A02", 2027, 1, hint="Alpha"),
+                                    leg("t1", "2026-07-01", "A02", "A01", 2027, 1, hint="Bravo")])
+        assert refs == ["2027|A01|1", "2027|A02|1"]
+        assert holders["2027|A01|1"] == "A02" and holders["2027|A02|1"] == "A01"
+
+    def test_a_leg_made_before_the_pick_was_slotted_resolves_to_its_slot(self):
+        # the 2026 picks are in the slotted grid only; a leg with no pick number
+        refs, _, holders = resolve([leg("t1", "2026-05-01", "A03", "A01", 2026, 2)],
+                                   future=FUTURE.iloc[0:0])
+        assert refs == ["2026-2027|div|S004"] and holders["2026-2027|div|S004"] == "A01"
+
+    def test_a_pick_in_both_tables_is_replayed_once_under_its_slot(self):
+        both = pd.concat([FUTURE, pd.DataFrame(
+            [("2026|A03|2", "2026-2027", 2, "A03", "A03")], columns=FUTURE.columns)])
+        refs, _, _ = resolve([leg("t1", "2026-05-01", "A03", "A01", 2026, 2)], future=both)
+        assert refs == ["2026-2027|div|S004"]
 
     def test_an_unmapped_team_is_unresolved(self):
         refs, reasons, _ = resolve([leg("t1", "2026-07-01", pd.NA, "A02", 2027, 1)])
@@ -133,15 +153,32 @@ class TestFutureLeg:
 
 
 class TestOwnershipGaps:
+    NO_LEGS = pd.DataFrame(columns=["pick_ref", "pick_in_round", "team_key_to", "event_date"])
+
     def test_none_when_the_replay_matches_the_reported_owner(self):
         _, _, holders = resolve([leg("t1", "2026-07-01", "A01", "A02", 2027, 1)])
         reported = FUTURE.assign(current_owner=FUTURE["current_owner"].where(
             FUTURE["pick_ref"] != "2027|A01|1", "A02"))
-        assert rt.ownership_gaps(reported, holders) == []
+        assert rt.ownership_gaps(SLOTTED, reported, holders, self.NO_LEGS) == []
 
     def test_a_pick_table_older_than_the_trade_is_a_gap(self):
         _, _, holders = resolve([leg("t1", "2026-07-01", "A01", "A02", 2027, 1)])
-        assert rt.ownership_gaps(FUTURE, holders) == [("2027|A01|1", "A02", "A01")]
+        assert rt.ownership_gaps(SLOTTED, FUTURE, holders, self.NO_LEGS) == [("2027|A01|1", "A02", "A01")]
+
+    def test_a_slot_whose_last_receiver_is_not_its_current_owner_is_a_gap(self):
+        log = pd.DataFrame({"pick_ref": ["2026-2027|div|S004"] * 2, "pick_in_round": [1, 1],
+                            "team_key_to": ["A01", "A02"],
+                            "event_date": pd.to_datetime(["2026-06-01", "2026-06-02"])})
+        assert rt.ownership_gaps(SLOTTED, FUTURE, {}, log) == [("2026-2027|div|S004", "A02", "A03")]
+        made_by = SLOTTED.assign(current_owner=SLOTTED["current_owner"].where(
+            SLOTTED["pick_ref"] != "2026-2027|div|S004", "A02"))
+        assert rt.ownership_gaps(made_by, FUTURE, {}, log) == []
+
+    def test_a_slot_that_changed_owner_with_no_leg_is_a_gap(self):
+        # a trade the capture missed
+        moved = SLOTTED.assign(current_owner=SLOTTED["current_owner"].where(
+            SLOTTED["pick_ref"] != "2026-2027|div|S002", "A03"))
+        assert rt.ownership_gaps(moved, FUTURE, {}, self.NO_LEGS) == [("2026-2027|div|S002", "A02", "A03")]
 
 
 class TestMintPickAssets:
@@ -171,6 +208,22 @@ class TestMintPickAssets:
         out, sid2aid = rt.mint_assets(["s1", "s2"], bridge, {"s1": "00-1"}, {})
         assert sid2aid == {"s1": 1, "s2": 3}
         assert out.set_index("asset_id").loc[2, "pick_ref"] == "p1"
+
+    def test_a_pick_that_gets_a_slot_keeps_its_asset(self):
+        # minted as a future pick, then the draft order is set
+        bridge, first = rt.mint_pick_assets(self.EXISTING, ["2026|A03|2", "2027|A01|1"])
+        again, second = rt.mint_pick_assets(bridge, rt.all_pick_refs(SLOTTED, FUTURE.iloc[0:0]),
+                                            rt.slot_history(SLOTTED))
+        assert second["2026-2027|div|S004"] == first["2026|A03|2"] and "2026|A03|2" not in second
+        by_id = again.set_index("asset_id")["pick_ref"]
+        assert by_id[first["2026|A03|2"]] == "2026-2027|div|S004"
+        assert by_id[first["2027|A01|1"]] == "2027|A01|1"           # an unslotted pick is untouched
+        assert again["pick_ref"].dropna().is_unique and len(again) == 1 + 1 + 6
+
+    def test_a_pick_in_both_tables_is_one_asset(self):
+        both = pd.DataFrame([("2026|A03|2", "2026-2027", 2, "A03", "A03")], columns=FUTURE.columns)
+        refs = rt.all_pick_refs(SLOTTED, both)
+        assert refs == SLOTTED["pick_ref"].tolist()
 
     def test_all_pick_refs_is_slotted_then_future_in_a_fixed_order(self):
         refs = rt.all_pick_refs(SLOTTED.sample(frac=1, random_state=1),
@@ -203,3 +256,18 @@ class TestFinishTradeLog:
         assert list(review.columns) == rt.PICK_REVIEW_COLS
         assert review.loc[0, "reason"] == "sender_holds_no_single_pick"
         assert review.loc[0, "draft_year"] == 2029
+
+    def test_an_asset_moving_twice_in_one_trade_goes_to_review_whole(self):
+        parsed = pd.DataFrame([leg("t1", "2026-07-01", "A02", "A03", 2027, 1, hint="Alpha"),
+                               leg("t1", "2026-07-01", "A01", "A02", 2027, 1),
+                               leg("t1", "2026-07-01", "A03", "A01", 2027, 2)])
+        refs, reasons, _ = rt.resolve_pick_legs(parsed, SLOTTED, FUTURE, NAMES)
+        log, review = rt.finish_trade_log(parsed, refs, reasons, {}, {"2027|A01|1": 40, "2027|A03|2": 41})
+        assert log["asset_id"].tolist() == [41]
+        assert review["reason"].tolist() == ["asset_moves_twice_in_trade"] * 2
+
+    def test_a_player_with_no_asset_goes_to_review(self):
+        parsed = pd.DataFrame([player("t1", "2026-07-01", "A01", "A02", "s9")])
+        refs, reasons, _ = rt.resolve_pick_legs(parsed, SLOTTED, FUTURE, NAMES)
+        log, review = rt.finish_trade_log(parsed, refs, reasons, {}, {})
+        assert len(log) == 0 and review["reason"].tolist() == ["no_asset"]

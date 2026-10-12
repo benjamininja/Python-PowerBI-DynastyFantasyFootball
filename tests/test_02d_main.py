@@ -352,6 +352,26 @@ class TestMain:
         assert assets.loc[players["asset_id"], "scorer_id"].tolist() == players["scorer_id"].tolist()
         assert not rt.PICK_REVIEW_PATH.exists()
 
+    def test_a_stale_future_pick_table_is_listed_for_review(self, data):
+        # The fixture's future table shows no trade, and the log trades future
+        # picks. (The draft fixture also holds slots whose owner changed in
+        # trades the cut-down history fixture leaves out: those stay listed.)
+        def future_gaps():
+            gaps = pd.read_csv(rt.PICK_OWNER_REVIEW_PATH)
+            assert list(gaps.columns) == rt.PICK_OWNER_REVIEW_COLS
+            return gaps[gaps["pick_ref"].str[:4].isin(map(str, FUTURE_YEARS))]
+
+        rt.main()
+        picks = outputs()["TRADE_LOG_PATH"]
+        picks = picks[picks["asset_kind"] == "pick"]
+        assert sorted(future_gaps()["pick_ref"]) == sorted(picks["pick_ref"])
+        future = pd.read_parquet(data / "fact_draft_pick_future.parquet")
+        owner = dict(zip(picks["pick_ref"], picks["team_key_to"]))
+        future["current_owner"] = future["pick_ref"].map(owner).fillna(future["current_owner"])
+        future.to_parquet(data / "fact_draft_pick_future.parquet", index=False)
+        rt.main()
+        assert len(future_gaps()) == 0
+
     def test_a_pick_leg_with_no_pick_table_goes_to_review(self, data):
         (data / "fact_draft_pick_future.parquet").unlink()
         rt.main()

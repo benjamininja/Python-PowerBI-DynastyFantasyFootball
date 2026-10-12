@@ -103,6 +103,7 @@ ELIGIBILITY_PATH = DATA / "fact_minor_eligibility.parquet"
 TRADE_LOG_PATH = DATA / "fact_trade_log.parquet"
 FUTURE_PICK_PATH = DATA / "fact_draft_pick_future.parquet"
 PICK_REVIEW_PATH = REVIEW / "review_trade_log_picks.csv"
+PICK_OWNER_REVIEW_PATH = REVIEW / "review_pick_ownership.csv"
 DRAFT_GLOB     = str(DATA / "raw" / "fantrax_draftresults_2026*.json")
 TXN_GLOB       = str(DATA / "raw" / "fantrax_txn_history_*.json")
 
@@ -126,6 +127,7 @@ TRADE_LOG_COLS = ["transaction_id", "asset_id", "asset_kind", "team_key_from", "
                   "draft_year", "draft_round", "pick_in_round", "source"]
 PICK_REVIEW_COLS = ["transaction_id", "event_date", "team_key_from", "team_key_to",
                     "draft_year", "draft_round", "pick_in_round", "reason"]
+PICK_OWNER_REVIEW_COLS = ["pick_ref", "replayed_owner", "reported_owner"]
 
 TRADE_SOURCE   = "getTransactionDetailsHistory"
 TXN_SEQ_BASE   = 100_000
@@ -293,7 +295,12 @@ def build_draft_picks(picks: pd.DataFrame, team_lut: dict, season_id: str = SEAS
 # **Pick assets.** Every pick is an asset (ADR-0006 decision 2): one
 # `dim_roster_asset` row of type `pick` per row of `fact_draft_pick` (slotted)
 # and `fact_draft_pick_future` (unslotted), carrying that row's `pick_ref`.
-# Like a player's, the id is minted at first sight and never re-derived.
+# Like a player's, the id is minted at first sight and never re-derived. A
+# pick is one asset for life: its identity is (draft year, round, Original
+# Owner) (ADR-0006 decision 1), which is what a future pick's `pick_ref`
+# spells (`2027|B10|1`). When the draft order is set and the pick turns up
+# in `fact_draft_pick` under a slot `pick_ref`, its asset keeps its id and
+# takes the new `pick_ref` (ADR-0004: the resolver moves under a stable id).
 #
 # **Pick legs.** Fantrax's trade row names a pick by year and round, plus the
 # pick number once the draft order is set. It carries no id, so each leg is
@@ -306,26 +313,42 @@ def build_draft_picks(picks: pd.DataFrame, team_lut: dict, season_id: str = SEAS
 #   time order and a leg moves the one pick of that (year, round) its sender
 #   holds. A sender holding several needs the row's owner hint (a team name)
 #   to name one of them. A hint that names a pick the sender does not hold
-#   leaves the leg unresolved: the replay has lost track of that pick.
-# An unresolved leg goes to review and stays out of the table. The replay's
-# end state is then held against the owner Fantrax reports (ADR-0006 decision
-# 4): `ownership_gaps` lists the picks where the two disagree, which means a
-# missed trade or a pick table older than the trade log (rerun 04u).
-def mint_pick_assets(existing: pd.DataFrame, refs) -> tuple:
+#   leaves the leg unresolved: the replay has lost track of that pick. A pick
+#   that has since been slotted is still replayed, under its slot `pick_ref`.
+# An unresolved leg goes to review and stays out of the table. So does every
+# leg of an asset that moves twice inside one trade: the table's key
+# (transaction_id, asset_id) cannot hold both. The replay's end state is then
+# held against the owner Fantrax reports (ADR-0006 decision 4):
+# `ownership_gaps` lists the picks where the two disagree, which means a
+# missed trade or a pick table older than the trade log (rerun 04u). They are
+# written to `data/review/review_pick_ownership.csv`.
+def mint_pick_assets(existing: pd.DataFrame, refs, was=None) -> tuple:
     """Extend the asset bridge with a `pick` asset for each of `refs` it does
-    not hold yet, in the order given. Returns (bridge, pick_ref -> asset_id)."""
+    not hold yet, in the order given. `was` maps a slot `pick_ref` to the
+    `pick_ref` the same pick had before it was slotted: an asset held under
+    that older ref keeps its id and takes the new ref. Returns (bridge,
+    pick_ref -> asset_id)."""
+    was = was or {}
     known = existing[existing["pick_ref"].notna()]
     ref2aid = dict(zip(known["pick_ref"], known["asset_id"]))
     next_id = (int(existing["asset_id"].max()) + 1) if len(existing) else 1
-    new = []
+    new, moved = [], {}
     for ref in refs:
-        if ref not in ref2aid:
-            new.append(dict(asset_id=next_id, asset_type="pick", scorer_id=pd.NA,
-                            gsis_id=pd.NA, player_key=pd.NA, pick_ref=ref))
-            ref2aid[ref] = next_id; next_id += 1
-    if not new:
+        if ref in ref2aid:
+            continue
+        if was.get(ref) in ref2aid:
+            moved[ref2aid[was[ref]]] = ref
+            ref2aid[ref] = ref2aid.pop(was[ref])
+            continue
+        new.append(dict(asset_id=next_id, asset_type="pick", scorer_id=pd.NA,
+                        gsis_id=pd.NA, player_key=pd.NA, pick_ref=ref))
+        ref2aid[ref] = next_id; next_id += 1
+    if not new and not moved:
         return existing, ref2aid
-    frames = [f for f in (existing, pd.DataFrame(new, columns=ASSET_COLS)) if len(f)]
+    bridge = existing.copy()
+    if moved:
+        bridge["pick_ref"] = bridge["asset_id"].map(moved).fillna(bridge["pick_ref"])
+    frames = [f for f in (bridge, pd.DataFrame(new, columns=ASSET_COLS)) if len(f)]
     bridge = pd.concat(frames, ignore_index=True)[ASSET_COLS]
     return bridge.sort_values("asset_id").reset_index(drop=True), ref2aid
 
@@ -335,11 +358,25 @@ def _draft_year(draft_season) -> int:
     return int(str(draft_season)[:4])
 
 
+def unslotted_ref(draft_season, original_owner, rnd) -> str:
+    """A pick's `pick_ref` before it has a slot, as 04u writes it:
+    (draft year, Original Owner, round)."""
+    return f"{_draft_year(draft_season)}|{original_owner}|{int(rnd)}"
+
+
+def slot_history(slotted: pd.DataFrame) -> dict:
+    """Each slot `pick_ref` -> the `pick_ref` that pick had before its slot."""
+    return {r.pick_ref: unslotted_ref(r.draft_season, r.original_owner, r.round)
+            for r in slotted.itertuples()}
+
+
 def all_pick_refs(slotted: pd.DataFrame, future: pd.DataFrame) -> list:
-    """Every pick's `pick_ref`, slotted grid first, in a fixed order."""
+    """Every pick's `pick_ref`, slotted grid first, in a fixed order. A pick
+    in both tables is listed once, under its slot."""
     s = slotted.sort_values(["draft_season", "division_id", "overall_slot"])["pick_ref"]
     f = future.sort_values(["draft_season", "round", "original_owner"])["pick_ref"]
-    return [*s, *f]
+    has_slot = set(slot_history(slotted).values())
+    return [*s, *(ref for ref in f if ref not in has_slot)]
 
 
 def resolve_pick_legs(trade_log: pd.DataFrame, slotted: pd.DataFrame,
@@ -354,10 +391,14 @@ def resolve_pick_legs(trade_log: pd.DataFrame, slotted: pd.DataFrame,
     division = dict(zip(slotted["original_owner"], slotted["division_id"]))
     slot_ref = {(_draft_year(r.draft_season), r.division_id, int(r.round), int(r.pick_in_round)): r.pick_ref
                 for r in slotted.itertuples()}
-    # (year, round) -> holder -> the Original Owners whose pick it holds
+    # (year, round) -> holder -> the Original Owners whose pick it holds.
+    # Slotted picks are replayed too, so a leg made before the pick had a
+    # slot still resolves once the pick has left the future table.
     held, future_ref = {}, {}
-    for r in future.itertuples():
+    for r in (*slotted.itertuples(), *future.itertuples()):
         year_round = (_draft_year(r.draft_season), int(r.round))
+        if (*year_round, r.original_owner) in future_ref:
+            continue                                    # in both tables: the slot wins
         held.setdefault(year_round, {}).setdefault(r.original_owner, []).append(r.original_owner)
         future_ref[(*year_round, r.original_owner)] = r.pick_ref
 
@@ -410,22 +451,39 @@ def resolve_pick_legs(trade_log: pd.DataFrame, slotted: pd.DataFrame,
             pd.Series(reasons, dtype="object").reindex(trade_log.index), holders)
 
 
-def ownership_gaps(future: pd.DataFrame, holders: dict) -> list:
-    """Future picks whose owner after the replay is not the `current_owner`
-    Fantrax reports: [(pick_ref, replayed owner, reported owner)]."""
+def ownership_gaps(slotted: pd.DataFrame, future: pd.DataFrame, holders: dict,
+                   log: pd.DataFrame) -> list:
+    """Picks whose owner after the trades is not the `current_owner` Fantrax
+    reports: [(pick_ref, replayed owner, reported owner)]. A future pick's
+    replayed owner is its holder after the replay; a slot's is the last
+    receiver among its legs in `log` (the finished trade log), or its
+    Original Owner when no leg moved it."""
     reported = dict(zip(future["pick_ref"], future["current_owner"]))
-    return sorted((ref, team, reported[ref]) for ref, team in holders.items()
-                  if reported[ref] != team)
+    gaps = [(ref, team, reported[ref]) for ref, team in holders.items()
+            if ref in reported and reported[ref] != team]
+    slot_owner = dict(zip(slotted["pick_ref"], slotted["current_owner"]))
+    legs = log[log["pick_in_round"].notna()].sort_values("event_date", kind="stable")
+    last_to = dict(zip(legs["pick_ref"], legs["team_key_to"]))
+    gaps += [(ref, team, slot_owner[ref]) for ref, team in last_to.items()
+             if slot_owner.get(ref) != team]
+    gaps += [(r.pick_ref, r.original_owner, r.current_owner) for r in slotted.itertuples()
+             if r.pick_ref not in last_to and r.current_owner != r.original_owner]
+    return sorted(gaps)
 
 
 def finish_trade_log(parsed: pd.DataFrame, pick_ref: pd.Series, reasons: pd.Series,
                      sid2aid: dict, ref2aid: dict) -> tuple:
-    """The parsed trade rows -> (fact_trade_log, the pick legs for review).
-    Every row of the table has an `asset_id`."""
+    """The parsed trade rows -> (fact_trade_log, the legs for review). Every
+    row of the table has an `asset_id`, and no (transaction_id, asset_id)
+    repeats: every leg of an asset that moves twice inside one trade goes to
+    review, since the key can hold neither."""
     log = parsed.assign(pick_ref=pick_ref)
     is_pick = log["asset_kind"] == "pick"
     log["asset_id"] = log["scorer_id"].map(sid2aid).where(~is_pick, log["pick_ref"].map(ref2aid))
-    unresolved = is_pick & log["asset_id"].isna()
+    reasons = reasons.where(log["asset_id"].notna(), reasons.fillna("no_asset"))
+    twice = log["asset_id"].notna() & log.duplicated(["transaction_id", "asset_id"], keep=False)
+    reasons = reasons.mask(twice, "asset_moves_twice_in_trade")
+    unresolved = log["asset_id"].isna() | twice
     review = log[unresolved].assign(reason=reasons[unresolved])[PICK_REVIEW_COLS]
     log = log[~unresolved].astype({"asset_id": "int64"})
     # an Arrow string column whether or not the capture holds a pick leg
@@ -1455,7 +1513,8 @@ def main():
     if not len(future):
         print("[warn] no fact_draft_pick_future (run 04u) -- a traded future pick "
               "cannot be resolved and goes to review")
-    dim_roster_asset, ref2aid = mint_pick_assets(_read_assets(), all_pick_refs(slotted, future))
+    dim_roster_asset, ref2aid = mint_pick_assets(_read_assets(), all_pick_refs(slotted, future),
+                                                 slot_history(slotted))
     dim_roster_asset.to_parquet(ASSET_PATH, index=False)
     print(f"[ok] dim_roster_asset: {len(ref2aid)} pick asset(s) "
           f"({len(slotted)} slotted, {len(future)} future)")
@@ -1547,11 +1606,6 @@ def main():
 
         pick_ref, reasons, holders = resolve_pick_legs(trade_log, slotted, future, name_lut)
         trade_log, pick_review = finish_trade_log(trade_log, pick_ref, reasons, sid2aid, ref2aid)
-        repeated = int(trade_log.duplicated(["transaction_id", "asset_id"]).sum())
-        if repeated:
-            raise RuntimeError(
-                f"{repeated} fact_trade_log row(s) repeat a (transaction_id, asset_id) -- "
-                f"one asset moved twice inside one trade. The table is not written.")
         trade_log.to_parquet(TRADE_LOG_PATH, index=False)
         n_picks = int((trade_log["asset_kind"] == "pick").sum())
         print(f"[ok] fact_trade_log: {len(trade_log)} asset row(s) across "
@@ -1561,16 +1615,20 @@ def main():
         if len(pick_review):
             PICK_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
             pick_review.to_csv(PICK_REVIEW_PATH, index=False)
-            print(f"[warn] {len(pick_review)} pick leg(s) resolve to no pick "
+            print(f"[warn] {len(pick_review)} trade leg(s) cannot be keyed "
                   f"({pick_review['reason'].value_counts().to_dict()}) -- left out of "
                   f"fact_trade_log, listed in {PICK_REVIEW_PATH.name}")
         elif PICK_REVIEW_PATH.exists():
             PICK_REVIEW_PATH.unlink()
-        gaps = ownership_gaps(future, holders)
+        gaps = ownership_gaps(slotted, future, holders, trade_log)
         if gaps:
-            print(f"[warn] {len(gaps)} future pick(s) end the trade replay with an owner "
-                  f"Fantrax does not report (rerun 04u, or a trade is missing): "
-                  f"{gaps[:5]}{'...' if len(gaps) > 5 else ''}")
+            PICK_OWNER_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(gaps, columns=PICK_OWNER_REVIEW_COLS).to_csv(PICK_OWNER_REVIEW_PATH, index=False)
+            print(f"[warn] {len(gaps)} pick(s) end the trade replay with an owner Fantrax "
+                  f"does not report (rerun 04u, or a trade is missing) -- listed in "
+                  f"{PICK_OWNER_REVIEW_PATH.name}: {gaps[:5]}{'...' if len(gaps) > 5 else ''}")
+        elif PICK_OWNER_REVIEW_PATH.exists():
+            PICK_OWNER_REVIEW_PATH.unlink()
 
     if stats["no_player"] or stats["no_team"]:
         print(f"[warn] skipped {stats['no_player']} claim/drop row(s) with no scorer and "
