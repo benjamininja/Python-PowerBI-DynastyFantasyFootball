@@ -34,6 +34,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   Desktop before the merge. Its Edit under `.claude/memory/` was
   denied: see the Decision in `NEEDS-OWNER.md`; its plan rides in the
   PR body and the manager owes the memory-doc updates it lists.
+- #140's PR is #207: re-proved green at head `6441433` (comment on
+  the PR), builder idle and waiting. It merges on the owner's
+  "approved" after their Power BI Desktop refresh; then write the
+  memory-doc edits its PR body lists (data-model.md,
+  powerbi-semantic-model.md, project-fantasy-football.md line 331) and
+  close out the builder. Ticket #206 (audit follow-ups) has no tier.
 - Done 2026-10-12, late: #198, #203 merged on the owner's approval;
   #200 built by a low builder and merged as PR #204 (re-proof on the
   PR), builder and branches removed.
