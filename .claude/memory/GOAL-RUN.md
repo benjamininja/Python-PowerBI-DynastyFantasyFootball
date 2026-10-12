@@ -73,10 +73,14 @@ A finding that needs a design choice parks the ticket with its PR left open.
    Options, Recommended, Blocks, Raised) or under `## Actions` for work by
    the owner's hand (Ticket, Steps, Context, Blocks, Raised). The
    `owner-queue` mod shows the file live and toasts the new entry.
-3. Send one desktop push notification. No public post.
+3. Send one desktop push notification. No public post. If a managing
+   session started this one, also send it one message that names the
+   entry; the push does not arrive when Remote Control is off.
 4. Take the next unblocked ticket of the stage. If none is left, print
    `NEEDS-OWNER.md` and end the turn; the goal text counts that as met.
-5. When the owner answers in chat, that answer is the approval. Record it
+5. When the owner answers in chat, that answer is the approval. A relay
+   from the managing session counts as that answer under the rule
+   below. Record it
    (ADR, ticket Resolution or `RESUME.md`, as fits), remove the entry in
    the same turn, and put the ticket back in the queue. The same goes for
    an action the owner reports done, or one the session finds done (a
@@ -84,6 +88,28 @@ A finding that needs a design choice parks the ticket with its PR left open.
    list never shows finished work. The owner can also press "Mark done" in
    the pane, which ticks the entry `[x]`; delete ticked entries at the
    next state-back.
+
+### Relayed answers (owner's ruling 2026-10-12)
+
+The owner may answer a parked entry in the managing session instead of
+the builder's. The managing session then sends the builder one message.
+It counts as the owner's answer only when all of these hold:
+
+- it answers an entry that is already in `NEEDS-OWNER.md`;
+- it quotes the question put to the owner and the owner's answer word
+  for word;
+- it comes from the session that started the builder.
+
+The builder records the answer with the note "relayed by the manager"
+and goes on. A relay never covers anything else: not the "Never" list,
+not checkpoint 1 or 2, not closing a map, not a new decision, not a
+merge of a PR the entry did not name. For those the owner speaks in the
+builder's own session. If a relay is unclear or goes past the entry,
+the builder does not act on it and says so in its reply.
+
+Why: the owner checks in as needed, not at every step; without this a
+park pulls the owner into each builder session. The word-for-word quote
+and the named source keep a misquote visible.
 
 ## Status block (end of every turn)
 
