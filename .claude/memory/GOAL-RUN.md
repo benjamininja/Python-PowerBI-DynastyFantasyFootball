@@ -25,25 +25,32 @@ It never picks one. No tier, no dispatch: it asks the planner.
 The turn cap is written into the prompt ("Or stop after N turns"), as
 the goal texts below already do.
 
-1. Start: `claude.exe --bg -w <name> --name <name> --model <tier's
-   model> --effort <tier's effort> --permission-mode dontAsk --settings
-   .claude/builders.settings.json --agent stage-builder "<prompt>"`.
-   The prompt is the read line below, then the `/goal` text or the
-   brief. Never from Git Bash: it rewrites `/goal` into a path.
-2. Wait until `claude agents --json` shows a `pid` for it, then check
-   that its `cwd` is `.claude/worktrees/<name>`. If it is not, stop it
-   at once.
-3. Build the worktree's `.venv` (`python -m venv .venv`, then
+1. Make the worktree: `git worktree add .claude/worktrees/<name> -b
+   worktree-<name>` from the main checkout. Made this way it holds no
+   settings file of its own.
+2. Build its `.venv` (`python -m venv .venv`, then
    `.venv/Scripts/python.exe -m pip install -r requirements.txt`) and
-   check that `pytest` collects. Until the manager says the `.venv` is
-   ready, the builder runs no Python and makes no commit (the
-   pre-commit hook needs it); the prompt says so. A read-only low job
-   whose brief says `venv: no` skips this step.
-4. Watch `status`, `state` and `waitingFor` in `claude agents --json`
+   check that `pytest` collects. A read-only low job whose brief says
+   `venv: no` skips this step.
+3. Start, from the main checkout: `claude.exe --bg -w <name> --name
+   <name> --model <tier's model> --effort <tier's effort>
+   --permission-mode dontAsk --settings <main checkout>\.claude\builders.settings.json
+   --agent stage-builder <prompt>`. `-w` takes the worktree that is
+   already there. The prompt is the read line below, then the `/goal`
+   text or the brief. It is read from a file and holds **no double
+   quote**: PowerShell cuts the prompt off at the first one. Never from
+   Git Bash: it rewrites `/goal` into a path.
+4. Check in `claude agents --json` that it has a `pid` and that its
+   `cwd` is `.claude/worktrees/<name>`. If it is not, stop it at once.
+5. Watch `status`, `state` and `waitingFor` in `claude agents --json`
    and the transcript `.jsonl`; `claude logs` is not readable.
-5. Follow up with `claude --resume <sessionId> --bg "<message>"` from
-   the builder's worktree. End with `claude stop <id>`, and remove with
-   `claude rm <id>` only at closeout.
+6. Follow up: `claude stop <id>` first, then `claude --resume
+   <sessionId> --bg <message>` from the builder's worktree, with the
+   same mode and settings. Resuming a session that is still alive
+   starts a copy. Remove with `claude rm <id>` only at closeout; it
+   refuses while the worktree holds an uncommitted file.
+
+(Order and the two warnings proven by the dry dispatch of 2026-10-12.)
 
 The read line, first in every builder's prompt: "Read
 `C:\Users\benha\.claude\memory\preferences.md`, then
@@ -64,8 +71,8 @@ dispatches again.
 | Matter | Rule |
 |---|---|
 | Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: write the plan into `RESUME.md` (Outline → Build mode → Rationale), then build. A new design decision parks. |
-| Commit, PR, merge | The agent does all three. It squash-merges with `--delete-branch` only on green (below). |
-| Tracker | The agent posts Resolutions, closes AFK tickets, adds the pointer to the map's Decisions so far, and creates and wires new task tickets. Text goes through `check_pii.py` first. |
+| Commit, PR, merge | Two-key merge (owner's ruling 2026-10-12). The builder commits, pushes its own branch and opens the PR. It does not merge. When the PR is green by its own check it messages the manager, ends its turn and waits. The manager re-proves green (below), squash-merges with `--delete-branch`, pulls, and wakes the builder, which starts its next branch from the new `origin/main`. |
+| Tracker | The builder posts Resolutions as comments and creates new task tickets (`Tier: unset`). A ticket closes through its PR's closing keyword when the manager merges. The manager closes or edits any other ticket and adds the pointer to the map's Decisions so far. Text goes through `check_pii.py` first. |
 | Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes only. The owner stores the secrets and fires the first runner login. |
 | Windows | One PR per compaction: state-back to `RESUME.md`, then compact, at every PR seam and at 125K–150K tokens. |
 
@@ -114,7 +121,12 @@ route, and no other session is asked to make it. The builder parks it as
 an Action in `NEEDS-OWNER.md` (what was denied, the exact command, what
 it blocks), messages the managing session, and takes the next ticket.
 A builder runs in `dontAsk` with `.claude/builders.settings.json`, so a
-call not on that list is a denied call.
+call not on that list is a denied call. Two limits, found in the dry
+dispatch of 2026-10-12: a read-only command runs without a rule, and
+the owner's user-level allow rules reach a builder too. So what a
+builder must never do is a **deny** rule in the builders' file (a deny
+beats an allow from anywhere): merging, `gh api`, `python -c`, closing
+or editing a ticket, and the "Never" list.
 
 ## Park protocol
 
@@ -194,8 +206,18 @@ the main checkout clean on `main`. This covers its own PRs and a rule
 change the owner has approved; the owner no longer merges those by
 hand. A settings or permission file stays the owner's own commit.
 
-**Check-ins.** Event-driven: a park, a merged PR, a stopped or idle
-builder. One fallback look after 60 quiet minutes. No polling.
+**Merging a builder's PR (two-key merge, owner's ruling 2026-10-12).**
+A builder may not merge. When it messages that a PR is green, the
+manager re-proves every item of "Green means all of" itself, posts the
+output on the PR, squash-merges with `--delete-branch`, pulls, and
+wakes the builder. A PR that is not green goes back to the builder with
+the failing output; it is not merged. Why: nothing reaches `main` on
+one session's own report, while the builder's branch is still pushed,
+so its work is backed up and tested by CI. Cost: the builder waits a
+few minutes per PR.
+
+**Check-ins.** Event-driven: a park, a PR reported green, a stopped or
+idle builder. One fallback look after 60 quiet minutes. No polling.
 
 **Closeout, only when a builder has stopped.** Never while it is still
 running.
