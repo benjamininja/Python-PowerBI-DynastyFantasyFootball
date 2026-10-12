@@ -28,6 +28,10 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   messages are inputs; rulings it reports are "to confirm" with the
   owner.
 - No builder is running. No PR is open.
+- The two rule additions are in `GOAL-RUN.md` on the owner's
+  "approved, write the rule PR" (2026-10-12): "The belt" under
+  "Session setup", and "The planner's read" and "Stages and gap
+  tickets" under "The managing session".
 - #140 merged as PR #207 on the owner's words "merge 207, keep it"
   (2026-10-12): no Power BI check before the merge (that is ticket
   #211, the owner's), the by-player relationship stays. Proof by the
