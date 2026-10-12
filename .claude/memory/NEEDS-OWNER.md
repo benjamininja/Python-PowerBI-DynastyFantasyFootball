@@ -33,22 +33,44 @@ can be traced.
 
 ## Decisions
 
+### [ ] A builder cannot write its memory files: where does its plan go?
+- Ticket: #166, #140
+- Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
+  in its own worktree was denied in `dontAsk` mode. No rule in
+  `.claude/builders.settings.json` names `.claude/memory`; the likely
+  cause is the CLI's own guard on any path under a `.claude/` folder,
+  which asks, and `dontAsk` turns an ask into a denial. Not retried.
+  So a builder cannot write its plan into `RESUME.md`, park an entry in
+  its `NEEDS-OWNER.md`, or update a memory doc. The #140 builder went
+  on with the build and will put its plan (Outline, Build mode,
+  Rationale) in the PR body; it sent its park to the manager by
+  message.
+- Options: (a) you add `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` to `allow` in the builders' file, and until that is proven a builder's plan rides in its PR body, its parks come by message, and the manager writes the memory-doc updates in its own PR; (b) no settings change: (a)'s stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (c) stop the #140 builder until its plan can be written to `RESUME.md`
+- Recommended: (a), because the rules as written need a builder to write those files, an allow rule is the smallest change, and you review #140's diff before its merge either way
+- Blocks: nothing running; a stage C builder would hit the same wall at its first state-back.
+- Raised: 2026-10-12, by the #140 builder through the builder manager
+
 ## Actions
 
-### [ ] Try owner-queue 0.3.0 in a fresh session
+### [ ] Try owner-queue 0.4.0 in a fresh session
 - Ticket: #167
-- Steps: 1. Start a new manager or planner session (or reload the mod).
-  2. Run /owner; the footer should name the main checkout's
-  `NEEDS-OWNER.md` and a "Last read" time. 3. Press Refresh. 4. Ask the
-  manager for a scratch decision; open it, press an option; the row
-  should move to "Answered, waiting for pickup" and the answer should
-  arrive in chat. 5. Press "Change answer". 6. Tell the planner what did
-  not work.
-- Context: the tests cover the logic, but no agent can press a button in
-  the live pane. The type-check (`tsc`) was not run: this machine has no
-  Node. Mouse selection inside the pane is not something a mod can switch
-  on; "Copy name" and "Copy all" replace the old Copy.
-- Blocks: nothing; 0.2.0 behaviour is unchanged apart from the buttons.
+- Steps: 1. Start a new session (a running one keeps its old copy).
+  2. Type `/owner`. Check the first line reads `owner-queue 0.4.0` and
+  the footer names the main checkout's file. 3. Open a decision and
+  press an option, open an action and press Mark done: both show in
+  green and `NEEDS-OWNER.md` is unchanged. 4. Press Clear, stage them
+  again, press Submit: the file gains the `Answer:` line and the ticked
+  box, and one message arrives in chat. 5. Press a Copy button of a
+  code span and paste it. 6. Type `/owner show a1` and select the
+  printed text with the mouse. 7. Press "Open the queue file" and say
+  whether it opened. 8. Tell the planner what did not work.
+- Context: 0.4.0 stages a pressed option or Mark done and writes
+  nothing until Submit. 18 automated tests pass; none of this has been
+  pressed in the real pane. Upstream copy is commit 359a15a on PR 39 of
+  the skills repository. A session started before 2026-10-12 still runs
+  an older copy that reads its own worktree's file: an answer pressed
+  there does not reach the main checkout's queue and does not count.
+- Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
 ### [ ] Remove two scratch worktrees of the upstream repo
@@ -81,19 +103,6 @@ can be traced.
 - Blocks: #97 PR 1, and through it the #110 rename and #108's first
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
-
-### [ ] Approve the sweep record PR #203
-- Ticket: #162
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/203
-  by commit (two commits: `PLANNER.md`, `PLAN.md`; docs only) and say
-  "approved" in the manager's session, or say what to change. The
-  manager then merges it and cleans up.
-- Context: the planner's record of sweep 1 of stages A and B. It
-  reports that you agreed its proposals in its session: gap tickets
-  #200 and #201 filed, #140 as a single brief, maps #66 and #71 closed.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] Approve two additions to the manager's rules
 - Ticket: #166, #162
