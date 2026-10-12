@@ -36,6 +36,10 @@ ALLOWED = {
     # Not table I/O: the PII scan opens whatever file it is handed.
     ("scripts/check_pii.py", "pq.read_table(path)"):
         "scans a file for PII",
+    # Not table I/O: the compare opens two published copies of a table, one
+    # from git, to count what differs.
+    ("scripts/compare_tables.py", "pq.read_table(io.BytesIO(raw))"):
+        "compares two published copies, #186",
 }
 
 

@@ -408,3 +408,30 @@ class TestMain:
         settled = {name: getattr(rt, name).read_bytes() for name in OUTPUTS}
         rt.main()
         assert [name for name in OUTPUTS if getattr(rt, name).read_bytes() != settled[name]] == []
+
+
+class TestRawDir:
+    def test_no_argument_leaves_the_default_folder(self):
+        assert rt.parse_args([]).raw_dir is None
+
+    def test_the_argument_is_read_as_a_folder(self, tmp_path):
+        assert rt.parse_args(["--raw-dir", str(tmp_path)]).raw_dir == tmp_path
+
+    def test_both_globs_move_to_the_folder_and_keep_their_pattern(self, tmp_path, monkeypatch):
+        draft, txn = Path(rt.DRAFT_GLOB).name, Path(rt.TXN_GLOB).name
+        monkeypatch.setattr(rt, "DRAFT_GLOB", rt.DRAFT_GLOB)
+        monkeypatch.setattr(rt, "TXN_GLOB", rt.TXN_GLOB)
+        rt.use_raw_dir(tmp_path)
+        assert Path(rt.DRAFT_GLOB) == tmp_path / draft
+        assert Path(rt.TXN_GLOB) == tmp_path / txn
+
+    def test_main_reads_the_captures_in_place_from_the_folder(self, data):
+        elsewhere = data / "elsewhere"
+        (data / "raw").rename(elsewhere)
+        with pytest.raises(FileNotFoundError):
+            rt.main()
+        rt.use_raw_dir(elsewhere)
+        rt.main()
+        assert len(pd.read_parquet(rt.FACT_PATH)) == 36
+        assert sorted(p.name for p in elsewhere.iterdir()) == [
+            "fantrax_draftresults_2026.json", "fantrax_txn_history_2026.json"]
