@@ -48,7 +48,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
 import etl_checks as ec
-from etl_helpers import DATA, fantrax_public_get, load_replace_partition
+from etl_helpers import DATA, fantrax_public_get, write_table
 
 # league_id/raw_dir live on 04a's own LeagueConfig -- same import-by-file
 # pattern 04u and 04w use.
@@ -253,8 +253,8 @@ def main() -> int:
     divisions = parse_divisions(
         info, pd.read_parquet(DATA / "dim_fantasy_teams.parquet"), season_id)
 
-    n_periods = load_replace_partition(periods, PERIODS_PATH, part_cols=("season_id",))
-    n_divisions = load_replace_partition(divisions, DIVISION_PATH, part_cols=("season_id",))
+    n_periods = write_table("dim_scoring_period", periods, mode="replace_partition", keys=("season_id",))
+    n_divisions = write_table("dim_division", divisions, mode="replace_partition", keys=("season_id",))
 
     for n, errs in checked.items():
         if errs:

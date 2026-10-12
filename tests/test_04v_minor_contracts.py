@@ -21,6 +21,7 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
 
 import pandas as pd
+import pytest
 
 mv = importlib.import_module("04v_minor_contracts")
 
@@ -68,6 +69,10 @@ class TestEligibilityToFrame:
 
 
 class TestLoadEligibility:
+    @pytest.fixture(autouse=True)
+    def _seam_writes_to_tmp(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(mv.etl.CFG, "data_dir", str(tmp_path))   # where the seam writes
+
     @staticmethod
     def _landed(tmp_path):
         return pd.read_parquet(tmp_path / "fact_minor_eligibility.parquet")
@@ -135,6 +140,7 @@ class TestRun:
         playwright.sync_playwright = _FakeBrowser
         monkeypatch.setitem(sys.modules, "playwright.sync_api", playwright)
         monkeypatch.setattr(mv, "CFG", cfg)
+        monkeypatch.setattr(mv.etl.CFG, "data_dir", str(tmp_path))   # where the seam writes
         monkeypatch.setattr(mv, "date", Clock)
         monkeypatch.setattr(mv, "fetch_eligibility", lambda scraper, ctx, page: PULLS)
 

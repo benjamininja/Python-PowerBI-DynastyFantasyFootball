@@ -323,6 +323,23 @@ seam section of `etl_helpers.py`. This locks in the migration.
 > cutover through to the snapshot, superseding the "mirror pandas in phase 1"
 > handling in section 5.
 
+**Build status (#77).** Phase 1 landed 2026-10-12: `read_table`, `write_table`,
+`table_exists`, `StorageError` and `TableNotFound` are in `etl_helpers.py`
+(section "Storage seam"); the contract suite is `tests/test_etl_storage.py`.
+Two things differ from section 7 as written: a tz-aware column is refused
+only where the registry declares none (`dim_scoring_period` has three
+declared `datetime64[us, UTC]` columns, added after this inventory), and a
+batch's column order is the caller's (the registry fixes the set, not the
+order; `fact_draft_pick` is published in another order). `fact_trade_log`
+was refused by the grain guard until #109 keyed it on
+`(transaction_id, asset_id)`.
+Phase 2 (2026-10-12) moved every `load_replace_partition` /
+`upsert_dynasty_crosswalk` caller to `write_table`. Phase 3 moved 04a
+`load_fact`, 04v `load_eligibility` and 02d's transaction-event delete, and
+added two rules to the seam: an `object` column with a numeric `sql_type`
+(no value seen yet) accepts its first numbers uncast, and an object column
+of numbers and `pd.NA` is cast through `to_numeric`.
+
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,
    the `fact_fantasy_teams` grain, `fact_trade_log` in `data_model.yml`, SQL
    types for the all-NULL columns, and the `divisionId` rename.

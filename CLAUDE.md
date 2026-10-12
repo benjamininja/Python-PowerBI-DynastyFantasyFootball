@@ -27,6 +27,13 @@ Two memory stores, different scopes:
     sqrt VOR position ceiling (`dim_position_ceiling`), age tilt, stance scalars
   - [fantrax-players-grid.md](.claude/memory/fantrax-players-grid.md) — Fantrax API
     `getPlayerStats` grid capture design
+  - [startup-draft-board-05a.md](.claude/memory/startup-draft-board-05a.md) —
+    the startup draft board CLI (`05a`)
+  - [RESUME.md](.claude/memory/RESUME.md) — where the managing build session
+    left off
+  - [GOAL-RUN.md](.claude/memory/GOAL-RUN.md) — runbook for the staged `/goal`
+    runs; [NEEDS-OWNER.md](.claude/memory/NEEDS-OWNER.md) — what waits on the
+    owner
 - **`C:\Users\benha\.claude\memory\` (global, cross-project)**:
   - `preferences.md` — working style: caveman lite, grill-me before code,
     `AskUserQuestion` for design decisions, `.ipynb`-only notebooks, git/TMDL
@@ -39,6 +46,8 @@ the parquet alone.
 
 ## Project-wide architectural rules
 
+- **Principles**: [docs/PRINCIPLES.md](docs/PRINCIPLES.md) — owners are front
+  and center; judge every change by what it puts in an owner's hands.
 - **Dependencies**: `requirements.txt` (repo root) is the single source of
   truth for the `.venv` used by `run.ps1` — curated, loosely pinned (mirrors
   `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a

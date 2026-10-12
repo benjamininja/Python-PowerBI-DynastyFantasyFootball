@@ -87,7 +87,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
 import etl_helpers as etl
-from etl_helpers import CFG, DATA, REVIEW, TODAY, load_replace_partition
+from etl_helpers import CFG, DATA, REVIEW, TODAY, write_table
 
 SEASON_ID   = f"{CFG.draft_year}-{CFG.draft_year + 1}"   # "2026-2027"
 EVENT_TYPE  = "startup_draft"
@@ -1501,7 +1501,7 @@ def main():
 
     # ---- fact_draft_pick ----------------------------------------------------
     dim_draft_pick = build_draft_picks(picks, team_lut)
-    load_replace_partition(dim_draft_pick, PICK_PATH, part_cols=("draft_season",))
+    write_table("fact_draft_pick", dim_draft_pick, mode="replace_partition", keys=("draft_season",))
     print(f"[ok] fact_draft_pick: {len(dim_draft_pick)} slots ({SEASON_ID}, "
           f"{int(dim_draft_pick['is_made'].sum())} made) -> {PICK_PATH.name}")
 
@@ -1548,7 +1548,8 @@ def main():
         departures(legs, spans, src.season),
         fa["contract_value"])
     tallies = [draft_sourcing]
-    total = load_replace_partition(fact, FACT_PATH, part_cols=("season_id", "event_type"))
+    total = write_table("fact_roster_transactions", fact, mode="replace_partition",
+                        keys=("season_id", "event_type"))
     # A ledger written under an older schema keeps its other rows, but not a
     # column that has since been dropped.
     kept = pd.read_parquet(FACT_PATH)
@@ -1676,7 +1677,8 @@ def main():
                       ignore_index=True)[LEDGER_COLS])
         assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
         assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
-        out.to_parquet(FACT_PATH, index=False)
+        write_table("fact_roster_transactions", txn_fact, mode="replace_partition",
+                    partition={"event_type": TXN_EVENT_TYPES})
         by_type = txn_fact["event_type"].value_counts().to_dict()
         print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
               f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")

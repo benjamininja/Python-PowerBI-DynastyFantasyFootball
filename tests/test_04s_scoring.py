@@ -194,6 +194,7 @@ class TestMain:
                             lambda method, league_id, expect=(): {"seasonYear": self.season_year})
         monkeypatch.setattr(fs, "capture", self.captured.append)
         monkeypatch.setattr(fs, "DATA", data)
+        monkeypatch.setattr(sys.modules["etl_helpers"].CFG, "data_dir", str(data))   # where the seam writes
         monkeypatch.setattr(fs, "SCORING_PATH", data / "fact_period_scoring.parquet")
         monkeypatch.setattr(fs, "MATCHUP_PATH", data / "fact_matchup.parquet")
         monkeypatch.setattr(lg, "PERIODS_PATH", data / "dim_scoring_period.parquet")

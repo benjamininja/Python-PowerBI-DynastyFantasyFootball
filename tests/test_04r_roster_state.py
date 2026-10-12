@@ -275,6 +275,7 @@ class TestMain:
         self.season_year = 2026
         monkeypatch.setattr(rs, "fantrax_public_get", public_get)
         monkeypatch.setattr(rs, "DATA", data)
+        monkeypatch.setattr(sys.modules["etl_helpers"].CFG, "data_dir", str(data))   # where the seam writes
         monkeypatch.setattr(rs, "STATE_PATH", data / "fact_roster_state.parquet")
         monkeypatch.setattr(lg, "PERIODS_PATH", data / "dim_scoring_period.parquet")
         monkeypatch.setattr(rs.FX_CFG, "raw_dir", str(raw))

@@ -16,6 +16,18 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
 ## Decisions
 
+## Actions`;
+- one item per `### [ ] Title`;
+- fields as `- Label: value`. Decisions carry Ticket, Context, Options,
+  Recommended, Blocks, Raised. Actions carry Ticket, Steps, Context, Blocks,
+  Raised;
+- secrets are named, never written. No owner PII, no team names.
+
+The owner answers in chat. The session then records the answer where it
+belongs and deletes the entry (or marks it `[x]` until the next state-back).
+
+## Decisions
+
 ### [ ] #109: how pick legs inside one trade are resolved
 - Ticket: #109 (task, map #69). PR open, built and green locally; parked on
   this one question from the `cap-ledger-auditor`.

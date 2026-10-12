@@ -21,11 +21,13 @@ so notebooks write to <repo>/data regardless of the CWD they run from.
 """
 import hashlib
 import json
+import os
 import re
 import time
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
+from typing import Collection, Literal, Mapping, Sequence
 
 import pandas as pd
 import requests
@@ -356,7 +358,7 @@ def add_players_from_source(
     if new_rows:
         dim_rp = pd.concat([dim_rp, pd.DataFrame(new_rows)], ignore_index=True)
         dim_rp.drop_duplicates(subset=["player_key"], inplace=True)
-        dim_rp.to_parquet(DATA / "dim_rookie_prospect.parquet", index=False)
+        _write_table_file(DATA / "dim_rookie_prospect.parquet", dim_rp)
 
     # Persist auto-matches to the alias (append + dedup on the (name_clean, pos) key).
     if auto_alias_rows:
@@ -364,7 +366,7 @@ def add_players_from_source(
         if ALIAS.exists():
             aa = pd.concat([pd.read_parquet(ALIAS), aa], ignore_index=True)
         aa.drop_duplicates(subset=["name_clean", "position_raw"], keep="last", inplace=True)
-        aa.to_parquet(ALIAS, index=False)
+        _write_table_file(ALIAS, aa)
 
     review_df = pd.DataFrame(review_rows) if review_rows else pd.DataFrame()
 
@@ -464,7 +466,7 @@ def ingest_ranking_source(
         .transform(lambda s: s.dropna().iloc[0] if s.notna().any() else None)
     )
     combined.drop_duplicates(subset=_DEDUP, keep="last", inplace=True)
-    combined.to_parquet(DATA / "fact_rookie_rankings.parquet", index=False)
+    _write_table_file(DATA / "fact_rookie_rankings.parquet", combined)
 
     print(f"  Ingested: {len(rows)} rows | source={source_name} | site={source_site} | phase={phase}")
     print(f"  fact_rookie_rankings total: {len(combined)}")
@@ -615,20 +617,234 @@ def fold_ranks_long(df, source_col="source_name",
     return long
 
 
+# ---------------------------------------------------------------------------
+# Storage seam (ADR-0014, #77)
+# ---------------------------------------------------------------------------
+# Every dim/fact table is read and written through `read_table` /
+# `write_table`, by table NAME. docs/data_model.yml is the schema: a table
+# must be declared there, and its columns, dtypes and grain are what the seam
+# checks a write against. The parquet backend below is the only one today;
+# the Postgres backend (a sibling module, lazy-imported) plugs in behind the
+# same two functions without a change at any call site.
+#
+# Guards, in every write mode:
+# - schema: the batch's columns are exactly the table's declared columns.
+#   Each column is cast to its declared dtype (str / string / object are one
+#   text family and are left alone). A tz-aware column is refused unless the
+#   registry declares that column tz-aware; it is never converted silently.
+# - grain: the batch is non-null and unique on the declared grain. The seam
+#   raises; it does not dedup. Callers dedup explicitly.
+# - atomic: the file is written beside the table and moved into place, so a
+#   crash mid-write cannot truncate a published table.
+WriteMode = Literal["replace", "replace_partition", "upsert"]
+REGISTRY_PATH = _ROOT / "docs" / "data_model.yml"
+_TEXT_DTYPES = ("str", "string", "object")
+# An `object` column has held no value yet; its `sql_type` says what it will
+# hold. Numbers may land in one of these (the registry is updated after).
+_NUMERIC_SQL_TYPES = ("integer", "double precision")
+_registry_cache: dict = {}
+
+
+class StorageError(ValueError):
+    """A read or write the seam refuses: an undeclared table, or a batch that
+    breaks the table's declared columns, dtypes or grain."""
+
+
+class TableNotFound(StorageError, FileNotFoundError):
+    """The table is declared but holds no data yet."""
+
+
+def _registry() -> dict:
+    """docs/data_model.yml tables by name, reloaded when the file changes."""
+    import yaml
+    path = Path(REGISTRY_PATH)
+    stamp = (str(path), path.stat().st_mtime_ns)
+    if _registry_cache.get("stamp") != stamp:
+        with path.open(encoding="utf-8") as fh:
+            tables = yaml.safe_load(fh).get("tables") or []
+        _registry_cache.update(stamp=stamp, tables={t["name"]: t for t in tables})
+    return _registry_cache["tables"]
+
+
+def _table_entry(name: str) -> dict:
+    entry = _registry().get(name)
+    if entry is None:
+        raise StorageError(f"{name}: not declared in {Path(REGISTRY_PATH).name}")
+    return entry
+
+
+def table_grain(entry: dict) -> list[str]:
+    """A registry entry's key columns: `pk` once #108 adds it, else `grain`
+    ("col" or "(a, b, c)")."""
+    pk = entry.get("pk")
+    if pk:
+        return [pk] if isinstance(pk, str) else list(pk)
+    return [c.strip() for c in str(entry["grain"]).strip("()").split(",") if c.strip()]
+
+
+def _table_path(name: str) -> Path:
+    return Path(CFG.data_dir) / f"{name}.parquet"
+
+
+def _cast(values: pd.Series, declared: str) -> pd.Series:
+    """`values` as the registry dtype. An object column of numbers and pd.NA
+    (rows built one dict at a time) goes through to_numeric: astype cannot
+    turn pd.NA into a float."""
+    try:
+        return values.astype(declared)
+    except (TypeError, ValueError):
+        if str(values.dtype) != "object" or not pd.api.types.is_numeric_dtype(pd.Series(dtype=declared)):
+            raise
+        return pd.to_numeric(values).astype(declared)
+
+
+def _coerce(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """Cast each declared column of `df` to its registry dtype."""
+    out = df
+    for col in entry.get("columns") or []:
+        name, declared = col["name"], str(col["dtype"])
+        if name not in out.columns:
+            continue
+        real = str(out[name].dtype)
+        if real == declared or (declared in _TEXT_DTYPES and real in _TEXT_DTYPES):
+            continue
+        real_tz = getattr(out[name].dtype, "tz", None) is not None
+        if real_tz != ("," in declared):                # "datetime64[us, UTC]"
+            raise StorageError(f"{entry['name']}.{name}: {real} given, {declared} declared -- "
+                               f"the seam never converts a timestamp's time zone")
+        if declared in _TEXT_DTYPES:
+            first_numbers = (col.get("sql_type") in _NUMERIC_SQL_TYPES
+                             and pd.api.types.is_numeric_dtype(out[name]))
+            if out[name].notna().any() and not first_numbers:
+                raise StorageError(f"{entry['name']}.{name}: {real} given, text declared")
+            continue                                    # an all-null column of another type
+        try:
+            if out is df:
+                out = df.copy()
+            out[name] = _cast(out[name], declared)
+        except (TypeError, ValueError) as exc:
+            raise StorageError(f"{entry['name']}.{name}: cannot cast {real} to {declared}: {exc}") from exc
+    return out
+
+
+def _check_batch(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """The schema and grain guards. Returns the batch cast to the registry."""
+    name = entry["name"]
+    declared = [c["name"] for c in entry.get("columns") or []]
+    if set(df.columns) != set(declared) or len(df.columns) != len(declared):
+        raise StorageError(
+            f"{name}: columns do not match the registry -- missing "
+            f"{sorted(set(declared) - set(df.columns))}, undeclared "
+            f"{sorted(set(df.columns) - set(declared))}")
+    df = _coerce(df, entry)
+    grain = table_grain(entry)
+    nulls = int(df[grain].isna().any(axis=1).sum())
+    dupes = int(df.duplicated(subset=grain).sum())
+    if nulls or dupes:
+        raise StorageError(f"{name}: batch breaks the grain {tuple(grain)} -- {nulls} row(s) "
+                           f"with a null key, {dupes} repeated key(s). Dedup before the write.")
+    return df
+
+
+def _write_parquet(path: Path, df: pd.DataFrame, mode: str = "replace", keys=None,
+                   partition=None, entry: dict | None = None) -> pd.DataFrame:
+    """The parquet backend: apply `mode` against the file at `path`, write it
+    atomically and return the table as written. `entry` switches the guards
+    on; the legacy helpers pass None for a file the registry does not know."""
+    path = Path(path)
+    if mode not in ("replace", "replace_partition", "upsert"):
+        raise StorageError(f"unknown write mode {mode!r}")
+    if mode == "replace_partition" and (keys is None) == (partition is None):
+        raise StorageError("replace_partition takes exactly one of keys= / partition=")
+    if mode != "replace_partition" and partition is not None:
+        raise StorageError(f"partition= is for replace_partition, not {mode}")
+    if entry is not None:
+        df = _check_batch(df, entry)
+        if mode == "upsert" and keys is None:
+            keys = table_grain(entry)
+    if mode == "upsert" and keys is None:
+        raise StorageError("upsert needs keys= for a table the registry does not declare")
+
+    if mode != "replace" and path.exists():
+        old = pd.read_parquet(path)
+        if mode == "upsert":
+            df = (pd.concat([old, df], ignore_index=True)
+                  .drop_duplicates(subset=list(keys), keep="last").reset_index(drop=True))
+        else:
+            if partition is not None:
+                mask = pd.Series(True, index=old.index)
+                for col, values in partition.items():
+                    mask &= old[col].isin(list(values))
+            else:
+                cols = list(keys)
+                wanted = set(map(tuple, df[cols].drop_duplicates().to_numpy()))
+                mask = old[cols].apply(tuple, axis=1).isin(wanted)
+            df = pd.concat([old[~mask], df], ignore_index=True)
+
+    tmp = path.with_name(path.name + ".tmp")
+    df.to_parquet(tmp, index=False)
+    os.replace(tmp, path)
+    return df
+
+
+def table_exists(name: str) -> bool:
+    """Is the declared table `name` there to read?"""
+    _table_entry(name)
+    return _table_path(name).exists()
+
+
+def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
+    """The whole table `name` (or a column projection), dtypes cast to the
+    docs/data_model.yml registry. Raises TableNotFound if it holds no data."""
+    entry = _table_entry(name)
+    path = _table_path(name)
+    if not path.exists():
+        raise TableNotFound(f"{name}: no data at {path}")
+    df = pd.read_parquet(path, columns=list(columns) if columns is not None else None)
+    return _coerce(df, entry)
+
+
+def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
+                keys: Sequence[str] | None = None,
+                partition: Mapping[str, Collection] | None = None) -> int:
+    """Write `df` to the table `name`; return the table's row count after.
+
+    replace            table := df
+    replace_partition  delete the rows matching the partition, then insert df.
+                         keys=cols        -> the distinct df[cols] tuples
+                         partition={c: v} -> an explicit value set; works with
+                                             an empty df (clears the slice)
+                         Exactly one of the two. There is no default.
+    upsert             insert-or-replace rows on `keys` (default: the registry
+                         grain); other rows untouched.
+    """
+    return len(_write_parquet(_table_path(name), df, mode, keys, partition, _table_entry(name)))
+
+
+def _legacy_entry(path) -> dict | None:
+    """The registry entry behind a legacy helper's file path, when the file
+    is named after a declared table. Any other file is written unguarded."""
+    path = Path(path)
+    return _registry().get(path.stem) if path.suffix == ".parquet" else None
+
+
+def _write_table_file(path, df: pd.DataFrame) -> int:
+    """Replace the table file at `path` through the seam's backend. For the
+    helpers in this module that still address a table by path (#77 moves
+    them to `write_table` with their callers)."""
+    return len(_write_parquet(path, df, "replace", entry=_legacy_entry(path)))
+
+
 def load_replace_partition(df, path, part_cols=("snapshot_date", "source_name")):
     """Idempotent replace-by-partition append: drop existing rows whose `part_cols`
     match any present in `df`, then append `df`. Each source/snapshot run replaces
     its own slice (no orphans when composition shifts). Returns total row count.
-    Shared by the section-04 dynasty loaders (and any snapshot fact)."""
-    path = Path(path)
-    part_cols = list(part_cols)
-    if path.exists():
-        old = pd.read_parquet(path)
-        keys = set(map(tuple, df[part_cols].drop_duplicates().to_numpy()))
-        mask = old[part_cols].apply(tuple, axis=1).isin(keys)
-        df = pd.concat([old[~mask], df], ignore_index=True)
-    df.to_parquet(path, index=False)
-    return len(df)
+    Shared by the section-04 dynasty loaders (and any snapshot fact).
+
+    Deprecated shim over the storage seam (#77): new code calls
+    `write_table(name, df, mode="replace_partition", keys=part_cols)`."""
+    return len(_write_parquet(path, df, "replace_partition", keys=list(part_cols),
+                              entry=_legacy_entry(path)))
 
 
 def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
@@ -662,16 +878,13 @@ def expand_snake_draft_order(round1_order: pd.DataFrame, total_rounds: int) -> p
 
 def upsert_dynasty_crosswalk(new_rows, path):
     """Replace the source(s) present in `new_rows` within dim_dynasty_crosswalk,
-    keep all other sources, write, and return the full crosswalk DataFrame."""
-    path = Path(path)
-    sources = set(new_rows["source"].unique())
-    if path.exists():
-        prior = pd.read_parquet(path)
-        xw = pd.concat([prior[~prior["source"].isin(sources)], new_rows], ignore_index=True)
-    else:
-        xw = new_rows
-    xw.to_parquet(path, index=False)
-    return xw
+    keep all other sources, write, and return the full crosswalk DataFrame.
+
+    Deprecated shim over the storage seam (#77): new code calls
+    `write_table("dim_dynasty_crosswalk", rows, mode="replace_partition",
+    keys=("source",))`."""
+    return _write_parquet(path, new_rows, "replace_partition", keys=["source"],
+                          entry=_legacy_entry(path))
 
 
 def write_dynasty_review(crosswalk, path):

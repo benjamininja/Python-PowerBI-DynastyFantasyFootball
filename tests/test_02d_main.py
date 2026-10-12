@@ -117,6 +117,7 @@ def data(tmp_path, monkeypatch):
     """The temp data dir, with 02d pointed at it."""
     write_inputs(tmp_path)
     monkeypatch.setattr(rt, "DATA", tmp_path)
+    monkeypatch.setattr(rt.CFG, "data_dir", str(tmp_path))      # where the seam writes
     for name, value in list(vars(rt).items()):
         if name.endswith("_PATH"):
             monkeypatch.setattr(rt, name, tmp_path / Path(value).name)

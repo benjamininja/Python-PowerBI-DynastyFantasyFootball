@@ -11,7 +11,7 @@ managing session `56063cf0…`).** Read the Standing rules below, then
 - **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
   worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
   #77 phases 1 to 6 → #149 → #86. State per ticket:
-  - **#109: built on branch `feat/109-pick-legs`, parked (see below).** The lookup passed: all
+  - **#109: built on branch `feat/109-pick-legs` (PR #160).** The lookup passed: all
     95 pick legs resolve from published tables. Plan as built (Outline →
     Build mode → Rationale): `02d` gains `mint_pick_assets` (one `pick`
     asset per row of `fact_draft_pick` and `fact_draft_pick_future`,
@@ -29,25 +29,92 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     The agent's calls, reported in the PR: `pick_owner_hint` is no longer
     written (it holds a team name); all 1,260 picks are minted, not only
     the traded ones (ADR-0006 d2); `04u` stays manual.
-  - **#109 is PARKED with its PR open** (entry in `NEEDS-OWNER.md`). The
-    `cap-ledger-auditor` found no wrong figure. Fixed after its report: a
-    pick that gets a slot keeps its asset (`slot_history`, the `was`
-    argument of `mint_pick_assets`; the replay is seeded from slotted and
-    future picks); ownership gaps are written to
-    `data/review/review_pick_ownership.csv` and cover slots (ADR-0006 d4);
-    every leg of an asset that moves twice inside one trade goes to review
-    instead of failing the run. Left for the owner: whether legs inside
-    one trade resolve in sequence (as built) or against pre-trade holdings.
-    `pytest tests/` 654. When the owner answers: record it, merge on
-    green, close #109 with a Resolution, add its line to map #69. Note
-    that #77's phases 2 to 4 also edit `02d`; whichever merges second
-    rebases.
-  - **Worktree notes for this run:** a copy of `data/raw` captures into
-    the worktree was denied by the permission classifier (PII handling)
-    and was not retried. `02d` is rerun with the scratchpad `run02d.py`,
-    which points `DRAFT_GLOB` / `TXN_GLOB` at the main checkout's
-    `data/raw` and reads in place. The bot suite runs with the managing
-    session's scratchpad `botvenv`.
+  - **#109 park ANSWERED 2026-10-12 (relayed by the manager).** Question
+    put to the owner: "when a trade moves a future pick (named only by
+    year and round), how should 02d work out which pick it is?" Answer,
+    word for word: "(a) In order, hint breaks ties (Recommended)". So
+    PR #160 stays as built: legs inside one trade resolve in sequence,
+    the owner hint only breaks a tie. The `cap-ledger-auditor` found no
+    wrong figure; its other findings were fixed before the park (a pick
+    that gets a slot keeps its asset; ownership gaps go to
+    `data/review/review_pick_ownership.csv`; an asset that moves twice
+    inside one trade goes to review). The branch was brought up to
+    `main` by a merge (a rebase needs a force push), and the `REFUSED`
+    entry for `fact_trade_log` in `tests/test_etl_storage.py` is gone:
+    the table now passes the seam's grain guard.
+  - **Worktree notes:** a copy of `data/raw` captures into the worktree
+    was denied by the permission classifier and not retried. `02d` is
+    rerun with the scratchpad `run02d.py`, which points `DRAFT_GLOB` /
+    `TXN_GLOB` at the main checkout's `data/raw`. The bot suite runs with
+    the managing session's scratchpad `botvenv`. A Bash heredoc breaks on
+    an apostrophe: write scripts with the Write tool.
+  - **#77 phase 1: built on branch `feat/77-seam-phase1`** (from `main`,
+    without #109). Plan as built: a "Storage seam" section in
+    `etl_helpers.py` (`read_table`, `write_table`, `table_exists`,
+    `StorageError`, `TableNotFound`, `table_grain`; private
+    `_write_parquet(path, df, mode, keys, partition, entry)` is the
+    parquet backend and takes a path, so the path-based helpers and the
+    tests that point them at a temp dir keep working);
+    `load_replace_partition` and `upsert_dynasty_crosswalk` are shims
+    over it; the three writes inside `add_players_from_source` and
+    `ingest_ranking_source` go through `_write_table_file`. Their reads
+    move in phase 6 with the other readers. Guards run whenever the file
+    is named after a declared table. `tests/test_etl_storage.py` (76):
+    contract cases on a fixture registry, the two shims byte-identical to
+    their old bodies on 10 published tables, and the golden round-trip of
+    every published table (byte-identical to a plain write).
+    Measured: `02d` rerun
+    through the shims leaves every table byte-identical. `04u` and `04p`
+    reruns moved only live values (restored from HEAD, not in the PR).
+    Next phases follow inventory section 8: 2 partition-replace writers,
+    3 hand-rolled replace-by-week, 4 upserts, 5 seeds and full rebuilds,
+    6 readers + the static guard test + delete the shims.
+    **Phase 1 MERGED as PR #161 (`f92de07`), 6 checks green.**
+  - **#77 phase 2: MERGED as PR #171 (`e3af5d2`).** Every
+    `load_replace_partition` / `upsert_dynasty_crosswalk` caller now
+    calls `write_table(name, df, mode="replace_partition", keys=...)`.
+    The shims have no caller left; phase 6 deletes them.
+  - **#77 phase 3: built on branch `feat/77-seam-phase3`.** `04a`
+    `load_fact` and `04v` `load_eligibility` call `etl.write_table(...,
+    keys=("season", "week"))` (`04a` now imports `etl_helpers`; `04v`
+    takes `etl` from `04a`); the `score→fpts` shim is gone; `02d`'s
+    transaction rows are written with
+    `partition={"event_type": TXN_EVENT_TYPES}`. Two seam changes came
+    with it: (1) an `object` column with a numeric `sql_type` (no value
+    seen yet) accepts its first numbers, uncast, as the old writers did
+    (`fact_minor_eligibility.games_played`); (2) `_cast` sends an
+    object column of numbers and `pd.NA` through `to_numeric`. Measured:
+    the seam writes the bytes the old bodies wrote on all 7 partitions
+    of `fact_fantrax_adp` and the 1 of `fact_minor_eligibility`. `02d`
+    rerun: 31 tables byte-identical; `fact_roster_transactions` has the
+    same arrow schema, values and row order, and differs only in the
+    pandas note in the file footer for `draft_round`, `pick_in_round`,
+    `pick_overall` (`numpy_type` object → float64, because the batch is
+    now cast before the concat). The file is not in the PR; the next
+    `02d` run rewrites it once. `04a` and `04v` need a login and were
+    not run.
+  - **Phases 4 to 6 notes:** phase 4 = upserts (`dim_roster_asset`,
+    `dim_player_alias`, `dim_rookie_prospect`, `fact_rookie_rankings`,
+    the FK back-fills in `04z` and
+    `scripts/apply_fantrax_crosswalk_review.py`). Phase 5 touches
+    `02e`'s write call only. Phase 6 adds the static
+    guard test (no `read_parquet` / `to_parquet` in `notebooks/`,
+    `scripts/` or `.ipynb` code cells outside the seam section) and
+    deletes the shims; the goal's end condition names that test. Then
+    #149 (`02a` into the `nflverse` Chain after `01e`, registry
+    `chain`, docs) and #86 (ADR-0017).
+  - **CI lesson:** checks take 5 to 10 minutes. Do a full phase of other
+    work first, then read once; the first reads of #161 and #171 both
+    came too early.
+  - **Permission notes:** `.claude/settings.json` denies any Bash or
+    PowerShell command whose text names a login step's file (`04a`,
+    `04v` and the others on the Never list), so `git add <that file>`
+    is denied too, and so is a test file with the same name inside it.
+    The owner said to stage those with `git add -u` (2026-10-12). Bash
+    calls that pipe through `grep` / `head` or use a heredoc are denied:
+    use the Grep / Read / Write tools. The git guardrail hook reads
+    `git push` and `--base main` in one command as a push to `main`:
+    run `git push` and `gh pr create` as two commands.
 - **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
   goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
   untracked and not ours. `pytest tests/` 616 pass, bot suite 9.
