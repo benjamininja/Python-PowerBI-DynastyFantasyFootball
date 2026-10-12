@@ -104,7 +104,7 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 04p → 04r → (04s, in-season) → 01e → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e
+`01f → 04p → 04r → (04s, in-season) → 01e → 02a → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e
 → (04b, offseason)`, surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).

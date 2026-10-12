@@ -141,6 +141,11 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON"}, "needs": ["04r_roster_state"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
+        # Combine / pro-day metrics (nflverse, no login). Rebuilt right after
+        # the player dim so its gsis_id never points at an id 01e just
+        # dropped or changed (#149).
+        {"name": "02a_combine_metrics", "cmd": _nbconvert("02a_fact_nfl_combine_pro_day_metrics.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),

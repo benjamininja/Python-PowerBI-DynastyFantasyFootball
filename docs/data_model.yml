@@ -445,6 +445,7 @@ tables:
   - name: fact_nfl_combine_pro_day_metrics
     type: fact
     grain: "(pfr_id, season)"
+    chain: nflverse
     columns:
       - { name: pfr_id, dtype: str }
       - { name: season, dtype: int32 }
