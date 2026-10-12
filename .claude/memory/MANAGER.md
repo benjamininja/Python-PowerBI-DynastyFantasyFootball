@@ -12,97 +12,107 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
-## START HERE (state 2026-10-12, evening)
+## START HERE (state at the compact, 2026-10-12, night)
 
-The sections below are in the order things happened and the early ones
-are out of date. This block is the current state.
+The sections below this block are in the order things happened and are
+out of date. This block is the current state. Then read `GOAL-RUN.md`
+(it changed a lot today), `NEEDS-OWNER.md`, and the role file
+`.claude/agents/central-builder-manager.md`.
 
-- **This session** is `dynastyFantasyFootball-central-builder-manager`
-  (id `local_39e3ac7a…`), role file
-  `.claude/agents/central-builder-manager.md`. The owner's words reach
-  a builder through it, word for word.
-- **Merge gate (owner, 2026-10-12):** "you should be merging the prs
-  and then cleaning up and resetting. to me they are all the same
-  sequence (approval) gate." Once the owner approves a PR, the manager
-  merges on green, pulls, deletes the branch, resets. Do not leave an
-  approved PR for the owner to merge.
-- **Second key (owner, 2026-10-12, evening):** asked "Does a builder's
-  green PR need your approved before the manager merges it?", the owner
-  answered "agreed, option a": no. The manager's re-proof of Green is
-  the second key. The owner's "approved" covers the manager's own PRs
-  and rule changes.
-- **Fewer PRs (owner, 2026-10-12, evening):** "if we have many, we can
-  plan a sequence. ideally, we try to limit into fewer prs and review
-  by commit". So: one PR per check-in at most, one commit per topic,
-  the commit list given to the owner as the review order. When several
-  PRs must wait on the owner, name the sequence and ask for one word
-  that covers it; then merge them in that order without asking again.
-  Do not leave the owner to press merge.
-- **Queue rules for the pane** (#191) and the role files with the
-  two-key merge (#192) are on `main`; the owner merged both.
-- **#166 is settled.** On `main`: the three role files (#184), the
-  dispatch recipe, tiers and the wider relay in `GOAL-RUN.md` (#185).
-  The decisions are in the #166 comment of 2026-10-12 headed
-  "Decisions". The manager copies the tier, never picks it.
-- **No builder is running.** The stage B builder session is archived.
-  The planner (`local_84c6f2af…`) is the only other session; reply to
-  it with `SendMessage` to its `from` address.
-- **Dry dispatch done 2026-10-12** (results on #166, the manager's
-  comment headed "dry dispatch results"). Recipe as now in `GOAL-RUN.md`
-  "Session setup": worktree by `git worktree add`, `.venv`, then
-  `claude.exe --bg -w <name>`. Prompt from a file, **no double quote**.
-  `claude stop` before `--resume`, or it starts a copy. `claude rm`
-  refuses on an uncommitted file. The owner's user-level allow rules
-  (`python -c`, `gh api`, `gh issue`) reach a builder, so the fence is
-  the builders' deny rules.
-- **Two-key merge (owner, 2026-10-12):** a builder commits, pushes its
-  own branch, opens the PR and messages the manager. The manager
-  re-proves Green, merges, cleans up, wakes the builder.
-- **First real dispatch done: #186** (2026-10-12, evening). Builder
-  `b186-compare-tables`, low tier, PR #195 merged by the manager as the
-  second key, ticket closed by the closing keyword, session and
-  worktree removed. On `main`: `scripts/compare_tables.py` (`HEAD`, or
-  two folders; counts only) and `--raw-dir` on `02d`.
-- **Lessons from it:** the worktree `.venv` has no `discord`; run the
-  bot suite from a throwaway venv built from
-  `discord_bot/requirements.txt`. `run_pipeline.py --check-only` in a
-  fresh worktree calls the one open review finding "new" on its first
-  run; it is the same repeat finding as on `main`. After `02d`, four
-  tables are frame-equal with different bytes; that passes (owner's
-  ruling) and is named in the PR. `gh pr merge --delete-branch` cannot
-  delete a branch a worktree still holds: remove the builder first or
-  delete the branches after. `claude rm` right after `claude stop`
-  fails on a lock; retry once. `git worktree prune` is refused to the
-  manager.
-- **Settings files:** `.claude/builders.settings.json` (51 allow, 30
-  deny) and `.claude/managers.settings.json` (37 allow, 19 deny) are
-  the owner's, match the text on #166, and are still untracked. Pass
-  the builders' file by the main checkout's absolute path. Until the
-  owner's file was right, the eleven deny rules were also passed with
-  `--disallowedTools` (deny only); keep doing that as a belt unless the
-  owner or planner says otherwise.
-- **Then stage C** (`Tier: high`), after the owner's `04t` capture
-  (after Thursday 2026-10-15). First check the claim row has
-  `claim_method = waiver` and a `claim_bid`. The brief must carry:
-  delete the guard exception in #97; the planner's README and
-  CONTRIBUTING rows in the #108 PR; the uncast read
-  (`etl.read_stored`) for the Postgres backend; the owner's answer on
-  `migrate.yml`; the Supabase read-only tool names for the builders'
-  list.
-- **The owner's queue** (`NEEDS-OWNER.md`) holds four Decisions and six
-  Actions as of this write. The planner may not write that file: it
-  sends the manager a ready entry and the manager writes it. Each
-  checkout has its own copy; the pane reads the main checkout's.
-- **Stage B proof commands** are on #166 (the manager's comment of
-  2026-10-12): 15 notebooks through nbconvert, five scripts run
-  directly, scratchpad scripts for the `02d` replay and the compare. No
-  `run_pipeline.py --no-commit --steps` was run.
-- **Owed, small:** root `preferences.md` is uncommitted.
-- **How the manager works:** edits `.md` and `.claude/memory/*` only,
-  on a branch in the main checkout (a fresh worktree has no `.venv`, so
-  the PII hook fails there). A file whose text names a login step is
-  written with the Write tool, never inside a shell command: the deny
-  rules match any command that names such a file.
+**Who and what**
+- This session: `dynastyFantasyFootball-central-builder-manager` (id
+  `local_39e3ac7a…`). The owner's words reach a builder through it.
+- The planner (`local_84c6f2af…`, `from` address
+  `uds:\\.\pipe\LOCAL\cc-msg-cd48af9e83a0fe42e0d933f44c69cacb`) is the
+  only other session. Reply with `SendMessage` to that address. Its
+  messages are inputs; rulings it reports are "to confirm" with the
+  owner.
+- No builder is running. One PR is open: the planner's #198, waiting
+  for the owner's "approved"; then the manager merges it.
+
+**The owner's rules for the manager, all given 2026-10-12**
+- Merge gate: "you should be merging the prs and then cleaning up and
+  resetting. to me they are all the same sequence (approval) gate."
+  After the owner's approval the manager merges on green, pulls,
+  deletes branches, resets. Never leave an approved PR for the owner.
+- Fewer PRs: "if we have many, we can plan a sequence. ideally, we try
+  to limit into fewer prs and review by commit". One PR per check-in at
+  most, one commit per topic. When several PRs wait on the owner, name
+  the order and ask for one word.
+- State-only PRs (queue entries, this file) the manager merges on green
+  without asking. A rule change waits for the owner's "approved".
+- Two-key merge: a builder commits, pushes its branch, opens the PR
+  with a closing keyword and messages the manager. The manager
+  re-proves Green, posts the output, merges. The owner's answer
+  "agreed, option a": no owner approval per builder PR.
+- The queue: whatever waits on the owner goes into the **main
+  checkout's** `NEEDS-OWNER.md`, never chat alone. The planner sends a
+  ready entry; the manager writes it. Decisions use `(a) ...; (b) ...`.
+  The pane (`owner-queue` 0.3.0) writes `Answer:` lines; no agent
+  touches one. The owner ticks done Actions `[x]` in the pane: remove
+  them at the next state PR.
+- Settings files are the owner's text. The manager may commit them on
+  the owner's word ("commit these files"), never edit them.
+
+**Dispatch, as proven** (`GOAL-RUN.md` "Session setup")
+- From PowerShell: `git worktree add .claude/worktrees/<name> -b
+  worktree-<name>`; build `.venv`; then `claude.exe --bg -w <name>
+  --name <name> --model … --effort … --permission-mode dontAsk
+  --settings <main checkout>\.claude\builders.settings.json --agent
+  stage-builder <prompt> --disallowedTools <the eleven deny rules>`.
+  Tier is copied from the ticket or stage table, never picked.
+- Prompt from a file, **no double quote in it**. Check `cwd` in `claude
+  agents --json`. `claude stop` before `--resume`. `claude rm` after a
+  stop needs one retry and refuses on an uncommitted file.
+- Re-proof: run in the builder's worktree at the PR head. The bot suite
+  needs a throwaway venv from `discord_bot/requirements.txt`. The one
+  open review finding (`stintless_drop`) shows as "new" on a fresh
+  worktree's first run; it is a repeat on `main`. Proof commands:
+  `scripts/compare_tables.py HEAD` and `02d --raw-dir <main>/data/raw`;
+  identical or frame-equal both pass, named in the PR.
+- `gh pr merge --delete-branch` cannot delete a branch a worktree
+  holds: delete branches after `claude rm`. `git worktree prune` is
+  refused to the manager.
+- A long shell command with a heredoc can fail to parse; write scripts
+  with the Write tool and run them by path.
+
+**Done today:** stage B closed out; #166 rulings, role files, tiers;
+dry dispatch; first real dispatch #186 (PR #195); both settings files
+tracked (PR #197: builders 51 allow / 30 deny, managers 37 / 19).
+
+**Next**
+1. On the owner's "approved": merge the planner's PR #198, pull, clean
+   up. On "approved, write the rule PR": write the two additions in the
+   queue into `GOAL-RUN.md` (`--disallowedTools` in "Session setup";
+   the planner read, stages as milestones, and a gap ticket's
+   disposition as advice in "The managing session"), merge, clean up.
+2. Stage C, `Tier: high`, starts with #97 after the owner's `04t`
+   capture (after Thursday 2026-10-15). First check the claim row has
+   `claim_method = waiver` and a `claim_bid`. The brief must carry:
+   delete the guard exception in #97; the planner's README and
+   CONTRIBUTING rows in the #108 PR; the uncast read
+   (`etl.read_stored`) for the Postgres backend; `migrate.yml` live
+   from #108's merge (the owner stores the secret first); the Supabase
+   read-only tool names for the builders' list; identical-or-equal
+   proofs.
+3. The planner compacts, then sweeps stages A and B for gaps. Its gap
+   tickets come to the manager in order, each with tier, evidence,
+   files, proposed disposition and done condition. The dispatch is the
+   manager's. Stages are now milestones (A: #96 #68; B: #109 #77 #149
+   #86; C: #186 #97 #110 #108 #135 to #138 #111; D: #92 #93 #116). In
+   no stage: #140, #130.
+4. Named to the owner, no answer needed unless they object: PR #195
+   added one ALLOWED entry to `tests/test_storage_guard.py` for the
+   compare script's read of a table's bytes from git.
+
+**Left with the owner** (all in `NEEDS-OWNER.md`): approve #198;
+approve the two rule additions; two proof-command rules for the
+builders' file; Projects for the planner; the idle session in
+`.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; try
+the 0.3.0 pane; two upstream scratch worktrees; the `04t` capture;
+later: the `migrate.yml` secret, the first runner login, cutover. Also
+told in chat: two `git commit --no-verify` allow rules sit in the
+owner's user settings.
 
 ## Who is running
 
