@@ -1553,8 +1553,12 @@ def main():
     # A ledger written under an older schema keeps its other rows, but not a
     # column that has since been dropped.
     kept = pd.read_parquet(FACT_PATH)
-    if list(kept.columns) != LEDGER_COLS:
-        claim_dtypes(kept.reindex(columns=LEDGER_COLS)).to_parquet(FACT_PATH, index=False)
+    # With legs the whole ledger is written once more below, in today's
+    # columns, so the file is left alone here: transaction rows from before
+    # the stable key have no transaction_id, the seam refuses a null key, and
+    # they stay on disk until the rebuilt rows replace them in one write.
+    if list(kept.columns) != LEDGER_COLS and not legs:
+        write_table("fact_roster_transactions", claim_dtypes(kept.reindex(columns=LEDGER_COLS)))
     print(f"[ok] fact_roster_transactions: +{len(fact)} {EVENT_TYPE} rows "
           f"({total} total) -> {FACT_PATH.name}")
     print(f"[info] {EVENT_TYPE} contracts: {fact['contract_id'].value_counts().to_dict()} "
@@ -1640,7 +1644,7 @@ def main():
                                                 _read_assets(), gsis_lut, pkey_lut)
         write_table("dim_roster_asset", dim_roster_asset)
 
-        base = pd.read_parquet(FACT_PATH)
+        base = claim_dtypes(pd.read_parquet(FACT_PATH).reindex(columns=LEDGER_COLS))
         base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]
         txn_fact_rows, missing_source, fa_fallback, txn_sourcing, roster_priced = resolve_legs(
             legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src)
@@ -1677,8 +1681,7 @@ def main():
                       ignore_index=True)[LEDGER_COLS])
         assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
         assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
-        write_table("fact_roster_transactions", txn_fact, mode="replace_partition",
-                    partition={"event_type": TXN_EVENT_TYPES})
+        write_table("fact_roster_transactions", out)
         by_type = txn_fact["event_type"].value_counts().to_dict()
         print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
               f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")

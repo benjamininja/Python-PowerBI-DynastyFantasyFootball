@@ -16,6 +16,53 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
 ## Decisions
 
+### [ ] #77: three whole-number columns of fact_trade_log through the seam
+- Ticket: #77 (task, map #69), phase 5. Every other write of phase 5 is
+  built; this one write in `02d` is left as it was.
+- Context: `draft_year`, `draft_round` and `pick_in_round` of
+  `fact_trade_log` are stored in the parquet file as whole numbers (int64)
+  with gaps. pandas reads a column like that back as float64, so the
+  registry says `float64`. The seam casts a batch to the registry before it
+  writes, so through the seam the file would hold decimals (double) in those
+  three columns. Measured: old code against new code on the same inputs,
+  the parquet type changes int64 → double for exactly these three columns;
+  rows and values are the same. No other published table has a column in
+  this state (checked all 32). The file had int64 there before #109 too.
+  Power BI reads the parquet type, so it would see a decimal column.
+- Options: (a) accept double until cutover, when ADR-0018 makes them
+  `integer`; (b) declare the three columns `Int64` in the registry now and
+  have `02d` write them so: the file keeps whole numbers, a pandas read
+  gives `Int64` instead of `float64`, and the published file is rewritten
+  once; (c) leave this one write outside the seam until cutover, with one
+  named exception in the static guard test.
+- Recommended: (b). It is where ADR-0018 already points (nullable integers
+  become `integer`), the parquet type does not change, and the guard test
+  needs no exception.
+- Blocks: #77 phase 6 (the static guard test cannot pass while this write
+  sits outside the seam with no decision). Does not block #149 or #86.
+- Raised: 2026-10-12, stage B goal run
+
+### [ ] #77: fact_fantasy_teams through the seam stops on a rostered player with no gsis_id
+- Ticket: #77 (task, map #69), phase 5; touches #97, which rewrites `02e`.
+  The `02e` write is left as it was.
+- Context: the registry grain of `fact_fantasy_teams` is
+  `(team_key, gsis_id)`, and the seam refuses a null or repeated grain key.
+  `02d` can mint an asset with no `gsis_id` (an unsigned prospect, or a
+  Fantrax player the crosswalk does not know yet), and the ledger accepts
+  it. Through the seam, one such rostered player would stop the scheduled
+  `02e` run; today the file is written with the row. Current data is clean
+  (1,103 active rows, 0 null `gsis_id`, 0 repeated keys), so this would
+  first show after a rookie draft. Found by the `cap-ledger-auditor`.
+- Options: (a) it is a wanted hard stop: move the write to the seam as is;
+  (b) change the grain so such a row is legal (for example key on the
+  asset, or allow `player_key` where `gsis_id` is null), in #97's rewrite
+  of `02e`; (c) leave this one write outside the seam until #97 lands, with
+  one named exception in the static guard test.
+- Recommended: (c) now and (b) inside #97. A stop on every rookie draft is
+  a cost with no gain, and the grain is #97's to settle.
+- Blocks: #77 phase 6 (the static guard test). Does not block #149 or #86.
+- Raised: 2026-10-12, stage B goal run
+
 ## Actions
 
 ### [ ] Fresh 04t capture before #97 PR 1
