@@ -5,12 +5,28 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, late night)
+## START HERE (state 2026-10-12, after the #167 planning)
 
-- **Waiting on the owner:** the live trial of `owner-queue` 0.4.0 in a
-  fresh session (queue entry). What it turns up is the next work on
-  the tool. Not yet seen in a real pane: whether "Open the queue file"
-  opens the file, and how Submit is drawn.
+- **Next, waiting on the owner:** the trial of `owner-queue` 0.5.0
+  (message back). `/reload-plugins`, first line reads 0.5.0. The
+  manager raises an entry with `- Session: <the planner's id>`, the
+  owner answers it in the manager's pane, and it must arrive in the
+  planner's chat. Also to watch: whether the id line the mod adds to
+  the system prompt reaches the agent (fallback `/owner id`); whether
+  a notice printed by "Print in chat" can be selected with the mouse.
+- **Then, #167 step 2** (plan it in plan mode, then build): the
+  upstream plugin `session-dispatch-managers-build-review` in its own
+  PR on the skills repository. The owner's five decisions and the
+  templates list are two comments on #167 (2026-10-12). In short: a
+  PowerShell script with a dry run plus a skill; the generic rules
+  live in the skill; one owner-only config file (working name
+  `.claude/dispatch.json`); a `templates/` folder; the `Tier:` line in
+  the wayfinder template; an ADR. Proof is the manager's next real
+  dispatch with it.
+- **Then, step 3:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
+- **#166** closes when the owner's edited settings files are committed
+  on `main` with the rules for `compare_tables.py` and `02d --raw-dir`
+  (the owner has edited them; the manager commits on the owner's word).
 - **The GitHub Project is built** (2026-10-12): project 2 of the
   owner's account, "Dynasty FF: plan", private, linked to the
   repository. Views "By stage", "By map" and "Yours" (the label
@@ -21,16 +37,6 @@ planner session can resume from the repository alone. The rules are in
   `gh project item-add 2 --owner benjamininja --url <url>`.
 - **PR #207 (#140) is merged**; the check in Power BI Desktop is open
   as #211 (owner's hand; Power BI is a deprioritized asset).
-- **Then:** plan #167 with the owner (the upstream plugin
-  `session-dispatch-managers-build-review`; it takes `owner-queue`
-  0.4.0 or later as a dependency; the wayfinder template gains a
-  `Tier:` line; it carries the owner's answer back to the session that
-  raised an entry, see the comment on #167).
-- **Open on map #162:** #166 closes when the builders' settings file
-  carries the two allow rules for `scripts/compare_tables.py` and
-  `02d --raw-dir`. Checked 2026-10-12, late: the file has neither.
-- The merged remote branches `docs/planner-build-out` and
-  `docs/sweep-1-record` are deleted (owner's word, 2026-10-12).
 - Stage C waits on the owner's `04t` capture, after Wednesday
   2026-10-14, 8:00 am.
 
@@ -57,7 +63,7 @@ planner session can resume from the repository alone. The rules are in
 | #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
-| #162 | Managing-session roles and plugin | #166, #167 |
+| #162 | Managing-session roles and plugin | #166, #167, #218 (after #167) |
 
 #140 was placed as blocked by nothing; one clause of its acceptance
 needed #97 (see "Lessons").
@@ -119,6 +125,16 @@ To re-run when a row's PR merges: the file and line named in the row.
   skills repository. A session started before an update keeps its old
   copy, and a copy older than 0.3.0 writes to its own worktree's queue.
 - **#206** (from the #140 audit): tier low, stage C, after #97.
+- **`owner-queue` 0.4.1 to 0.5.0** (owner, 2026-10-12, each on the
+  owner's word): 0.4.1 options drawn as text with a Choose button and
+  copy buttons beside them, "Print in chat"; 0.4.2 a fenced block in
+  an entry is one copy chunk, and an entry with a block gets no span
+  buttons; 0.5.0 message back by the `Session:` field. Live in the
+  owner's mods folder, 20 tests; upstream commit 851aedc on PR 39.
+  Backups of each earlier version are in the session's scratchpad
+  only. Staging and Submit were proven live by the owner at 0.4.0.
+- **Proof-command rule** is in `GOAL-RUN.md` (PR #215).
+- **Label `owner-led`** marks a ticket that waits on the owner's hand.
 
 ## Decided before this file (pointers)
 
@@ -145,6 +161,14 @@ To re-run when a row's PR merges: the file and line named in the row.
 
 - A sweep's subagent report is checked against the file before it goes
   to the owner; what was not checked is said so on the ticket.
+
+- A pane feature is not done until the owner has used it: tests passed
+  on 0.4.0 while the copy buttons sat out of sight and one span per
+  button was the wrong unit. Say what was not seen in a real pane.
+- `gh auth refresh` must run in a real terminal and wait for
+  "Authentication complete"; the app's terminal panel drops it.
+- The Projects API cannot set a view's grouping or the auto-add
+  workflow; those are by the owner's hand.
 
 - A by-hand item left only in chat is lost. It goes to the manager as
   a ready queue entry, every time.
