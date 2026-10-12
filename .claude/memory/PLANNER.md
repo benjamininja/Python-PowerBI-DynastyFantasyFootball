@@ -5,38 +5,106 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, after the #167 planning)
+## START HERE (state 2026-10-12, evening, before a compact)
 
-- **Next, waiting on the owner:** the trial of `owner-queue` 0.5.0
-  (message back). `/reload-plugins`, first line reads 0.5.0. The
-  manager raises an entry with `- Session: <the planner's id>`, the
-  owner answers it in the manager's pane, and it must arrive in the
-  planner's chat. Also to watch: whether the id line the mod adds to
-  the system prompt reaches the agent (fallback `/owner id`); whether
-  a notice printed by "Print in chat" can be selected with the mouse.
-- **Then, #167 step 2** (plan it in plan mode, then build): the
-  upstream plugin `session-dispatch-managers-build-review` in its own
-  PR on the skills repository. The owner's five decisions and the
-  templates list are two comments on #167 (2026-10-12). In short: a
-  PowerShell script with a dry run plus a skill; the generic rules
-  live in the skill; one owner-only config file (working name
-  `.claude/dispatch.json`); a `templates/` folder; the `Tier:` line in
-  the wayfinder template; an ADR. Proof is the manager's next real
-  dispatch with it.
-- **Then, step 3:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
-- **#166 is closed** (2026-10-12): PR #219 committed the owner's
-  settings edits, and `.claude/builders.settings.json` on `main` holds
-  the rules for `compare_tables.py` and `02d --raw-dir`.
-- **The GitHub Project is built** (2026-10-12): project 2 of the
-  owner's account, "Dynasty FF: plan", private, linked to the
-  repository. Views "By stage", "By map" and "Yours" (the label
-  `owner-led`), each filtered to open items. Left for the owner's hand,
-  because the API has no call for them: the grouping of each view and
-  the workflow that adds new issues (in the manager's queue). Until
-  that workflow is on, the planner adds each new ticket with
+- **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
+  `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+  - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
+    and `session-dispatch` (manual only), thirteen templates, ADR 0013,
+    12 tests.
+  - **Owner's ruling 2026-10-12:** `-Apply` acts only in a main checkout
+    named in `<user profile>/.claude/dispatch-projects.json`, which the
+    owner writes. Without it, the allow rule for the script was as wide
+    as a rule for any PowerShell line.
+  - Owed: `/security-review` from a session rooted in the skills
+    repository (the command is not available in the planner's session;
+    the PR says so). Then the owner merges and pulls the live clone.
+  - The owner's by-hand steps went to the manager as ready queue
+    entries: the two owner-only files, the settings rules, the plugin
+    folder in `CLAUDE_CODE_PLUGIN_DIRS` (separator for two folders not
+    verified).
+  - #167 closes on the first real dispatch through the script. Watch
+    there: whether `--disallowedTools` takes path-scoped rules.
+  - Still to open: a ticket under #162 for the `Tier:` line in
+    `wayfinder`, after the owner's re-vendor.
+- **PR #228 (#225) read: no breach.** One choice is the owner's: the
+  spike prints a Fantrax error code on a public log. Entry sent to the
+  manager.
+- **#230** (new, Stage D, medium, child of #70): the login answers the
+  TOTP code prompt. Its first step is an owner Action (report the
+  prompt's field label and button text); not free to dispatch before.
+- **In hand: `owner-queue` 0.6.1 is in the live copy, not committed.**
+  (`~/.claude/mods/owner-queue`, updated on the owner's word
+  2026-10-12, twice: 0.6.0, then 0.6.1.) The source is the scratch
+  worktree `<planner scratchpad>\oq6`, branch `owner-queue-060` off
+  `origin/owner-queue-mod` (skills PR 39), all changes uncommitted.
+  `claude plugin validate` passes, 24 tests pass. `tsc` did not run
+  (no Node on this machine's path).
+  - Built: `Post comment` on the last row before `Mark done`; under
+    it a one-line field whose own send (and Enter) posts a comment,
+    then `Send as answer` (open decision) and `Cancel`. `Other...` is
+    gone. A comment is a `- Note: <text> | pane, <day> <time>, session
+    <id>` line; a typed answer is `- Answer: (other) <text> | pane,
+    ...`. Store keys `notes` and `noted:<session>`. A Note the pane
+    did not write is flagged and never carried.
+  - Change from the plan: the draft is kept in a module variable, not
+    in `$.state`, so a key press redraws nothing.
+  - Proven by the owner in 0.6.0: a comment sent in the planner's pane
+    is said there; a comment on the TEST entry sent in the manager's
+    pane arrived in the planner's chat.
+  - **Not proven:** `Send as answer` (the one button that must read
+    the typed text); how 0.6.1 looks (the owner called 0.6.0 ugly;
+    0.6.1 moved the button, removed the doubled send, dropped the
+    label). Wait for the owner's look or a screenshot.
+  - The owner wants the box to grow while typing. The API's `Input` is
+    one line. Offered, not built: a wrapped preview under the field,
+    redrawn at each key press.
+  - A TEST Decision raised by the planner is in the queue (manager's
+    PR #235). The manager removes it when the planner says the trial
+    is over. A test `Note:` line also sits in the #228 entry.
+  - After the owner's look: PII check, commit and push to
+    `owner-queue-mod` (PR 39); send the manager the `Note:` rule for
+    the head of `NEEDS-OWNER.md`; add it to the plugin's
+    `templates/NEEDS-OWNER.md` (skills PR 46).
+- **#234** (new, child of #162, "Tooling and upkeep", tier none): the
+  planner designs a move of the builders' state files out of
+  `.claude/`, by the owner's answer of 2026-10-12 as the manager
+  recorded it on #166 (the planner did not see the line itself). Plan
+  gate with the owner first. The stopgap holds until then. #218 waits
+  on it.
+- **#167, checked 2026-10-12 after the owner ticked three entries:**
+  `~/.claude/dispatch-projects.json` exists and lists the main
+  checkout; the settings rules are in both settings files
+  (uncommitted, the manager's to commit on the owner's word);
+  `.claude/dispatch.json` is missing; skills PR 46 is open, so the
+  plugin is not in the live clone
+  (`C:\Users\benha\claude-live\skills-plugins-hooks-agents`) and
+  `CLAUDE_CODE_PLUGIN_DIRS` names only the `owner-queue` folder. The
+  manager kept the three entries open.
+  - `/security-review` now loads in the planner's session but reviews
+    the session's own branch only; it found nothing here and did not
+    cover PR 46. Still owed from a session in the skills repository.
+- **Then:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
+- **Out with the manager:** the brief for #225 (the part of #92 an
+  agent may do: the spike workflow, ready for the owner to fire). The
+  owner reads the workflow before the merge. Nothing of #110 is free:
+  PRs #145 to #148 did four parts, `scorer_id` moved to #97, the
+  `roster_slot` rename waits on #97.
+- **Milestones (owner, 2026-10-12):** every open ticket and map has
+  one. A map carries the stage it finishes in (#69 Stage C, #70 Stage
+  D). Work outside the stages is "Tooling and upkeep" (#151, #162,
+  #167, #218, #130, #211).
+- **The GitHub Project** (project 2, "Dynasty FF: plan") is finished
+  (read through the API 2026-10-12): "By stage" grouped by Milestone,
+  "By map" by Parent issue, "Auto-add to project" on. Check that the
+  next new ticket lands there by itself; if not,
   `gh project item-add 2 --owner benjamininja --url <url>`.
-- **PR #207 (#140) is merged**; the check in Power BI Desktop is open
-  as #211 (owner's hand; Power BI is a deprioritized asset).
+- **`owner-queue` 0.5.0 is proven live** (2026-10-12): an answer
+  pressed in the manager's pane arrived in the planner's chat, once,
+  and not in the manager's. Not seen: the id line in the system prompt
+  (use `/owner id`); mouse selection of a "Print in chat" notice.
+- **#166 is closed** (PR #219 put the owner's settings edits on
+  `main`).
 - Stage C waits on the owner's `04t` capture, after Wednesday
   2026-10-14, 8:00 am.
 
@@ -60,10 +128,10 @@ planner session can resume from the repository alone. The rules are in
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
 | #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
-| #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
+| #70 | In-season Fantrax league flows | #211 (owner, upkeep); #97, #201 (stage C); #225, #230, #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
-| #162 | Managing-session roles and plugin | #167, #218 (after #167) |
+| #162 | Managing-session roles and plugin | #167, #234, #218 (after #167 and #234) |
 
 #140 was placed as blocked by nothing; one clause of its acceptance
 needed #97 (see "Lessons").
@@ -71,7 +139,8 @@ needed #97 (see "Lessons").
 ## Milestones
 
 One per stage of the table in `GOAL-RUN.md`: "Stage A: Ledger and cap",
-"Stage B: Seam", "Stage C: Postgres", "Stage D: Schedule". A ticket
+"Stage B: Seam", "Stage C: Postgres", "Stage D: Schedule", and
+"Tooling and upkeep" for work outside the stages. A ticket
 moves between stages by the planner on the manager's word.
 
 ## Sweeps
@@ -162,6 +231,12 @@ To re-run when a row's PR merges: the file and line named in the row.
 - A sweep's subagent report is checked against the file before it goes
   to the owner; what was not checked is said so on the ticket.
 
+- Before a ticket is called free for dispatch, its merged PRs and
+  comments are read, not only its body and its blockers. #110 was
+  offered with four parts open that PRs #145 to #148 had done.
+- A skill that tells a session to start sessions or to merge is
+  manual only by the skills repo's ADR-0006; keep rules and acts in
+  separate skills.
 - A pane feature is not done until the owner has used it: tests passed
   on 0.4.0 while the copy buttons sat out of sight and one span per
   button was the wrong unit. Say what was not seen in a real pane.
