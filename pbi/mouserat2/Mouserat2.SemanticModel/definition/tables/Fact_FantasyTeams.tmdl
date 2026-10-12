@@ -1,4 +1,4 @@
-/// Roster fact: one row per team and player, with contract and squad placement. Dual-conference rosters supported. CapHit is NOT stored -- a kept player charges full ContractValue. Dead money lives in Fact_DeadMoney. See the Salary & Cap measures in _Measures.tmdl.
+/// Roster fact: one row per team and player, with contract and squad placement. A kept player charges full ContractValue (CapHit is not stored). Dead money lives in Fact_DeadMoney.
 table Fact_FantasyTeams
 	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
 
@@ -108,7 +108,7 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["season","year","league year"]
 
-	/// Observed squad placement from the latest roster snapshot: Active, Reserve, Inj Res or Minors. Minors and Inj Res salary is cap-exempt (excluded from Active Roster Salary). Blank = not in the snapshot, charged normally.
+	/// Observed squad slot from the latest roster snapshot: Active, Reserve, Inj Res or Minors. Minors and Inj Res salary is cap-exempt. Blank = not in the snapshot, charged normally.
 	column RosterStatus
 		dataType: string
 		lineageTag: a3fc80c9-b244-4ac9-99c5-e17adcc8ea30

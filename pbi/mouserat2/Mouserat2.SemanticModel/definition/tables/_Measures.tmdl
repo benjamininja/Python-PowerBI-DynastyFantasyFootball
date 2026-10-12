@@ -621,7 +621,7 @@ table _Measures
 		displayFolder: Salary & Cap
 		lineageTag: 1b7b8790-b0fd-4943-b181-4311669cf879
 
-	/// This year's cap charge for rostered players: the full ContractValue, no percentage applied. Salary in the Minors and IR slots (RosterStatus "Minors" or "Inj Res") is cap-exempt and excluded; a blank slot charges normally.
+	/// This season's cap charge for rostered players: full ContractValue. Salary in the Minors and IR slots (RosterStatus Minors or Inj Res) is cap-exempt; a blank slot charges normally.
 	measure 'Active Roster Salary' =
 			
 			CALCULATE(
@@ -643,7 +643,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
-	/// Starting cap minus rostered salary, this season's dead money (Fact_DeadMoney) and reinvestment cap. Salary in the Minors and IR slots (RosterStatus "Minors" or "Inj Res") is cap-exempt and does not reduce it.
+	/// Starting cap minus rostered salary, this season's dead money (Fact_DeadMoney) and reinvestment cap. Minors and IR slot salary (RosterStatus Minors, Inj Res) is cap-exempt.
 	measure 'Remaining Salary Cap' = [Starting Salary Cap] - CALCULATE ( [Contract Value], Fact_FantasyTeams[RosterStatus] <> "Minors", Fact_FantasyTeams[RosterStatus] <> "Inj Res" ) - [Dead Money - Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
@@ -716,7 +716,7 @@ table _Measures
 
 		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
-	/// What-if: this season's dead money if every rostered player on a guaranteed contract were cut today, ContractValue x Dim_Contract[CapHitPct]. Reads the roster, not Fact_DeadMoney; real charges are the Active measures.
+	/// What-if: this season's dead money if every rostered player on a guaranteed contract were cut today. Reads the roster, not Fact_DeadMoney; real charges are the Active measures.
 	measure 'Dead Money - Speculative - Current Year' =
 			
 			CALCULATE(
