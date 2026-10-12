@@ -30,9 +30,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- No builder is running. No PR is open (the planner's #220 was merged
-  on the owner's "approved, merge 220", 2026-10-12). `main` is clean;
-  779 tests.
+- One builder is running: `b92-runner-spike` (id `d6acd1df`, ticket
+  #225, medium tier, branch `feat/225-runner-spike-workflow`),
+  dispatched 2026-10-12 on the owner's "dispatch 92 and 110". #225
+  is the part of #92 an agent may do: the spike workflow, switched
+  off, and a research page. Its PR closes #225, never #92. **The
+  owner reads the workflow before the merge** (named in the brief):
+  queue that as an Action when the PR is green, and write the
+  builder's ready entry (store secrets, fire, report) on merge. The
+  brief has it try one Edit of `RESUME.md`: its message says whether
+  the new allow rule lifts the `.claude/memory/` denial.
+- Nothing of #110 went out: PRs #145 to #148 had done its four free
+  parts; only the `roster_slot` rename is left, after #97.
 - Worktree cleanup, on the owner's approved plan (2026-10-12): four
   empty leftover folders deleted, upstream `spha-wt` and `oq39`
   removed, branch `owner-queue-030` deleted. Left:
@@ -41,10 +50,6 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   cannot delete ("Permission denied", likely OneDrive); one queue
   Action covers them. The planner's upstream scratch worktree `sd`
   (branch `session-dispatch-plugin`) is live: leave it.
-- Work before Wednesday, the planner's report (2026-10-12), waiting
-  on the owner's word: #92 as a partial (spike workflow switched
-  off, medium) and four of #110's five parts (medium); each needs
-  the planner's brief first. #130 is a grill, owner and planner.
 - The 0.5.0 message back is proven (2026-10-12): a test Decision
   naming the planner's session, answered in the manager's pane, was
   carried to the planner's chat and not to the manager's. Two things
