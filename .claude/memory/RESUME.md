@@ -125,16 +125,41 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     is what is published); `fact_trade_log` is the parked one. `01a`,
     `01b`, `01d` and `02a` do not run in this environment, old or new.
     When the owner answers: apply it, then phase 6.
-  - **Phases 5 to 6 notes:** phase 5 = the remaining `to_parquet`
-    sites: `01a` (dim_position, dim_school), `01b`, `01c`, `01d`, `01f`,
-    `02a`, `02c`, `02e` (write call only), `02f`, `04c`,
-    `02d` (`fact_trade_log`, the ledger schema fix-up). Phase 5 touches
-    `02e`'s write call only. Phase 6 adds the static
-    guard test (no `read_parquet` / `to_parquet` in `notebooks/`,
-    `scripts/` or `.ipynb` code cells outside the seam section) and
-    deletes the shims; the goal's end condition names that test. Then
-    #149 (`02a` into the `nflverse` Chain after `01e`, registry
-    `chain`, docs) and #86 (ADR-0017).
+  - **#77 phase 5 MERGED as PR #177 (`678f791`), without the two parked
+    writes.** `to_parquet` is left in exactly two places: `02d`
+    (`fact_trade_log`) and `02e` (`fact_fantasy_teams`).
+  - **#77 phase 6, NOT STARTED, blocked on the two `NEEDS-OWNER.md`
+    entries.** When they are answered (a relay from the managing session
+    counts, `GOAL-RUN.md` "Relayed answers"): apply each answer to its
+    write; move every remaining `read_parquet` in `notebooks/`,
+    `scripts/` and notebook code cells to `etl.read_table` (also
+    `run_pipeline` and `check_data_model`, per inventory section 8);
+    add the static guard test (no `read_parquet` / `to_parquet` outside
+    the seam section of `etl_helpers.py`; the goal's end condition names
+    it; an exception only if the owner picked option (c) for a write);
+    delete the shims `load_replace_partition` and
+    `upsert_dynasty_crosswalk` and their tests' legacy cases, and take
+    them out of `CLAUDE.md`'s helper list (pull and check `gh pr list`
+    for the planner's PR on `CLAUDE.md` first). A test that patches only
+    a module's `*_PATH` will then read or write the real `data/`: point
+    `CFG.data_dir` at the temp dir in each such fixture. Close #77 with
+    that PR and add its line to map #69.
+  - **#149: built, PR #178 open** (`chore/149-02a-nflverse-chain`):
+    step `02a_combine_metrics` after `01e` in `run_pipeline.py`,
+    registry `chain: nflverse`, README order line. Merge on green; the
+    body says "Closes #149"; then its line on map #69 is already there
+    (the map names #149 under "Decisions so far").
+  - **#86: NOT STARTED.** ADR-0017: `fact_nfl_snap_counts`
+    `(gsis_id, game_id)` and `fact_nfl_injuries`
+    `(gsis_id, season, week)`, current season, `period` stamped from the
+    game date against `dim_scoring_period`, replace the season each run,
+    written through `write_table`, wired into `run_pipeline.py`
+    (`nflverse` Chain, `injury` group plus INSEASON), registry,
+    `sources.yml`, data-model.md, tests. `nflreadpy` 0.1.5 imports in
+    the worktree `.venv` (scripts), not in the notebook kernel (system
+    Python), so build it as a `.py` step with tests, like `04p`/`04r`.
+    New tables' first files come in the PR (the scheduled commit never
+    adds a new table).
   - **CI lesson:** checks take 5 to 10 minutes. Do a full phase of other
     work first, then read once; the first reads of #161 and #171 both
     came too early.
