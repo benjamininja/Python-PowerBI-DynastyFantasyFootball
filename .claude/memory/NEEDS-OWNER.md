@@ -39,7 +39,55 @@ can be traced.
 
 ## Decisions
 
+### [ ] Fire the spike before the TOTP login code exists?
+- Ticket: #92, #225
+- Context: the existing Fantrax login fills the email and password and
+  never answers a second-factor prompt, and `pyotp` is not in
+  `requirements.txt`. With 2FA on, a runner login stops at the code
+  prompt. The spike driver reports that as `needs_code`: the runner
+  reached the prompt, which shows no challenge on the way, but the
+  reads are not made and questions 2 and 3 of #92 stay open. No ticket
+  exists yet for the TOTP step; the planner is asked to write one.
+- Options: (a) fire as soon as the secrets are stored, then fire again after the login code merges; (b) hold the first fire until the TOTP login code has merged
+- Recommended: (a), because a run before the login code lands already answers whether the runner is challenged, which decides whether the login code is worth finishing for Actions at all; a second run covers questions 2 and 3
+- Blocks: your first fire of the spike.
+- Raised: 2026-10-12, by the stage builder of #225 through the builder manager
+
+### [ ] A builder still cannot write under `.claude/memory/`: make the stopgap the rule?
+- Ticket: #166
+- Context: the allow rules you added (`Edit(.claude/memory/**)`,
+  `Write(.claude/memory/**)`) did not lift the denial. The #225
+  builder tried one Edit of `RESUME.md` in `dontAsk` mode and was
+  denied; not retried. The likely cause is the CLI's own guard on a
+  path under `.claude/`, which a settings rule does not override in
+  that mode. Two builders have now worked under the stopgap without
+  trouble: the plan rides in the PR body, a park comes by message, the
+  manager writes the memory docs and the queue.
+- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) keep it a stopgap and ask the planner to find a way for a builder to write those files
+- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and it costs no new permission
+- Blocks: nothing running.
+- Raised: 2026-10-12, by the builder manager
+
 ## Actions
+
+### [ ] Read the spike workflow in PR #228, then say "merge 228"
+- Ticket: #225, #92
+- Steps: 1. Open
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/228/files
+  and read `.github/workflows/fantrax-runner-spike.yml` (53 lines); the
+  driver it runs is `scripts/runner_spike.py`. 2. The PR body lists
+  eight judgement calls to check. 3. Say "merge 228" in the manager's
+  session, or say what to change.
+- Context: the ticket names your read before the merge, because the
+  workflow handles secrets and a login. It cannot run on its own: its
+  only trigger is a manual run, from `main`, in an environment named
+  `fantrax-spike` that does not exist until you make it. The manager
+  re-proved Green (output on the PR): 816 tests, 0 Gate failures. The
+  run log of a public repository is public; the driver prints verdicts,
+  HTTP statuses and seconds only. After the merge the next Action
+  (store the secrets, fire the run) is added here.
+- Blocks: #225, and through it #92.
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
