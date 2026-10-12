@@ -49,10 +49,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   manager stopped two hung git commands on the owner's word. While
   the locks sit there a git command that writes those two branches
   fails; other branches work.
-- The owner said skills PR 46 "is for planner" (2026-10-12);
-  relayed to the planner. The owner's user variable
-  `CLAUDE_CODE_PLUGIN_DIRS` holds only the dispatch plugin's folder,
-  not owner-queue's; written in the queue.
+- Skills PRs 46 (dispatch plugin) and 39 (owner-queue 0.7.1) are
+  merged (2026-10-12). The live clone folder `claude-live` does not
+  exist and the owner's saved `CLAUDE_CODE_PLUGIN_DIRS` names only a
+  folder under it: one queue Action (the planner's) covers the
+  clone, the variable and the restart. After that restart, the
+  first dispatch goes through the plugin's script (dry run, then
+  `-Apply`).
 - The git guard hook also blocks `git branch -D` for an agent
   (2026-10-12). A builder's squash-merged local branches are left
   for the owner: one queue Action with the command. The remote
