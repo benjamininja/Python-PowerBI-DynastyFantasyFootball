@@ -22,8 +22,13 @@ are out of date. This block is the current state.
   builder through it, word for word (`GOAL-RUN.md`, "Relayed answers"
   and "The managing session").
 - **Stage B is done and closed out.** #109, #77, #149, #86 CLOSED.
-  `main` = `4278185` plus this file's PR (#183, auto-merge on green was
-  set on the owner's "merge 183"; check it landed and pull).
+  `main` = `4278185`. **This file's PR, #183, is not merged yet**: the
+  owner said "merge 183" while its checks were still running, and the
+  repo does not allow auto-merge. First act after the compact: one CI
+  read of #183, squash-merge with `--delete-branch` on green, pull.
+  Until then `MANAGER.md` exists only on branch
+  `chore/manager-state-stage-b` (`git show
+  origin/chore/manager-state-stage-b:.claude/memory/MANAGER.md`).
 - **No builder is running.** The stage B builder (`local_eb466b76…`) is
   stopped. The planner (`local_84c6f2af…`) is the only other session.
 - **Nothing is waiting on a relay.** `NEEDS-OWNER.md` has no Decisions,
