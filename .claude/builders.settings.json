@@ -51,7 +51,11 @@
       "Bash(.venv/Scripts/python.exe notebooks/02f_fact_dead_money.py)",
       "Bash(.venv/Scripts/python.exe notebooks/02g_nflverse_inseason.py)",
       "Bash(.venv/Scripts/python.exe notebooks/04p_fantrax_league_info.py)",
-      "Bash(.venv/Scripts/python.exe notebooks/04u_fantrax_public_api.py)"      
+      "Bash(.venv/Scripts/python.exe notebooks/04u_fantrax_public_api.py)",
+      "Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)",
+      "Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)",
+      "Edit(.claude/memory/**)",
+      "Write(.claude/memory/**)"      
     ],
     "deny": [
       "PowerShell",
@@ -83,7 +87,9 @@
       "Bash(git commit* -n *)",
       "Bash(git branch -D *)",
       "Bash(gh pr merge*--admin*)",
-      "Bash(gh pr merge*--auto*)"
+      "Bash(gh pr merge*--auto*)",
+      "Edit(.claude/managers.settings.json)",
+      "Write(.claude/managers.settings.json)"
     ]
   }
 }
