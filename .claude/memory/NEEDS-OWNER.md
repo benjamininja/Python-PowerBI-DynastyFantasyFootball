@@ -116,22 +116,6 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Approve two additions to the manager's rules
-- Ticket: #166, #162
-- Steps: say "approved, write the rule PR" in the manager's session, or
-  say what to change. The manager then writes them into `GOAL-RUN.md`,
-  merges and cleans up.
-- Context: (1) the dispatch recipe also passes the eleven deny rules
-  with `--disallowedTools`, a belt beside the builders' file that can
-  only deny. (2) The manager asks the planner for a read when a
-  builder's PR changes an ADR, a grain or a key, touches a file its
-  ticket did not name, leaves a done condition unmet or reworded, adds
-  a design choice, or outgrew its tier. A read does not replace the
-  re-proof of Green; a "plan breach" holds the merge until planner and
-  manager agree or you rule.
-- Blocks: nothing today; stage C would run under them.
-- Raised: 2026-10-12, by the builder manager and the planner
-
 ### [ ] Add the two proof-command rules to the builders' file
 - Ticket: #166, #186
 - Steps: 1. In `.claude/builders.settings.json` add to `allow`:
