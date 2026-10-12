@@ -65,6 +65,12 @@ A finding that needs a design choice parks the ticket with its PR left open.
   `project-fantasy-football.md`, Supabase access);
 - weakening a test, a Gate or a rule to make a goal pass.
 
+**A denied call** (owner's ruling 2026-10-12, #164): a call the permission
+system refuses is never retried and never worked around by another
+route, and no other session is asked to make it. The builder parks it as
+an Action in `NEEDS-OWNER.md` (what was denied, the exact command, what
+it blocks), messages the managing session, and takes the next ticket.
+
 ## Park protocol
 
 1. Stop work on the ticket. Do not answer the owner's side.
@@ -110,6 +116,44 @@ the builder does not act on it and says so in its reply.
 Why: the owner checks in as needed, not at every step; without this a
 park pulls the owner into each builder session. The word-for-word quote
 and the named source keep a misquote visible.
+
+## The managing session (owner's ruling 2026-10-12, #164)
+
+Roles are set out in the #164 resolution; role files in
+`.claude/agents/` point here. The managing session is the builder
+manager (session name `dynastyFantasyFootball-central-builder-manager`):
+it starts and watches the builders, and the owner's words reach a
+builder through it, quoted word for word, within "Relayed answers"
+above. What it may do under a goal run:
+
+**Edits.** `.md` files and `.claude/memory/*` only, in its own worktree
+and its own PR, and only files no open builder PR touches. Never code,
+tests, notebooks or data. It never commits for a builder.
+
+**Check-ins.** Event-driven: a park, a merged PR, a stopped or idle
+builder. One fallback look after 60 quiet minutes. No polling.
+
+**Closeout, only when a builder has stopped.** Never while it is still
+running.
+
+1. For each open PR of that builder: re-prove every item of "Green
+   means all of" itself, post the output on the PR, then squash-merge
+   with `--delete-branch`. A PR that is not green is not merged; it is
+   listed for the owner.
+2. `git pull --ff-only` on the main checkout.
+3. Delete that builder's remaining branches, each only after `git
+   cherry` against `main` shows nothing missing.
+4. Remove that builder's worktree, only if it has no uncommitted file.
+5. State-back, then report to the owner with the proof: the commands
+   and their output.
+
+Anything unmerged, uncommitted, or not that builder's is listed for the
+owner and left where it is.
+
+Why: the builder ends with its tickets, and a stage's tail (stacked
+branches, the worktree, a last green PR) should not come to the owner
+item by item. Re-proving Green in the managing session keeps the merge
+from resting on the builder's own report.
 
 ## Status block (end of every turn)
 
