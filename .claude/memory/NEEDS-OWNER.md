@@ -27,6 +27,8 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 - Blocks: #97 PR 1, the only thing it still waits on (#96 closed
   2026-10-11). Through #97 it also blocks the last part of #110, the
   `roster_status` → `roster_slot` rename (the #97 grill put #97 first).
+  Both now open stage C (2026-10-12), so #108's first migration waits
+  on this capture too.
 - Note 2026-10-11 (goal A): the capture of 2026-10-11 10:02 was taken on a
   Sunday morning, before period 5's lineup lock, so the session does not
   count it as this capture. Say so in chat if it should.
@@ -41,24 +43,6 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
   says that is Thursday morning, 2026-10-15. Run `04t` after that. The same
   row is the test for #68: it should carry a bid if the bid rule is right.
 - Raised: 2026-10-11, #97 grill
-
-### [ ] Load the owner-queue mod in every session
-- Ticket: none (tooling)
-- Done 2026-10-11: the `env` block is in `~/.claude/settings.json`. Left:
-  restart the app and confirm the band draws.
-- Steps: (1) merge PR #39 in `skills-plugins-hooks-agents` and bring that
-  checkout up to `main`; (2) add `CLAUDE_CODE_PLUGIN_DIRS` under `env` in
-  `~/.claude/settings.json`, pointing at that repo's `plugins\owner-queue`;
-  (3) restart the app. Stopgap for step 2 before the merge:
-  `C:\Users\benha\.claude\mods\owner-queue`.
-- Context: the mod shows this file live (band above the prompt, pane,
-  `/owner`). No settings file names it, so only the old session (its own
-  dev-mods folder) draws it. A session's edit of that settings file is
-  refused as self-modification, so the paste is the owner's. After it
-  loads, the two other copies and the `owner-queue-mod` worktree branch
-  can be deleted.
-- Blocks: nothing in the build. The queue is still this file.
-- Raised: 2026-10-11, goal A
 
 ### [ ] Fire the first Fantrax runner login (later)
 - Ticket: #92, #93
