@@ -33,15 +33,22 @@ are out of date. This block is the current state.
 - **No builder is running.** The stage B builder session is archived.
   The planner (`local_84c6f2af…`) is the only other session; reply to
   it with `SendMessage` to its `from` address.
-- **Not yet dispatched, and why:** `.claude/builders.settings.json`
-  does not exist. The owner creates it (entry in `NEEDS-OWNER.md`). No
-  dispatch before it is on `main`.
-- **First dispatch, when the file is there:** a dry dispatch, then
-  #186 (`Tier: low`, alone): tracked `scripts/compare_tables.py` and
-  `--raw-dir` on `02d`. Try building the `.venv` before the builder
-  starts (needs `claude -w <name>` to accept an existing worktree,
-  untested); if that fails, start then build, with the guard line in
-  the prompt.
+- **Dry dispatch done 2026-10-12** (results on #166, the manager's
+  comment headed "dry dispatch results"). Recipe as now in `GOAL-RUN.md`
+  "Session setup": worktree by `git worktree add`, `.venv`, then
+  `claude.exe --bg -w <name>`. Prompt from a file, **no double quote**.
+  `claude stop` before `--resume`, or it starts a copy. `claude rm`
+  refuses on an uncommitted file. The owner's user-level allow rules
+  (`python -c`, `gh api`, `gh issue`) reach a builder, so the fence is
+  the builders' deny rules.
+- **Two-key merge (owner, 2026-10-12):** a builder commits, pushes its
+  own branch, opens the PR and messages the manager. The manager
+  re-proves Green, merges, cleans up, wakes the builder.
+- **Not yet dispatched for real, and why:** the builders' file sits in
+  the owner's user folder (`C:\Users\benha\.claude\`) with the base
+  48 rules. The owner moves it into the repo and applies the changes
+  listed on #166 (entry in `NEEDS-OWNER.md`). Then #186 (`Tier: low`,
+  alone) is the first real dispatch.
 - **Then stage C** (`Tier: high`), after the owner's `04t` capture
   (after Thursday 2026-10-15). First check the claim row has
   `claim_method = waiver` and a `claim_bid`. The brief must carry:

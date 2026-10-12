@@ -36,20 +36,32 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Create the builders' settings file
+### [ ] Tighten the builders' file after the dry dispatch
 - Ticket: #166
-- Steps: 1. Create `.claude/builders.settings.json`. 2. Paste the one JSON
-  block from
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129035556
-  (heading "Proposal 1 of 2"). 3. Add to its `allow` list the lines you
-  accept from the block under "Add to allow" in
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129147381 .
-  4. Commit it on a branch, open a PR, merge it.
-- Context: a dispatched builder runs in `dontAsk`; this list is its whole
-  fence. No agent may write the file. You accepted the two rules
-  for the Fantrax public API scripts (`04p`, `04u`) on 2026-10-12.
-- Blocks: every dispatch, so #186 and stage C.
-- Raised: 2026-10-12, #166 grill
+- Steps: 1. Move `builders.settings.json` from your user folder into the
+  repository as `.claude/builders.settings.json`. 2. Apply section 3 of
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129778615 :
+  three lines out of `allow`, six lines into `allow`, eleven lines into
+  `deny`. 3. Commit it on a branch and open a PR; say "approved" and the
+  manager merges it.
+- Context: the dry dispatch of 2026-10-12 showed your user-level allow
+  rules reach a builder (`python -c`, `gh api`, `gh issue`), so only a
+  deny rule holds. You chose the two-key merge, so the builder loses
+  `gh pr merge`.
+- Blocks: the first real dispatch, #186.
+- Raised: 2026-10-12, by the builder manager
+
+### [ ] Create the managers' settings file
+- Ticket: #166
+- Steps: create `.claude/managers.settings.json` from the JSON block in
+  section 4 of
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129778615 ,
+  in the same PR as the builders' file or its own.
+- Context: it binds a manager started from the CLI. A manager in the
+  desktop app reads your project and user settings instead; the entry
+  below covers that case.
+- Blocks: nothing today; the manager works through prompts until then.
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Add the builder manager's commands to your settings
 - Ticket: #166
