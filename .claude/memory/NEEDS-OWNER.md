@@ -33,43 +33,7 @@ can be traced.
 
 ## Decisions
 
-### [ ] Does a builder's green PR need your "approved" before the manager merges it?
-- Ticket: #166
-- Context: you chose the two-key merge on 2026-10-12: the builder opens
-  the PR, the manager re-proves Green and merges. The role-file PR #192
-  must say whether your word is a third key.
-- Options: (a) no, the manager's re-proof of Green is the second key, and your "approved" covers only the manager's own PRs and rule changes; (b) yes, every builder PR also waits for your "approved"
-- Recommended: (a), because the option you picked said the manager re-proves and merges, and (b) puts you back at every step of a stage
-- Blocks: the wording of PR #192.
-- Raised: 2026-10-12, by the planner through the manager
-
 ## Actions
-
-### [ ] Approve the queue-rules PR #191
-- Ticket: #166, #167
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/191
-  and say "approved" in the manager's session, or say what to change.
-- Context: it writes five rules for `owner-queue` 0.3.0 into
-  `GOAL-RUN.md` and this file's header: lettered options, the pane's
-  `Answer:` line that no agent touches, a pane answer is yours wherever
-  it lands, the main checkout's copy is the queue, and the manager
-  copies a builder's parked entry into it. The planner reports them as
-  your rulings; your "approved" confirms them to the manager.
-- Blocks: the manager relying on a pane answer.
-- Raised: 2026-10-12, by the builder manager
-
-### [ ] Approve the role-file PR #192
-- Ticket: #166
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/192
-  and say "approved" in the manager's session, or say what to change.
-  Its body names two points to confirm.
-- Context: the role files merged in #184 still say each role merges its
-  own PR. #192 brings them in line with the two-key merge, the one merge
-  gate and the queue rules.
-- Blocks: the first real dispatch reads `stage-builder.md`.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] Try owner-queue 0.3.0 in a fresh session
 - Ticket: #167
