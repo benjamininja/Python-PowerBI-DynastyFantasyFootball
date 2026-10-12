@@ -39,32 +39,23 @@ can be traced.
 
 ## Decisions
 
-### [ ] Fire the spike before the TOTP login code exists?
-- Ticket: #92, #225
-- Context: the existing Fantrax login fills the email and password and
-  never answers a second-factor prompt, and `pyotp` is not in
-  `requirements.txt`. With 2FA on, a runner login stops at the code
-  prompt. The spike driver reports that as `needs_code`: the runner
-  reached the prompt, which shows no challenge on the way, but the
-  reads are not made and questions 2 and 3 of #92 stay open. No ticket
-  exists yet for the TOTP step; the planner is asked to write one.
-- Options: (a) fire as soon as the secrets are stored, then fire again after the login code merges; (b) hold the first fire until the TOTP login code has merged
-- Recommended: (a), because a run before the login code lands already answers whether the runner is challenged, which decides whether the login code is worth finishing for Actions at all; a second run covers questions 2 and 3
-- Blocks: your first fire of the spike.
-- Raised: 2026-10-12, by the stage builder of #225 through the builder manager
-
-### [ ] A builder still cannot write under `.claude/memory/`: make the stopgap the rule?
+### [ ] A builder cannot write under `.claude/memory/`: stopgap as the rule, or move the files?
 - Ticket: #166
-- Context: the allow rules you added (`Edit(.claude/memory/**)`,
-  `Write(.claude/memory/**)`) did not lift the denial. The #225
-  builder tried one Edit of `RESUME.md` in `dontAsk` mode and was
-  denied; not retried. The likely cause is the CLI's own guard on a
-  path under `.claude/`, which a settings rule does not override in
-  that mode. Two builders have now worked under the stopgap without
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+- Context: you added the rules to the right file: lines 57 and 58 of
+  `.claude/builders.settings.json` (`"Edit(.claude/memory/**)"`,
+  `"Write(.claude/memory/**)"`), and the pattern is right. No file or
+  line can lift this. The CLI's documentation ("Protected paths", in
+  the permission modes page) says a write under a `.claude` folder is
+  never pre-approved by an allow rule: the check runs before the allow
+  rules, and in `dontAsk` mode it becomes a denial. Only bypass mode
+  writes there unattended, which our rules forbid for a session. The
+  two lines have no effect and can stay or go; removing them is your
+  edit. Two builders have now worked under the stopgap without
   trouble: the plan rides in the PR body, a park comes by message, the
   manager writes the memory docs and the queue.
-- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) keep it a stopgap and ask the planner to find a way for a builder to write those files
-- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and it costs no new permission
+- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) the planner designs a move of the builders' state files (`RESUME.md`, a builder's copy of the queue) to a folder outside `.claude/`, where a builder may write
+- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and a move touches every role file and runbook for little gain
 - Blocks: nothing running.
 - Raised: 2026-10-12, by the builder manager
 
@@ -84,10 +75,142 @@ can be traced.
   `fantrax-spike` that does not exist until you make it. The manager
   re-proved Green (output on the PR): 816 tests, 0 Gate failures. The
   run log of a public repository is public; the driver prints verdicts,
-  HTTP statuses and seconds only. After the merge the next Action
-  (store the secrets, fire the run) is added here.
+  HTTP statuses and seconds only. The planner read the PR as no
+  breach. You answered in the pane (2026-10-12 17:19): the error
+  code and exception class name on the log are accepted as built,
+  and the spike is fired as soon as the secrets are stored. So one
+  word is left: "merge 228". After the merge the next Action (make
+  the environment, store the secrets, fire the run) is added here.
 - Blocks: #225, and through it #92.
 - Raised: 2026-10-12, by the builder manager
+
+### [ ] Approve the planner state PR #226
+- Ticket: #167, #225
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/226
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's state before its compact: the dispatch plugin
+  in hand, the milestones, #225.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #230: report what the Fantrax code prompt looks like
+- Ticket: #230
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Log in to Fantrax once in a normal browser window where the
+  code prompt appears (a private window does it). 2. At the prompt,
+  note the label of the code field and the text of the button that
+  submits it. 3. Write both on #230, or say them in a session. No
+  code, secret or account detail goes on the ticket.
+- Context: #230 is the ticket for the login answering the
+  second-factor code prompt (TOTP), medium tier, stage D. The login
+  code fills the email and the password only. The fill step for the
+  code is written against what you report, not against a guess; no
+  agent may look.
+- Blocks: the dispatch of #230.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Skills PR 46: review, run the security review, merge
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Open a session rooted in the skills repository and run
+  `/security-review` on branch `session-dispatch-plugin`. It did not
+  run from the planner's session, where the command is not available.
+  2. Read https://github.com/benjamininja/skills-plugins-hooks-agents/pull/46
+  , most of all `scripts/dispatch.ps1`. 3. Merge it. 4. Pull the live
+  clone at `C:\Users\benha\claude-live\skills-plugins-hooks-agents`.
+- Context: the dispatch plugin (#167 step 2) is a dry-run-first script
+  that starts a builder, two skills and templates. 12 tests of the
+  script pass; the full suite passed (155) before the last script
+  change; CI runs it all.
+- Blocks: the three #167 entries below, and #218.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: write the two owner-only files for the dispatch script
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Create `.claude/dispatch.json` in the main checkout with
+  the first block. 2. Create `dispatch-projects.json` in your user
+  `.claude` folder with the second block. 3. Say so in the manager's
+  session, and say whether `dispatch.json` is to be committed.
+
+```json
+{
+  "agent": "stage-builder",
+  "buildersSettings": ".claude/builders.settings.json",
+  "claude": "C:\\Users\\benha\\.local\\bin\\claude.exe",
+  "setup": [
+    "python -m venv .venv",
+    ".venv\\Scripts\\python.exe -m pip install -r requirements.txt"
+  ],
+  "readLine": "Read C:\\Users\\benha\\.claude\\memory\\preferences.md, then .claude/memory/RESUME.md Standing rules and NEXT, then .claude/memory/GOAL-RUN.md and NEEDS-OWNER.md."
+}
+```
+
+```json
+{
+  "projects": [
+    "C:/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball"
+  ]
+}
+```
+
+- Context: waits on skills PR 46. The script refuses to run without
+  the first file, and refuses `-Apply` in a project that is not in the
+  second (your ruling to the planner, 2026-10-12). No agent writes
+  either. The setup lines and the read line are today's, from
+  `GOAL-RUN.md`.
+- Blocks: the first dispatch with the script.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: settings rules for the dispatch script
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. In `.claude/managers.settings.json`, add the first block's
+  line to `permissions.allow`. 2. In both
+  `.claude/managers.settings.json` and `.claude/builders.settings.json`,
+  add the second block's lines to `permissions.deny`. 3. Optional,
+  once the script has made one real dispatch: remove the allow rule
+  `PowerShell(*claude.exe --bg *)` from the managers' file, so a
+  builder can only be started through the script. 4. Say "commit the
+  settings files" in the manager's session.
+
+```
+"PowerShell(*session-dispatch-managers-build-review\\scripts\\dispatch.ps1 *)"
+```
+
+```
+"Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
+"Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
+```
+
+- Context: waits on skills PR 46. The allow rule lets the manager run
+  the script without a prompt. The deny rules keep every session from
+  writing the two owner-only files.
+- Blocks: the first dispatch with the script.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: load the plugin in the manager's and builders' sessions
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Add the folder in the block to the user environment
+  variable `CLAUDE_CODE_PLUGIN_DIRS`, beside the owner-queue folder
+  already in it. 2. Restart the sessions. 3. In the manager's session,
+  invoke the session-dispatch skill for the next real ticket; the
+  manager runs the dry run, then `-Apply`.
+
+```
+C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
+```
+
+- Context: waits on the two entries above. The planner has not
+  verified how that variable separates two folders on Windows (most
+  likely a semicolon). If the second folder does not load, say so and
+  the planner finds out. #167 closes on the first real dispatch
+  through the script, not on the PR.
+- Blocks: closing #167.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
