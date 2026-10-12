@@ -48,6 +48,11 @@ the parquet alone.
 
 - **Principles**: [docs/PRINCIPLES.md](docs/PRINCIPLES.md) — owners are front
   and center; judge every change by what it puts in an owner's hands.
+- **Session roles**: `.claude/agents/` holds three main-agent roles —
+  `central-planner` (decisions, tickets, tiers), `central-builder-manager`
+  (dispatches and closes out builders) and `stage-builder` (works one brief
+  or stage). Each points at `.claude/memory/GOAL-RUN.md`; the rules live
+  there, not in the role files.
 - **Dependencies**: `requirements.txt` (repo root) is the single source of
   truth for the `.venv` used by `run.ps1` — curated, loosely pinned (mirrors
   `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a
