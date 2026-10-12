@@ -99,13 +99,14 @@ The judge reads only the transcript, so each turn ends with fresh output of:
 
 | Stage | Tickets, in order | Waits on the owner for |
 |---|---|---|
-| A. Ledger and cap | #96 PR 2 → #97 → #68 | a fresh `04t` capture before #97 PR 1 (else #97 parks) |
-| B. Seam | #110 → #109 → #77 → #86 | nothing |
-| C. Postgres | #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | #76 done |
+| A. Ledger and cap | #96 PR 2 → #68 (both closed 2026-10-11; #97 moved to C) | done |
+| B. Seam | #109 → #77 → #149 → #86 (#110: four PRs merged 2026-10-12, its last part moved to C) | nothing |
+| C. Postgres | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after 2026-10-15) |
 | D. Schedule | #92 login code → Linux entrypoint → #93 → #116 | the TOTP secret stored; B and C merged |
 
-A goes before B: #110 changes the grain of `fact_fantasy_teams`, which #97
-also rewrites.
+#97 goes before the #110 rename: #97 rewrites `02e` and declares the
+`fact_fantasy_teams` grain `(team_key, scorer_id)`. Both moved to stage C
+on 2026-10-12, because #97 waits for the `04t` capture.
 
 Notes per stage:
 - **A.** #96 PR 2 follows its approved plan
@@ -117,11 +118,26 @@ Notes per stage:
   PR 1 waits on the owner's fresh `04t` capture (in `NEEDS-OWNER.md`), so
   take #68 while it waits. #68:
   re-check the tier cut points against in-season counts.
-- **B.** #77 follows `docs/research/storage-seam-inventory.md` section 8,
-  phases 1 to 6, one PR per phase, parquet backend only. #109 starts with a
+- **B.** Scope set by the owner 2026-10-12 (plan
+  `expressive-sprouting-squid`): the seam first, because the Postgres
+  backend, the export step and every in-season writer plug into it, and
+  because it changes no behaviour, so each PR is proven by "the published
+  tables are identical before and after". #77 follows
+  `docs/research/storage-seam-inventory.md` section 8,
+  phases 1 to 6, one PR per phase, parquet backend only. Phase 5 touches
+  the write call in `02e`, which #97 rewrites next: change that call
+  only. A grain the seam's write check rejects on real data is a design
+  finding: park it, do not loosen the check. #109 starts with a
   lookup: can every pick leg be resolved from data already captured? If
-  not, park. #86 follows ADR-0017.
-- **C.** The four middle items are tickets #135 to #138. Before #108,
+  not, park. #149 puts `02a` in the `nflverse` Chain after `01e` (owner's
+  ruling 2026-10-12; no login, one PR). #86 follows ADR-0017. #110 is not
+  in this goal: it stays open for the `roster_status` → `roster_slot`
+  rename, which waits for #97.
+- **C.** Starts with #97 (plan
+  `C:\Users\benha\.claude\plans\squishy-toasting-minsky.md`, three PRs)
+  and then the #110 rename, because #108's first migration needs the
+  `fact_fantasy_teams` key that #97 declares and `fact_trade_log` from
+  #109. The four middle items are tickets #135 to #138. Before #108,
   load the `supabase-postgres-best-practices` skill if it is installed
   and decide how tables stay off Supabase's Data API (row-level security
   on, or a schema that is not exposed); run the connector's security
@@ -143,13 +159,13 @@ Notes per stage:
 **B**
 
 ```
-/goal Work stage B of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: gh issue view state CLOSED for #110, #109, #77 and #86, or each one still open is listed in .claude/memory/NEEDS-OWNER.md with a reason; the static guard test that forbids parquet I/O outside the seam passes; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
+/goal Work stage B of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: gh issue view state CLOSED for #109, #77, #149 and #86, or each one still open is listed in .claude/memory/NEEDS-OWNER.md with a reason; the static guard test that forbids parquet I/O outside the seam passes; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
 ```
 
 **C**
 
 ```
-/goal Work stage C of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: gh issue view state CLOSED for #108 and for the backend, export, run-log and restore-drill tickets created in this stage, or each one still open is listed in .claude/memory/NEEDS-OWNER.md with a reason; the restore drill passes on an empty schema; #111's options are in NEEDS-OWNER.md; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. Cutover is not part of this goal. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
+/goal Work stage C of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: gh issue view state CLOSED for #97, #110, #108 and for the backend, export, run-log and restore-drill tickets created in this stage, or each one still open is listed in .claude/memory/NEEDS-OWNER.md with a reason; the restore drill passes on an empty schema; #111's options are in NEEDS-OWNER.md; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. Cutover is not part of this goal. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
 ```
 
 **D**

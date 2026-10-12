@@ -4,74 +4,66 @@
 AFK tickets as background sessions, reviews what they return, and posts to
 GitHub; HITL grills happen in the managing session.
 
-**START HERE after a clear or compact (written 2026-10-11, late night;
+**START HERE after a clear or compact (written 2026-10-12, morning;
 managing session `56063cf0…`).** Read the Standing rules below, then
-`GOAL-RUN.md` and `NEEDS-OWNER.md`. The older blocks "#68 REOPENED DESIGN",
-"#68 GRILLED" and "MERGED 2026-10-11" further down are history now.
-- **State:** `main` = `origin/main` = `a1056a3`. No open PR, no stash, no
-  local feature branch. Uncommitted on `main`: this file and
-  `NEEDS-OWNER.md` (they ride with the next PR). `.agents/` and
-  `GEMINI.md` are untracked and not ours. `pytest tests/` 597 pass.
-- **Goal:** the stage A goal was set 2026-10-11 and its condition held at
-  the last status block (#96 and #68 CLOSED, #97 OPEN and in
-  `NEEDS-OWNER.md`, no open PR, `main` in sync, tests pass). No goal is
-  needed until the owner sets the next one.
-- **Next, the owner's pick:** (a) wait for the `04t` capture after
-  Thursday morning 2026-10-15, then #97 PR 1 (plan
-  `C:\Users\benha\.claude\plans\squishy-toasting-minsky.md`); or
-  (b) start stage B now (#110 first), with the catch that #110 changes the
-  grain of `fact_fantasy_teams`, which #97 also rewrites.
-- **Picked 2026-10-11 (owner, in chat): "start stage b, now."** No `/goal`
-  was set with it, so the plan gate holds until the owner says go or sets
-  the stage B goal. **#110 plan, approved by the owner's "go" 2026-10-11 (this plan only; ask before each merge and before #109). PR 1 is built on branch `fix/110-composite-ids`:**
-  - Measured on `main` `a1056a3`: 1,812 Composite rows, all with null
-    `source_player_id` and `source_uid`, 0 null `gsis_id`, 0 duplicates on
-    `(snapshot_date, source_name, gsis_id, format, metric_key)`, one
-    snapshot. 2 combine `gsis_id` orphans (seasons 2025 and 2026): their
-    `pfr_id` is no longer in `dim_nfl_players`, so the table is stale
-    against the dim. `divisionId` is in `fact_draft_pick` and
-    `fact_draft_pick_future`; code in `02d`, `04u`, `etl_helpers`
-    (`snake_draft_order`), trade-bud `pick_value.py`, two tests; Power BI
-    only drops it in one M step of `Fact_DraftPick.tmdl`. All-null
-    untyped columns: 11, in 6 tables (list in seam inventory §5).
-  - **Progress:** PR 1 merged as #145 (`ebb60a3`) on the owner's "merge".
-    PR 2 is built on branch `fix/110-division-id`; `cap-ledger-auditor`
-    found nothing to fix. Lesson from PR 2: `load_replace_partition`
-    concats the old file with the new frame, so a renamed column must be
-    renamed in the published file first, or the table keeps both.
-    PR 2 merged as #146 (`a3d4255`). PR 3 is built on branch
-    `chore/110-combine-orphans`: `02a` rerun, same 7,434 rows, only
-    `gsis_id` moved in 5 rows (2 orphans to null, 3 nulls now resolved).
-    PR 3 merged as #147 (`e373826`). PR 4 is built on branch
-    `chore/110-sql-types`: `sql_type` on the 11 `object` columns, and
-    `check_data_model.py` now fails an `object` column without one
-    (`sql_type_errors`, `SQL_TYPES`; #108 widens the set). After PR 4,
-    #110 has only the `roster_slot` rename left, which waits for #97.
-    Next ticket is #109; the owner's "go" did not cover it, so ask first.
-    #109 starts with a lookup: can every pick leg be resolved from data
-    already captured? If not, it parks.
-  - **Slip, do not repeat:** #145's title began "fix: #110", which GitHub
-    reads as a closing keyword, so the merge closed #110. Reopened at
-    once. Never start a PR title or commit subject with fix/close/resolve
-    followed by a ticket number unless the PR finishes the ticket.
-  - **Open point for the owner (raised in PR 3):** `01e` rebuilds
-    `dim_nfl_players` on the schedule and `02a` is manual, so a combine
-    orphan can come back when a player leaves the dim. With the `gsis_id`
-    FK of ADR-0018 that would fail the dim's load. Candidate fix: put
-    `02a` in the `nflverse` Chain after `01e`.
-  - PR 1 Composite: `04y` writes `source_player_id = gsis_id` and
-    `source_uid = "Composite|<gsis_id>"`; rerun `04y` (offline) as the
-    backfill; `check_grain` docstring and `test_composite_grain`; registry
-    and `data-model.md`.
-  - PR 2 `division_id`: writers, helper, `pick_value.py`, tests, registry,
-    the M step, both tables rebuilt; `cap-ledger-auditor` (it touches `02d`).
-  - PR 3 combine orphans: rerun `02a` against today's dim (public data, no
-    login). If the rerun changes more than the two rows, stop and report.
-  - PR 4 `sql_type` on the 11 all-null columns in `docs/data_model.yml`
-    (ADR-0018 decision 3 names the key).
-  - Not in stage B: the `roster_status` → `roster_slot` rename. The #97
-    grill put #97 first, so #110 stays open after these four PRs and is
-    listed in `NEEDS-OWNER.md` under the `04t` action.
+`GOAL-RUN.md` and `NEEDS-OWNER.md`. The blocks about #68 and "MERGED
+2026-10-11" further down are history now.
+- **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
+  goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
+  untracked and not ours. `pytest tests/` 616 pass, bot suite 9.
+- **Next: the stage B `/goal`.** The owner starts it in a fresh session
+  with goal text B of `GOAL-RUN.md` (session setup is in that file). Until
+  a goal is set, the standing rules hold: plan, then the owner's go; say
+  what a PR does, then merge on the owner's "merge".
+- **Decided by the owner 2026-10-12 (plan `expressive-sprouting-squid`):**
+  - Stage B is #109 → #77 (phases 1 to 6) → #149 → #86. Why: the seam is
+    the hinge of the migration (the Postgres backend, the export step and
+    every in-season writer plug into it), it changes no behaviour so each
+    PR is proven by "tables identical before and after", and nothing in
+    it waits on the owner. Not pulled forward, and why: the #92 login code
+    cannot be proven before the owner's runner spike and may be reworked
+    if the runner is challenged; #108's generator would be built before
+    two table keys are final.
+  - `02a` joins the scheduled `nflverse` Chain after `01e` (ticket #149,
+    on map #69). Why: `01e` rebuilds `dim_nfl_players` on the schedule and
+    `02a` was manual, so a combine orphan could return and would fail the
+    dim's load once the `gsis_id` FK of ADR-0018 exists.
+  - The round after this one is stage C, which now starts with #97 and
+    the #110 `roster_slot` rename. Both wait for the owner's `04t` capture
+    after Thursday morning 2026-10-15. After that capture, check the
+    owner's claim row carries `claim_method = waiver` and a `claim_bid`.
+- **Ticket states:** #96, #68 CLOSED. #110 OPEN (only the rename left).
+  #97, #109, #77, #149, #86 OPEN and not started.
+- **Known park points in stage B:** #109's lookup failing; a grain the
+  seam's write check rejects on real data (for example the 4
+  `fact_fantasy_teams` rows with no `gsis_id`).
+- **#110, what was built (four PRs, all merged):**
+  - #145 (`ebb60a3`) Composite: `04y` writes `source_player_id = gsis_id`
+    and `source_uid = "Composite|<gsis_id>"`; `04y` rerun as the backfill
+    (1,812 rows; null grain cells 1,812 → 0; nothing else moved);
+    `tests/test_dynasty_fact_grain.py`.
+  - #146 (`a3d4255`) `divisionId` → `division_id` on `fact_draft_pick` and
+    `fact_draft_pick_future`: `02d` `build_draft_picks`, `04u`,
+    `etl.expand_snake_draft_order`, trade-bud `pick_value.py`, registry,
+    one Power BI M step; `tests/test_division_id.py`. The parsed payload
+    keeps Fantrax's key. `cap-ledger-auditor`: nothing to fix.
+  - #147 (`e373826`) combine: `02a` rerun unchanged; same 7,434 rows; only
+    `gsis_id` moved, in 5 rows (2 orphans to null, 3 nulls resolved).
+  - #148 (`ac89254`) `sql_type` on the 11 `object` columns of
+    `docs/data_model.yml`; `check_data_model.py` gains `sql_type_errors`
+    and `SQL_TYPES` (text, integer, double precision; #108 widens it);
+    `tests/test_registry_sql_types.py`.
+- **Lessons from this run:**
+  - `load_replace_partition` concats the old file with the new frame. A
+    renamed column must be renamed in the published file first, or the
+    table keeps both names.
+  - A PR title or commit subject that starts fix/close/resolve followed
+    by a ticket number closes that ticket on merge. #145 ("fix: #110")
+    closed #110; reopened at once. Use it only when the PR finishes the
+    ticket.
+  - To rerun a notebook without rewriting it: `nbconvert --to notebook
+    --execute --output-dir <scratchpad> --output x.ipynb <notebook>`.
+    `--inplace` adds run timestamps and cell ids to the file.
 - **Done 2026-10-11:** PRs #141 (`a23df3a`) and #142 (`f7b9aa4`) merged; #96
   closed with its Resolution; notes posted on #97, #130, #116, #93; map
   #70 has #96's line.
