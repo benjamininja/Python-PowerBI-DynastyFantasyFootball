@@ -76,60 +76,36 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Tighten the builders' file after the dry dispatch
-- Ticket: #166
-- Steps: 1. Move `builders.settings.json` from your user folder into the
-  repository as `.claude/builders.settings.json`. 2. Apply section 3 of
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129778615 :
-  three lines out of `allow`, six lines into `allow`, eleven lines into
-  `deny`. 3. Commit it on a branch and open a PR; say "approved" and the
-  manager merges it.
-- Context: the dry dispatch of 2026-10-12 showed your user-level allow
-  rules reach a builder (`python -c`, `gh api`, `gh issue`), so only a
-  deny rule holds. You chose the two-key merge, so the builder loses
-  `gh pr merge`.
-- Blocks: the first real dispatch, #186.
+### [ ] Finish and commit the two settings files
+- Ticket: #166, #186
+- Steps: 1. In `.claude/builders.settings.json` add to `allow`:
+  `"Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)"` and
+  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`.
+  2. Optional, same file, add to `deny`:
+  `"Edit(.claude/managers.settings.json)"` and
+  `"Write(.claude/managers.settings.json)"`. 3. Optional, in
+  `.claude/managers.settings.json` add to `deny`:
+  `"Edit(.claude/agents/**)"` and `"Write(.claude/agents/**)"`. 4. Both
+  files are still untracked: commit them on a branch and open a PR, or
+  say "commit the settings files" and the manager does that part.
+- Context: both files now match the text on #166. #186 is merged, so
+  its two proof commands exist and need one rule each; without them a
+  stage C builder parks at its first "tables identical" proof.
+- Blocks: stage C's proofs. Not #97's start.
 - Raised: 2026-10-12, by the builder manager
 
-### [ ] Create the managers' settings file
-- Ticket: #166
-- Steps: create `.claude/managers.settings.json` from the JSON block in
-  section 4 of
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129778615 ,
-  in the same PR as the builders' file or its own.
-- Context: it binds a manager started from the CLI. A manager in the
-  desktop app reads your project and user settings instead; the entry
-  below covers that case.
-- Blocks: nothing today; the manager works through prompts until then.
-- Raised: 2026-10-12, by the builder manager
-
-### [ ] Add the builder manager's commands to your settings
-- Ticket: #166
-- Steps: add the allow rules in the table under heading "E. The manager's
-  own commands" in
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129036173
-  to the settings the manager session reads. Narrow `Bash(gh pr merge *)`
-  to `Bash(gh pr merge * --squash --delete-branch)`. Leave `git branch -D`,
-  `git worktree remove --force` and `claude rm` to a prompt.
-- Context: dispatch, the `.venv` step and closeout need them.
-  `settings.local.json` is copied into builder worktrees, so a rule there
-  reaches builders too.
-- Blocks: the dry dispatch.
-- Raised: 2026-10-12, #166 grill
-
-### [ ] Clear the leftover worktree folders
+### [ ] Free the last leftover worktree folder
 - Ticket: #164 (closeout)
-- Steps: 1. Delete the folder `.claude/worktrees/vigorous-euclid-99dea6`
-  (the stage B builder's; git no longer lists it). 2. Run
-  `git worktree prune` in the main checkout. 3. If you want, also delete
-  the older folders `agent-a11df4cfac048959e`, `brave-euclid-5d75b2` and
-  `elegant-dirac-4c3411` beside it. Leave `metadata-principles`; it is a
-  live worktree.
-- Context: the manager's `git worktree remove` half-failed on a Windows
-  file lock and was not forced. What is left is a `.venv` and ignored,
-  regenerable output; no tracked file is uncommitted there.
+- Steps: 1. Archive or close the idle session "Fix null overall_rank in
+  04a in-season pulls"; it sits in `.claude/worktrees/brave-euclid-5d75b2`
+  and Windows will not delete the folder while it does. 2. Delete that
+  folder. 3. Run `git worktree prune` in the main checkout.
+- Context: on your word the manager deleted the other three leftover
+  folders on 2026-10-12. `git worktree prune` is refused to the manager
+  (it writes inside `.git`), so five stale entries stay under
+  `.git/worktrees/` until you run it.
 - Blocks: nothing.
-- Raised: 2026-10-12, stage B closeout
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Store the database secret for `migrate.yml` (later)
 - Ticket: #108 (task, map #69)
