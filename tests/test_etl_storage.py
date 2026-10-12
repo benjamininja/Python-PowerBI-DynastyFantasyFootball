@@ -352,7 +352,7 @@ TABLES = sorted(p.stem for p in (REPO / "data").glob("*.parquet"))
 # A published table the seam's guards refuse today, and the ticket that fixes
 # it. The case below asserts the refusal, so the entry has to go when the fix
 # lands. Nothing is written to such a table through the seam until then.
-REFUSED = {"fact_trade_log": "#109: the grain has no column that is non-null on every row"}
+REFUSED = {}     # empty since #109 keyed fact_trade_log on (transaction_id, asset_id)
 
 
 class TestGolden:

@@ -194,7 +194,10 @@ and non-null on the declared grain. Two are not:
   that column.
 - `fact_trade_log` is **not declared** in `data_model.yml`: it has no
   registry entry and no grain. Add it (likely `(transaction_id, asset_kind,
-  scorer_id | pick ref)`; to be determined).
+  scorer_id | pick ref)`; to be determined). **Done (#109):** the grain is
+  `(transaction_id, asset_id)`; every pick leg is resolved to its pick and
+  every pick has a `dim_roster_asset` row, so `dim_roster_asset.pick_ref`
+  is no longer an all-null column.
 
 ---
 
@@ -328,7 +331,8 @@ only where the registry declares none (`dim_scoring_period` has three
 declared `datetime64[us, UTC]` columns, added after this inventory), and a
 batch's column order is the caller's (the registry fixes the set, not the
 order; `fact_draft_pick` is published in another order). `fact_trade_log`
-is refused by the grain guard until #109 merges.
+was refused by the grain guard until #109 keyed it on
+`(transaction_id, asset_id)`.
 Phase 2 (2026-10-12) moved every `load_replace_partition` /
 `upsert_dynasty_crosswalk` caller to `write_table`. Phase 3 moved 04a
 `load_fact`, 04v `load_eligibility` and 02d's transaction-event delete, and

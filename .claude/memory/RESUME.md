@@ -11,10 +11,37 @@ managing session `56063cf0…`).** Read the Standing rules below, then
 - **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
   worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
   #77 phases 1 to 6 → #149 → #86. State per ticket:
-  - **#109: built, PARKED with PR #160 open** on one question for the
-    owner (how pick legs inside one trade are resolved). The full
-    state-back and the `NEEDS-OWNER.md` entry are on that PR's branch,
-    `feat/109-pick-legs`, and reach `main` when it merges.
+  - **#109: built on branch `feat/109-pick-legs` (PR #160).** The lookup passed: all
+    95 pick legs resolve from published tables. Plan as built (Outline →
+    Build mode → Rationale): `02d` gains `mint_pick_assets` (one `pick`
+    asset per row of `fact_draft_pick` and `fact_draft_pick_future`,
+    ADR-0006 d2), `resolve_pick_legs` (a leg with a pick number = its slot;
+    a leg without one = replay of ownership from each team's own future
+    pick, the owner hint only as tie-break and cross-check),
+    `ownership_gaps` (ADR-0006 d4) and `finish_trade_log`; BEFORE/AFTER
+    patch of `02d` plus new tests; rationale: ADR-0018 d5 fixes the key
+    `(transaction_id, asset_id)` and the ticket fixes the rest. Measured:
+    133 rows, 95 pick legs (90 slotted, 5 future) resolved, 0 in review;
+    replay = Fantrax's owner on 280 of 280 future picks after a `04u`
+    refresh (public, no login; the table was from 2026-07-22 and missed a
+    2026-08-19 trade); `dim_roster_asset` 639 → 1,899 (ids 640–1899 are
+    picks); every other table byte-identical; a rerun is byte-identical.
+    The agent's calls, reported in the PR: `pick_owner_hint` is no longer
+    written (it holds a team name); all 1,260 picks are minted, not only
+    the traded ones (ADR-0006 d2); `04u` stays manual.
+  - **#109 park ANSWERED 2026-10-12 (relayed by the manager).** Question
+    put to the owner: "when a trade moves a future pick (named only by
+    year and round), how should 02d work out which pick it is?" Answer,
+    word for word: "(a) In order, hint breaks ties (Recommended)". So
+    PR #160 stays as built: legs inside one trade resolve in sequence,
+    the owner hint only breaks a tie. The `cap-ledger-auditor` found no
+    wrong figure; its other findings were fixed before the park (a pick
+    that gets a slot keeps its asset; ownership gaps go to
+    `data/review/review_pick_ownership.csv`; an asset that moves twice
+    inside one trade goes to review). The branch was brought up to
+    `main` by a merge (a rebase needs a force push), and the `REFUSED`
+    entry for `fact_trade_log` in `tests/test_etl_storage.py` is gone:
+    the table now passes the seam's grain guard.
   - **Worktree notes:** a copy of `data/raw` captures into the worktree
     was denied by the permission classifier and not retried. `02d` is
     rerun with the scratchpad `run02d.py`, which points `DRAFT_GLOB` /
@@ -36,11 +63,7 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     contract cases on a fixture registry, the two shims byte-identical to
     their old bodies on 10 published tables, and the golden round-trip of
     every published table (byte-identical to a plain write).
-    `fact_trade_log` is in the test's `REFUSED` map: the grain guard
-    rejects it on `main` until #109 (PR #160) merges, and the case
-    asserts the refusal, so the entry must be deleted when #160 lands.
-    **Phase 5 writes `fact_trade_log` through the seam, so it needs #160
-    merged first; if it is not, park #77 there.** Measured: `02d` rerun
+    Measured: `02d` rerun
     through the shims leaves every table byte-identical. `04u` and `04p`
     reruns moved only live values (restored from HEAD, not in the PR).
     Next phases follow inventory section 8: 2 partition-replace writers,
@@ -74,8 +97,7 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     `dim_player_alias`, `dim_rookie_prospect`, `fact_rookie_rankings`,
     the FK back-fills in `04z` and
     `scripts/apply_fantrax_crosswalk_review.py`). Phase 5 touches
-    `02e`'s write call only, and needs #160 merged before
-    `fact_trade_log` goes through the seam. Phase 6 adds the static
+    `02e`'s write call only. Phase 6 adds the static
     guard test (no `read_parquet` / `to_parquet` in `notebooks/`,
     `scripts/` or `.ipynb` code cells outside the seam section) and
     deletes the shims; the goal's end condition names that test. Then
@@ -84,10 +106,15 @@ managing session `56063cf0…`).** Read the Standing rules below, then
   - **CI lesson:** checks take 5 to 10 minutes. Do a full phase of other
     work first, then read once; the first reads of #161 and #171 both
     came too early.
-  - **Permission notes:** Bash calls that pipe through `grep` / `head`
-    or use a heredoc were denied; use the Grep / Read / Write tools. A
-    `git commit -m "wip: ..."` was denied twice and not retried; the
-    real commit goes through `git commit -F <message file>`.
+  - **Permission notes:** `.claude/settings.json` denies any Bash or
+    PowerShell command whose text names a login step's file (`04a`,
+    `04v` and the others on the Never list), so `git add <that file>`
+    is denied too, and so is a test file with the same name inside it.
+    The owner said to stage those with `git add -u` (2026-10-12). Bash
+    calls that pipe through `grep` / `head` or use a heredoc are denied:
+    use the Grep / Read / Write tools. The git guardrail hook reads
+    `git push` and `--base main` in one command as a push to `main`:
+    run `git push` and `gh pr create` as two commands.
 - **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
   goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
   untracked and not ours. `pytest tests/` 616 pass, bot suite 9.

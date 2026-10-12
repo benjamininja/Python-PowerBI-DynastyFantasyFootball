@@ -427,12 +427,19 @@ tables:
       - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
       - { name: player_key, dtype: str }
-      - { name: pick_ref, dtype: object, sql_type: text }
+      - { name: pick_ref, dtype: str }
     edges:
       - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
       - { to: fact_draft_pick, via: direct, on: pick_ref }
+      - { to: fact_draft_pick_future, via: direct, on: pick_ref }
+    notes: >
+      One asset per player (keyed by scorer_id, pick_ref null) and one per
+      pick (asset_type pick, scorer_id null): every row of fact_draft_pick
+      and fact_draft_pick_future has a pick asset carrying its pick_ref
+      (ADR-0006 decision 2, #109). An asset_id is minted at first sight and
+      never re-derived.
 
   # --------------------------------------------------------------- facts
   - name: fact_nfl_combine_pro_day_metrics
@@ -621,11 +628,12 @@ tables:
 
   - name: fact_trade_log
     type: fact
-    grain: "(transaction_id, asset_kind, scorer_id, draft_year, draft_round, pick_in_round)"
+    grain: "(transaction_id, asset_id)"
     chain: fantrax_core
-    required_keys: [team_key_from, team_key_to, week]
+    required_keys: [transaction_id, asset_id, team_key_from, team_key_to, week]
     columns:
       - { name: transaction_id, dtype: str }
+      - { name: asset_id, dtype: int64 }
       - { name: asset_kind, dtype: str }
       - { name: team_key_from, dtype: str }
       - { name: team_key_to, dtype: str }
@@ -633,20 +641,26 @@ tables:
       - { name: week, dtype: str }
       - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
+      - { name: pick_ref, dtype: str }
+      - { name: draft_year, dtype: float64 }
       - { name: draft_round, dtype: float64 }
       - { name: pick_in_round, dtype: float64 }
-      - { name: draft_year, dtype: float64 }
-      - { name: pick_owner_hint, dtype: str }
       - { name: source, dtype: str }
     edges:
+      - { to: dim_roster_asset, via: direct, on: asset_id }
       - { to: dim_fantasy_teams, via: direct, on: "team_key_from, team_key_to -> team_key" }
       - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
     notes: >
-      One row per asset moved in a trade (player rows carry scorer_id; pick
-      rows carry draft_year/draft_round/pick_in_round), so no grain column is
-      non-null on every row: the grain Gate files every row as
-      grain_null_key until #109 gives the table an asset_id key.
+      One row per asset moved in a trade (ADR-0018 decision 5, #109). A
+      player row carries scorer_id; a pick row carries pick_ref, the pick it
+      resolves to in fact_draft_pick (a leg with a pick number: its slot) or
+      fact_draft_pick_future (a leg without one: found by replaying
+      ownership from each team's own pick), and so its Original Owner. A
+      pick leg that resolves to no pick is written to
+      data/review/review_trade_log_picks.csv and is not in the table.
+      draft_year, draft_round and pick_in_round are the leg as Fantrax shows
+      it.
 
   - name: fact_roster_state
     type: fact
