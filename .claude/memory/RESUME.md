@@ -149,7 +149,14 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     registry `chain: nflverse`, README order line. Merge on green; the
     body says "Closes #149"; then its line on map #69 is already there
     (the map names #149 under "Decisions so far").
-  - **#86: NOT STARTED.** ADR-0017: `fact_nfl_snap_counts`
+  - **#149 MERGED as PR #178 (`3c58b2e`), ticket closed.**
+  - **#86: BUILT on branch `feat/86-nflverse-facts`**, PR open:
+    `notebooks/02g_nflverse_inseason.py` + 15 tests, both tables' first
+    files, step `02g_nflverse_inseason` (INSEASON, `nflverse` Chain,
+    group `injury`). Known and in the PR: 880 rows point at players the
+    published `dim_nfl_players` does not hold yet (it is stale; the next
+    scheduled `01e` closes it; the step prints a warning). Merge on
+    green; "Closes #86". The plan it followed, for the record: ADR-0017: `fact_nfl_snap_counts`
     `(gsis_id, game_id)` and `fact_nfl_injuries`
     `(gsis_id, season, week)`, current season, `period` stamped from the
     game date against `dim_scoring_period`, replace the season each run,
