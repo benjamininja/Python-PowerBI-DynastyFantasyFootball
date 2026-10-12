@@ -39,6 +39,8 @@ the parquet alone.
 
 ## Project-wide architectural rules
 
+- **Principles**: [docs/PRINCIPLES.md](docs/PRINCIPLES.md) — owners are front
+  and center; judge every change by what it puts in an owner's hands.
 - **Dependencies**: `requirements.txt` (repo root) is the single source of
   truth for the `.venv` used by `run.ps1` — curated, loosely pinned (mirrors
   `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a
