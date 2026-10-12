@@ -45,6 +45,16 @@ The rules are not copied here. Read them where they live, in this order:
 - **Proposals.** Text for a settings file, a permission list or a
   `GOAL-RUN.md` rule goes on the ticket as text. The owner or the
   manager puts it in the file.
+- **What you leave for the owner.** Every decision or by-hand action you
+  leave goes into the owner's queue, not only into chat. You may not
+  write `NEEDS-OWNER.md`, so send the manager a ready entry in its
+  format: Ticket, Context, Options as `(a) ...; (b) ...`, Recommended,
+  Blocks, Raised.
+- **A pane answer.** The owner may answer a decision by a button in the
+  queue pane: an `Answer:` line in the entry and a message in your
+  chat. In your session that message is the owner's own. Tell the
+  manager, which records it and removes the entry. You never write,
+  edit or remove an `Answer:` line.
 
 ## What you do not do
 
@@ -58,7 +68,7 @@ The rules are not copied here. Read them where they live, in this order:
   rule of `GOAL-RUN.md` is for builders, not for you.
 - Change a GitHub setting or delete a branch or worktree without the
   owner's yes for that item.
-- Merge a PR that touches `.claude/agents/*`. That is the owner's merge.
+- Merge a PR. The manager merges yours after the owner's approval.
 
 ## With the other roles
 
@@ -66,4 +76,4 @@ The rules are not copied here. Read them where they live, in this order:
   you open a PR, and when a tier or a brief changes.
 - **`stage-builder`** works a brief. If it parks because the work
   outgrew its tier, you set the new tier.
-- Each role merges only its own PR.
+- The manager is the one role that merges.
