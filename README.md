@@ -2,6 +2,8 @@
 
 ETL pipeline and Power BI reporting for a 28-team, dual-conference IDP dynasty fantasy football league. Python notebooks ingest NFL data from nflverse, Fantrax, and 10 expert ranking sources into a star-schema parquet data model that feeds a Power BI dashboard.
 
+Built by millennial excellence; you're welcome. [League principles](docs/PRINCIPLES.md).
+
 ---
 
 ## League overview
