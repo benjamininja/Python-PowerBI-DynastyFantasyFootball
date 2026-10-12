@@ -76,7 +76,37 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Finish and commit the two settings files
+### [ ] Approve the planner build-out PR #198
+- Ticket: #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/198
+  by commit (three commits: `PLANNER.md`, `central-planner.md`,
+  `CLAUDE.md`) and say "approved" in the manager's session, or say what
+  to change. The manager then merges it and cleans up.
+- Context: the planner reports your rulings of 2026-10-12: it answers
+  for every wayfinder map and ticket, stages become milestones, its
+  state lives in `.claude/memory/PLANNER.md`, and it sweeps earlier
+  stages for gaps. Your "approved" confirms them to the manager.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Approve two additions to the manager's rules
+- Ticket: #166, #162
+- Steps: say "approved, write the rule PR" in the manager's session, or
+  say what to change. The manager then writes them into `GOAL-RUN.md`,
+  merges and cleans up.
+- Context: (1) the dispatch recipe also passes the eleven deny rules
+  with `--disallowedTools`, a belt beside the builders' file that can
+  only deny. (2) The manager asks the planner for a read when a
+  builder's PR changes an ADR, a grain or a key, touches a file its
+  ticket did not name, leaves a done condition unmet or reworded, adds
+  a design choice, or outgrew its tier. A read does not replace the
+  re-proof of Green; a "plan breach" holds the merge until planner and
+  manager agree or you rule.
+- Blocks: nothing today; stage C would run under them.
+- Raised: 2026-10-12, by the builder manager and the planner
+
+### [ ] Add the two proof-command rules to the builders' file
 - Ticket: #166, #186
 - Steps: 1. In `.claude/builders.settings.json` add to `allow`:
   `"Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)"` and
@@ -85,14 +115,28 @@ can be traced.
   `"Edit(.claude/managers.settings.json)"` and
   `"Write(.claude/managers.settings.json)"`. 3. Optional, in
   `.claude/managers.settings.json` add to `deny`:
-  `"Edit(.claude/agents/**)"` and `"Write(.claude/agents/**)"`. 4. Both
-  files are still untracked: commit them on a branch and open a PR, or
-  say "commit the settings files" and the manager does that part.
-- Context: both files now match the text on #166. #186 is merged, so
-  its two proof commands exist and need one rule each; without them a
-  stage C builder parks at its first "tables identical" proof.
+  `"Edit(.claude/agents/**)"` and `"Write(.claude/agents/**)"`. 4. Say
+  "commit the settings files" and the manager commits and merges them.
+- Context: both files are tracked since PR #197. #186 is merged, so its
+  two proof commands exist and need one rule each; without them a stage C
+  builder parks at its first "tables identical" proof.
 - Blocks: stage C's proofs. Not #97's start.
 - Raised: 2026-10-12, by the builder manager
+
+### [ ] Turn on Projects and give the planner's token the project scope
+- Ticket: #151
+- Steps: 1. Repository Settings, Features: tick Projects. 2. In a
+  terminal run `gh auth refresh -s project` and finish the browser step.
+  3. Say "projects ready" in the planner's session. The planner then
+  creates the Project and adds the tickets, and gives you the steps for
+  the saved views and the auto-add workflow, which GitHub lets only a
+  person set in the page.
+- Context: you ruled a Project as a derived view of the maps, stages as
+  milestones. Projects are off on the repository and the token has the
+  scopes gist, read:org, repo and workflow only. Milestones work without
+  this.
+- Blocks: the board only; nothing in the build.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Free the last leftover worktree folder
 - Ticket: #164 (closeout)
