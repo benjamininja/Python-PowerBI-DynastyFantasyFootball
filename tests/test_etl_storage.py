@@ -35,6 +35,9 @@ REGISTRY = {"tables": [
                  {"name": "empty", "dtype": "object", "sql_type": "text"},
                  {"name": "flag", "dtype": "bool"}, {"name": "text", "dtype": "str"},
                  {"name": "camelCase", "dtype": "str"}]},
+    {"name": "fact_unseen", "type": "fact", "grain": "id",
+     "columns": [{"name": "id", "dtype": "int64"},
+                 {"name": "games", "dtype": "object", "sql_type": "integer"}]},
 ]}
 
 
@@ -208,9 +211,24 @@ class TestGuards:
         with pytest.raises(etl.StorageError, match="cannot cast"):
             etl.write_table("dim_one", pd.DataFrame({"key": ["x", "y"], "label": ["a", "b"]}))
 
+    def test_an_object_column_of_numbers_and_na_casts_to_float(self, store):
+        rows = pd.DataFrame({"day": BASE["day"], "source": BASE["source"], "player": BASE["player"],
+                             "value": pd.Series([1.0, pd.NA, 3.0, 4.0], dtype="object")})
+        etl.write_table("fact_snap", rows)
+        got = etl.read_table("fact_snap")["value"]
+        assert str(got.dtype) == "float64" and got.isna().tolist() == [False, True, False, False]
+
     def test_values_in_a_column_declared_empty_text_must_be_text(self, store):
         with pytest.raises(etl.StorageError, match="text declared"):
             etl.write_table("fact_types", typed().assign(empty=[1.0, 2.0, 3.0]))
+
+    def test_first_numbers_land_in_a_column_declared_empty_numeric(self, store):
+        # `object` + a numeric sql_type: no value seen yet. The old writers
+        # let the first ones in; so does the seam, uncast.
+        etl.write_table("fact_unseen", pd.DataFrame({"id": [1, 2], "games": [None, None]}))
+        etl.write_table("fact_unseen", pd.DataFrame({"id": [3], "games": [3.0]}),
+                        mode="replace_partition", keys=("id",))
+        assert etl.read_table("fact_unseen")["games"].tolist()[2] == 3.0
 
     def test_an_unknown_mode_raises(self, store):
         with pytest.raises(etl.StorageError, match="unknown write mode"):

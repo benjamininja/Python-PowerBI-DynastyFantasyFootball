@@ -47,47 +47,47 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     3 hand-rolled replace-by-week, 4 upserts, 5 seeds and full rebuilds,
     6 readers + the static guard test + delete the shims.
     **Phase 1 MERGED as PR #161 (`f92de07`), 6 checks green.**
-  - **#77 phase 2: IN PROGRESS on branch `feat/77-seam-phase2`** (one
-    local commit `wip: #77 phase 2 call sites`, rebased on `origin/main`
-    `f92de07`; not pushed, no PR yet). Done: every
-    `load_replace_partition` / `upsert_dynasty_crosswalk` call site now
-    calls `write_table(name, df, mode="replace_partition", keys=...)`:
-    `02d` (2), `04p` (2), `04r`, `04s` (2), `04u`, notebooks `04b`, `04x`,
-    `04f` (crosswalk write then `read_table` for the full frame), `04y`,
-    `04d`, `04e`. Test fixtures of `test_02d_main`, `test_04r_roster_state`
-    and `test_04s_scoring` also point `etl.CFG.data_dir` at the temp dir
-    (the seam finds a table there, not through the module's `*_PATH`).
-    `pytest tests/` 692 pass before the rebase. The edit script is
-    scratchpad `s77_edit_p2.py`.
-    **Left for phase 2:** (1) the proof run: `04y` (nbconvert to the
-    scratchpad) and `02d` (`run02d.py`) rerun, then `cmp_tables.py HEAD`
-    must show every table byte-identical. **Done just before the compact:
-    32 of 32 tables byte-identical to HEAD after `04y` and `02d`.**
-    Optionally run `04p`, `04r`, `04u`, `04b`, `04d`
-    (public, no login) to show their batches pass the guards, then
-    `git checkout -- data/` because live values move. `04x`, `04f` and
-    `04s` cannot be run here (manual file / login); say so in the PR.
-    (2) `git status` must show no `data/` change before the commit.
-    (3) green checklist, amend the wip commit message to
-    `feat: #77 phase 2, partition-replace writers call write_table`
-    (title must not start with fix/close/resolve), push, PR "Part of #77",
-    one CI read after the checks have had about 5 minutes, merge on green.
-    The shims stay until phase 6.
-  - **Phases 3 to 6 notes:** phase 3 = `04a` `load_fact`, `04v`
-    `load_eligibility`, `02d`'s `TXN_EVENT_TYPES` delete
-    (`partition={"event_type": TXN_EVENT_TYPES}`), drop `04a`'s
-    `score→fpts` shim; `04a` and `04v` need a login to run, so their proof
-    is tests plus a byte-identity test against the old body, as phase 1
-    did for the shims. Phase 5 touches `02e`'s write call only, and needs
-    #160 merged before `fact_trade_log` goes through the seam. Phase 6
-    adds the static guard test (no `read_parquet` / `to_parquet` in
-    `notebooks/`, `scripts/` or `.ipynb` code cells outside the seam
-    section) and deletes the shims; the goal's end condition names that
-    test. Then #149 (`02a` into the `nflverse` Chain after `01e`, registry
+  - **#77 phase 2: MERGED as PR #171 (`e3af5d2`).** Every
+    `load_replace_partition` / `upsert_dynasty_crosswalk` caller now
+    calls `write_table(name, df, mode="replace_partition", keys=...)`.
+    The shims have no caller left; phase 6 deletes them.
+  - **#77 phase 3: built on branch `feat/77-seam-phase3`.** `04a`
+    `load_fact` and `04v` `load_eligibility` call `etl.write_table(...,
+    keys=("season", "week"))` (`04a` now imports `etl_helpers`; `04v`
+    takes `etl` from `04a`); the `score→fpts` shim is gone; `02d`'s
+    transaction rows are written with
+    `partition={"event_type": TXN_EVENT_TYPES}`. Two seam changes came
+    with it: (1) an `object` column with a numeric `sql_type` (no value
+    seen yet) accepts its first numbers, uncast, as the old writers did
+    (`fact_minor_eligibility.games_played`); (2) `_cast` sends an
+    object column of numbers and `pd.NA` through `to_numeric`. Measured:
+    the seam writes the bytes the old bodies wrote on all 7 partitions
+    of `fact_fantrax_adp` and the 1 of `fact_minor_eligibility`. `02d`
+    rerun: 31 tables byte-identical; `fact_roster_transactions` has the
+    same arrow schema, values and row order, and differs only in the
+    pandas note in the file footer for `draft_round`, `pick_in_round`,
+    `pick_overall` (`numpy_type` object → float64, because the batch is
+    now cast before the concat). The file is not in the PR; the next
+    `02d` run rewrites it once. `04a` and `04v` need a login and were
+    not run.
+  - **Phases 4 to 6 notes:** phase 4 = upserts (`dim_roster_asset`,
+    `dim_player_alias`, `dim_rookie_prospect`, `fact_rookie_rankings`,
+    the FK back-fills in `04z` and
+    `scripts/apply_fantrax_crosswalk_review.py`). Phase 5 touches
+    `02e`'s write call only, and needs #160 merged before
+    `fact_trade_log` goes through the seam. Phase 6 adds the static
+    guard test (no `read_parquet` / `to_parquet` in `notebooks/`,
+    `scripts/` or `.ipynb` code cells outside the seam section) and
+    deletes the shims; the goal's end condition names that test. Then
+    #149 (`02a` into the `nflverse` Chain after `01e`, registry
     `chain`, docs) and #86 (ADR-0017).
-  - **CI lesson:** checks take about 4 minutes. Do other work first, then
-    read once; the first read of #161 came too early and a second was
-    needed.
+  - **CI lesson:** checks take 5 to 10 minutes. Do a full phase of other
+    work first, then read once; the first reads of #161 and #171 both
+    came too early.
+  - **Permission notes:** Bash calls that pipe through `grep` / `head`
+    or use a heredoc were denied; use the Grep / Read / Write tools. A
+    `git commit -m "wip: ..."` was denied twice and not retried; the
+    real commit goes through `git commit -F <message file>`.
 - **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
   goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
   untracked and not ours. `pytest tests/` 616 pass, bot suite 9.

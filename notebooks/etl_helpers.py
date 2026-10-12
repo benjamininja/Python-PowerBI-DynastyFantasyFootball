@@ -639,6 +639,9 @@ def fold_ranks_long(df, source_col="source_name",
 WriteMode = Literal["replace", "replace_partition", "upsert"]
 REGISTRY_PATH = _ROOT / "docs" / "data_model.yml"
 _TEXT_DTYPES = ("str", "string", "object")
+# An `object` column has held no value yet; its `sql_type` says what it will
+# hold. Numbers may land in one of these (the registry is updated after).
+_NUMERIC_SQL_TYPES = ("integer", "double precision")
 _registry_cache: dict = {}
 
 
@@ -683,6 +686,18 @@ def _table_path(name: str) -> Path:
     return Path(CFG.data_dir) / f"{name}.parquet"
 
 
+def _cast(values: pd.Series, declared: str) -> pd.Series:
+    """`values` as the registry dtype. An object column of numbers and pd.NA
+    (rows built one dict at a time) goes through to_numeric: astype cannot
+    turn pd.NA into a float."""
+    try:
+        return values.astype(declared)
+    except (TypeError, ValueError):
+        if str(values.dtype) != "object" or not pd.api.types.is_numeric_dtype(pd.Series(dtype=declared)):
+            raise
+        return pd.to_numeric(values).astype(declared)
+
+
 def _coerce(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
     """Cast each declared column of `df` to its registry dtype."""
     out = df
@@ -698,13 +713,15 @@ def _coerce(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
             raise StorageError(f"{entry['name']}.{name}: {real} given, {declared} declared -- "
                                f"the seam never converts a timestamp's time zone")
         if declared in _TEXT_DTYPES:
-            if out[name].notna().any():
+            first_numbers = (col.get("sql_type") in _NUMERIC_SQL_TYPES
+                             and pd.api.types.is_numeric_dtype(out[name]))
+            if out[name].notna().any() and not first_numbers:
                 raise StorageError(f"{entry['name']}.{name}: {real} given, text declared")
             continue                                    # an all-null column of another type
         try:
             if out is df:
                 out = df.copy()
-            out[name] = out[name].astype(declared)
+            out[name] = _cast(out[name], declared)
         except (TypeError, ValueError) as exc:
             raise StorageError(f"{entry['name']}.{name}: cannot cast {real} to {declared}: {exc}") from exc
     return out

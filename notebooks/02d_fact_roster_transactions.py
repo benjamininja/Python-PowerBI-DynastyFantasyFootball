@@ -1421,7 +1421,8 @@ def main():
                       ignore_index=True)[LEDGER_COLS])
         assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
         assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
-        out.to_parquet(FACT_PATH, index=False)
+        write_table("fact_roster_transactions", txn_fact, mode="replace_partition",
+                    partition={"event_type": TXN_EVENT_TYPES})
         by_type = txn_fact["event_type"].value_counts().to_dict()
         print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
               f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")

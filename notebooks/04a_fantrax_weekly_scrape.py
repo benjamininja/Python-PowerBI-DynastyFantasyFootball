@@ -62,8 +62,14 @@ from pathlib import Path
 import json
 import os
 import re
+import sys
 
 import pandas as pd
+
+for _p in (Path.cwd() / "notebooks", Path.cwd()):
+    if (_p / "etl_helpers.py").exists():
+        sys.path.insert(0, str(_p)); break
+import etl_helpers as etl
 
 
 @dataclass
@@ -723,25 +729,17 @@ def backfill_player_stats(cfg: LeagueConfig, season: int, week: str = "YTD",
 
 def load_fact(df: pd.DataFrame, cfg: LeagueConfig = CFG) -> str:
     """
-    Write this week's snapshot to the parquet fact with replace-by-(season, week):
-    each run scrapes the whole board for the current week, so we drop any existing
-    rows for the (season, week) pairs in `df` and append the fresh ones. This is
-    truly idempotent (no orphan rows left behind when the board composition shifts
-    between runs), unlike a plain key-level drop_duplicates.
+    Write this week's snapshot to the fact with replace-by-(season, week):
+    each run scrapes the whole board for the current week, so the storage seam
+    drops any existing rows for the (season, week) pairs in `df` and appends the
+    fresh ones. This is truly idempotent (no orphan rows left behind when the
+    board composition shifts between runs), unlike a plain key-level
+    drop_duplicates.
     """
-    path = f"{cfg.data_dir}/{cfg.fact_name}.parquet"
-    if Path(path).exists():
-        old = pd.read_parquet(path)
-        # Migrate the pre-2026-06 schema: `score` was renamed to `fpts`.
-        if "score" in old.columns and "fpts" not in old.columns:
-            old = old.rename(columns={"score": "fpts"})
-        keys = set(map(tuple, df[["season", "week"]].drop_duplicates().to_numpy()))
-        mask = old[["season", "week"]].apply(tuple, axis=1).isin(keys)
-        df = pd.concat([old[~mask], df], ignore_index=True)
-    # Safety net for an identical re-run within the same partition.
+    # Safety net for a scorer repeated inside the batch (the seam refuses one).
     df = df.drop_duplicates(subset=["scorer_id", "season", "week"], keep="last")
-    df.to_parquet(path, index=False)
-    return path
+    etl.write_table(cfg.fact_name, df, mode="replace_partition", keys=("season", "week"))
+    return f"{cfg.data_dir}/{cfg.fact_name}.parquet"
 
 
 # %%
