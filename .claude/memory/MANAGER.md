@@ -57,13 +57,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - The queue: whatever waits on the owner goes into the **main
   checkout's** `NEEDS-OWNER.md`, never chat alone. The planner sends a
   ready entry; the manager writes it. Decisions use `(a) ...; (b) ...`.
-  The pane (`owner-queue` 0.4.1) stages answers and writes `Answer:`
+  The pane (`owner-queue` 0.4.2) stages answers and writes `Answer:`
   lines on Submit; no agent touches one. Before merging a state PR,
   check the main checkout's copy for a pane-written line. A Submit's
   chat message goes to the session the pane is open in, so an answer
   to the manager's entry can arrive through the planner: read the
-  line in the file itself. Put anything the owner must paste in
-  backticks (each code span gets a Copy button). A session
+  line in the file itself. Text the owner must paste goes in a
+  fenced block, one fence per paste; inline code is for names only. A session
   started before 2026-10-12 runs an old pane that reads its own
   worktree's file: an answer there does not count.
 - A planner PR is merged without `--delete-branch`; its branches and
@@ -88,9 +88,10 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   say in every brief: the plan rides in the PR body,
   a park comes by message, memory-doc edits are listed in the PR body
   and the manager writes them.
-- A builder cannot run `compare_tables.py` or `02d --raw-dir` until
-  the owner adds the two allow rules; the manager runs them at
-  re-proof.
+- The builders' file in the main checkout now allows
+  `compare_tables.py`, `02d --raw-dir` and Edit/Write under
+  `.claude/memory/**` (owner's edit, 2026-10-12, not yet committed).
+  Not yet proven on a builder.
 - Re-proof: in the builder's worktree at the PR head. The bot suite
   runs in a throwaway venv from `discord_bot/requirements.txt` (kept
   in the session scratchpad as `botvenv`; rebuild if gone).
@@ -150,11 +151,12 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #92 #93 #116. In no stage: #130,
    #211 (the owner's).
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): four allow rules
-for the builders' file (the two proof commands; Edit and Write under
-`.claude/memory/**`, the owner's pane answer (a) of 2026-10-12), then
-"commit the settings files"; the
-`04t` capture; the Power BI check (#211); try the 0.4.1 pane; the
+**Left with the owner** (all in `NEEDS-OWNER.md`): the word "commit
+the settings files" (the owner's edits sit uncommitted in the main
+checkout: builders 55 allow / 32 deny, managers 37 / 21; on the word,
+commit both unedited from a branch and merge on green; do not
+`git restore` or stash them meanwhile); the
+`04t` capture; the Power BI check (#211); try the 0.4.2 pane; the
 planner's PR #216 (merge on "approved"); the Project's
 views by hand; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
