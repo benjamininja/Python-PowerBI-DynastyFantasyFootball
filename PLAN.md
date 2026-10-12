@@ -26,13 +26,24 @@ has the path). Plan approved; user authorized rewrite + force-push.
   saved memory edits + untracked files; `.venv` + `pre-commit install`.
   Every session/worktree restarts on the fresh clone — **never push from an
   old clone**.
-- [x] (ask) make `pii-scan` a required check on `main` — ruleset
-  "main: require pii-scan", no bypass actors.
+- [x] (ask) make `pii-scan` a required check on `main` — ruleset now
+  "main: require pii-scan, tests, bot-tests", no bypass actors.
 - [x] Remove the temporary scrub allow rules from `~/.claude/settings.json` —
   n/a, none found.
 - [x] Old clone + kit work dir removed. User declined (risk accepted):
   GitHub Support sensitive-data request; moving owner columns off the
   link-shared Sheet.
+
+## [ ] ACTIVE — Repo metadata + managing-session roles (charted 2026-10-12)
+
+Run from the session `dynastyFantasyFootball-central-planner`. State lives
+on the maps, not here.
+
+- [Map #151](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/151):
+  repo metadata truth-up + league principles
+  ([docs/PRINCIPLES.md](docs/PRINCIPLES.md)).
+- [Map #162](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/162):
+  managing-session roles in `.claude/agents/` + the session-dispatch plugin.
 
 ## [ ] ACTIVE — Supabase + in-season ETL: 3 wayfinder maps (charted 2026-09-26)
 
