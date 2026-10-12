@@ -28,7 +28,9 @@
       "Edit(.claude/builders.settings.json)", "Edit(.claude/managers.settings.json)",
       "Write(.claude/settings.json)", "Write(.claude/settings.local.json)",
       "Write(.claude/builders.settings.json)", "Write(.claude/managers.settings.json)",
-      "Read(.env)", "Edit(.env)", "Write(.env)"
+      "Read(.env)", "Edit(.env)", "Write(.env)",
+      "Edit(.claude/agents/**)",
+      "Write(.claude/agents/**)"
     ]
   }
 }
