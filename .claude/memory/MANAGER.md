@@ -33,6 +33,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - No builder is running. No PR is open (the planner's #220 was merged
   on the owner's "approved, merge 220", 2026-10-12). `main` is clean;
   779 tests.
+- Worktree cleanup, on the owner's approved plan (2026-10-12): four
+  empty leftover folders deleted, upstream `spha-wt` and `oq39`
+  removed, branch `owner-queue-030` deleted. Left:
+  the empty `brave-euclid-5d75b2` (held by an idle session) and stale
+  entries under `.git/worktrees/` in both repositories, which git
+  cannot delete ("Permission denied", likely OneDrive); one queue
+  Action covers them. The planner's upstream scratch worktree `sd`
+  (branch `session-dispatch-plugin`) is live: leave it.
+- Work before Wednesday, the planner's report (2026-10-12), waiting
+  on the owner's word: #92 as a partial (spike workflow switched
+  off, medium) and four of #110's five parts (medium); each needs
+  the planner's brief first. #130 is a grill, owner and planner.
 - The 0.5.0 message back is proven (2026-10-12): a test Decision
   naming the planner's session, answered in the manager's pane, was
   carried to the planner's chat and not to the manager's. Two things

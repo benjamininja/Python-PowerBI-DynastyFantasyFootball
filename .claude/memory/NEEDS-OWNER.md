@@ -66,18 +66,42 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Remove two scratch worktrees of the upstream repo
-- Ticket: #167
-- Steps: in `C:\Users\benha\OneDrive\Documents\GitHub\skills-plugins-hooks-agents`
-  run `git worktree list`, then `git worktree remove` on the two entries
-  under `AppData\Local\Temp\claude` (folders `oq39` and `spha-wt`), then
-  `git branch -D owner-queue-030`.
-- Context: `oq39` is the planner's, made today to put 0.3.0 on upstream
-  PR #39 without touching your checkout; it is clean and pushed.
-  `spha-wt` is from an earlier session. The planner does not delete a
-  worktree or branch without your yes.
+### [ ] Clear the stale worktree entries OneDrive will not let go
+- Ticket: #167, #164
+- Steps: 1. Archive or close the idle session "Fix null overall_rank in
+  04a in-season pulls"; it holds the empty folder
+  `.claude/worktrees/brave-euclid-5d75b2`. 2. Pause OneDrive sync (tray
+  icon, Pause syncing). 3. In a terminal at the repo root run the three
+  blocks below. 4. Resume OneDrive sync and say "done" in the manager's
+  session.
+
+```powershell
+Remove-Item -Recurse -Force .claude\worktrees\brave-euclid-5d75b2
+```
+
+```powershell
+git worktree prune -v
+```
+
+```powershell
+git -C ..\skills-plugins-hooks-agents worktree prune -v
+```
+
+- Context: on your word (2026-10-12) the manager deleted four of the
+  five leftover folders, removed the upstream scratch worktrees
+  `spha-wt` and `oq39` (the planner said it was finished with it)
+  and deleted the local branch `owner-queue-030`. What is left is harmless and only untidy: one empty folder
+  held by the idle session, five stale entries under `.git/worktrees/`
+  of this repository and two (`spha-wt`, `oq39`) in the upstream
+  repository.
+  Git reports "Permission denied" on deleting them, in the manager's
+  shell and in yours; the folders carry OneDrive's attributes, so the
+  likely holder is OneDrive sync. `git worktree list` is already
+  correct in both repositories. The planner's new scratch worktree
+  of the upstream repository (branch `session-dispatch-plugin`) is
+  live and stays.
 - Blocks: nothing.
-- Raised: 2026-10-12, by the planner
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Fresh 04t capture, after Wednesday 2026-10-14, 8:00 am
 - Ticket: #97 (task, map #70)
@@ -96,19 +120,6 @@ can be traced.
 - Blocks: #97 PR 1, and through it the #110 rename and #108's first
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
-
-### [ ] Free the last leftover worktree folder
-- Ticket: #164 (closeout)
-- Steps: 1. Archive or close the idle session "Fix null overall_rank in
-  04a in-season pulls"; it sits in `.claude/worktrees/brave-euclid-5d75b2`
-  and Windows will not delete the folder while it does. 2. Delete that
-  folder. 3. Run `git worktree prune` in the main checkout.
-- Context: on your word the manager deleted the other three leftover
-  folders on 2026-10-12. `git worktree prune` is refused to the manager
-  (it writes inside `.git`), so five stale entries stay under
-  `.git/worktrees/` until you run it.
-- Blocks: nothing.
-- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Store the database secret for `migrate.yml` (later)
 - Ticket: #108 (task, map #69)
