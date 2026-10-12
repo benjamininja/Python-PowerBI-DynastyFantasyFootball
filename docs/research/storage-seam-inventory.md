@@ -194,7 +194,10 @@ and non-null on the declared grain. Two are not:
   that column.
 - `fact_trade_log` is **not declared** in `data_model.yml`: it has no
   registry entry and no grain. Add it (likely `(transaction_id, asset_kind,
-  scorer_id | pick ref)`; to be determined).
+  scorer_id | pick ref)`; to be determined). **Done (#109):** the grain is
+  `(transaction_id, asset_id)`; every pick leg is resolved to its pick and
+  every pick has a `dim_roster_asset` row, so `dim_roster_asset.pick_ref`
+  is no longer an all-null column.
 
 ---
 

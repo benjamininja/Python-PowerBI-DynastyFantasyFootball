@@ -8,6 +8,33 @@ GitHub; HITL grills happen in the managing session.
 managing session `56063cf0…`).** Read the Standing rules below, then
 `GOAL-RUN.md` and `NEEDS-OWNER.md`. The blocks about #68 and "MERGED
 2026-10-11" further down are history now.
+- **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
+  worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
+  #77 phases 1 to 6 → #149 → #86. State per ticket:
+  - **#109: built on branch `feat/109-pick-legs`.** The lookup passed: all
+    95 pick legs resolve from published tables. Plan as built (Outline →
+    Build mode → Rationale): `02d` gains `mint_pick_assets` (one `pick`
+    asset per row of `fact_draft_pick` and `fact_draft_pick_future`,
+    ADR-0006 d2), `resolve_pick_legs` (a leg with a pick number = its slot;
+    a leg without one = replay of ownership from each team's own future
+    pick, the owner hint only as tie-break and cross-check),
+    `ownership_gaps` (ADR-0006 d4) and `finish_trade_log`; BEFORE/AFTER
+    patch of `02d` plus new tests; rationale: ADR-0018 d5 fixes the key
+    `(transaction_id, asset_id)` and the ticket fixes the rest. Measured:
+    133 rows, 95 pick legs (90 slotted, 5 future) resolved, 0 in review;
+    replay = Fantrax's owner on 280 of 280 future picks after a `04u`
+    refresh (public, no login; the table was from 2026-07-22 and missed a
+    2026-08-19 trade); `dim_roster_asset` 639 → 1,899 (ids 640–1899 are
+    picks); every other table byte-identical; a rerun is byte-identical.
+    The agent's calls, reported in the PR: `pick_owner_hint` is no longer
+    written (it holds a team name); all 1,260 picks are minted, not only
+    the traded ones (ADR-0006 d2); `04u` stays manual.
+  - **Worktree notes for this run:** a copy of `data/raw` captures into
+    the worktree was denied by the permission classifier (PII handling)
+    and was not retried. `02d` is rerun with the scratchpad `run02d.py`,
+    which points `DRAFT_GLOB` / `TXN_GLOB` at the main checkout's
+    `data/raw` and reads in place. The bot suite runs with the managing
+    session's scratchpad `botvenv`.
 - **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
   goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
   untracked and not ours. `pytest tests/` 616 pass, bot suite 9.

@@ -61,6 +61,7 @@ graph LR
     dim_roster_asset --> dim_nfl_players
     dim_roster_asset --> dim_rookie_prospect
     dim_roster_asset --> fact_draft_pick
+    dim_roster_asset --> fact_draft_pick_future
     fact_nfl_combine_pro_day_metrics --> dim_nfl_players
     fact_nfl_combine_pro_day_metrics --> dim_rookie_prospect
     fact_fantasy_teams --> dim_fantasy_teams
@@ -80,6 +81,7 @@ graph LR
     fact_dead_money --> dim_contract
     fact_dead_money --> dim_nfl_players
     fact_dead_money -.via dim_fantrax_crosswalk.-> dim_nfl_players
+    fact_trade_log --> dim_roster_asset
     fact_trade_log --> dim_fantasy_teams
     fact_trade_log --> dim_fantrax_crosswalk
     fact_trade_log --> dim_nfl_players

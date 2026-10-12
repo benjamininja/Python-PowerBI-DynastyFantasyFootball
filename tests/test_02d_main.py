@@ -2,7 +2,8 @@
 
 main() runs against a throwaway data dir: the draft-results and
 transaction-history fixtures as the raw captures, hand-built dims, and a
-small Roster State, preseason capture and eligibility list. The module's
+small Roster State, preseason capture, eligibility list and future-pick
+table. The module's
 `DATA` and every `*_PATH` / `*_GLOB` constant are pointed at that dir, so
 nothing under data/ is written. Only dim_contract and dim_season come from
 data/ (copied in).
@@ -44,6 +45,9 @@ TEAM_KEY = {team_id: f"A{i:02d}" for i, team_id in enumerate(TEAM_IDS, 1)}
 # What the fixtures hold, counted off the raw rows rather than through 02d's parsers.
 PLAYER_TRADES = [r for r in TXNS if r.get("transactionCode") is None
                  and (r.get("scorer") or {}).get("scorerId")]
+PICK_TRADES = [r for r in TXNS if r.get("transactionCode") is None
+               and not (r.get("scorer") or {}).get("scorerId")]
+FUTURE_YEARS, FUTURE_ROUNDS = (2027, 2028), range(1, 6)
 CLAIMS = [r for r in TXNS if r.get("transactionCode") == "CLAIM"]
 DROPS = [r for r in TXNS if r.get("transactionCode") == "DROP"]
 
@@ -100,6 +104,12 @@ def write_inputs(data: Path):
     pd.DataFrame({"scorer_id": [ELIGIBLE["scorerId"]], "season": [2026], "week": ["PRE"],
                   "capture_date": ["2026-07-18"]}
                  ).to_parquet(data / "fact_minor_eligibility.parquet", index=False)
+    # 04u's table: every team's own pick of each future round, none traded yet.
+    pd.DataFrame(
+        [(f"{year}|{team}|{rnd}", f"{year}-{year + 1}", rnd, team, team)
+         for year in FUTURE_YEARS for rnd in FUTURE_ROUNDS for team in TEAM_KEY.values()],
+        columns=["pick_ref", "draft_season", "round", "original_owner", "current_owner"]
+    ).to_parquet(data / "fact_draft_pick_future.parquet", index=False)
 
 
 @pytest.fixture
@@ -298,9 +308,12 @@ class TestMain:
         rt.main()
         out = outputs()
         assets, ledger = out["ASSET_PATH"], out["FACT_PATH"]
-        assert assets["asset_id"].is_unique and assets["scorer_id"].is_unique
+        # a pick asset has no scorer; among the others the scorer is the key
+        players = assets[assets["asset_type"] != "pick"]
+        assert assets["asset_id"].is_unique and players["scorer_id"].is_unique
+        assert players["scorer_id"].notna().all() and players["pick_ref"].isna().all()
         assert set(ledger["scorer_id"]) | {ROSTERED_ONLY} <= set(assets["scorer_id"])
-        by_scorer = assets.set_index("scorer_id")
+        by_scorer = players.set_index("scorer_id")
         assert (ledger["asset_id"] == ledger["scorer_id"].map(by_scorer["asset_id"])).all()
         assert by_scorer.loc[MADE[0]["scorerId"], "asset_type"] == "player"
         assert by_scorer.loc[ON_STATE["scorerId"], "asset_type"] == "prospect"
@@ -312,6 +325,50 @@ class TestMain:
         log = out["TRADE_LOG_PATH"]
         assert len(log) == sum(r.get("transactionCode") is None for r in TXNS)
         assert int((log["asset_kind"] == "player").sum()) == len(PLAYER_TRADES)
+
+    def test_every_pick_is_an_asset(self, data):
+        rt.main()
+        out = outputs()
+        picks = out["ASSET_PATH"][out["ASSET_PATH"]["asset_type"] == "pick"]
+        future = pd.read_parquet(data / "fact_draft_pick_future.parquet")
+        assert set(picks["pick_ref"]) == set(out["PICK_PATH"]["pick_ref"]) | set(future["pick_ref"])
+        assert picks["pick_ref"].is_unique and picks["scorer_id"].isna().all()
+
+    def test_trade_log_is_keyed_by_transaction_and_asset(self, data):
+        rt.main()
+        out = outputs()
+        log, assets = out["TRADE_LOG_PATH"], out["ASSET_PATH"].set_index("asset_id")
+        assert list(log.columns) == rt.TRADE_LOG_COLS
+        assert log["asset_id"].notna().all()
+        assert not log.duplicated(["transaction_id", "asset_id"]).any()
+        picks = log[log["asset_kind"] == "pick"]
+        assert len(picks) == len(PICK_TRADES) > 0
+        # each pick leg is its sender's own pick of that year and round
+        want = (picks["draft_year"].astype(int).astype(str) + "|" + picks["team_key_from"]
+                + "|" + picks["draft_round"].astype(int).astype(str))
+        assert picks["pick_ref"].tolist() == want.tolist()
+        assert assets.loc[picks["asset_id"], "pick_ref"].tolist() == picks["pick_ref"].tolist()
+        players = log[log["asset_kind"] == "player"]
+        assert assets.loc[players["asset_id"], "scorer_id"].tolist() == players["scorer_id"].tolist()
+        assert not rt.PICK_REVIEW_PATH.exists()
+
+    def test_a_pick_leg_with_no_pick_table_goes_to_review(self, data):
+        (data / "fact_draft_pick_future.parquet").unlink()
+        rt.main()
+        log = outputs()["TRADE_LOG_PATH"]
+        assert int((log["asset_kind"] == "pick").sum()) == 0
+        assert len(log) == len(PLAYER_TRADES) and log["asset_id"].notna().all()
+        review = pd.read_csv(rt.PICK_REVIEW_PATH)
+        assert len(review) == len(PICK_TRADES) and list(review.columns) == rt.PICK_REVIEW_COLS
+
+    def test_the_review_file_goes_when_every_leg_resolves(self, data):
+        future = pd.read_parquet(data / "fact_draft_pick_future.parquet")
+        (data / "fact_draft_pick_future.parquet").unlink()
+        rt.main()
+        assert rt.PICK_REVIEW_PATH.exists()
+        future.to_parquet(data / "fact_draft_pick_future.parquet", index=False)
+        rt.main()
+        assert not rt.PICK_REVIEW_PATH.exists()
 
     def test_a_second_run_changes_nothing(self, data):
         rt.main()
