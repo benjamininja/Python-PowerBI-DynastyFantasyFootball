@@ -5,7 +5,7 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, late evening)
+## START HERE (state 2026-10-12, late evening, before a compact)
 
 - **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
   `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
@@ -33,9 +33,10 @@ planner session can resume from the repository alone. The rules are in
 - **#230** (new, Stage D, medium, child of #70): the login answers the
   TOTP code prompt. Its first step is an owner Action (report the
   prompt's field label and button text); not free to dispatch before.
-- **`owner-queue` 0.7.1 is live and pushed** (skills PR 39, commit
-  `47808da`, on the owner's word "the editor opened, commit it",
-  2026-10-12). 26 tests pass. Merging PR 39 waits on the owner's word.
+- **`owner-queue` 0.7.1 is live and merged** (skills PR 39, merged by
+  the planner on the owner's word "merge PR 39", 2026-10-12; merge
+  commit `45e7030`). 26 tests pass. The scratch worktree
+  `<planner scratchpad>\oq6` (branch `owner-queue-060`) equals it.
   - In it since 0.5.0: `Post comment` (a `Note:` line, or a typed
     `Answer: (other) ...`), sent at once; a `Time:` line on every chat
     message; every code span copied from under its field, a numbered
@@ -52,22 +53,29 @@ planner session can resume from the repository alone. The rules are in
     pane. The head rules for `NEEDS-OWNER.md` (the `Note:` rule, the
     `Time:` line, code marks, fenced blocks, numbered steps) went to
     the manager as text, to confirm with the owner.
-  - Owed: the same rules in the plugin's `templates/NEEDS-OWNER.md`
-    (skills PR 46).
+  - **Next, the planner's:** the same rules in the dispatch plugin's
+    `templates/NEEDS-OWNER.md`, as a small new PR on the skills
+    repository (PR 46 is merged). Told to the owner.
 - **A repeat of old pane answers after a compact** (manager's session,
   2026-10-12) was the app's prompt queue, not the mod: two sends made
   while the session was busy were delivered again, merged. The `Time:`
   line marks such a repeat.
-- **Told to the owner, 2026-10-12, open:** the saved
-  `CLAUDE_CODE_PLUGIN_DIRS` names only the session-dispatch folder, and
-  that folder does not exist (`C:\Users\benha\claude-live` was not
-  found from the planner's session). The next app start will not load
-  `owner-queue`. Two folders are joined by a semicolon on Windows.
-- **Skills PR 46:** the owner said the review, security review, merge
-  and pull are "for planner" (relayed by the manager). Asked the owner
-  which: the author's own security read then a merge on the owner's
-  word, or `/security-review` from a session in the skills repository.
-  No answer yet; nothing merged.
+- **Skills PR 46 is merged** (by the owner, 2026-10-12; merge commit
+  `804ea65`). The plugin is on GitHub, not on disk: no live clone
+  exists (`C:\Users\benha\claude-live` is not there), and the owner's
+  checkout of the skills repository has not pulled.
+- **Open, the owner's hand, in the queue through the manager:** the
+  saved `CLAUDE_CODE_PLUGIN_DIRS` names only the session-dispatch
+  folder, which does not exist; the next app start would load neither
+  plugin. The entry gives the clone command and a `setx` with both
+  folders joined by a semicolon (`~/.claude/mods/owner-queue` first),
+  then a full restart. The planner changes no system setting.
+- **Lesson repeated by the owner, 2026-10-12:** open points for the
+  owner go to the manager as ready queue entries in the same turn,
+  never chat alone ("why aren't the questions in the ledger").
+- **#167 after that:** `.claude/dispatch.json` exists in the main
+  checkout (the manager's report); it closes on the first real
+  dispatch through the script.
 - **#237** (the manager's standing cleanup ticket): `wayfinder:task`,
   `tier:low`, "Tooling and upkeep", no parent. Auto-add to the Project
   worked.
