@@ -142,3 +142,10 @@ Three checks must pass before anything merges to `main`: `pii-scan` (no
 owner personal data in a public repo), `tests` and `bot-tests`. Branch and
 commit conventions are in [CONTRIBUTING.md](CONTRIBUTING.md). Design
 decisions are recorded in [docs/adr/](docs/adr/).
+
+---
+
+## License
+
+All rights reserved; the repository is public so owners can check the work.
+See [LICENSE](LICENSE).
