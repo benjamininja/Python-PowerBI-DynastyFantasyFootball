@@ -834,6 +834,65 @@ tables:
     edges:
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
 
+  - name: fact_nfl_snap_counts
+    type: fact
+    grain: "(gsis_id, game_id)"
+    chain: nflverse
+    required_keys: [gsis_id, game_id, season, week, team]
+    columns:
+      - { name: gsis_id, dtype: str }
+      - { name: game_id, dtype: str }
+      - { name: season, dtype: int64 }
+      - { name: week, dtype: int64 }
+      - { name: team, dtype: str }
+      - { name: offense_snaps, dtype: float64 }
+      - { name: offense_pct, dtype: float64 }
+      - { name: defense_snaps, dtype: float64 }
+      - { name: defense_pct, dtype: float64 }
+      - { name: st_snaps, dtype: float64 }
+      - { name: st_pct, dtype: float64 }
+      - { name: period, dtype: Int64 }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+    notes: >
+      Snaps by Unit per player and NFL game, current season only (02g;
+      nflverse load_snap_counts; ADR-0017, built in #86). game_id is the
+      nflverse game id; season and week are the NFL's. The pct columns are
+      the player's share of his team's snaps of that Unit, 0 to 1.
+      load_snap_counts knows a player by his pfr id only; it is mapped to
+      gsis_id through load_rosters_weekly, and a row with no mapping is
+      dropped (almost all offensive linemen and long snappers). period is
+      the Scoring Period the game date falls in, by dim_scoring_period
+      (start_date <= game day < end_date); empty when it falls in none.
+      Each run replaces the season. Not an Update-Set: no freeze, no Drift.
+
+  - name: fact_nfl_injuries
+    type: fact
+    grain: "(gsis_id, season, week)"
+    chain: nflverse
+    required_keys: [gsis_id, season, week, team]
+    columns:
+      - { name: gsis_id, dtype: str }
+      - { name: season, dtype: int64 }
+      - { name: week, dtype: int64 }
+      - { name: game_type, dtype: str }
+      - { name: team, dtype: str }
+      - { name: report_status, dtype: str }
+      - { name: report_primary_injury, dtype: str }
+      - { name: practice_status, dtype: str }
+      - { name: period, dtype: Int64 }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+    notes: >
+      The weekly NFL injury report, one row per player and NFL week, current
+      season only (02g; nflverse load_injuries; ADR-0017, built in #86).
+      report_status is the game status (Out, Doubtful, Questionable; empty
+      when the player carries none); practice_status is the last practice
+      line of the week. period is the Scoring Period of the team's game
+      that week (the week's first game day when the team has none), by
+      dim_scoring_period; empty when it falls in none. Each run replaces
+      the season. Not an Update-Set: no freeze, no Drift.
+
   - name: fact_rookie_rankings
     type: fact
     grain: "(player_key, source_name, phase, draft_year)"

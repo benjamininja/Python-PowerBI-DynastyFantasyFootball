@@ -1,6 +1,6 @@
 # nflverse supplies only snaps and injuries; Fantrax supplies points and games played
 
-- Status: accepted. Designed through HITL grilling on 2026-09-27 ([#85](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/85)); not yet built (→ [#86](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/86)).
+- Status: accepted. Designed through HITL grilling on 2026-09-27 ([#85](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/85)); built 2026-10-12 in [#86](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/86) (`notebooks/02g_nflverse_inseason.py`).
 - Date: 2026-09-27
 - Scope:
   - the deferred "In-Season Tables" spec (`fact_nfl_player_stats`, `fact_nfl_season_injuries`)
