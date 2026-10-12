@@ -87,6 +87,15 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   diff of the main checkout's queue in its own call before any `git
   restore` of it**: a pane tick or answer sits there uncommitted, and
   a restore in the same command drops it unread.
+- **Uncommitted in the main checkout: the owner's edits to both
+  settings files** (the dispatch rules of #167: one allow line in
+  the managers' file, four deny lines in each). Do not restore or
+  stash them; commit them unedited only on the owner's "commit the
+  settings files". The owner ticked the three #167 entries done in
+  the pane; found on 2026-10-12: user-folder `dispatch-projects.json`
+  exists, `.claude/dispatch.json` does not, skills PR 46 is open and
+  the plugin folder is not in the live clone. The entries stay open
+  with that written in them.
 - The dispatch plugin (#167 step 2) is skills PR 46; four queue
   entries carry the owner's steps. Until its first real dispatch the
   recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
