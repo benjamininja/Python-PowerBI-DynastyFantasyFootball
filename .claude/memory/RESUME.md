@@ -42,7 +42,14 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     PR 2 merged as #146 (`a3d4255`). PR 3 is built on branch
     `chore/110-combine-orphans`: `02a` rerun, same 7,434 rows, only
     `gsis_id` moved in 5 rows (2 orphans to null, 3 nulls now resolved).
-    Next: PR 4 (`sql_type`). Ask before each merge.
+    PR 3 merged as #147 (`e373826`). PR 4 is built on branch
+    `chore/110-sql-types`: `sql_type` on the 11 `object` columns, and
+    `check_data_model.py` now fails an `object` column without one
+    (`sql_type_errors`, `SQL_TYPES`; #108 widens the set). After PR 4,
+    #110 has only the `roster_slot` rename left, which waits for #97.
+    Next ticket is #109; the owner's "go" did not cover it, so ask first.
+    #109 starts with a lookup: can every pick leg be resolved from data
+    already captured? If not, it parks.
   - **Slip, do not repeat:** #145's title began "fix: #110", which GitHub
     reads as a closing keyword, so the merge closed #110. Reopened at
     once. Never start a PR title or commit subject with fix/close/resolve

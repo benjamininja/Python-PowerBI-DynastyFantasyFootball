@@ -40,6 +40,10 @@ MODEL_MD = REPO / "docs" / "DATA_MODEL.md"
 DATA_DIR = REPO / "data"
 
 VALID_TYPES = {"dim", "fact", "resolver"}
+# A column with no value yet has pandas dtype `object`, which names no SQL
+# type, so it must declare one (ADR-0018 decision 8). #108 widens this set
+# when every column gets a `sql_type`.
+SQL_TYPES = {"text", "integer", "double precision"}
 REQUIRED_FIELDS = ("name", "type", "grain", "columns")
 MARKER_GROUP = "data-model-graph"
 
@@ -58,6 +62,20 @@ def load_yaml() -> dict:
 
 
 # --- validation ------------------------------------------------------------
+def sql_type_errors(table: dict) -> list[str]:
+    """An `object` column must declare a `sql_type`; any declared one must be known."""
+    errs = []
+    for col in table.get("columns") or []:
+        sql_type = col.get("sql_type")
+        where = f"[{table.get('name')}] {col.get('name')}"
+        if sql_type is None:
+            if str(col.get("dtype")) == "object":
+                errs.append(f"{where}: dtype object needs a sql_type")
+        elif sql_type not in SQL_TYPES:
+            errs.append(f"{where}: sql_type {sql_type!r} is not one of {sorted(SQL_TYPES)}")
+    return errs
+
+
 def validate(data: dict) -> int:
     tables = data.get("tables", []) or []
     errors: list[str] = []
@@ -76,6 +94,9 @@ def validate(data: dict) -> int:
             errors.append(f"[{tag}] type must be one of {sorted(VALID_TYPES)}, got {t.get('type')!r}")
         if not isinstance(t.get("columns", []), list):
             errors.append(f"[{tag}] columns must be a list")
+
+    for t in tables:
+        errors += sql_type_errors(t)
 
     # column-drift check: declared columns vs real parquet schema
     for t in tables:
