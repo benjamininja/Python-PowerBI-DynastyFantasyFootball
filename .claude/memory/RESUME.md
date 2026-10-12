@@ -8,6 +8,19 @@ GitHub; HITL grills happen in the managing session.
 managing session `56063cf0…`).** Read the Standing rules below, then
 `GOAL-RUN.md` and `NEEDS-OWNER.md`. The blocks about #68 and "MERGED
 2026-10-11" further down are history now.
+- **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
+  worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
+  #77 phases 1 to 6 → #149 → #86. State per ticket:
+  - **#109: built, PARKED with PR #160 open** on one question for the
+    owner (how pick legs inside one trade are resolved). The full
+    state-back and the `NEEDS-OWNER.md` entry are on that PR's branch,
+    `feat/109-pick-legs`, and reach `main` when it merges.
+  - **Worktree notes:** a copy of `data/raw` captures into the worktree
+    was denied by the permission classifier and not retried. `02d` is
+    rerun with the scratchpad `run02d.py`, which points `DRAFT_GLOB` /
+    `TXN_GLOB` at the main checkout's `data/raw`. The bot suite runs with
+    the managing session's scratchpad `botvenv`. A Bash heredoc breaks on
+    an apostrophe: write scripts with the Write tool.
   - **#77 phase 1: built on branch `feat/77-seam-phase1`** (from `main`,
     without #109). Plan as built: a "Storage seam" section in
     `etl_helpers.py` (`read_table`, `write_table`, `table_exists`,
