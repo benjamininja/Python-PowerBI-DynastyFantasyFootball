@@ -39,26 +39,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] A builder cannot write under `.claude/memory/`: stopgap as the rule, or move the files?
-- Ticket: #166
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-- Context: you added the rules to the right file: lines 57 and 58 of
-  `.claude/builders.settings.json` (`"Edit(.claude/memory/**)"`,
-  `"Write(.claude/memory/**)"`), and the pattern is right. No file or
-  line can lift this. The CLI's documentation ("Protected paths", in
-  the permission modes page) says a write under a `.claude` folder is
-  never pre-approved by an allow rule: the check runs before the allow
-  rules, and in `dontAsk` mode it becomes a denial. Only bypass mode
-  writes there unattended, which our rules forbid for a session. The
-  two lines have no effect and can stay or go; removing them is your
-  edit. Two builders have now worked under the stopgap without
-  trouble: the plan rides in the PR body, a park comes by message, the
-  manager writes the memory docs and the queue.
-- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) the planner designs a move of the builders' state files (`RESUME.md`, a builder's copy of the queue) to a folder outside `.claude/`, where a builder may write
-- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and a move touches every role file and runbook for little gain
-- Blocks: nothing running.
-- Raised: 2026-10-12, by the builder manager
-
 ## Actions
 
 ### [ ] Read the spike workflow in PR #228, then say "merge 228"

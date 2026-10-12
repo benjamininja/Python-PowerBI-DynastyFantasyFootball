@@ -76,8 +76,10 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - Why a builder cannot write under `.claude/memory/` (CLI docs,
   "Protected paths"): a write under a `.claude` folder is checked
   before the allow rules and is denied in `dontAsk` mode; no rule
-  lifts it. Decision in the queue: stopgap as the rule, or move the
-  builders' state files out of `.claude/`.
+  lifts it. **Owner's answer (pane, 2026-10-12 17:33, on #166): the
+  planner designs a move of the builders' state files (`RESUME.md`,
+  a builder's copy of the queue) to a folder outside `.claude/`.**
+  The planner has been told. Until that lands, the stopgap holds.
 - The dispatch plugin (#167 step 2) is skills PR 46; four queue
   entries carry the owner's steps. Until its first real dispatch the
   recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
@@ -225,7 +227,7 @@ the two rule additions (#214).
    and upkeep: #151 #162 #167 #218 #130 #211.
 
 **Left with the owner** (all in `NEEDS-OWNER.md`): "merge 228";
-"approved" for #226; the Decision on the builders' memory files; the
+"approved" for #226; the
 code prompt for #230; skills PR 46 and the three #167 entries (owner-
 only files, settings rules then "commit the settings files", plugin
 folder); the Project's views; the Power BI check (#211); the stale
