@@ -82,6 +82,19 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
+### [ ] Approve the sweep record PR #203
+- Ticket: #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/203
+  by commit (two commits: `PLANNER.md`, `PLAN.md`; docs only) and say
+  "approved" in the manager's session, or say what to change. The
+  manager then merges it and cleans up.
+- Context: the planner's record of sweep 1 of stages A and B. It
+  reports that you agreed its proposals in its session: gap tickets
+  #200 and #201 filed, #140 as a single brief, maps #66 and #71 closed.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] Approve two additions to the manager's rules
 - Ticket: #166, #162
 - Steps: say "approved, write the rule PR" in the manager's session, or
