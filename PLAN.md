@@ -64,7 +64,9 @@ Runbook: [GOAL-RUN.md](.claude/memory/GOAL-RUN.md). Waiting on the owner:
 - [Map #69 — Supabase storage foundation](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/69):
   #72 role/ADR (grilling) · #73 platform facts (research) · #74 seam
   inventory (research) · #75 schema+RLS (grilling, ✅ ADR-0018) · #76 provision
-  (HITL task, ← #72) · #77 build seam (task, ← #74; unblocks B/C writers).
+  (HITL task, ← #72) · #77 build seam (task, ← #74; ✅ built 2026-10-12,
+  PRs #161 to #181).
+  Open, stage C: #110 → #108 → #135 → #136 → #137 → #138 → #111.
 - [Map #70 — In-season Fantrax league flows](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/70):
   #78 capture payloads (task) · #79 schema extraction (research, ← #78) ·
   #80 public fxea API (research) · #81 fact model (grilling, ✅ ADR-0016 amendment) ·
@@ -76,11 +78,14 @@ Runbook: [GOAL-RUN.md](.claude/memory/GOAL-RUN.md). Waiting on the owner:
   ADR-0016; ✅ built, PRs #134 and PR 2 of 2026-10-11) · #97 shared cap module + published per-team cap table, 02e =
   snapshot + provenance (task, ← #96 #79) · #117 Roster State build (task,
   ← #113, ✅ PRs #127–#129) · #118 Scoring build (task, ← #117; ✅ PRs #131–#133) · #130 claim
-  default contract (grilling, ADR-0019 d6; filed 2026-10-04).
-- [Map #71 — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
+  default contract (grilling, ADR-0019 d6; filed 2026-10-04) · #140 Power BI
+  Dead Money (task, no stage) · #200 trade-bud page draws the waiver and
+  free-agency signals (task) · #201 defaulted contract at a drop to review
+  (task, stage C, ← #97).
+- [Map #71 (closed 2026-10-12) — nflverse in-season stats + injuries](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/71):
   #84 nflreadpy API (research) · #85 grain/scope (grilling, ✅ ADR-0017:
   snaps + injuries only; points/GP from Fantrax) · #86 build + schedule
-  (task, ← #85 #77).
+  (task, ✅ built, PR #179).
 
 **Lanes.** Wave 1 (AFK, parallel) ✅: research #73 #74 #80 #84 (full
 findings in [`docs/research/`](docs/research/); each issue carries a
@@ -228,7 +233,7 @@ summary + link), #78 capture (PR #89), #67 (PR #90). Wave 2 (HITL) ✅:
   the alert, the Drift sweep, "every Starter has an entry", grace.
   Resolution posted on #118; hand-on notes on #116, #93, #97 and #96. Detail
   in `.claude/memory/RESUME.md`;
-  #77 seam (← #74 ✅) → unblocks #86 and #93; #96 → #97.
+  #77 seam ✅ and #86 ✅ (stage B, 2026-10-12); #96 ✅ → #97.
 - Owner: re-enroll the Fantrax authenticator for the #92 TOTP key; #76
   provisioning.
 
