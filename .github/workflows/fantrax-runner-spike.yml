@@ -1,0 +1,53 @@
+# One-off spike for #92 (ADR-0015): can the authed Fantrax path log in headless
+# from a GitHub-hosted runner? Runs only when the owner fires it by hand, and
+# only from main. It reads three secrets from the `fantrax-spike` environment
+# (Settings -> Environments: deployment branches limited to main) and reports
+# verdicts, HTTP statuses and seconds only (scripts/runner_spike.py). Nothing is
+# uploaded: no artifact, no screenshot, no trace. The repository is public, so
+# the run log is public too. No schedule, no push or pull_request trigger.
+# Page: docs/research/fantrax-runner-spike.md
+name: fantrax-runner-spike
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fantrax-runner-spike
+  cancel-in-progress: false
+
+jobs:
+  spike:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: fantrax-spike
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python packages
+        run: |
+          start=$(date +%s)
+          python -m pip install -r requirements.txt
+          printf 'install python packages\t%s\n' "$(( $(date +%s) - start ))" >> "$RUNNER_TEMP/spike_timings.tsv"
+
+      - name: Install Chromium
+        run: |
+          start=$(date +%s)
+          python -m playwright install --with-deps chromium
+          printf 'install chromium\t%s\n' "$(( $(date +%s) - start ))" >> "$RUNNER_TEMP/spike_timings.tsv"
+
+      - name: Login once and read
+        env:
+          FANTRAX_EMAIL: ${{ secrets.FANTRAX_EMAIL }}
+          FANTRAX_PASSWORD: ${{ secrets.FANTRAX_PASSWORD }}
+          FANTRAX_TOTP_SECRET: ${{ secrets.FANTRAX_TOTP_SECRET }}
+        run: python scripts/runner_spike.py --timings "$RUNNER_TEMP/spike_timings.tsv"
