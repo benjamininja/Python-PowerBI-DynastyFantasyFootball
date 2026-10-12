@@ -445,7 +445,7 @@ hand_size, arm_length, wingspan  -- optional nflverse cols
 
 ## Shared Module — `notebooks/etl_helpers.py` (single source of truth)
 
-Imported by 01a, 02a, 03a–03x, 03z, 04b, 04x (NOT copied — consolidated 2026-05-30, ~1,500 dup lines removed). Exports `LeagueConfig`, `clean_player_name`, `generate_player_key`, `parse_height_to_inches`, `_make_session`, `_parse_rank_date`, `add_players_from_source`, `ingest_ranking_source`, `append_review`, `resolve_dynasty_crosswalk` (shared dynasty matcher), `load_replace_partition` / `upsert_dynasty_crosswalk` / `write_dynasty_review` (shared dynasty load/upsert/review, added 2026-06-06), `DEFAULT_HEADERS`.
+Imported by 01a, 02a, 03a–03x, 03z, 04b, 04x (NOT copied — consolidated 2026-05-30, ~1,500 dup lines removed). Exports `LeagueConfig`, `clean_player_name`, `generate_player_key`, `parse_height_to_inches`, `_make_session`, `_parse_rank_date`, `add_players_from_source`, `ingest_ranking_source`, `append_review`, `resolve_dynasty_crosswalk` (shared dynasty matcher), `write_table(mode="replace_partition")` / `upsert_dynasty_crosswalk` / `write_dynasty_review` (shared dynasty load/upsert/review, added 2026-06-06), `DEFAULT_HEADERS`.
 
 - `parse_height_to_inches` — `6'2"`, `6-2`, `602`, numeric, None
 - `clean_player_name` — strip periods, normalize NBSP/apostrophes, lowercase. **Keeps apostrophes + suffixes** (feeds the deterministic `generate_player_key` hash → must stay byte-stable).

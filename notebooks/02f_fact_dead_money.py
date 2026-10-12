@@ -35,11 +35,8 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import DATA, write_table
+from etl_helpers import DATA, read_table, write_table
 
-LEDGER_PATH = DATA / "fact_roster_transactions.parquet"
-CONTRACT_PATH = DATA / "dim_contract.parquet"
-SEASON_PATH = DATA / "dim_season.parquet"
 OUT_PATH = DATA / "fact_dead_money.parquet"
 
 DROP = "drop"
@@ -132,9 +129,8 @@ def build_dead_money(ledger: pd.DataFrame, contracts: pd.DataFrame,
 
 # %%
 def main() -> int:
-    ledger = pd.read_parquet(LEDGER_PATH)
-    dead = build_dead_money(ledger, pd.read_parquet(CONTRACT_PATH),
-                            pd.read_parquet(SEASON_PATH))
+    ledger = read_table("fact_roster_transactions")
+    dead = build_dead_money(ledger, read_table("dim_contract"), read_table("dim_season"))
     write_table("fact_dead_money", dead)
 
     drops = ledger[ledger["event_type"] == DROP]

@@ -348,9 +348,25 @@ and 02d's ledger writes: with transaction legs the whole ledger is written
 once, in replace mode, not as an event-type partition. `fact_trade_log`
 followed once the owner chose `Int64` for `draft_year`, `draft_round` and
 `pick_in_round` (int64 in the file; `float64` in the registry would have
-made the seam write double). One write is left, with the owner
-(`NEEDS-OWNER.md`): `fact_fantasy_teams` in 02e (the grain `(team_key, gsis_id)` would stop
-the run on a rostered player with no `gsis_id`).
+made the seam write double).
+Phase 6 (2026-10-12) moved every table read to `read_table`, moved 01e's
+write (a direct `to_parquet` that phase 5 missed: the cell was stored one
+character per line, so a text search did not see it), deleted
+`load_replace_partition`, `upsert_dynasty_crosswalk` and the path-based
+internals, and turned on the static guard, `tests/test_storage_guard.py`.
+Three things differ from the plan below:
+- `check_data_model` and the Table Gates in `etl_checks` do not read
+  through `read_table`. It casts to the registry, which would hide the
+  drift those checks exist to find. They call `read_stored(name)`, the
+  seam's uncast read.
+- The guard also covers `pyarrow.parquet` calls. Two are named as not
+  table I/O: the HEAD row count in `etl_checks` (git's bytes) and the PII
+  scan.
+- One write stays outside the seam by the owner's decision of 2026-10-12:
+  `fact_fantasy_teams` in 02e. Its grain `(team_key, gsis_id)` would stop
+  the run on a rostered player with no `gsis_id`. #97 rewrites 02e, moves
+  the write under `(team_key, scorer_id)` and deletes the guard's one
+  named exception.
 
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,
    the `fact_fantasy_teams` grain, `fact_trade_log` in `data_model.yml`, SQL

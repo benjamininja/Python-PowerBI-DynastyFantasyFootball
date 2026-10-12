@@ -48,7 +48,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
 import etl_checks as ec
-from etl_helpers import DATA, fantrax_public_get, write_table
+from etl_helpers import DATA, fantrax_public_get, read_table, table_exists, write_table
 
 # league_id/raw_dir live on 04a's own LeagueConfig -- same import-by-file
 # pattern 04u and 04w use.
@@ -236,22 +236,22 @@ def main() -> int:
 
     # Parse both tables before writing either: a failed Gate writes nothing.
     now = pd.Timestamp.now(tz="UTC")
-    prior = pd.read_parquet(PERIODS_PATH) if PERIODS_PATH.exists() else None
+    prior = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
     season_id = season_id_of(info)
     tables: dict[str, pd.DataFrame] = {}
 
     def load(name: str) -> pd.DataFrame:
         if name not in tables:
-            tables[name] = pd.read_parquet(DATA / f"{name}.parquet")
+            tables[name] = read_table(name)
         return tables[name]
 
     checked = close_checks(season_id, periods_due(info, now, prior), load)
     periods = parse_scoring_periods(
         info, now, prior, checks_passed={n for n, errs in checked.items() if not errs})
-    if season_id not in set(pd.read_parquet(DATA / "dim_season.parquet")["season_id"]):
+    if season_id not in set(read_table("dim_season")["season_id"]):
         raise ValueError(f"season {season_id} is not in dim_season -- run 01f first")
     divisions = parse_divisions(
-        info, pd.read_parquet(DATA / "dim_fantasy_teams.parquet"), season_id)
+        info, read_table("dim_fantasy_teams"), season_id)
 
     n_periods = write_table("dim_scoring_period", periods, mode="replace_partition", keys=("season_id",))
     n_divisions = write_table("dim_division", divisions, mode="replace_partition", keys=("season_id",))

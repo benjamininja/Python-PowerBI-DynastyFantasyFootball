@@ -51,6 +51,7 @@ STEP_TIMEOUT_S = 1800
 
 sys.path.insert(0, str(NB))
 import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
+import etl_helpers  # noqa: E402
 
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
@@ -88,7 +89,7 @@ def derive_phase(today: date | None = None) -> str:
     season_end = week1_monday + timedelta(weeks=17)  # week-18 Monday
     try:
         import pandas as pd
-        ds = pd.read_parquet(REPO / "data" / "dim_season.parquet")
+        ds = etl_helpers.read_table("dim_season")
         row = ds[ds["relative_nfl_season_number"] == 0]
         end = row["season_nfl_end_date"].iloc[0] if len(row) else None
         if pd.notna(end):

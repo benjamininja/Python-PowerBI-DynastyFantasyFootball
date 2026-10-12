@@ -82,7 +82,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "04a_fantrax_weekly_scrape.py").exists():
         sys.path.insert(0, str(_p))
         break
-from etl_helpers import DATA, fantrax_public_get, write_table
+from etl_helpers import DATA, fantrax_public_get, read_table, table_exists, write_table
 
 # The season id and the Update-Set states are 04p's; the league clock is 04r's.
 fx = importlib.import_module("04a_fantrax_weekly_scrape")
@@ -493,12 +493,12 @@ def main(argv: list[str] | None = None) -> int:
     if int(info["seasonYear"]) != int(CFG.snapshot_season):
         raise ValueError(f"the league's season is {info['seasonYear']}; 04a's "
                          f"snapshot_season is {CFG.snapshot_season}")
-    periods = pd.read_parquet(lg.PERIODS_PATH) if lg.PERIODS_PATH.exists() else None
+    periods = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
     if periods is None or season_id not in set(periods["season_id"]):
         raise ValueError(f"season {season_id} is not in dim_scoring_period -- run 04p first")
     due = periods_to_load(periods[periods["season_id"] == season_id], now)
     asked = parse_periods(args.periods) if args.periods else due
-    teams = pd.read_parquet(DATA / "dim_fantasy_teams.parquet")
+    teams = read_table("dim_fantasy_teams")
 
     if not args.from_raw and asked:
         capture(asked)

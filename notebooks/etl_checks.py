@@ -40,7 +40,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import yaml
 
-from etl_helpers import DATA, REVIEW
+from etl_helpers import DATA, REVIEW, read_stored
 
 REPO = Path(__file__).resolve().parent.parent
 MODEL_YML = REPO / "docs" / "data_model.yml"
@@ -493,7 +493,7 @@ def run_suite(tables: Iterable[str] | None = None,
 
     def load(name: str) -> pd.DataFrame:
         if name not in cache:
-            cache[name] = pd.read_parquet(Path(data_dir) / f"{name}.parquet")
+            cache[name] = read_stored(name, data_dir)
         return cache[name]
 
     results: list[Result] = []

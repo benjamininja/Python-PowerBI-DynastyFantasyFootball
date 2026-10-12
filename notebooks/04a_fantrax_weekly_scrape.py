@@ -438,10 +438,9 @@ def _idp_positions(cfg: LeagueConfig) -> set:
     so a new defensive code added there is picked up automatically. The hardcoded
     fallback is a strict subset, used only when dim_position.parquet is absent.
     """
-    path = Path(cfg.data_dir) / "dim_position.parquet"
-    if path.exists():
+    if etl.table_exists("dim_position"):
         try:
-            dp = pd.read_parquet(path)
+            dp = etl.read_table("dim_position")
             codes = set(dp.loc[dp["side_of_ball"] == "Defense", "position_raw"].str.upper())
             if codes:
                 return codes
@@ -516,10 +515,9 @@ def _load_crosswalk(cfg: LeagueConfig) -> dict:
     Missing file (first ever run) -> empty map; new scorer_ids stay null until
     04z_fantrax_crosswalk is (re)run to resolve them.
     """
-    path = f"{cfg.data_dir}/{cfg.crosswalk_name}.parquet"
-    if not Path(path).exists():
+    if not etl.table_exists(cfg.crosswalk_name):
         return {}
-    xw = pd.read_parquet(path)
+    xw = etl.read_table(cfg.crosswalk_name)
     return {r.scorer_id: (r.gsis_id, r.player_key) for r in xw.itertuples()}
 
 
@@ -553,10 +551,9 @@ def _age_map(cfg: LeagueConfig, gsis_ids: set, as_of: date) -> dict:
     not a Fantrax-board field — so we derive it via the crosswalk gsis_id rather
     than scraping a second endpoint. Missing registry/birth_date -> no entry.
     """
-    path = f"{cfg.data_dir}/dim_nfl_players.parquet"
-    if not Path(path).exists():
+    if not etl.table_exists("dim_nfl_players"):
         return {}
-    dp = pd.read_parquet(path, columns=["gsis_id", "birth_date"])
+    dp = etl.read_table("dim_nfl_players", columns=["gsis_id", "birth_date"])
     dp = dp[dp["gsis_id"].isin(gsis_ids) & dp["birth_date"].notna()]
     bd = pd.to_datetime(dp["birth_date"], errors="coerce")
     out = {}
@@ -809,7 +806,7 @@ def main_snapshot() -> None:
         )
 
     fact_path = load_fact(df)
-    total_fact = len(pd.read_parquet(fact_path))
+    total_fact = len(etl.read_table(CFG.fact_name))
     print(f"[ok] snapshot {len(df)} rows -> {fact_path} ({total_fact} total in fact)")
     print("[next] re-run 04z_fantrax_crosswalk: the grid exposes offense "
           "scorer_ids the ADP-filtered board never showed, so they have no "
@@ -835,7 +832,7 @@ def main_scrape() -> None:
 
     df = board_to_frame(raw)
     fact_path = load_fact(df)
-    total_fact = len(pd.read_parquet(fact_path))
+    total_fact = len(etl.read_table(CFG.fact_name))
     print(f"[ok] snapshot {len(df)} rows -> {fact_path} ({total_fact} total in fact)")
 
 

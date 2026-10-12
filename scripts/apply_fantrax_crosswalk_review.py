@@ -16,8 +16,6 @@ import etl_helpers as etl
 
 root = Path(r"C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball")
 REVIEW_CSV = root / "data" / "review" / "review_fantrax_crosswalk.csv"
-XWALK = root / "data" / "dim_fantrax_crosswalk.parquet"
-FACT = root / "data" / "fact_fantrax_adp.parquet"
 
 # scorer_id -> gsis_id (or "new" = not in nflverse registry yet)
 DECISIONS = {
@@ -68,7 +66,7 @@ if len(missing):
 # 0619e (Jaylon Jones CHI) was a silent disambig collision, not a review row.
 rev.to_csv(REVIEW_CSV, index=False)
 
-xw = pd.read_parquet(XWALK)
+xw = etl.read_table("dim_fantrax_crosswalk")
 resolved = {k: v for k, v in DECISIONS.items() if v != "new"}
 m = xw["scorer_id"].isin(resolved)
 xw.loc[m, "gsis_id"] = xw.loc[m, "scorer_id"].map(resolved)
@@ -84,7 +82,7 @@ if len(dups):
     raise SystemExit(f"COLLISION: {len(dups)} gsis_id claimed by >1 scorer_id — not applied")
 etl.write_table("dim_fantrax_crosswalk", xw)
 
-fact = pd.read_parquet(FACT)
+fact = etl.read_table("fact_fantrax_adp")
 key = xw.set_index("scorer_id")["gsis_id"]
 fact["gsis_id"] = fact["scorer_id"].map(key)
 etl.write_table("fact_fantrax_adp", fact)

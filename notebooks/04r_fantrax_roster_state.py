@@ -47,7 +47,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import DATA, fantrax_public_get, write_table
+from etl_helpers import DATA, fantrax_public_get, read_table, table_exists, write_table
 
 # league_id/raw_dir live on 04a's own LeagueConfig. The season id, the league
 # clock and the Update-Set states are 04p's.
@@ -199,12 +199,12 @@ def main() -> int:
     info = fantrax_public_get("getLeagueInfo", FX_CFG.league_id, expect=("seasonYear",))
     season_id = lg.season_id_of(info)
     year = int(info["seasonYear"])
-    periods = pd.read_parquet(lg.PERIODS_PATH) if lg.PERIODS_PATH.exists() else None
+    periods = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
     if periods is None or season_id not in set(periods["season_id"]):
         raise ValueError(f"season {season_id} is not in dim_scoring_period -- run 04p first")
     periods = periods[periods["season_id"] == season_id]
-    teams = pd.read_parquet(DATA / "dim_fantasy_teams.parquet")
-    contract_ids = set(pd.read_parquet(DATA / "dim_contract.parquet")["contract_id"])
+    teams = read_table("dim_fantasy_teams")
+    contract_ids = set(read_table("dim_contract")["contract_id"])
 
     raw_dir = Path(FX_CFG.raw_dir)
     raw_dir.mkdir(parents=True, exist_ok=True)

@@ -34,10 +34,10 @@ REPO = Path(__file__).resolve().parent.parent
 # The schema rule is shared with the publish gate (notebooks/etl_checks.py).
 sys.path.insert(0, str(REPO / "notebooks"))
 import etl_checks  # noqa: E402
+import etl_helpers  # noqa: E402
 
 MODEL_YML = REPO / "docs" / "data_model.yml"
 MODEL_MD = REPO / "docs" / "DATA_MODEL.md"
-DATA_DIR = REPO / "data"
 
 VALID_TYPES = {"dim", "fact", "resolver"}
 # A column with no value yet has pandas dtype `object`, which names no SQL
@@ -101,11 +101,12 @@ def validate(data: dict) -> int:
     # column-drift check: declared columns vs real parquet schema
     for t in tables:
         name = t.get("name")
-        parquet_path = DATA_DIR / f"{name}.parquet"
-        if not parquet_path.exists():
+        try:
+            stored = etl_helpers.read_stored(name)   # uncast: this is the drift check
+        except FileNotFoundError:
             errors.append(f"[{name}] no data/{name}.parquet found on disk")
             continue
-        real_cols = {c: str(d) for c, d in pd.read_parquet(parquet_path).dtypes.items()}
+        real_cols = {c: str(d) for c, d in stored.dtypes.items()}
         errors += etl_checks.schema_errors(t, real_cols)
 
     # edge-target check: every edge.to / edge.via must be a declared table

@@ -183,8 +183,7 @@ class TestMain:
         out = tmp_path / "fact_dead_money.parquet"
         # A stale row from an earlier ledger must not survive the rewrite.
         pd.DataFrame({"transaction_id": ["gone"]}).to_parquet(out, index=False)
-        for name in ("LEDGER_PATH", "CONTRACT_PATH", "SEASON_PATH", "OUT_PATH"):
-            monkeypatch.setattr(dm, name, tmp_path / getattr(dm, name).name)
+        monkeypatch.setattr(dm, "OUT_PATH", tmp_path / dm.OUT_PATH.name)
         monkeypatch.setattr(sys.modules["etl_helpers"].CFG, "data_dir", str(tmp_path))   # where the seam writes
 
         assert dm.main() == 0

@@ -97,11 +97,7 @@ SOURCE      = "getDraftResults"
 FACT_PATH        = DATA / "fact_roster_transactions.parquet"
 ASSET_PATH       = DATA / "dim_roster_asset.parquet"
 PICK_PATH        = DATA / "fact_draft_pick.parquet"
-STATE_PATH       = DATA / "fact_roster_state.parquet"
-PRESEASON_PATH   = DATA / "fact_preseason_salary.parquet"
-ELIGIBILITY_PATH = DATA / "fact_minor_eligibility.parquet"
 TRADE_LOG_PATH = DATA / "fact_trade_log.parquet"
-FUTURE_PICK_PATH = DATA / "fact_draft_pick_future.parquet"
 PICK_REVIEW_PATH = REVIEW / "review_trade_log_picks.csv"
 PICK_OWNER_REVIEW_PATH = REVIEW / "review_pick_ownership.csv"
 DRAFT_GLOB     = str(DATA / "raw" / "fantrax_draftresults_2026*.json")
@@ -236,7 +232,7 @@ def mint_assets(scorer_ids, existing, gsis_lut, pkey_lut):
 
 
 def _read_assets():
-    return pd.read_parquet(ASSET_PATH) if ASSET_PATH.exists() else pd.DataFrame(columns=ASSET_COLS)
+    return etl.read_table("dim_roster_asset") if etl.table_exists("dim_roster_asset") else pd.DataFrame(columns=ASSET_COLS)
 
 
 # %%
@@ -1448,28 +1444,28 @@ def main():
           f"{picks['scorerId'].notna().sum()} made")
 
     # ---- Identity + value lookups ------------------------------------------
-    teams_dim = pd.read_parquet(DATA / "dim_fantasy_teams.parquet")
+    teams_dim = etl.read_table("dim_fantasy_teams")
     team_lut = dict(zip(teams_dim["fantrax_team_id"], teams_dim["team_key"]))
     conf_lut = dict(zip(teams_dim["team_key"], teams_dim["conference"]))
     name_lut = ({n.strip().lower(): k for n, k in zip(teams_dim["team_name"], teams_dim["team_key"])
                  if isinstance(n, str)} if "team_name" in teams_dim.columns else {})
 
-    px = pd.read_parquet(DATA / "dim_fantrax_crosswalk.parquet")
+    px = etl.read_table("dim_fantrax_crosswalk")
     gsis_lut = dict(zip(px["scorer_id"], px["gsis_id"]))
     pkey_lut = dict(zip(px["scorer_id"], px["player_key"]))
 
-    draft_salaries = index_draft_salaries(pd.read_parquet(DATA / "fact_fantrax_adp.parquet"),
+    draft_salaries = index_draft_salaries(etl.read_table("fact_fantrax_adp"),
                                           CFG.draft_year)
 
-    contracts = pd.read_parquet(DATA / "dim_contract.parquet")
-    spans = season_spans(pd.read_parquet(DATA / "dim_season.parquet"))
+    contracts = etl.read_table("dim_contract")
+    spans = season_spans(etl.read_table("dim_season"))
     fa = fa_terms(contracts)
 
     # ---- Contract source: Roster State (04r), the preseason capture, and
     #      minors eligibility (04v) ------------------------------------------
-    state       = pd.read_parquet(STATE_PATH) if STATE_PATH.exists() else None
-    preseason   = pd.read_parquet(PRESEASON_PATH) if PRESEASON_PATH.exists() else None
-    eligibility = pd.read_parquet(ELIGIBILITY_PATH) if ELIGIBILITY_PATH.exists() else None
+    state, preseason, eligibility = (
+        etl.read_table(name) if etl.table_exists(name) else None
+        for name in ("fact_roster_state", "fact_preseason_salary", "fact_minor_eligibility"))
     src = contract_source(state, preseason, eligibility, contracts)
     read_periods = sorted({s.period for seen in src.snaps.values() for s in seen})
     print(f"[info] contract source: Roster State of {len(read_periods)} Scoring Period(s) "
@@ -1506,8 +1502,8 @@ def main():
           f"{int(dim_draft_pick['is_made'].sum())} made) -> {PICK_PATH.name}")
 
     # ---- Pick assets: one per pick, slotted and future ------------------------
-    slotted = pd.read_parquet(PICK_PATH)
-    future = (pd.read_parquet(FUTURE_PICK_PATH) if FUTURE_PICK_PATH.exists()
+    slotted = etl.read_table("fact_draft_pick")
+    future = (etl.read_table("fact_draft_pick_future") if etl.table_exists("fact_draft_pick_future")
               else pd.DataFrame(columns=["pick_ref", "draft_season", "round",
                                          "original_owner", "current_owner"]))
     if not len(future):
@@ -1535,7 +1531,7 @@ def main():
             f"not rebuilt.")
     # With no legs the ledger's transaction rows are kept as they are, so they
     # must already carry the key.
-    stranded = unkeyed_moves(pd.read_parquet(FACT_PATH)) if not legs and FACT_PATH.exists() else 0
+    stranded = unkeyed_moves(etl.read_table("fact_roster_transactions")) if not legs and etl.table_exists("fact_roster_transactions") else 0
     if stranded:
         raise RuntimeError(
             f"{stranded} transaction row(s) on the ledger carry no transaction_id (written "
@@ -1552,7 +1548,7 @@ def main():
                         keys=("season_id", "event_type"))
     # A ledger written under an older schema keeps its other rows, but not a
     # column that has since been dropped.
-    kept = pd.read_parquet(FACT_PATH)
+    kept = etl.read_table("fact_roster_transactions")
     # With legs the whole ledger is written once more below, in today's
     # columns, so the file is left alone here: transaction rows from before
     # the stable key have no transaction_id, the seam refuses a null key, and
@@ -1644,7 +1640,7 @@ def main():
                                                 _read_assets(), gsis_lut, pkey_lut)
         write_table("dim_roster_asset", dim_roster_asset)
 
-        base = claim_dtypes(pd.read_parquet(FACT_PATH).reindex(columns=LEDGER_COLS))
+        base = claim_dtypes(etl.read_table("fact_roster_transactions").reindex(columns=LEDGER_COLS))
         base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]
         txn_fact_rows, missing_source, fa_fallback, txn_sourcing, roster_priced = resolve_legs(
             legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src)
@@ -1674,7 +1670,7 @@ def main():
         # otherwise strand the previous run's partition behind as orphan rows.
         # LEDGER_COLS only: a column a later schema dropped does not ride along
         # on the rows that were kept.
-        _led    = pd.read_parquet(FACT_PATH)
+        _led    = etl.read_table("fact_roster_transactions")
         _stale  = int(_led["event_type"].isin(TXN_EVENT_TYPES).sum())
         out     = claim_dtypes(
             pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],

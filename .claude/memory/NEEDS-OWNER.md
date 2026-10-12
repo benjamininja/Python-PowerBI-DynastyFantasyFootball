@@ -16,27 +16,6 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
 ## Decisions
 
-### [ ] #77: fact_fantasy_teams through the seam stops on a rostered player with no gsis_id
-- Ticket: #77 (task, map #69), phase 5; touches #97, which rewrites `02e`.
-  The `02e` write is left as it was.
-- Context: the registry grain of `fact_fantasy_teams` is
-  `(team_key, gsis_id)`, and the seam refuses a null or repeated grain key.
-  `02d` can mint an asset with no `gsis_id` (an unsigned prospect, or a
-  Fantrax player the crosswalk does not know yet), and the ledger accepts
-  it. Through the seam, one such rostered player would stop the scheduled
-  `02e` run; today the file is written with the row. Current data is clean
-  (1,103 active rows, 0 null `gsis_id`, 0 repeated keys), so this would
-  first show after a rookie draft. Found by the `cap-ledger-auditor`.
-- Options: (a) it is a wanted hard stop: move the write to the seam as is;
-  (b) change the grain so such a row is legal (for example key on the
-  asset, or allow `player_key` where `gsis_id` is null), in #97's rewrite
-  of `02e`; (c) leave this one write outside the seam until #97 lands, with
-  one named exception in the static guard test.
-- Recommended: (c) now and (b) inside #97. A stop on every rookie draft is
-  a cost with no gain, and the grain is #97's to settle.
-- Blocks: #77 phase 6 (the static guard test). Does not block #149 or #86.
-- Raised: 2026-10-12, stage B goal run
-
 ## Actions
 
 ### [ ] Fresh 04t capture before #97 PR 1
