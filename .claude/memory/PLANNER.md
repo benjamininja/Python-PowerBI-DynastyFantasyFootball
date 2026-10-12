@@ -5,21 +5,29 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, night)
+## START HERE (state 2026-10-12, late night)
 
-- **Done:** sweep 1 of stages A and B (see "Sweeps" and "Gaps").
-- **Next:** `owner-queue`. The owner's live trial of 0.3.0 is the first
-  input; the planner owns the tool from here (see the table below).
+- **Waiting on the owner:** the live trial of `owner-queue` 0.4.0 in a
+  fresh session (queue entry). What it turns up is the next work on
+  the tool. Not yet seen in a real pane: whether "Open the queue file"
+  opens the file, and how Submit is drawn.
+- **Waiting on the owner:** PR #207 (#140): the TMDL review and the
+  refresh in Power BI Desktop. The planner's read is on the PR: no
+  breach.
 - **Then:** the GitHub Project, once the owner has turned Projects on
   and given the token the `project` scope (in the owner's queue).
 - **Then:** plan #167 with the owner (the upstream plugin
   `session-dispatch-managers-build-review`; it takes `owner-queue`
-  0.3.0 or later as a dependency; the wayfinder template gains a
-  `Tier:` line).
-- **Open on map #162:** #166 closes when `.claude/builders.settings.json`
-  is on `main` and matches the text on the ticket.
-- Nothing is running. Stage C waits on the owner's `04t` capture after
-  2026-10-15.
+  0.4.0 or later as a dependency; the wayfinder template gains a
+  `Tier:` line; it carries the owner's answer back to the session that
+  raised an entry, see the comment on #167).
+- **Open on map #162:** #166 closes when the builders' settings file
+  carries the two allow rules for `scripts/compare_tables.py` and
+  `02d --raw-dir`.
+- **Left for the owner's word:** delete the merged remote branches
+  `docs/planner-build-out` and `docs/sweep-1-record`.
+- Stage C waits on the owner's `04t` capture, after Wednesday
+  2026-10-14, 8:00 am.
 
 ## What the planner answers for (owner, 2026-10-12)
 
@@ -41,13 +49,13 @@ planner session can resume from the repository alone. The rules are in
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
 | #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
-| #70 | In-season Fantrax league flows | #97, #201 (stage C); #92, #93, #116 (stage D); #140, #200 (no stage, single briefs); #130 owner-led |
+| #70 | In-season Fantrax league flows | #97, #201 (stage C); #92, #93, #116 (stage D); #140 (PR #207 open); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
 | #162 | Managing-session roles and plugin | #166, #167 |
 
-#140 and #200 sit in no stage: each is proposed to the manager as a
-single brief, and nothing blocks either.
+#140 was placed as blocked by nothing; one clause of its acceptance
+needed #97 (see "Lessons").
 
 ## Milestones
 
@@ -76,18 +84,36 @@ after the fix).
 
 | Ticket | Found | Disposition | Healed |
 |---|---|---|---|
-| #140 | Power BI prices Dead Money from `Status = "Cut"`; no `fact_dead_money` in the model (`_Measures.tmdl:680-810`) | single brief, now | open |
-| #200 | the page draws no waiver or free-agency line (`index.html:511`) | single brief, now | open |
+| #140 | Power BI prices Dead Money from `Status = "Cut"`; no `fact_dead_money` in the model (`_Measures.tmdl:680-810`) | single brief, now | PR #207 open; waits on the owner's TMDL review |
+| #200 | the page draws no waiver or free-agency line (`index.html:511`) | single brief, now | healed 2026-10-12 (PR #204): `index.html` on `main` names both signals |
 | #201 | a defaulted contract at a drop is printed, not queued (`02d:1709`); no reversed-drop test | stage C, after #97 PR 1 | open |
 | #97 (comment) | `02e:169` sums Dead Money over every season in the roster table | the rewrite of `02e` in #97 | open |
 | none | `05a:163-166` counts stat rows as games | dropped by the owner; recorded on map #71 | not healed, by ruling |
-| manager's | `project-fantasy-football.md:399` lists the nflverse tables as not built | the manager's next memory PR | open |
+| manager's | `project-fantasy-football.md:399` lists the nflverse tables as not built | the manager's next memory PR | healed 2026-10-12 (PR #202) |
 
 To re-run when a row's PR merges: the file and line named in the row.
 
 ## Asked by the manager
 
-No PR read asked yet.
+| PR | Asked | Read |
+|---|---|---|
+| #207 (#140) | 2026-10-12: three places past the ticket | No breach; posted on the PR. One acceptance clause needed `fact_team_cap` (#97 PR 2). The owner reworded it: prove with the parity formula of #96 now, the table comparison moved to #97 |
+
+## Decided since (owner, 2026-10-12, late)
+
+- **One anchor for this season**: the season on the roster table, for
+  every consumer; nothing takes it from the calendar. Built in #97
+  PR 2; written on #97 and #206.
+- **IR-slot salary is cap-exempt** in the cap module too (#97), as in
+  the Power BI measures (#140).
+- **`owner-queue` 0.4.0** (plan approved, built): a press is staged and
+  nothing is written until Submit; a copy button per `code` span;
+  `/owner show` prints entries into the transcript; the pane shows its
+  version and says when it is not reading the main checkout. Live in
+  the owner's mods folder; upstream commit 359a15a on PR 39 of the
+  skills repository. A session started before an update keeps its old
+  copy, and a copy older than 0.3.0 writes to its own worktree's queue.
+- **#206** (from the #140 audit): tier low, stage C, after #97.
 
 ## Decided before this file (pointers)
 
@@ -105,6 +131,12 @@ No PR read asked yet.
   different bytes.
 
 ## Lessons
+
+- Before a ticket is called blocked by nothing, its acceptance is read
+  for a table or a rule another open ticket builds. #140 was placed
+  free while its acceptance compared with `fact_team_cap` of #97.
+- A `grep` of the `04t` script is denied to the planner (the Fantrax
+  deny rules). Ask the manager for a fact about it.
 
 - A sweep's subagent report is checked against the file before it goes
   to the owner; what was not checked is said so on the ticket.
