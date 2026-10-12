@@ -266,7 +266,7 @@ The judge reads only the transcript, so each turn ends with fresh output of:
 |---|---|---|---|
 | A. Ledger and cap | done | #96 PR 2 → #68 (both closed 2026-10-11; #97 moved to C) | done |
 | B. Seam | high | #109 → #77 → #149 → #86 (all closed 2026-10-12; #110's last part moved to C) | done |
-| C. Postgres | high | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after 2026-10-15) |
+| C. Postgres | high | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after Wednesday 2026-10-14, 8:00 am) |
 | D. Schedule | high | #92 login code → Linux entrypoint → #93 → #116 | the TOTP secret stored; B and C merged |
 
 A ticket's own `Tier:` line says what it needs if dispatched alone. In

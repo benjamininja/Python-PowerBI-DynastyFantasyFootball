@@ -398,5 +398,9 @@ Cap hit % and dead money live in `dim_contract` rows — never in LeagueConfig.
 
 ## In-Season Tables (deferred — not yet built)
 
+Built since (#86, ADR-0017): `fact_nfl_snap_counts` and
+`fact_nfl_injuries`. The names below are the old plan and are kept
+for what is still not built.
+
 - `fact_nfl_player_stats` — weekly stats from nflreadpy
 - `fact_nfl_season_injuries` — weekly injury reports from nflreadpy

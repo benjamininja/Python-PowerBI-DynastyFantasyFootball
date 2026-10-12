@@ -64,29 +64,34 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Fresh 04t capture, after Thursday 2026-10-15
+### [ ] Fresh 04t capture, after Wednesday 2026-10-14, 8:00 am
 - Ticket: #97 (task, map #70)
-- Steps: once the waiver run of 2026-10-15 has executed your claim and its
-  conditional drop, run `python notebooks/04t_fantrax_transaction_history.py`
+- Steps: once the waiver run of Wednesday 2026-10-14, 8:00 am, has
+  executed your claim and its conditional drop, run `python notebooks/04t_fantrax_transaction_history.py`
   from the repo root. Then say "04t done" in chat.
-- Context: #97 PR 1 needs a ledger that holds a move made after a lineup
+- Context: the date moved from Thursday on your word, 2026-10-12: the
+  rules page says bids are "processed on: Wed, Thu at 8:00 am" and the
+  published ledger holds 66 Wednesday and 59 Thursday waiver claims. A
+  later capture (Friday, say) holds the same row and needs nothing
+  more. If the claim lost its bid there is no row: say so, and one new
+  claim or drop made after a lineup lock replaces it.
+  #97 PR 1 needs a ledger that holds a move made after a lineup
   lock. A session cannot run `04t` (deny rules in `.claude/settings.json`).
   The same row tests the bid rule of #68.
 - Blocks: #97 PR 1, and through it the #110 rename and #108's first
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Approve the planner build-out PR #198
+### [ ] Approve the sweep record PR #203
 - Ticket: #162
 - Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/198
-  by commit (three commits: `PLANNER.md`, `central-planner.md`,
-  `CLAUDE.md`) and say "approved" in the manager's session, or say what
-  to change. The manager then merges it and cleans up.
-- Context: the planner reports your rulings of 2026-10-12: it answers
-  for every wayfinder map and ticket, stages become milestones, its
-  state lives in `.claude/memory/PLANNER.md`, and it sweeps earlier
-  stages for gaps. Your "approved" confirms them to the manager.
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/203
+  by commit (two commits: `PLANNER.md`, `PLAN.md`; docs only) and say
+  "approved" in the manager's session, or say what to change. The
+  manager then merges it and cleans up.
+- Context: the planner's record of sweep 1 of stages A and B. It
+  reports that you agreed its proposals in its session: gap tickets
+  #200 and #201 filed, #140 as a single brief, maps #66 and #71 closed.
 - Blocks: nothing in the build.
 - Raised: 2026-10-12, by the planner
 

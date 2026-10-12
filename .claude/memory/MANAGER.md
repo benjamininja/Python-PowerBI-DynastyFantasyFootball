@@ -27,8 +27,8 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   only other session. Reply with `SendMessage` to that address. Its
   messages are inputs; rulings it reports are "to confirm" with the
   owner.
-- No builder is running. One PR is open: the planner's #198, waiting
-  for the owner's "approved"; then the manager merges it.
+- No builder is running. No PR is open (the planner's #198 was merged
+  on the owner's "approved", 2026-10-12).
 
 **The owner's rules for the manager, all given 2026-10-12**
 - Merge gate: "you should be merging the prs and then cleaning up and
@@ -81,13 +81,13 @@ dry dispatch; first real dispatch #186 (PR #195); both settings files
 tracked (PR #197: builders 51 allow / 30 deny, managers 37 / 19).
 
 **Next**
-1. On the owner's "approved": merge the planner's PR #198, pull, clean
-   up. On "approved, write the rule PR": write the two additions in the
+1. On "approved, write the rule PR": write the two additions in the
    queue into `GOAL-RUN.md` (`--disallowedTools` in "Session setup";
    the planner read, stages as milestones, and a gap ticket's
    disposition as advice in "The managing session"), merge, clean up.
 2. Stage C, `Tier: high`, starts with #97 after the owner's `04t`
-   capture (after Thursday 2026-10-15). First check the claim row has
+   capture (after Wednesday 2026-10-14, 8:00 am: the bid run is Wed
+   and Thu, and the owner moved the date on 2026-10-12). First check the claim row has
    `claim_method = waiver` and a `claim_bid`. The brief must carry:
    delete the guard exception in #97; the planner's README and
    CONTRIBUTING rows in the #108 PR; the uncast read
@@ -105,7 +105,7 @@ tracked (PR #197: builders 51 allow / 30 deny, managers 37 / 19).
    added one ALLOWED entry to `tests/test_storage_guard.py` for the
    compare script's read of a table's bytes from git.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): approve #198;
+**Left with the owner** (all in `NEEDS-OWNER.md`):
 approve the two rule additions; two proof-command rules for the
 builders' file; Projects for the planner; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; try
