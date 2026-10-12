@@ -33,37 +33,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] Confirm the proof-command rule for GOAL-RUN.md
-- Ticket: #166
-- Context: the planner reports that you said "yes, make it a rule" in
-  its session. A rule change in `GOAL-RUN.md` waits for your word to
-  the manager. Proposed text, under "Stages and gap tickets": "Each
-  proof command on a ticket is one a builder may run under
-  `.claude/builders.settings.json`, or the ticket says the manager
-  runs it at re-proof. The planner writes tickets so; a ticket that
-  does not is sent back to the planner before dispatch."
-- Options: (a) write it as worded above; (b) not a rule
-- Recommended: (a), because a builder that cannot run its own proof parks, as the #140 builder did on `compare_tables.py`
-- Blocks: nothing.
-- Raised: 2026-10-12, by the planner
-
-### [ ] A builder cannot write its memory files: where does its plan go?
-- Ticket: #166, #140
-- Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
-  in its own worktree was denied in `dontAsk` mode. No rule in
-  `.claude/builders.settings.json` names `.claude/memory`; the likely
-  cause is the CLI's own guard on any path under a `.claude/` folder,
-  which asks, and `dontAsk` turns an ask into a denial. Not retried.
-  So a builder cannot write its plan into `RESUME.md`, park an entry in
-  its `NEEDS-OWNER.md`, or update a memory doc. The #140 builder went
-  on with the build and will put its plan (Outline, Build mode,
-  Rationale) in the PR body; it sent its park to the manager by
-  message.
-- Options: (a) you add `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` to `allow` in the builders' file, and until that is proven a builder's plan rides in its PR body, its parks come by message, and the manager writes the memory-doc updates in its own PR; (b) no settings change: (a)'s stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (c) stop the #140 builder until its plan can be written to `RESUME.md`
-- Recommended: (a), because the rules as written need a builder to write those files, an allow rule is the smallest change, and you review #140's diff before its merge either way
-- Blocks: nothing running; a stage C builder would hit the same wall at its first state-back.
-- Raised: 2026-10-12, by the #140 builder through the builder manager
-
 ## Actions
 
 ### [ ] Approve the planner state PR #216
@@ -154,11 +123,13 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Add the two proof-command rules to the builders' file
+### [ ] Add four allow rules to the builders' file
 - Ticket: #166, #186
 - Steps: 1. In `.claude/builders.settings.json` add to `allow`:
   `"Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)"` and
-  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`.
+  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`,
+  `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` (your
+  pane answer of 2026-10-12: a builder writes its own memory files).
   2. Optional, same file, add to `deny`:
   `"Edit(.claude/managers.settings.json)"` and
   `"Write(.claude/managers.settings.json)"`. 3. Optional, in
@@ -168,6 +139,10 @@ can be traced.
 - Context: both files are tracked since PR #197. #186 is merged, so its
   two proof commands exist and need one rule each; without them a stage C
   builder parks at its first "tables identical" proof.
+  A builder's Edit under `.claude/memory/` is denied in `dontAsk` mode
+  today; whether an allow rule lifts that is proven at the next
+  dispatch. Until then a builder's plan rides in its PR body, its
+  parks come by message, and the manager writes the memory docs.
 - Blocks: stage C's proofs. Not #97's start.
 - Raised: 2026-10-12, by the builder manager
 

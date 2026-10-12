@@ -79,8 +79,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   agents --json`. `claude stop` before `--resume`. A builder's message
   carries a `from` address; `SendMessage` to it reaches the builder.
 - **A builder's Edit under `.claude/memory/` is denied in `dontAsk`
-  mode** (no rule of ours names it; Decision in `NEEDS-OWNER.md`).
-  Until answered, say in every brief: the plan rides in the PR body,
+  mode** (no rule of ours names it). The owner answered (a): they add
+  the allow rules. Until a dispatch proves the rules lift the denial,
+  say in every brief: the plan rides in the PR body,
   a park comes by message, memory-doc edits are listed in the PR body
   and the manager writes them.
 - A builder cannot run `compare_tables.py` or `02d --raw-dir` until
@@ -145,13 +146,12 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #92 #93 #116. In no stage: #130,
    #211 (the owner's).
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the Decision on a
-builder writing under `.claude/memory/`; the two proof-command allow
-rules for the builders' file, then "commit the settings files"; the
+**Left with the owner** (all in `NEEDS-OWNER.md`): four allow rules
+for the builders' file (the two proof commands; Edit and Write under
+`.claude/memory/**`, the owner's pane answer (a) of 2026-10-12), then
+"commit the settings files"; the
 `04t` capture; the Power BI check (#211); try the 0.4.0 pane; the
-planner's PR #216 (merge on "approved"); the Decision on the
-proof-command rule (on (a), write the quoted text into `GOAL-RUN.md`
-"Stages and gap tickets", a rule PR merged on green); the Project's
+planner's PR #216 (merge on "approved"); the Project's
 views by hand; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
 upstream scratch worktrees; later: the `migrate.yml` secret, the first
