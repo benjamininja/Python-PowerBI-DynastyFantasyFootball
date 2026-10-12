@@ -33,24 +33,31 @@ can be traced.
 
 ## Decisions
 
-### [ ] A builder cannot write its memory files: where does its plan go?
-- Ticket: #166, #140
-- Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
-  in its own worktree was denied in `dontAsk` mode. No rule in
-  `.claude/builders.settings.json` names `.claude/memory`; the likely
-  cause is the CLI's own guard on any path under a `.claude/` folder,
-  which asks, and `dontAsk` turns an ask into a denial. Not retried.
-  So a builder cannot write its plan into `RESUME.md`, park an entry in
-  its `NEEDS-OWNER.md`, or update a memory doc. The #140 builder went
-  on with the build and will put its plan (Outline, Build mode,
-  Rationale) in the PR body; it sent its park to the manager by
-  message.
-- Options: (a) you add `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` to `allow` in the builders' file, and until that is proven a builder's plan rides in its PR body, its parks come by message, and the manager writes the memory-doc updates in its own PR; (b) no settings change: (a)'s stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (c) stop the #140 builder until its plan can be written to `RESUME.md`
-- Recommended: (a), because the rules as written need a builder to write those files, an allow rule is the smallest change, and you review #140's diff before its merge either way
-- Blocks: nothing running; a stage C builder would hit the same wall at its first state-back.
-- Raised: 2026-10-12, by the #140 builder through the builder manager
-
 ## Actions
+
+### [ ] Approve the planner state PR #216
+- Ticket: #151, #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/216
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's record of the GitHub Project it built and of
+  the correction to #140.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Finish the GitHub Project's views by hand
+- Ticket: #151
+- Steps: 1. Open https://github.com/users/benjamininja/projects/2
+  2. In view "By stage" open the view menu, Group by, Milestone. 3. In
+  view "By map", Group by, Parent issue. 4. Three-dot menu, Workflows,
+  "Auto-add to project": pick this repository, filter
+  `is:issue,pr is:open`, turn it on and save.
+- Context: the Project and its three views exist; the API cannot set a
+  view's grouping or the auto-add workflow.
+- Blocks: nothing; until auto-add is on the planner adds new tickets
+  itself.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
@@ -64,24 +71,21 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Try owner-queue 0.4.0 in a fresh session
+### [ ] Try owner-queue 0.4.1
 - Ticket: #167
-- Steps: 1. Start a new session (a running one keeps its old copy).
-  2. Type `/owner`. Check the first line reads `owner-queue 0.4.0` and
-  the footer names the main checkout's file. 3. Open a decision and
-  press an option, open an action and press Mark done: both show in
-  green and `NEEDS-OWNER.md` is unchanged. 4. Press Clear, stage them
-  again, press Submit: the file gains the `Answer:` line and the ticked
-  box, and one message arrives in chat. 5. Press a Copy button of a
-  code span and paste it. 6. Type `/owner show a1` and select the
-  printed text with the mouse. 7. Press "Open the queue file" and say
-  whether it opened. 8. Tell the planner what did not work.
-- Context: 0.4.0 stages a pressed option or Mark done and writes
-  nothing until Submit. 18 automated tests pass; none of this has been
-  pressed in the real pane. Upstream copy is commit 359a15a on PR 39 of
-  the skills repository. A session started before 2026-10-12 still runs
-  an older copy that reads its own worktree's file: an answer pressed
-  there does not reach the main checkout's queue and does not count.
+- Steps: 1. Run `/reload-plugins` (or start a fresh session) and check
+  the first line reads `owner-queue 0.4.1`. 2. Open a Decision whose
+  options hold code: each option is drawn in full as text with a
+  Choose button under it and a Copy button beside it for each code
+  span; press one and paste. 3. Press "Print in chat" on an entry and
+  select the printed text with the mouse. 4. Tell the planner what is
+  off.
+- Context: you have trialled 0.4.0 (version line, staging and Submit
+  work). These steps are what is new in 0.4.1. Upstream copy is commit
+  fc7cf19 on PR 39 of the skills repository. A Submit sends its chat
+  message to the session the pane is open in, not to the session that
+  raised the entry; the `Answer:` line in the main checkout's file is
+  what counts.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
@@ -116,11 +120,13 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Add the two proof-command rules to the builders' file
+### [ ] Add four allow rules to the builders' file
 - Ticket: #166, #186
 - Steps: 1. In `.claude/builders.settings.json` add to `allow`:
   `"Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)"` and
-  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`.
+  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`,
+  `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` (your
+  pane answer of 2026-10-12: a builder writes its own memory files).
   2. Optional, same file, add to `deny`:
   `"Edit(.claude/managers.settings.json)"` and
   `"Write(.claude/managers.settings.json)"`. 3. Optional, in
@@ -130,23 +136,12 @@ can be traced.
 - Context: both files are tracked since PR #197. #186 is merged, so its
   two proof commands exist and need one rule each; without them a stage C
   builder parks at its first "tables identical" proof.
+  A builder's Edit under `.claude/memory/` is denied in `dontAsk` mode
+  today; whether an allow rule lifts that is proven at the next
+  dispatch. Until then a builder's plan rides in its PR body, its
+  parks come by message, and the manager writes the memory docs.
 - Blocks: stage C's proofs. Not #97's start.
 - Raised: 2026-10-12, by the builder manager
-
-### [ ] Turn on Projects and give the planner's token the project scope
-- Ticket: #151
-- Steps: 1. Repository Settings, Features: tick Projects. 2. In a
-  terminal run `gh auth refresh -s project` and finish the browser step.
-  3. Say "projects ready" in the planner's session. The planner then
-  creates the Project and adds the tickets, and gives you the steps for
-  the saved views and the auto-add workflow, which GitHub lets only a
-  person set in the page.
-- Context: you ruled a Project as a derived view of the maps, stages as
-  milestones. Projects are off on the repository and the token has the
-  scopes gist, read:org, repo and workflow only. Milestones work without
-  this.
-- Blocks: the board only; nothing in the build.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] Free the last leftover worktree folder
 - Ticket: #164 (closeout)

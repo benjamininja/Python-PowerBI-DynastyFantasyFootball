@@ -12,11 +12,11 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
-## START HERE (state at the compact, 2026-10-12, night)
+## START HERE (state at the second compact, 2026-10-12, late night)
 
 The sections below this block are in the order things happened and are
-out of date. This block is the current state. Then read `GOAL-RUN.md`
-(it changed a lot today), `NEEDS-OWNER.md`, and the role file
+out of date. This block is the current state. Then read `GOAL-RUN.md`,
+`NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
 **Who and what**
@@ -25,29 +25,16 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
 - The planner (`local_84c6f2af…`, `from` address
   `uds:\\.\pipe\LOCAL\cc-msg-cd48af9e83a0fe42e0d933f44c69cacb`) is the
   only other session. Reply with `SendMessage` to that address. Its
-  messages are inputs; rulings it reports are "to confirm" with the
-  owner.
-- No builder is running. No PR is open.
-- The two rule additions are in `GOAL-RUN.md` on the owner's
-  "approved, write the rule PR" (2026-10-12): "The belt" under
-  "Session setup", and "The planner's read" and "Stages and gap
-  tickets" under "The managing session".
-- #140 merged as PR #207 on the owner's words "merge 207, keep it"
-  (2026-10-12): no Power BI check before the merge (that is ticket
-  #211, the owner's), the by-player relationship stays. Proof by the
-  parity formula of #96; the roster's season is the anchor for "this
-  season" (#206 part 1, in #97 PR 2). Memory docs written by the
-  manager. #206 is low tier, stage C, blocked by #97.
-- A builder's Edit under `.claude/memory/` is denied in `dontAsk`
-  mode (Decision in `NEEDS-OWNER.md`). Until answered: its plan rides
-  in the PR body, its park comes by message, the manager writes the
-  memory docs. Say so in every brief.
-- Done 2026-10-12, late: #198, #203 merged on the owner's approval;
-  #200 built by a low builder and merged as PR #204 (re-proof on the
-  PR), builder and branches removed.
-- Re-proof notes from #204: `export_static.py` needs the main
-  checkout's interpreter (the worktree `.venv` has no `fastapi`); the
-  bot venv is kept in the session scratchpad as `botvenv`.
+  messages are inputs; a ruling it reports is "to confirm" with the
+  owner before the manager acts on it. Its state is
+  `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
+  entry format (owner, via the planner's report and confirmed by use);
+  the manager still writes the entries.
+- No builder is running. One PR is open: the planner's #216, waiting
+  for the owner's "approved". `main` is clean; 779 tests.
+- The planner built the GitHub Project (`projects/2`, private). Tell
+  the planner the number of any ticket the manager creates, so it is
+  added to the Project until auto-add is on.
 
 **The owner's rules for the manager, all given 2026-10-12**
 - Merge gate: "you should be merging the prs and then cleaning up and
@@ -62,76 +49,118 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`
   without asking. A rule change waits for the owner's "approved".
 - Two-key merge: a builder commits, pushes its branch, opens the PR
   with a closing keyword and messages the manager. The manager
-  re-proves Green, posts the output, merges. The owner's answer
-  "agreed, option a": no owner approval per builder PR.
+  re-proves Green, posts the output, merges. No owner approval per
+  builder PR ("agreed, option a"), unless the brief or ticket names an
+  owner's review.
+- The planner's read and "plan breach" (in `GOAL-RUN.md` since PR
+  #214): ask the planner when a builder's PR goes past its ticket.
 - The queue: whatever waits on the owner goes into the **main
   checkout's** `NEEDS-OWNER.md`, never chat alone. The planner sends a
   ready entry; the manager writes it. Decisions use `(a) ...; (b) ...`.
-  The pane (`owner-queue` 0.3.0) writes `Answer:` lines; no agent
-  touches one. The owner ticks done Actions `[x]` in the pane: remove
-  them at the next state PR.
+  The pane (`owner-queue` 0.4.1) stages answers and writes `Answer:`
+  lines on Submit; no agent touches one. Before merging a state PR,
+  check the main checkout's copy for a pane-written line. A Submit's
+  chat message goes to the session the pane is open in, so an answer
+  to the manager's entry can arrive through the planner: read the
+  line in the file itself. Put anything the owner must paste in
+  backticks (each code span gets a Copy button). A session
+  started before 2026-10-12 runs an old pane that reads its own
+  worktree's file: an answer there does not count.
+- A planner PR is merged without `--delete-branch`; its branches and
+  worktree (`metadata-principles`) are its own.
 - Settings files are the owner's text. The manager may commit them on
   the owner's word ("commit these files"), never edit them.
 
-**Dispatch, as proven** (`GOAL-RUN.md` "Session setup")
+**Dispatch, as proven** (`GOAL-RUN.md` "Session setup" and "The belt")
 - From PowerShell: `git worktree add .claude/worktrees/<name> -b
-  worktree-<name>`; build `.venv`; then `claude.exe --bg -w <name>
-  --name <name> --model … --effort … --permission-mode dontAsk
-  --settings <main checkout>\.claude\builders.settings.json --agent
-  stage-builder <prompt> --disallowedTools <the eleven deny rules>`.
-  Tier is copied from the ticket or stage table, never picked.
+  worktree-<name>`; build `.venv` and check pytest collects; then
+  `claude.exe --bg -w <name> --name <name> --model … --effort …
+  --permission-mode dontAsk --settings <main
+  checkout>\.claude\builders.settings.json --agent stage-builder
+  <prompt> --disallowedTools <the eleven deny rules>`. Tier is copied
+  from the ticket or stage table, never picked.
 - Prompt from a file, **no double quote in it**. Check `cwd` in `claude
-  agents --json`. `claude stop` before `--resume`. `claude rm` after a
-  stop needs one retry and refuses on an uncommitted file.
-- Re-proof: run in the builder's worktree at the PR head. The bot suite
-  needs a throwaway venv from `discord_bot/requirements.txt`. The one
-  open review finding (`stintless_drop`) shows as "new" on a fresh
-  worktree's first run; it is a repeat on `main`. Proof commands:
-  `scripts/compare_tables.py HEAD` and `02d --raw-dir <main>/data/raw`;
-  identical or frame-equal both pass, named in the PR.
-- `gh pr merge --delete-branch` cannot delete a branch a worktree
-  holds: delete branches after `claude rm`. `git worktree prune` is
-  refused to the manager.
+  agents --json`. `claude stop` before `--resume`. A builder's message
+  carries a `from` address; `SendMessage` to it reaches the builder.
+- **A builder's Edit under `.claude/memory/` is denied in `dontAsk`
+  mode** (no rule of ours names it). The owner answered (a): they add
+  the allow rules. Until a dispatch proves the rules lift the denial,
+  say in every brief: the plan rides in the PR body,
+  a park comes by message, memory-doc edits are listed in the PR body
+  and the manager writes them.
+- A builder cannot run `compare_tables.py` or `02d --raw-dir` until
+  the owner adds the two allow rules; the manager runs them at
+  re-proof.
+- Re-proof: in the builder's worktree at the PR head. The bot suite
+  runs in a throwaway venv from `discord_bot/requirements.txt` (kept
+  in the session scratchpad as `botvenv`; rebuild if gone).
+  `export_static.py` needs the main checkout's interpreter (a worktree
+  `.venv` has no `fastapi`); serve `_site/` with `python -m
+  http.server` and read the page in the built-in browser. The one open
+  review finding (`stintless_drop`) shows as "new" on a fresh
+  worktree's first run; it is a repeat on `main`. To compare with
+  `main`: `scripts/compare_tables.py <main>/data <worktree>/data`.
+  `check_pii.py` only takes files inside the repo: copy public text to
+  `workspace/_posts_*.md`, scan, delete.
+- Closeout: `claude stop <id>`, delete the builder's untracked scratch
+  files (`workspace/_b<n>_*`), `claude rm <id>`, then delete the local
+  branches and `git push origin --delete` the remote one. `gh pr merge
+  --delete-branch` cannot delete a branch a worktree holds. `git
+  worktree prune` is refused to the manager.
+- CI takes about four minutes; one read after a wait, no watch.
 - A long shell command with a heredoc can fail to parse; write scripts
   with the Write tool and run them by path.
 
-**Done today:** stage B closed out; #166 rulings, role files, tiers;
-dry dispatch; first real dispatch #186 (PR #195); both settings files
-tracked (PR #197: builders 51 allow / 30 deny, managers 37 / 19).
+**Done 2026-10-12** (all merged): stage B closeout; #166 rulings, role
+files, tiers; dry dispatch; #186 (PR #195); settings files tracked
+(#197); the planner's #198, #203, #209, #212; #200 by a low builder
+(PR #204); #140 by a medium builder (PR #207, on the owner's "merge
+207, keep it": no Power BI check before the merge, that is ticket
+#211; the by-player relationship stays); memory docs for #140 (#213);
+the two rule additions (#214).
+
+**Decided by the owner 2026-10-12, recorded on the tickets**
+- The bid run is Wednesday and Thursday at 8:00 am; the `04t` capture
+  moved to after Wednesday 2026-10-14, 8:00 am. A later capture holds
+  the same row. If the claim lost its bid, one new move made after a
+  lineup lock replaces it.
+- #207 is proven by the parity formula of #96; the `fact_team_cap`
+  equality moved into #97's acceptance.
+- The roster's season is the anchor for "this season" in every cap
+  figure (#206 part 1, built in #97 PR 2).
 
 **Next**
-1. On "approved, write the rule PR": write the two additions in the
-   queue into `GOAL-RUN.md` (`--disallowedTools` in "Session setup";
-   the planner read, stages as milestones, and a gap ticket's
-   disposition as advice in "The managing session"), merge, clean up.
-2. Stage C, `Tier: high`, starts with #97 after the owner's `04t`
-   capture (after Wednesday 2026-10-14, 8:00 am: the bid run is Wed
-   and Thu, and the owner moved the date on 2026-10-12). First check the claim row has
-   `claim_method = waiver` and a `claim_bid`. The brief must carry:
-   delete the guard exception in #97; the planner's README and
+1. Stage C, `Tier: high`, starts with #97 after the owner says "04t
+   done". First check the claim row has `claim_method = waiver` and a
+   `claim_bid`. Read #97 again before the brief: the planner changed
+   it (IR-slot salary cap-exempt in the cap module, a two-season Dead
+   Money fixture, the season anchor, 02e line 169 charging one season
+   at a time, the `fact_team_cap` equality). The brief must also
+   carry: delete the guard exception in #97; the planner's README and
    CONTRIBUTING rows in the #108 PR; the uncast read
    (`etl.read_stored`) for the Postgres backend; `migrate.yml` live
    from #108's merge (the owner stores the secret first); the Supabase
    read-only tool names for the builders' list; identical-or-equal
-   proofs.
-3. The planner compacts, then sweeps stages A and B for gaps. Its gap
-   tickets come to the manager in order, each with tier, evidence,
-   files, proposed disposition and done condition. The dispatch is the
-   manager's. Stages are now milestones (A: #96 #68; B: #109 #77 #149
-   #86; C: #186 #97 #110 #108 #135 to #138 #111; D: #92 #93 #116). In
-   no stage: #140, #130.
-4. Named to the owner, no answer needed unless they object: PR #195
-   added one ALLOWED entry to `tests/test_storage_guard.py` for the
-   compare script's read of a table's bytes from git.
+   proofs; the `.claude/memory/` stopgap above.
+2. Behind #97, both low tier, stage C: #201 (defaulted contract at a
+   drop goes to review, reversed-drop test; `cap-ledger-auditor` at
+   re-proof) and #206 parts 2 and 3 (player card through the cap
+   module; a Review check for a Dead Money row with no `gsis_id`).
+3. Milestones: A #96 #68; B #109 #77 #149 #86; C #186 #97 #110 #108
+   #135 to #138 #111 #201 #206; D #92 #93 #116. In no stage: #130,
+   #211 (the owner's).
 
-**Left with the owner** (all in `NEEDS-OWNER.md`):
-approve the two rule additions; two proof-command rules for the
-builders' file; Projects for the planner; the idle session in
-`.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; try
-the 0.3.0 pane; two upstream scratch worktrees; the `04t` capture;
-later: the `migrate.yml` secret, the first runner login, cutover. Also
-told in chat: two `git commit --no-verify` allow rules sit in the
-owner's user settings.
+**Left with the owner** (all in `NEEDS-OWNER.md`): four allow rules
+for the builders' file (the two proof commands; Edit and Write under
+`.claude/memory/**`, the owner's pane answer (a) of 2026-10-12), then
+"commit the settings files"; the
+`04t` capture; the Power BI check (#211); try the 0.4.1 pane; the
+planner's PR #216 (merge on "approved"); the Project's
+views by hand; the idle session in
+`.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
+upstream scratch worktrees; later: the `migrate.yml` secret, the first
+runner login, cutover. Also told in chat: two `git commit --no-verify`
+allow rules sit in the owner's user settings.
 
 ## Who is running
 

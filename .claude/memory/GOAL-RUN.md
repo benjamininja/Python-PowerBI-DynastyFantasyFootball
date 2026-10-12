@@ -263,7 +263,11 @@ stage is a milestone on the tracker, kept by the planner; the table
 under "Stages" is its copy for the dispatch. A gap ticket from the
 planner's sweep carries its tier, evidence, files, proposed disposition
 and done condition. The disposition is advice: whether and when to
-dispatch is the manager's, on the owner's word.
+dispatch is the manager's, on the owner's word. Each proof command on a
+ticket is one a builder may run under
+`.claude/builders.settings.json`, or the ticket says the manager runs
+it at re-proof. The planner writes tickets so; a ticket that does not
+is sent back to the planner before dispatch (owner, 2026-10-12).
 
 **Check-ins.** Event-driven: a park, a PR reported green, a stopped or
 idle builder. One fallback look after 60 quiet minutes. No polling.
