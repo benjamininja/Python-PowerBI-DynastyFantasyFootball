@@ -643,9 +643,9 @@ tables:
       - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
       - { name: pick_ref, dtype: str }
-      - { name: draft_year, dtype: float64 }
-      - { name: draft_round, dtype: float64 }
-      - { name: pick_in_round, dtype: float64 }
+      - { name: draft_year, dtype: Int64 }
+      - { name: draft_round, dtype: Int64 }
+      - { name: pick_in_round, dtype: Int64 }
       - { name: source, dtype: str }
     edges:
       - { to: dim_roster_asset, via: direct, on: asset_id }
@@ -661,7 +661,8 @@ tables:
       pick leg that resolves to no pick is written to
       data/review/review_trade_log_picks.csv and is not in the table.
       draft_year, draft_round and pick_in_round are the leg as Fantrax shows
-      it.
+      it: whole numbers, empty on a player row (Int64, so the file holds
+      integers and a pandas read gives Int64, not float64; #77).
 
   - name: fact_roster_state
     type: fact

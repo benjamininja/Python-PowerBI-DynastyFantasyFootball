@@ -106,8 +106,18 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     after `02d`, `03y`, `04z`, `03z`. `01a` cannot run here (no
     `nflreadpy` in the shim venv).
   - **#77 phase 5: built on branch `feat/77-seam-phase5b`, and #77 is
-    PARKED on two writes** (two entries in `NEEDS-OWNER.md`: three
-    whole-number columns of `fact_trade_log`; the `fact_fantasy_teams`
+    PARKED on one write.** The `fact_trade_log` park was ANSWERED
+    2026-10-12 (relayed by the manager). Question put to the owner:
+    "fact_trade_log has three whole-number columns with gaps
+    (draft_year, draft_round, pick_in_round). The file stores them as
+    whole numbers today, but writing through the seam would turn them
+    into decimals. How should they be stored?" Answer, word for word:
+    "(b) Declare them whole-number-with-gaps now (Recommended)". Built
+    on branch `feat/77-trade-log-int`: the registry declares the three
+    `Int64`, `02d` writes the table through `write_table`, the published
+    file is rewritten once (parquet int64 as before; a pandas read now
+    gives `Int64`). Still parked (one entry in `NEEDS-OWNER.md`: the
+    `fact_fantasy_teams`
     grain against a rostered player with no `gsis_id`, found by the
     auditor). Both writes are still `to_parquet`. Everything else in
     phase 5 goes through `write_table`. `02d` after the audit: the
