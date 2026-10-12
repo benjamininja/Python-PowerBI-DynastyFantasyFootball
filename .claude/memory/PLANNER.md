@@ -11,11 +11,13 @@ planner session can resume from the repository alone. The rules are in
   fresh session (queue entry). What it turns up is the next work on
   the tool. Not yet seen in a real pane: whether "Open the queue file"
   opens the file, and how Submit is drawn.
-- **Waiting on the owner:** PR #207 (#140): the TMDL review and the
-  refresh in Power BI Desktop. The planner's read is on the PR: no
-  breach.
-- **Then:** the GitHub Project, once the owner has turned Projects on
-  and given the token the `project` scope (in the owner's queue).
+- **PR #207 (#140):** the owner approved it to merge (2026-10-12,
+  late; passed to the manager). The check in Power BI Desktop is left
+  open as #211: Power BI is a deprioritized asset.
+- **Then:** the GitHub Project. Projects is on (owner, 2026-10-12);
+  the token still lacks the `project` scope (`gh auth status`: gist,
+  read:org, repo, workflow). The owner runs
+  `gh auth refresh -s project`.
 - **Then:** plan #167 with the owner (the upstream plugin
   `session-dispatch-managers-build-review`; it takes `owner-queue`
   0.4.0 or later as a dependency; the wayfinder template gains a
@@ -23,9 +25,9 @@ planner session can resume from the repository alone. The rules are in
   raised an entry, see the comment on #167).
 - **Open on map #162:** #166 closes when the builders' settings file
   carries the two allow rules for `scripts/compare_tables.py` and
-  `02d --raw-dir`.
-- **Left for the owner's word:** delete the merged remote branches
-  `docs/planner-build-out` and `docs/sweep-1-record`.
+  `02d --raw-dir`. Checked 2026-10-12, late: the file has neither.
+- The merged remote branches `docs/planner-build-out` and
+  `docs/sweep-1-record` are deleted (owner's word, 2026-10-12).
 - Stage C waits on the owner's `04t` capture, after Wednesday
   2026-10-14, 8:00 am.
 
@@ -49,7 +51,7 @@ planner session can resume from the repository alone. The rules are in
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
 | #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
-| #70 | In-season Fantrax league flows | #97, #201 (stage C); #92, #93, #116 (stage D); #140 (PR #207 open); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
+| #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #140 (PR #207 open); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
 | #162 | Managing-session roles and plugin | #166, #167 |
