@@ -138,27 +138,60 @@ managing session `56063cf0…`).** Read the Standing rules below, then
   - **#77 phase 5 MERGED as PR #177 (`678f791`), without the two parked
     writes.** `to_parquet` is left in exactly two places: `02d`
     (`fact_trade_log`) and `02e` (`fact_fantasy_teams`).
-  - **#77 phase 6, NOT STARTED, blocked on the two `NEEDS-OWNER.md`
-    entries.** When they are answered (a relay from the managing session
-    counts, `GOAL-RUN.md` "Relayed answers"): apply each answer to its
-    write; move every remaining `read_parquet` in `notebooks/`,
-    `scripts/` and notebook code cells to `etl.read_table` (also
-    `run_pipeline` and `check_data_model`, per inventory section 8);
-    add the static guard test (no `read_parquet` / `to_parquet` outside
-    the seam section of `etl_helpers.py`; the goal's end condition names
-    it; an exception only if the owner picked option (c) for a write);
-    delete the shims `load_replace_partition` and
-    `upsert_dynasty_crosswalk` and their tests' legacy cases, and take
-    them out of `CLAUDE.md`'s helper list (pull and check `gh pr list`
-    for the planner's PR on `CLAUDE.md` first). A test that patches only
-    a module's `*_PATH` will then read or write the real `data/`: point
-    `CFG.data_dir` at the temp dir in each such fixture. Close #77 with
-    that PR and add its line to map #69.
-  - **#149: built, PR #178 open** (`chore/149-02a-nflverse-chain`):
-    step `02a_combine_metrics` after `01e` in `run_pipeline.py`,
-    registry `chain: nflverse`, README order line. Merge on green; the
-    body says "Closes #149"; then its line on map #69 is already there
-    (the map names #149 under "Decisions so far").
+  - **STATE AT THE COMPACT (2026-10-12, second window):** #109, #149 and
+    #86 are CLOSED. #77 is OPEN with only phase 6 left, and it is
+    UNBLOCKED. Merged this window: #171 (phase 2), #174 (phase 3), #160
+    (#109), #175 (phase 4), #177 (phase 5), #178 (#149), #179 (#86),
+    #180 (`fact_trade_log` as Int64, `1ab9ff6`). Branch
+    `feat/77-seam-phase6` exists locally (from `9c22710`; rebase it onto
+    `origin/main` `1ab9ff6` first: `git checkout -B feat/77-seam-phase6
+    origin/main` keeps uncommitted edits). No PR of mine is open.
+  - **Second #77 park ANSWERED 2026-10-12 (relayed by the manager), NOT
+    YET APPLIED: the entry is still in `NEEDS-OWNER.md` on `main`.**
+    Question put to the owner: "Second #77 park: fact_fantasy_teams is
+    keyed (team_key, gsis_id) and the seam refuses a missing key. A
+    rostered player with no gsis_id (an unsigned prospect, or a Fantrax
+    player the crosswalk does not know yet) would stop the scheduled 02e
+    run. Today's data is clean (1,103 rows, 0 missing). What happens to
+    this one write until #97 rewrites 02e?" Answer, word for word: "(c)
+    now, (b) inside #97 (Recommended)". So: `02e` keeps its
+    `to_parquet`; the static guard test is born with ONE named exception
+    for that write, citing #97; #97 moves the write into the seam under
+    its new key `(team_key, scorer_id)` and deletes the exception; the
+    seam's own key check is untouched. To do in the phase 6 PR: delete
+    the entry from `NEEDS-OWNER.md`, and name the exception's removal in
+    #97 (a comment, PII-scanned).
+  - **#77 phase 6, NEXT, one PR, closes #77** (title or body "Closes
+    #77"). Steps: (1) move every `read_parquet` in `notebooks/`,
+    `scripts/` and notebook code cells to `etl.read_table` (107 sites
+    in 36 files at the last count, 13 of them inside `etl_helpers.py`;
+    also `run_pipeline.py`, `check_data_model.py`, `etl_checks.py`; a
+    read of a file that is not a declared table, or of a temp or raw
+    path, is not a table read: look before replacing). `read_table`
+    raises `TableNotFound` (a `FileNotFoundError`) where code now tests
+    `path.exists()`: use `etl.table_exists(name)`. (2) Find how `01e`
+    writes `dim_nfl_players`: it has no `to_parquet` call, so it writes
+    some other way. (3) Add the static guard test: no `read_parquet` /
+    `to_parquet` in `notebooks/`, `scripts/` or notebook code cells
+    outside the seam section of `etl_helpers.py`, with the one named
+    exception above. The goal's end condition names this test. (4)
+    Delete the shims `load_replace_partition` and
+    `upsert_dynasty_crosswalk`, `_write_table_file` if nothing needs it,
+    and the legacy-shim cases in `tests/test_etl_storage.py`; take them
+    out of `CLAUDE.md`'s helper lists (pull and check `gh pr list` for
+    the planner's PR on `CLAUDE.md` first). (5) Every test that patches
+    only a module's `*_PATH` will then read or write the real `data/`:
+    point `CFG.data_dir` at the temp dir in each fixture, and check
+    `git status data/` after every test run. (6) Proof: old code against
+    new code on the same inputs (`run_p5.sh`, `cmp_dirs.py`,
+    `arrow_types.py` in the scratchpad), `cap-ledger-auditor` on `02d`,
+    `02e`, `02f` before the merge. (7) After the merge: Resolution on
+    #77, its line on map #69, and #86's line on its map (the nflverse
+    map; its Resolution comment is posted).
+  - **End condition still to show in the last turn:** `gh issue view`
+    CLOSED for #109, #77, #149, #86; the guard test passes; `gh pr list`
+    with no open PR (PR #176 is the manager's, the owner merges it);
+    `git status` clean; `pytest tests/` passes (749 on `main` now).
   - **#149 MERGED as PR #178 (`3c58b2e`), ticket closed.**
   - **#86: BUILT on branch `feat/86-nflverse-facts`**, PR open:
     `notebooks/02g_nflverse_inseason.py` + 15 tests, both tables' first
