@@ -82,7 +82,8 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   That is ticket #234 (the planner's, through the plan gate with
   the owner; #218 waits on it). Until it lands, the stopgap holds.
 - The owner ticked "Finish the GitHub Project's views by hand" done
-  in the pane (2026-10-12); entry removed, planner told. **Read the
+  in the pane (2026-10-12), but the planner's API read shows no
+  grouping and no auto-add; the entry is back, reworded. **Read the
   diff of the main checkout's queue in its own call before any `git
   restore` of it**: a pane tick or answer sits there uncommitted, and
   a restore in the same command drops it unread.
@@ -236,7 +237,7 @@ the two rule additions (#214).
 "approved" for #226; the
 code prompt for #230; skills PR 46 and the three #167 entries (owner-
 only files, settings rules then "commit the settings files", plugin
-folder); the Power BI check (#211); the stale
+folder); the Project's views (save them); the Power BI check (#211); the stale
 worktree entries (close the idle session, pause OneDrive, prune); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user

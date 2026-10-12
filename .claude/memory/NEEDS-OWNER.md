@@ -192,6 +192,25 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
 - Blocks: closing #167.
 - Raised: 2026-10-12, by the planner
 
+### [ ] GitHub Project: the view changes did not save; look once more
+- Ticket: #151
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Open https://github.com/users/benjamininja/projects/2
+  2. In view "By stage": view menu, Group by, Milestone, then press
+  **Save** on the view (a blue dot on the tab means unsaved). 3. In
+  view "By map": Group by, Parent issue, then Save. 4. Three-dot menu,
+  Workflows, "Auto-add to project" (not "Auto-add sub-issues"): pick
+  this repository, filter `is:issue,pr is:open`, turn it on and save.
+- Context: you ticked this done in the pane on 2026-10-12. The planner
+  then read the Project through GitHub's API: no view reports a
+  group-by field, and "Auto-add to project" is not among the enabled
+  workflows ("Auto-add sub-issues to project" is). An unsaved view is
+  the likely cause. If it looks right in your browser, say so and the
+  entry goes.
+- Blocks: nothing; until auto-add is on the planner adds new tickets
+  itself.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
 - Steps: open `pbi/mouserat2`, refresh, look at the Dead Money
