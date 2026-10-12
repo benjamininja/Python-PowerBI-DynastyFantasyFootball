@@ -12,7 +12,7 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
-## START HERE (state at the second compact, 2026-10-12, late night)
+## START HERE (state at the third compact, 2026-10-12, evening)
 
 The sections below this block are in the order things happened and are
 out of date. This block is the current state. Then read `GOAL-RUN.md`,
@@ -30,17 +30,42 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- Builder `b92-runner-spike` (id `d6acd1df`, ticket #225, medium)
-  is idle with **PR #228** open and green; the manager re-proved
-  Green at `b6b5923` and posted it. **It waits for the owner's
-  "merge 228"** (the ticket names the owner's read of the workflow)
-  and for the planner's read of its eight judgement calls. On the
-  merge: write the builder's ready Action (make the environment
-  `fantrax-spike`, store `FANTRAX_EMAIL`, `FANTRAX_PASSWORD`,
-  `FANTRAX_TOTP_SECRET`, fire, report; text in the builder's message
-  of 2026-10-12 and in the transcript), then close out the builder
-  (worktree `b92-runner-spike`, scratch files `workspace/_b225_*`).
-  The PR closes #225, never #92.
+- **Open now.** Builder `b92-runner-spike` (id `d6acd1df`, ticket
+  #225, medium) is idle with **PR #228** open and green. Re-proved at
+  `b6b5923` and posted; the planner read it as no breach; the owner's
+  two pane answers are recorded on the PR. **One word is left: the
+  owner's "merge 228"** (the ticket names the owner's read of the
+  workflow). The other open PR is the planner's #226: merge on the
+  owner's "approved", without `--delete-branch`.
+- **On "merge 228"**: one CI read, squash-merge, pull; #225 closes,
+  #92 stays open. Then write this Action into the queue, "Store the
+  spike secrets and fire the Fantrax runner spike" (Ticket #92, #225):
+  1. Settings, Environments, New environment `fantrax-spike`,
+  deployment branches limited to `main`, **before the first run** (if
+  the workflow runs first GitHub makes the environment with no branch
+  rule). 2. Environment secrets by name: `FANTRAX_EMAIL`,
+  `FANTRAX_PASSWORD`, `FANTRAX_TOTP_SECRET` (the bare base32 setup
+  key); the account is the owner's choice, question 2 of #92 asks
+  about one without commissioner rights. 3. Fire: Actions tab,
+  `fantrax-runner-spike`, Run workflow, branch `main`; or a fenced
+  block with `gh workflow run fantrax-runner-spike.yml --ref main`.
+  4. Report the summary page's Login line, read table and step
+  seconds. Context: checkpoint 1; prints verdicts, HTTP statuses and
+  seconds only; question 1 wants several runs on different days; until
+  #230 merges a run ends at `needs_code`, and the owner chose to fire
+  anyway and again after. Page: `docs/research/fantrax-runner-spike.md`.
+  The old entry "Fire the first Fantrax runner login (later)" is
+  replaced by it. Then close out the builder (worktree
+  `b92-runner-spike`, scratch files `workspace/_b225_*`, branches
+  `feat/225-runner-spike-workflow` and `worktree-b92-runner-spike`).
+- The owner's git guard hook (new 2026-10-12) blocks a shell command
+  that holds `git push` while `main` is checked out when the command
+  starts, even if the command switches branch first. So: switch and
+  commit in one call, then push in its own call as `git push -u origin
+  <branch>`. Not a denial to work around; it wants the branch named.
+- The pane: "Other" on a Decision opened no text box for the owner
+  (0.5.0); passed to the planner. The owner sees most of the UI in
+  this session, so pass pane complaints on.
 - Proven by this builder: the allow rules for `.claude/memory/**` do
   **not** lift the denial in `dontAsk` mode (Decision in the queue).
   Its other two denials need no rule: `git ls-remote` (network) and
@@ -48,16 +73,6 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - Parked by this builder: the login has no TOTP step and `pyotp` is
   not in `requirements.txt`. That is ticket #230 (medium, stage D);
   its dispatch waits on the owner's report of the code prompt.
-- Planner's read of PR #228: no breach, with one design choice for
-  the owner (a pageError code and an exception class name on a
-  public log): Decision in the queue, it blocks the merge. In the
-  fire Action written on merge, say: make the environment
-  `fantrax-spike` with deployment branches limited to `main`
-  **before** the first run, or GitHub makes it with no branch rule.
-- Owner's pane answers, 2026-10-12 17:19, recorded on PR #228: the
-  log's error code and exception class name are accepted as built;
-  the spike is fired as soon as the secrets are stored and again
-  after #230 merges. Only the word "merge 228" is left.
 - Why a builder cannot write under `.claude/memory/` (CLI docs,
   "Protected paths"): a write under a `.claude` folder is checked
   before the allow rules and is denied in `dontAsk` mode; no rule
@@ -141,16 +156,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - Prompt from a file, **no double quote in it**. Check `cwd` in `claude
   agents --json`. `claude stop` before `--resume`. A builder's message
   carries a `from` address; `SendMessage` to it reaches the builder.
-- **A builder's Edit under `.claude/memory/` is denied in `dontAsk`
-  mode** (no rule of ours names it). The owner answered (a): they add
-  the allow rules. Until a dispatch proves the rules lift the denial,
-  say in every brief: the plan rides in the PR body,
-  a park comes by message, memory-doc edits are listed in the PR body
-  and the manager writes them.
-- The builders' file in the main checkout now allows
-  `compare_tables.py`, `02d --raw-dir` and Edit/Write under
-  `.claude/memory/**` (owner's edit, 2026-10-12, committed).
-  Not yet proven on a builder.
+- **A builder cannot write under `.claude/memory/`** (CLI protected
+  path, see above). Say in every brief: the plan rides in the PR
+  body, a park and any ready queue entry come by message, memory-doc
+  edits are listed in the PR body and the manager writes them.
+- A builder may run `compare_tables.py` and `02d --raw-dir` (owner's
+  rules, committed in PR #219).
 - Re-proof: in the builder's worktree at the PR head. The bot suite
   runs in a throwaway venv from `discord_bot/requirements.txt` (kept
   in the session scratchpad as `botvenv`; rebuild if gone).
@@ -206,17 +217,22 @@ the two rule additions (#214).
    drop goes to review, reversed-drop test; `cap-ledger-auditor` at
    re-proof) and #206 parts 2 and 3 (player card through the cap
    module; a Review check for a Dead Money row with no `gsis_id`).
-3. Milestones: A #96 #68; B #109 #77 #149 #86; C #186 #97 #110 #108
-   #135 to #138 #111 #201 #206; D #92 #93 #116. In no stage: #130,
-   #211 (the owner's).
+3. Stage D: #230 (TOTP login step, medium) is dispatched after the
+   owner reports the code prompt and the planner writes the brief;
+   #92 closes on the owner's spike runs; #93 and #116 behind it.
+4. Milestones: A #96 #68; B #109 #77 #149 #86; C #186 #97 #110 #108
+   #135 to #138 #111 #201 #206; D #225 #230 #92 #93 #116. Tooling
+   and upkeep: #151 #162 #167 #218 #130 #211.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the
-`04t` capture; the Power BI check (#211); try the 0.4.2 pane; the Project's
-views by hand; the idle session in
-`.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
-upstream scratch worktrees; later: the `migrate.yml` secret, the first
-runner login, cutover. Also told in chat: two `git commit --no-verify`
-allow rules sit in the owner's user settings.
+**Left with the owner** (all in `NEEDS-OWNER.md`): "merge 228";
+"approved" for #226; the Decision on the builders' memory files; the
+code prompt for #230; skills PR 46 and the three #167 entries (owner-
+only files, settings rules then "commit the settings files", plugin
+folder); the Project's views; the Power BI check (#211); the stale
+worktree entries (close the idle session, pause OneDrive, prune); the
+`04t` capture; later: the `migrate.yml` secret, cutover. Also told in
+chat: two `git commit --no-verify` allow rules sit in the owner's user
+settings.
 
 ## Who is running
 
