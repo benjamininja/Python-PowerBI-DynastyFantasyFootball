@@ -345,11 +345,11 @@ back-fills). Each caller still builds the whole table, so the write is
 `mode="replace"`; a true `upsert` waits for the Postgres backend.
 Phase 5 moved the seeds and full rebuilds (01a to 01f, 02a, 02c, 02f, 04c)
 and 02d's ledger writes: with transaction legs the whole ledger is written
-once, in replace mode, not as an event-type partition. Two writes are
-left, both with the owner (`NEEDS-OWNER.md`): `fact_trade_log` in 02d
-(`draft_year`, `draft_round` and `pick_in_round` are int64 in the file and
-`float64` in the registry, so the seam would write double) and
-`fact_fantasy_teams` in 02e (the grain `(team_key, gsis_id)` would stop
+once, in replace mode, not as an event-type partition. `fact_trade_log`
+followed once the owner chose `Int64` for `draft_year`, `draft_round` and
+`pick_in_round` (int64 in the file; `float64` in the registry would have
+made the seam write double). One write is left, with the owner
+(`NEEDS-OWNER.md`): `fact_fantasy_teams` in 02e (the grain `(team_key, gsis_id)` would stop
 the run on a rostered player with no `gsis_id`).
 
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,

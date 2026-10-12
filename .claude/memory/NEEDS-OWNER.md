@@ -16,32 +16,6 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
 ## Decisions
 
-### [ ] #77: three whole-number columns of fact_trade_log through the seam
-- Ticket: #77 (task, map #69), phase 5. Every other write of phase 5 is
-  built; this one write in `02d` is left as it was.
-- Context: `draft_year`, `draft_round` and `pick_in_round` of
-  `fact_trade_log` are stored in the parquet file as whole numbers (int64)
-  with gaps. pandas reads a column like that back as float64, so the
-  registry says `float64`. The seam casts a batch to the registry before it
-  writes, so through the seam the file would hold decimals (double) in those
-  three columns. Measured: old code against new code on the same inputs,
-  the parquet type changes int64 → double for exactly these three columns;
-  rows and values are the same. No other published table has a column in
-  this state (checked all 32). The file had int64 there before #109 too.
-  Power BI reads the parquet type, so it would see a decimal column.
-- Options: (a) accept double until cutover, when ADR-0018 makes them
-  `integer`; (b) declare the three columns `Int64` in the registry now and
-  have `02d` write them so: the file keeps whole numbers, a pandas read
-  gives `Int64` instead of `float64`, and the published file is rewritten
-  once; (c) leave this one write outside the seam until cutover, with one
-  named exception in the static guard test.
-- Recommended: (b). It is where ADR-0018 already points (nullable integers
-  become `integer`), the parquet type does not change, and the guard test
-  needs no exception.
-- Blocks: #77 phase 6 (the static guard test cannot pass while this write
-  sits outside the seam with no decision). Does not block #149 or #86.
-- Raised: 2026-10-12, stage B goal run
-
 ### [ ] #77: fact_fantasy_teams through the seam stops on a rostered player with no gsis_id
 - Ticket: #77 (task, map #69), phase 5; touches #97, which rewrites `02e`.
   The `02e` write is left as it was.

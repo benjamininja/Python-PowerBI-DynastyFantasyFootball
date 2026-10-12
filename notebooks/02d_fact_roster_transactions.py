@@ -1611,7 +1611,7 @@ def main():
 
         pick_ref, reasons, holders = resolve_pick_legs(trade_log, slotted, future, name_lut)
         trade_log, pick_review = finish_trade_log(trade_log, pick_ref, reasons, sid2aid, ref2aid)
-        trade_log.to_parquet(TRADE_LOG_PATH, index=False)
+        write_table("fact_trade_log", trade_log)
         n_picks = int((trade_log["asset_kind"] == "pick").sum())
         print(f"[ok] fact_trade_log: {len(trade_log)} asset row(s) across "
               f"{trade_log['transaction_id'].nunique()} trade(s), {n_picks} pick leg(s) "
