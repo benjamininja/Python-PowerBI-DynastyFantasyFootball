@@ -39,18 +39,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] Test entry for owner-queue 0.5.0 (changes nothing in the build)
-- Ticket: #167
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Context: a trial of the message back. This entry names the planner's
-  session. Answer it in the pane of the **manager's** session and press
-  Submit. The answer should arrive in the planner's chat and not in the
-  manager's. Either option proves it.
-- Options: (a) test answer one; (b) test answer two
-- Recommended: (a), because either answer proves the routing
-- Blocks: nothing.
-- Raised: 2026-10-12, by the builder manager for the planner
-
 ## Actions
 
 ### [ ] Finish the GitHub Project's views by hand
@@ -75,24 +63,6 @@ can be traced.
   without this check. Power BI is deprioritized; do it when Power BI
   is next opened. Until #97, the report exempts IR-slot salary and
   the bot does not, so the two differ by each team's IR salary.
-- Blocks: nothing.
-- Raised: 2026-10-12, by the planner
-
-### [ ] Try owner-queue 0.5.0
-- Ticket: #167
-- Steps: 1. Run `/reload-plugins` in the planner's session and in the
-  manager's session and check the first line of the pane reads
-  `owner-queue 0.5.0`. 2. In the manager's pane, answer the Decision
-  "Test entry for owner-queue 0.5.0" and press Submit. 3. Check the
-  answer arrives in the planner's chat within a few seconds and does
-  not arrive in the manager's chat. 4. Tell the planner what is off.
-- Context: 0.5.0 adds the message back: an entry may carry
-  `- Session: <id>`, and the session it names gets the pane-written
-  answer in its own chat, once. Submit tells the pressing session only
-  of entries that name it or name no session. `/owner id` prints a
-  session's id. Builders are unchanged. Upstream copy is commit 851aedc
-  on PR 39 of the skills repository. The checks of 0.4.2 (Copy block
-  buttons, options drawn in full, Print in chat) still apply.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 

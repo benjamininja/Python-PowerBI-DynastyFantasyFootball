@@ -33,6 +33,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - No builder is running. No PR is open (the planner's #220 was merged
   on the owner's "approved, merge 220", 2026-10-12). `main` is clean;
   779 tests.
+- The 0.5.0 message back is proven (2026-10-12): a test Decision
+  naming the planner's session, answered in the manager's pane, was
+  carried to the planner's chat and not to the manager's. Two things
+  were off and are with the planner: the owner pressed (b) and the
+  line kept (a); the toast read "Submitted: 1" only. This session's
+  id for a `Session:` line is `56063cf0-bc0e-400b-bb12-5b1aeb644f85`.
 - owner-queue is 0.5.0: an entry may carry `- Session: <id>` and the
   pane sends the answer to that session's chat. The planner's id for
   that line is `22ca1b72-576b-45a1-8435-30ad14e53bda`; `/owner id`
