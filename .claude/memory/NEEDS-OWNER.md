@@ -52,20 +52,25 @@ can be traced.
 
 ## Actions
 
-### [ ] Try owner-queue 0.3.0 in a fresh session
+### [ ] Try owner-queue 0.4.0 in a fresh session
 - Ticket: #167
-- Steps: 1. Start a new manager or planner session (or reload the mod).
-  2. Run /owner; the footer should name the main checkout's
-  `NEEDS-OWNER.md` and a "Last read" time. 3. Press Refresh. 4. Ask the
-  manager for a scratch decision; open it, press an option; the row
-  should move to "Answered, waiting for pickup" and the answer should
-  arrive in chat. 5. Press "Change answer". 6. Tell the planner what did
-  not work.
-- Context: the tests cover the logic, but no agent can press a button in
-  the live pane. The type-check (`tsc`) was not run: this machine has no
-  Node. Mouse selection inside the pane is not something a mod can switch
-  on; "Copy name" and "Copy all" replace the old Copy.
-- Blocks: nothing; 0.2.0 behaviour is unchanged apart from the buttons.
+- Steps: 1. Start a new session (a running one keeps its old copy).
+  2. Type `/owner`. Check the first line reads `owner-queue 0.4.0` and
+  the footer names the main checkout's file. 3. Open a decision and
+  press an option, open an action and press Mark done: both show in
+  green and `NEEDS-OWNER.md` is unchanged. 4. Press Clear, stage them
+  again, press Submit: the file gains the `Answer:` line and the ticked
+  box, and one message arrives in chat. 5. Press a Copy button of a
+  code span and paste it. 6. Type `/owner show a1` and select the
+  printed text with the mouse. 7. Press "Open the queue file" and say
+  whether it opened. 8. Tell the planner what did not work.
+- Context: 0.4.0 stages a pressed option or Mark done and writes
+  nothing until Submit. 18 automated tests pass; none of this has been
+  pressed in the real pane. Upstream copy is commit 359a15a on PR 39 of
+  the skills repository. A session started before 2026-10-12 still runs
+  an older copy that reads its own worktree's file: an answer pressed
+  there does not reach the main checkout's queue and does not count.
+- Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
 ### [ ] Remove two scratch worktrees of the upstream repo
