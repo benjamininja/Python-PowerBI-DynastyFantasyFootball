@@ -142,16 +142,25 @@ sends the builder manager a ready entry. Chat alone is not enough.
 2. Append an entry to `NEEDS-OWNER.md`, in the format its header gives:
    under `## Decisions` for a choice (Ticket, Context with the evidence,
    Options, Recommended, Blocks, Raised) or under `## Actions` for work by
-   the owner's hand (Ticket, Steps, Context, Blocks, Raised). The
-   `owner-queue` mod shows the file live and toasts the new entry.
+   the owner's hand (Ticket, Steps, Context, Blocks, Raised). Options
+   are written `(a) ...; (b) ...` and Recommended `(a), because ...`.
+   The `owner-queue` pane reads the main checkout's copy only, and only
+   the manager and the planner have the pane. So a builder writes the
+   entry in its worktree's copy, and the manager copies it into the
+   main checkout's copy at once, when the builder's message of step 3
+   arrives.
 3. Send one desktop push notification. No public post. If a managing
    session started this one, also send it one message that names the
    entry; the push does not arrive when Remote Control is off.
 4. Take the next unblocked ticket of the stage. If none is left, print
    `NEEDS-OWNER.md` and end the turn; the goal text counts that as met.
-5. When the owner answers in chat, that answer is the approval. A relay
-   from the managing session counts as that answer under the rule
-   below. Record it
+5. The owner answers by a button in the pane or in chat; either is the
+   approval. A button writes an `Answer:` line into the entry, which no
+   agent writes, edits or removes. A pane answer is the owner's
+   wherever it lands: the session that picks it up acts on it, and for
+   a builder's entry the manager relays it, quoting the line. A relay
+   from the managing session counts as the owner's answer under the
+   rule below. Record it
    (ADR, ticket Resolution or `RESUME.md`, as fits), remove the entry in
    the same turn, and put the ticket back in the queue. The same goes for
    an action the owner reports done, or one the session finds done (a
