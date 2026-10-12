@@ -1494,7 +1494,7 @@ def main():
     # ---- dim_roster_asset ---------------------------------------------------
     dim_roster_asset, sid2aid = mint_assets(sorted(made["scorerId"].unique()),
                                             _read_assets(), gsis_lut, pkey_lut)
-    dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+    write_table("dim_roster_asset", dim_roster_asset)
     print(f"[ok] dim_roster_asset: {len(dim_roster_asset)} assets "
           f"({(dim_roster_asset['asset_type']=='player').sum()} player, "
           f"{(dim_roster_asset['asset_type']=='prospect').sum()} prospect) -> {ASSET_PATH.name}")
@@ -1515,7 +1515,7 @@ def main():
               "cannot be resolved and goes to review")
     dim_roster_asset, ref2aid = mint_pick_assets(_read_assets(), all_pick_refs(slotted, future),
                                                  slot_history(slotted))
-    dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+    write_table("dim_roster_asset", dim_roster_asset)
     print(f"[ok] dim_roster_asset: {len(ref2aid)} pick asset(s) "
           f"({len(slotted)} slotted, {len(future)} future)")
 
@@ -1583,7 +1583,7 @@ def main():
                        for sid in frame["scorer_id"].dropna().unique()})
     if rostered:
         dim_roster_asset, sid2aid = mint_assets(rostered, _read_assets(), gsis_lut, pkey_lut)
-        dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+        write_table("dim_roster_asset", dim_roster_asset)
         print(f"[ok] asset bridge extended from the rosters: {len(dim_roster_asset)} assets "
               f"-> {ASSET_PATH.name}")
     else:
@@ -1603,7 +1603,7 @@ def main():
         # Every traded player needs an asset, a leg with an unmapped team included.
         traded = sorted(trade_log.loc[trade_log["asset_kind"] == "player", "scorer_id"].unique())
         dim_roster_asset, sid2aid = mint_assets(traded, _read_assets(), gsis_lut, pkey_lut)
-        dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+        write_table("dim_roster_asset", dim_roster_asset)
 
         pick_ref, reasons, holders = resolve_pick_legs(trade_log, slotted, future, name_lut)
         trade_log, pick_review = finish_trade_log(trade_log, pick_ref, reasons, sid2aid, ref2aid)
@@ -1638,7 +1638,7 @@ def main():
     if legs:
         dim_roster_asset, sid2aid = mint_assets(sorted({l["scorer_id"] for l in legs}),
                                                 _read_assets(), gsis_lut, pkey_lut)
-        dim_roster_asset.to_parquet(ASSET_PATH, index=False)
+        write_table("dim_roster_asset", dim_roster_asset)
 
         base = pd.read_parquet(FACT_PATH)
         base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]

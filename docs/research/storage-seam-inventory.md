@@ -339,6 +339,10 @@ Phase 2 (2026-10-12) moved every `load_replace_partition` /
 added two rules to the seam: an `object` column with a numeric `sql_type`
 (no value seen yet) accepts its first numbers uncast, and an object column
 of numbers and `pd.NA` is cast through `to_numeric`.
+Phase 4 moved the read-modify-write tables (`dim_roster_asset`,
+`dim_player_alias`, `dim_rookie_prospect`, the 04z and review-apply
+back-fills). Each caller still builds the whole table, so the write is
+`mode="replace"`; a true `upsert` waits for the Postgres backend.
 
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,
    the `fact_fantasy_teams` grain, `fact_trade_log` in `data_model.yml`, SQL

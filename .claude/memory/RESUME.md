@@ -74,7 +74,8 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     `load_replace_partition` / `upsert_dynasty_crosswalk` caller now
     calls `write_table(name, df, mode="replace_partition", keys=...)`.
     The shims have no caller left; phase 6 deletes them.
-  - **#77 phase 3: built on branch `feat/77-seam-phase3`.** `04a`
+  - **#77 phase 3: MERGED as PR #174 (`7428005`); #109 MERGED as PR #160
+    (`dca7886`), closed with its Resolution, line added to map #69.** `04a`
     `load_fact` and `04v` `load_eligibility` call `etl.write_table(...,
     keys=("season", "week"))` (`04a` now imports `etl_helpers`; `04v`
     takes `etl` from `04a`); the `score→fpts` shim is gone; `02d`'s
@@ -93,10 +94,21 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     now cast before the concat). The file is not in the PR; the next
     `02d` run rewrites it once. `04a` and `04v` need a login and were
     not run.
-  - **Phases 4 to 6 notes:** phase 4 = upserts (`dim_roster_asset`,
-    `dim_player_alias`, `dim_rookie_prospect`, `fact_rookie_rankings`,
-    the FK back-fills in `04z` and
-    `scripts/apply_fantrax_crosswalk_review.py`). Phase 5 touches
+  - **#77 phase 4: built on branch `feat/77-seam-phase4`.** Whole-table
+    `write_table(name, df)` (mode replace; the caller still does the
+    read-modify-write) in `02d` (`dim_roster_asset`, 5 sites), `03y`,
+    `03z` (alias, prospect), `01a` (prospect only), `04z` (2) and
+    `scripts/apply_fantrax_crosswalk_review.py` (2). Proof method worth
+    reusing: run the old code and the new code on the same inputs,
+    copy `data/*.parquet` to scratchpad `old/` and `new/`, compare with
+    `cmp_dirs.py` (a worktree rerun differs from HEAD for reasons that
+    are not the seam: no `data/review`). Result: 32 of 32 byte-identical
+    after `02d`, `03y`, `04z`, `03z`. `01a` cannot run here (no
+    `nflreadpy` in the shim venv).
+  - **Phases 5 to 6 notes:** phase 5 = the remaining `to_parquet`
+    sites: `01a` (dim_position, dim_school), `01b`, `01c`, `01d`, `01f`,
+    `02a`, `02c`, `02e` (write call only), `02f`, `04c`,
+    `02d` (`fact_trade_log`, the ledger schema fix-up). Phase 5 touches
     `02e`'s write call only. Phase 6 adds the static
     guard test (no `read_parquet` / `to_parquet` in `notebooks/`,
     `scripts/` or `.ipynb` code cells outside the seam section) and
