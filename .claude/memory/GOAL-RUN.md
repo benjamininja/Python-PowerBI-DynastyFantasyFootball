@@ -177,6 +177,15 @@ above. What it may do under a goal run:
 and its own PR, and only files no open builder PR touches. Never code,
 tests, notebooks or data. It never commits for a builder.
 
+**Merges (owner's ruling 2026-10-12).** The owner's words: "you should
+be merging the prs and then cleaning up and resetting. to me they are
+all the same sequence (approval) gate." So the owner's approval of a PR
+is one gate. After it the manager merges on green (one CI read,
+squash, `--delete-branch`), pulls, deletes the local branch and leaves
+the main checkout clean on `main`. This covers its own PRs and a rule
+change the owner has approved; the owner no longer merges those by
+hand. A settings or permission file stays the owner's own commit.
+
 **Check-ins.** Event-driven: a park, a merged PR, a stopped or idle
 builder. One fallback look after 60 quiet minutes. No polling.
 
@@ -255,7 +264,10 @@ Notes per stage:
   ruling 2026-10-12; no login, one PR). #86 follows ADR-0017. #110 is not
   in this goal: it stays open for the `roster_status` → `roster_slot`
   rename, which waits for #97.
-- **C.** Starts with #97 (plan
+- **C.** Before the stage is dispatched, #186 is done: a tracked
+  `scripts/compare_tables.py` and a `--raw-dir` argument on `02d`, so
+  the stage's proofs are exact commands on the builders' list. It is
+  `Tier: low` and is dispatched alone. The stage starts with #97 (plan
   `C:\Users\benha\.claude\plans\squishy-toasting-minsky.md`, three PRs)
   and then the #110 rename, because #108's first migration needs the
   `fact_fantasy_teams` key that #97 declares and `fact_trade_log` from
