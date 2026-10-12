@@ -146,52 +146,39 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     `feat/77-seam-phase6` exists locally (from `9c22710`; rebase it onto
     `origin/main` `1ab9ff6` first: `git checkout -B feat/77-seam-phase6
     origin/main` keeps uncommitted edits). No PR of mine is open.
-  - **Second #77 park ANSWERED 2026-10-12 (relayed by the manager), NOT
-    YET APPLIED: the entry is still in `NEEDS-OWNER.md` on `main`.**
-    Question put to the owner: "Second #77 park: fact_fantasy_teams is
-    keyed (team_key, gsis_id) and the seam refuses a missing key. A
-    rostered player with no gsis_id (an unsigned prospect, or a Fantrax
-    player the crosswalk does not know yet) would stop the scheduled 02e
-    run. Today's data is clean (1,103 rows, 0 missing). What happens to
-    this one write until #97 rewrites 02e?" Answer, word for word: "(c)
-    now, (b) inside #97 (Recommended)". So: `02e` keeps its
-    `to_parquet`; the static guard test is born with ONE named exception
-    for that write, citing #97; #97 moves the write into the seam under
-    its new key `(team_key, scorer_id)` and deletes the exception; the
-    seam's own key check is untouched. To do in the phase 6 PR: delete
-    the entry from `NEEDS-OWNER.md`, and name the exception's removal in
-    #97 (a comment, PII-scanned).
-  - **#77 phase 6, NEXT, one PR, closes #77** (title or body "Closes
-    #77"). Steps: (1) move every `read_parquet` in `notebooks/`,
-    `scripts/` and notebook code cells to `etl.read_table` (107 sites
-    in 36 files at the last count, 13 of them inside `etl_helpers.py`;
-    also `run_pipeline.py`, `check_data_model.py`, `etl_checks.py`; a
-    read of a file that is not a declared table, or of a temp or raw
-    path, is not a table read: look before replacing). `read_table`
-    raises `TableNotFound` (a `FileNotFoundError`) where code now tests
-    `path.exists()`: use `etl.table_exists(name)`. (2) Find how `01e`
-    writes `dim_nfl_players`: it has no `to_parquet` call, so it writes
-    some other way. (3) Add the static guard test: no `read_parquet` /
-    `to_parquet` in `notebooks/`, `scripts/` or notebook code cells
-    outside the seam section of `etl_helpers.py`, with the one named
-    exception above. The goal's end condition names this test. (4)
-    Delete the shims `load_replace_partition` and
-    `upsert_dynasty_crosswalk`, `_write_table_file` if nothing needs it,
-    and the legacy-shim cases in `tests/test_etl_storage.py`; take them
-    out of `CLAUDE.md`'s helper lists (pull and check `gh pr list` for
-    the planner's PR on `CLAUDE.md` first). (5) Every test that patches
-    only a module's `*_PATH` will then read or write the real `data/`:
-    point `CFG.data_dir` at the temp dir in each fixture, and check
-    `git status data/` after every test run. (6) Proof: old code against
-    new code on the same inputs (`run_p5.sh`, `cmp_dirs.py`,
-    `arrow_types.py` in the scratchpad), `cap-ledger-auditor` on `02d`,
-    `02e`, `02f` before the merge. (7) After the merge: Resolution on
-    #77, its line on map #69, and #86's line on its map (the nflverse
-    map; its Resolution comment is posted).
-  - **End condition still to show in the last turn:** `gh issue view`
-    CLOSED for #109, #77, #149, #86; the guard test passes; `gh pr list`
-    with no open PR (PR #176 is the manager's, the owner merges it);
-    `git status` clean; `pytest tests/` passes (749 on `main` now).
+  - **Second #77 park ANSWERED 2026-10-12, twice: relayed by the
+    manager ("(c) now, (b) inside #97 (Recommended)"), then by the
+    owner in this session ("for the below question, i approve as
+    recommended").** Applied in phase 6: `02e` keeps its `to_parquet`,
+    the guard test names that one write as its exception and cites #97,
+    the entry is gone from `NEEDS-OWNER.md`.
+  - **#77 phase 6: BUILT on branch `feat/77-seam-phase6`, one PR that
+    closes #77.** Every table read in `notebooks/` and `scripts/` goes
+    through `read_table` (`table_exists` where code tested a path).
+    `01e` wrote with a direct `to_parquet` that phase 5 missed: its
+    build cell was stored one character per source element, so no text
+    search saw it (scan notebooks by parsing the JSON, scratchpad
+    `p6_scan.py`). The cell is rebuilt as lines and writes through the
+    seam. Shims and path-based internals are deleted;
+    `resolve_dynasty_crosswalk` lost `data_dir`. New seam function
+    `read_stored(name, data_dir=None)`: the uncast read for the Table
+    Gates and `check_data_model` (a cast read would hide drift).
+    `tests/test_storage_guard.py` is the static guard: pandas and
+    pyarrow parquet calls, one exception by owner decision (`02e`,
+    #97) and two named as not table I/O (HEAD row count in
+    `etl_checks`, the PII scan). The old helpers' byte-identity cases
+    in `tests/test_etl_storage.py` now hold `write_table` to the same
+    reference bodies. Proof: old code against new on the same inputs
+    (`run_p6.sh` with nbconvert; `run_p6b.sh` runs `01a`, `01b`, `01d`,
+    `01e`, `02a` cell by cell in `.venv` through `runnb.py`): 34 of 34
+    tables byte-identical both times, `02d`/`02e`/`02f` output the same.
+    After the merge: Resolution on #77, its line on map #69, #86's line
+    on its map, a comment on #97 naming the guard exception to delete
+    and the key `(team_key, scorer_id)`.
+  - **End condition to show in the last turn:** `gh issue view` CLOSED
+    for #109, #77, #149, #86; the guard test passes; `gh pr list` with
+    no open PR (PR #176 is the manager's, the owner merges it);
+    `git status` clean; `pytest tests/` passes.
   - **#149 MERGED as PR #178 (`3c58b2e`), ticket closed.**
   - **#86: BUILT on branch `feat/86-nflverse-facts`**, PR open:
     `notebooks/02g_nflverse_inseason.py` + 15 tests, both tables' first

@@ -63,9 +63,12 @@ the parquet alone.
   of truth — `LeagueConfig`/`CFG`/`DATA`/`REVIEW` (repo-root-anchored, CWD
   independent), `clean_player_name`, `generate_player_key`,
   `parse_height_to_inches`, `_make_session`, `resolve_dynasty_crosswalk`,
-  `load_replace_partition`, `SOURCE_PREFIX`/`ZERO_IS_MISSING`/
-  `fold_ranks_long`. Import it, never copy it. New writers use
-  `DATA`/`REVIEW`/`CFG.path()` — never a bare `"data/..."` string.
+  `read_table`/`write_table` (the storage seam), `SOURCE_PREFIX`/
+  `ZERO_IS_MISSING`/`fold_ranks_long`. Import it, never copy it. A table
+  is read and written by name through `etl.read_table` / `etl.write_table`,
+  never with `read_parquet` / `to_parquet` (`tests/test_storage_guard.py`
+  fails on one). Other files use `DATA`/`REVIEW` — never a bare
+  `"data/..."` string.
 - **Identity model**: `gsis_id` (→ `dim_nfl_players`) is the long-term player
   FK everywhere; `player_key` (→ `dim_rookie_prospect`, MD5 of name+pos+school)
   is the interim pre-signing FK. Per-source crosswalks
@@ -133,7 +136,7 @@ the parquet alone.
   rank-folding, partition loads, source-prefix maps, sentinel-cleaning
   rules), it belongs in `etl_helpers.py`, not copy-pasted with "slight
   variation" per notebook — that's how the same bug gets fixed twice and
-  missed once. `resolve_dynasty_crosswalk`, `load_replace_partition`,
+  missed once. `resolve_dynasty_crosswalk`, `read_table`/`write_table`,
   `fold_ranks_long`, `SOURCE_PREFIX`, `ZERO_IS_MISSING` are this pattern.
 - **Editing `.ipynb` programmatically**: load JSON → mutate `cell["source"]`
   (`[l + "\n" for l in lines[:-1]] + lines[-1:]`) → `json.dump(nb, f,
