@@ -8,6 +8,44 @@ GitHub; HITL grills happen in the managing session.
 managing session `56063cf0…`).** Read the Standing rules below, then
 `GOAL-RUN.md` and `NEEDS-OWNER.md`. The blocks about #68 and "MERGED
 2026-10-11" further down are history now.
+- **STAGE B RUN (started 2026-10-12, builder session `ce13f59c…`, in the
+  worktree `.claude/worktrees/vigorous-euclid-99dea6`).** Order: #109 →
+  #77 phases 1 to 6 → #149 → #86. State per ticket:
+  - **#109: built, PARKED with PR #160 open** on one question for the
+    owner (how pick legs inside one trade are resolved). The full
+    state-back and the `NEEDS-OWNER.md` entry are on that PR's branch,
+    `feat/109-pick-legs`, and reach `main` when it merges.
+  - **Worktree notes:** a copy of `data/raw` captures into the worktree
+    was denied by the permission classifier and not retried. `02d` is
+    rerun with the scratchpad `run02d.py`, which points `DRAFT_GLOB` /
+    `TXN_GLOB` at the main checkout's `data/raw`. The bot suite runs with
+    the managing session's scratchpad `botvenv`. A Bash heredoc breaks on
+    an apostrophe: write scripts with the Write tool.
+  - **#77 phase 1: built on branch `feat/77-seam-phase1`** (from `main`,
+    without #109). Plan as built: a "Storage seam" section in
+    `etl_helpers.py` (`read_table`, `write_table`, `table_exists`,
+    `StorageError`, `TableNotFound`, `table_grain`; private
+    `_write_parquet(path, df, mode, keys, partition, entry)` is the
+    parquet backend and takes a path, so the path-based helpers and the
+    tests that point them at a temp dir keep working);
+    `load_replace_partition` and `upsert_dynasty_crosswalk` are shims
+    over it; the three writes inside `add_players_from_source` and
+    `ingest_ranking_source` go through `_write_table_file`. Their reads
+    move in phase 6 with the other readers. Guards run whenever the file
+    is named after a declared table. `tests/test_etl_storage.py` (76):
+    contract cases on a fixture registry, the two shims byte-identical to
+    their old bodies on 10 published tables, and the golden round-trip of
+    every published table (byte-identical to a plain write).
+    `fact_trade_log` is in the test's `REFUSED` map: the grain guard
+    rejects it on `main` until #109 (PR #160) merges, and the case
+    asserts the refusal, so the entry must be deleted when #160 lands.
+    **Phase 5 writes `fact_trade_log` through the seam, so it needs #160
+    merged first; if it is not, park #77 there.** Measured: `02d` rerun
+    through the shims leaves every table byte-identical. `04u` and `04p`
+    reruns moved only live values (restored from HEAD, not in the PR).
+    Next phases follow inventory section 8: 2 partition-replace writers,
+    3 hand-rolled replace-by-week, 4 upserts, 5 seeds and full rebuilds,
+    6 readers + the static guard test + delete the shims.
 - **State:** `main` = `origin/main`, with #148 merged (`ac89254`) and the
   goal-run setup PR after it. No PR open. `.agents/` and `GEMINI.md` are
   untracked and not ours. `pytest tests/` 616 pass, bot suite 9.
