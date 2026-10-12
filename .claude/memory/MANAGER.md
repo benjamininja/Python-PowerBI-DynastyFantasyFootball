@@ -30,16 +30,23 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- One builder is running: `b92-runner-spike` (id `d6acd1df`, ticket
-  #225, medium tier, branch `feat/225-runner-spike-workflow`),
-  dispatched 2026-10-12 on the owner's "dispatch 92 and 110". #225
-  is the part of #92 an agent may do: the spike workflow, switched
-  off, and a research page. Its PR closes #225, never #92. **The
-  owner reads the workflow before the merge** (named in the brief):
-  queue that as an Action when the PR is green, and write the
-  builder's ready entry (store secrets, fire, report) on merge. The
-  brief has it try one Edit of `RESUME.md`: its message says whether
-  the new allow rule lifts the `.claude/memory/` denial.
+- Builder `b92-runner-spike` (id `d6acd1df`, ticket #225, medium)
+  is idle with **PR #228** open and green; the manager re-proved
+  Green at `b6b5923` and posted it. **It waits for the owner's
+  "merge 228"** (the ticket names the owner's read of the workflow)
+  and for the planner's read of its eight judgement calls. On the
+  merge: write the builder's ready Action (make the environment
+  `fantrax-spike`, store `FANTRAX_EMAIL`, `FANTRAX_PASSWORD`,
+  `FANTRAX_TOTP_SECRET`, fire, report; text in the builder's message
+  of 2026-10-12 and in the transcript), then close out the builder
+  (worktree `b92-runner-spike`, scratch files `workspace/_b225_*`).
+  The PR closes #225, never #92.
+- Proven by this builder: the allow rules for `.claude/memory/**` do
+  **not** lift the denial in `dontAsk` mode (Decision in the queue).
+  Its other two denials need no rule: `git ls-remote` (network) and
+  a `git log` that named login-step files (project deny rules).
+- Parked by this builder: the login has no TOTP step and `pyotp` is
+  not in `requirements.txt`; no ticket yet, the planner is asked.
 - Nothing of #110 went out: PRs #145 to #148 had done its four free
   parts; only the `roster_slot` rename is left, after #97.
 - Worktree cleanup, on the owner's approved plan (2026-10-12): four
