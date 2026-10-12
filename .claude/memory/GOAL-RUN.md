@@ -8,13 +8,55 @@ everything waiting on the owner.
 **Scope of the delegation:** goal runs on maps #69, #70, #71 and #66 only.
 Any other work keeps the standing rules in `RESUME.md` unchanged.
 
-## Session setup (owner, per goal)
+## Session setup (builder manager, per dispatch)
 
-Fresh session, model Opus 5.5, effort medium, auto permission mode. First
-message: "Read `C:\Users\benha\.claude\memory\preferences.md`, then
+Owner's ruling 2026-10-12, #166. The builder manager starts every
+builder from PowerShell with the CLI at its full path. It copies the
+tier from the brief or, for a stage, from the Tier column under
+"Stages"; it never picks one. No tier, no dispatch: it asks the planner.
+
+| Tier | Model and effort | For | Turn cap |
+|---|---|---|---|
+| low | Sonnet 5.5, medium | tightly scoped work | 30 |
+| medium | Sonnet 5.5, high | work with an investigative step | 80 |
+| high | Opus 5.5, medium | a stage or other large work | 200 |
+
+The turn cap is written into the prompt ("Or stop after N turns"), as
+the goal texts below already do.
+
+1. Start: `claude.exe --bg -w <name> --name <name> --model <tier's
+   model> --effort <tier's effort> --permission-mode dontAsk --settings
+   .claude/builders.settings.json --agent stage-builder "<prompt>"`.
+   The prompt is the read line below, then the `/goal` text or the
+   brief. Never from Git Bash: it rewrites `/goal` into a path.
+2. Wait until `claude agents --json` shows a `pid` for it, then check
+   that its `cwd` is `.claude/worktrees/<name>`. If it is not, stop it
+   at once.
+3. Build the worktree's `.venv` (`python -m venv .venv`, then
+   `.venv/Scripts/python.exe -m pip install -r requirements.txt`) and
+   check that `pytest` collects. Until the manager says the `.venv` is
+   ready, the builder runs no Python and makes no commit (the
+   pre-commit hook needs it); the prompt says so. A read-only low job
+   whose brief says `venv: no` skips this step.
+4. Watch `status`, `state` and `waitingFor` in `claude agents --json`
+   and the transcript `.jsonl`; `claude logs` is not readable.
+5. Follow up with `claude --resume <sessionId> --bg "<message>"` from
+   the builder's worktree. End with `claude stop <id>`, and remove with
+   `claude rm <id>` only at closeout.
+
+The read line, first in every builder's prompt: "Read
+`C:\Users\benha\.claude\memory\preferences.md`, then
 `.claude/memory/RESUME.md` Standing rules and NEXT, then
-`.claude/memory/GOAL-RUN.md` and `NEEDS-OWNER.md`." Second message: the
-`/goal` text of the stage.
+`.claude/memory/GOAL-RUN.md` and `NEEDS-OWNER.md`."
+
+**A job in no plan.** The manager may dispatch a read-only or tightly
+scoped job at low only, with the low turn cap, and names it in its next
+report. Anything that would need medium or high goes to the planner or
+the owner first.
+
+**Outgrown tier.** A builder whose work turns out bigger than its tier
+parks with what it found. The planner sets a new tier; the manager
+dispatches again.
 
 ## Delegation rules (goal runs only)
 
@@ -70,6 +112,8 @@ system refuses is never retried and never worked around by another
 route, and no other session is asked to make it. The builder parks it as
 an Action in `NEEDS-OWNER.md` (what was denied, the exact command, what
 it blocks), messages the managing session, and takes the next ticket.
+A builder runs in `dontAsk` with `.claude/builders.settings.json`, so a
+call not on that list is a denied call.
 
 ## Park protocol
 
@@ -95,7 +139,7 @@ it blocks), messages the managing session, and takes the next ticket.
    the pane, which ticks the entry `[x]`; delete ticked entries at the
    next state-back.
 
-### Relayed answers (owner's ruling 2026-10-12)
+### Relayed answers (owner's rulings 2026-10-12, #166)
 
 The owner may answer a parked entry in the managing session instead of
 the builder's. The managing session then sends the builder one message.
@@ -107,17 +151,19 @@ It counts as the owner's answer only when all of these hold:
 - it comes from the session that started the builder.
 
 The builder records the answer with the note "relayed by the manager"
-and goes on. A relay never covers anything else: not the "Never" list,
-not checkpoint 1 or 2, not closing a map, not a new decision, not a
-merge of a PR the entry did not name. For those the owner speaks in the
-builder's own session. If a relay is unclear or goes past the entry,
-the builder does not act on it and says so in its reply.
+and goes on. Under these three conditions a relay may answer any parked
+entry, including checkpoint 1, checkpoint 2, closing a map and a new
+decision (owner's ruling 2026-10-12, #166). A relay never lifts the
+"Never" list, and it never covers a question the builder has not
+parked: the builder parks first, then the answer comes. If a relay is
+unclear or goes past the entry, the builder does not act on it and says
+so in its reply.
 
 Why: the owner checks in as needed, not at every step; without this a
 park pulls the owner into each builder session. The word-for-word quote
 and the named source keep a misquote visible.
 
-## The managing session (owner's ruling 2026-10-12, #164)
+## The managing session (owner's rulings 2026-10-12, #164, #166)
 
 Roles are set out in the #164 resolution; role files in
 `.claude/agents/` point here. The managing session is the builder
@@ -167,12 +213,17 @@ The judge reads only the transcript, so each turn ends with fresh output of:
 
 ## Stages
 
-| Stage | Tickets, in order | Waits on the owner for |
-|---|---|---|
-| A. Ledger and cap | #96 PR 2 → #68 (both closed 2026-10-11; #97 moved to C) | done |
-| B. Seam | #109 → #77 → #149 → #86 (#110: four PRs merged 2026-10-12, its last part moved to C) | nothing |
-| C. Postgres | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after 2026-10-15) |
-| D. Schedule | #92 login code → Linux entrypoint → #93 → #116 | the TOTP secret stored; B and C merged |
+| Stage | Tier | Tickets, in order | Waits on the owner for |
+|---|---|---|---|
+| A. Ledger and cap | done | #96 PR 2 → #68 (both closed 2026-10-11; #97 moved to C) | done |
+| B. Seam | high | #109 → #77 → #149 → #86 (all closed 2026-10-12; #110's last part moved to C) | done |
+| C. Postgres | high | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after 2026-10-15) |
+| D. Schedule | high | #92 login code → Linux entrypoint → #93 → #116 | the TOTP secret stored; B and C merged |
+
+A ticket's own `Tier:` line says what it needs if dispatched alone. In
+a stage run the stage's tier applies, and it is never lower than the
+highest ticket in the stage. A ticket a builder creates says `Tier:
+unset` and is not dispatched alone until the planner has set it.
 
 #97 goes before the #110 rename: #97 rewrites `02e` and declares the
 `fact_fantasy_teams` grain `(team_key, scorer_id)`. Both moved to stage C
