@@ -12,6 +12,53 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
+## START HERE (state at the compact, 2026-10-12, late afternoon)
+
+The sections below are in the order things happened and the early ones
+are out of date. This block is the current state.
+
+- **This session** is `dynastyFantasyFootball-central-builder-manager`
+  (id `local_39e3ac7a…`): the builder manager. The owner's words reach a
+  builder through it, word for word (`GOAL-RUN.md`, "Relayed answers"
+  and "The managing session").
+- **Stage B is done and closed out.** #109, #77, #149, #86 CLOSED.
+  `main` = `4278185` plus this file's PR (#183, auto-merge on green was
+  set on the owner's "merge 183"; check it landed and pull).
+- **No builder is running.** The stage B builder (`local_eb466b76…`) is
+  stopped. The planner (`local_84c6f2af…`) is the only other session.
+- **Nothing is waiting on a relay.** `NEEDS-OWNER.md` has no Decisions,
+  three Actions (the `04t` capture, the first Fantrax runner login,
+  cutover).
+- **Left for the owner from the closeout:** local branch
+  `feat/77-seam-phase5` (unproven leftovers); the half-deleted folder
+  `.claude/worktrees/vigorous-euclid-99dea6` (Windows holds it); four
+  stale entries under `.git/worktrees/`.
+- **Next work, none of it started:**
+  1. Stage C begins with #97, after the owner's `04t` capture (after
+     Thursday 2026-10-15). First check the claim row has `claim_method =
+     waiver` and a `claim_bid`.
+  2. The manager dispatches the stage C builder itself with the Claude
+     CLI from PowerShell, tier named in planning (table under "Dispatch
+     and models"). **Not before** #166 delivers the builders' allow/deny
+     file and the role files, and the owner has settled the open points
+     the planner listed. Never without `-w`, never without the project
+     deny rules passed in, never in bypass mode.
+  3. Then a `GOAL-RUN.md` "Session setup" PR (owner merges by hand).
+  4. The stage C brief must carry: delete the guard exception in #97;
+     the planner's README and CONTRIBUTING rows in the #108 PR; the
+     uncast read (`etl.read_stored`) for the Postgres backend; the open
+     question whether `migrate.yml` is live before cutover.
+- **Owed, small:** map #69's "Not yet specified" text is stale (PII-scan
+  before posting); root `preferences.md` is uncommitted; old session
+  `local_2bb79438…` is not archived.
+- **How the manager works:** edits `.md` and `.claude/memory/*` only,
+  on a branch in the main checkout (a fresh worktree has no `.venv`, so
+  the PII hook fails there), own PR; check-ins on events, one look after
+  60 quiet minutes; CI read once; decisions go to the owner with what
+  happens next, WHY, COST and RISK per option; a queued cross-session
+  message can be lost, `SendMessage` to the sender's `from` address has
+  arrived every time.
+
 ## Who is running
 
 | Session | Id | Role | Where |
