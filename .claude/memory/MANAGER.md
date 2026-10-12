@@ -88,9 +88,11 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   in the pane twice (2026-10-12); the planner's first API read
   showed no grouping and no auto-add, and it re-checks after the
   second tick. Entry removed; the planner sends a fresh one if a
-  point is still open. A TEST Decision for owner-queue 0.6.0 (Post
-  comment) sits in the queue for the planner: do not remove it or
-  touch its Answer or Note lines until the planner says. **Read the
+  point is still open. The TEST Decision of the owner-queue trial is
+  gone (the owner ticked it, the planner said the trial is over,
+  2026-10-12); owner-queue is 0.7.1 and the planner has proposed
+  five lines for the queue's head, to confirm with the owner before
+  they are written. **Read the
   diff of the main checkout's queue in its own call before any `git
   restore` of it**: a pane tick or answer sits there uncommitted, and
   a restore in the same command drops it unread.

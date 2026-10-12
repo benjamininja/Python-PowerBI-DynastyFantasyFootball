@@ -39,17 +39,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] TEST: owner-queue 0.6.0 trial, nothing depends on it
-- Ticket: #167
-- Context: a test entry for the Post comment button. Press Post comment, type a few words, and try Send as comment, then Send as answer, then one send with Enter.
-- Options: (a) it works; (b) it does not work
-- Recommended: none; type an answer instead, to try Send as answer
-- Blocks: nothing
-- Raised: 2026-10-12, by the planner
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Note: i LIKE THIS BETTER. THERE ARE THREE BUTTONS, TWO FOR SEND AS COMMENT AND ONE FOR SEND AS ANSWER. THS IS LARGER TEXT ENTRY BUT IS NOT GROWING VETRICALLY. TREAT AS TEST, NO ACTION TAKEN AND COMMENT NOT TO POST. | pane, 2026-10-12 17:52:25, session 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Note: i really appreciate what's happening. works for shorter messages. what happens when messages get longer and perhaps i want to go up a line or two? i like that it grows so this is really cool. | pane, 2026-10-12 18:21:09, session 22ca1b72-576b-45a1-8435-30ad14e53bda
-
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
