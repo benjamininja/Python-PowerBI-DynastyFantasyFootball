@@ -509,6 +509,8 @@ function renderProfile(mode, profile) {
     <div class="signal-line">Avg roster age: <b>${profile.avg_roster_age ? profile.avg_roster_age.toFixed(1) : 'n/a'}</b>: ${badge(profile.stance_confidence)}</div>
     <div class="signal-line">Risk threshold: <b>${profile.risk_threshold}</b> — cap room ${profile.cap_room_pct != null ? (profile.cap_room_pct * 100).toFixed(1) + '%' : 'n/a'}: ${badge(profile.risk_confidence)}</div>
     <div class="signal-line">Trade activity: <b>${profile.trade_activity}</b> — ${profile.trade_count} trade(s) this season: ${badge(profile.trade_activity_confidence)}</div>
+    <div class="signal-line">Waiver activity: <b>${profile.waiver_activity}</b> — ${profile.waiver_count} waiver move(s) this season: ${badge(profile.waiver_activity_confidence)}</div>
+    <div class="signal-line">Free-agency activity: <b>${profile.free_agent_activity}</b> — ${profile.free_agent_count} free-agent move(s) this season: ${badge(profile.free_agent_activity_confidence)}</div>
   `;
   body.innerHTML = html;
 }
