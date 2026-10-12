@@ -31,6 +31,8 @@ Two memory stores, different scopes:
     the startup draft board CLI (`05a`)
   - [RESUME.md](.claude/memory/RESUME.md) — where the managing build session
     left off
+  - [PLANNER.md](.claude/memory/PLANNER.md) — where the planner session
+    left off: maps, milestones, sweeps, gaps
   - [GOAL-RUN.md](.claude/memory/GOAL-RUN.md) — runbook for the staged `/goal`
     runs; [NEEDS-OWNER.md](.claude/memory/NEEDS-OWNER.md) — what waits on the
     owner
@@ -49,7 +51,8 @@ the parquet alone.
 - **Principles**: [docs/PRINCIPLES.md](docs/PRINCIPLES.md) — owners are front
   and center; judge every change by what it puts in an owner's hands.
 - **Session roles**: `.claude/agents/` holds three main-agent roles —
-  `central-planner` (decisions, tickets, tiers), `central-builder-manager`
+  `central-planner` (decisions, maps, tickets, tiers, milestones, gaps),
+  `central-builder-manager`
   (dispatches and closes out builders) and `stage-builder` (works one brief
   or stage). Each points at `.claude/memory/GOAL-RUN.md`; the rules live
   there, not in the role files.
