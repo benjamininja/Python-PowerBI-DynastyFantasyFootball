@@ -30,9 +30,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- No builder is running. One PR is open: the planner's #220
-  (`PLANNER.md` only), waiting for the owner's "approved"; merge it
-  without `--delete-branch`. `main` is clean; 779 tests.
+- No builder is running. No PR is open (the planner's #220 was merged
+  on the owner's "approved, merge 220", 2026-10-12). `main` is clean;
+  779 tests.
 - owner-queue is 0.5.0: an entry may carry `- Session: <id>` and the
   pane sends the answer to that session's chat. The planner's id for
   that line is `22ca1b72-576b-45a1-8435-30ad14e53bda`; `/owner id`

@@ -53,17 +53,6 @@ can be traced.
 
 ## Actions
 
-### [ ] Approve the planner state PR #220
-- Ticket: #167, #162
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/220
-  (`PLANNER.md` only) and say "approved" in the manager's session, or
-  say what to change. The manager then merges it and cleans up.
-- Context: the planner's state after the planning of #167 and
-  owner-queue 0.5.0; it is the planner's pointer for its next compact.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
-
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
 - Steps: 1. Open https://github.com/users/benjamininja/projects/2
