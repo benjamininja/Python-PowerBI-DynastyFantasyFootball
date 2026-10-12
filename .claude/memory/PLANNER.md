@@ -33,44 +33,57 @@ planner session can resume from the repository alone. The rules are in
 - **#230** (new, Stage D, medium, child of #70): the login answers the
   TOTP code prompt. Its first step is an owner Action (report the
   prompt's field label and button text); not free to dispatch before.
-- **In hand: `owner-queue` 0.6.0, "Post comment" replaces "Other..."**
-  Plan approved by the owner 2026-10-12
-  (`C:\Users\benha\.claude\plans\look-across-our-project-sorted-candy.md`).
-  **No code written yet.** Scratch worktree made:
-  `<planner scratchpad>\oq6`, branch `owner-queue-060` off
-  `origin/owner-queue-mod` (skills PR 39), which equals the live copy
-  at `~/.claude/mods/owner-queue` (0.5.0).
-  - Owner's rulings: one button `Post comment` on every entry, `Other...`
-    dropped; under it a one-line field with `Send as comment`, and on an
-    open decision `Send as answer`, and `Cancel`; Enter sends as a
-    comment; text goes out at once, not with `Submit`.
-  - Written by the pane: `- Note: <text> | pane, <day> <time>, session
-    <id>` (several allowed), or `- Answer: (other) <text> | pane, ...`.
-    No agent writes, edits or removes a `Note:` line.
-  - Build notes: in `parse.ts` add `notesOf`, `note` (share the insert
-    code of `answer`), `clean` (one line; no triple backtick),
-    `carriedNote`; leave `note` fields out of `detail` and `codes`. In
-    `register.tsx` remove `other()`, add `post()`, store keys `notes`
-    (lines the pane wrote, per `<file>|<id>`) and `noted:<session>`
-    (delivered), extend `deliver()`, flag a Note the pane did not
-    write. Keep the draft in `$.state` by `onInput` but read it with
-    `$.state.get`, not `read()`, so a key press does not redraw the
-    pane. Tests use `ui.input({ key, text })` and `ui.press`.
-  - Not proven until the owner uses it: that the send buttons read what
-    was typed on the desktop app. Fallback: Enter is the only send and
-    a switch says `as comment` or `as answer`.
-  - After the build: the owner's word before the live copy is updated;
-    the `Note:` rule for the format head of `NEEDS-OWNER.md` goes to
-    the manager as text, and into the plugin's template (skills PR 46).
-  - The owner's complaint (via the manager, 2026-10-12): `Other...`
-    opened no text box in the manager's pane. 0.6.0 removes it.
-- **From the manager, 2026-10-12, to weigh in #218 and the plugin's
-  templates:** a write under a `.claude` folder is checked before allow
-  rules and is denied in `dontAsk` mode (Claude Code docs, protected
-  paths), so a builder cannot write `.claude/memory/*`. The owner's
-  Decision is in the queue: the stopgap becomes the rule, or the
+- **In hand: `owner-queue` 0.6.1 is in the live copy, not committed.**
+  (`~/.claude/mods/owner-queue`, updated on the owner's word
+  2026-10-12, twice: 0.6.0, then 0.6.1.) The source is the scratch
+  worktree `<planner scratchpad>\oq6`, branch `owner-queue-060` off
+  `origin/owner-queue-mod` (skills PR 39), all changes uncommitted.
+  `claude plugin validate` passes, 24 tests pass. `tsc` did not run
+  (no Node on this machine's path).
+  - Built: `Post comment` on the last row before `Mark done`; under
+    it a one-line field whose own send (and Enter) posts a comment,
+    then `Send as answer` (open decision) and `Cancel`. `Other...` is
+    gone. A comment is a `- Note: <text> | pane, <day> <time>, session
+    <id>` line; a typed answer is `- Answer: (other) <text> | pane,
+    ...`. Store keys `notes` and `noted:<session>`. A Note the pane
+    did not write is flagged and never carried.
+  - Change from the plan: the draft is kept in a module variable, not
+    in `$.state`, so a key press redraws nothing.
+  - Proven by the owner in 0.6.0: a comment sent in the planner's pane
+    is said there; a comment on the TEST entry sent in the manager's
+    pane arrived in the planner's chat.
+  - **Not proven:** `Send as answer` (the one button that must read
+    the typed text); how 0.6.1 looks (the owner called 0.6.0 ugly;
+    0.6.1 moved the button, removed the doubled send, dropped the
+    label). Wait for the owner's look or a screenshot.
+  - The owner wants the box to grow while typing. The API's `Input` is
+    one line. Offered, not built: a wrapped preview under the field,
+    redrawn at each key press.
+  - A TEST Decision raised by the planner is in the queue (manager's
+    PR #235). The manager removes it when the planner says the trial
+    is over. A test `Note:` line also sits in the #228 entry.
+  - After the owner's look: PII check, commit and push to
+    `owner-queue-mod` (PR 39); send the manager the `Note:` rule for
+    the head of `NEEDS-OWNER.md`; add it to the plugin's
+    `templates/NEEDS-OWNER.md` (skills PR 46).
+- **#234** (new, child of #162, "Tooling and upkeep", tier none): the
   planner designs a move of the builders' state files out of
-  `.claude/`.
+  `.claude/`, by the owner's answer of 2026-10-12 as the manager
+  recorded it on #166 (the planner did not see the line itself). Plan
+  gate with the owner first. The stopgap holds until then. #218 waits
+  on it.
+- **#167, checked 2026-10-12 after the owner ticked three entries:**
+  `~/.claude/dispatch-projects.json` exists and lists the main
+  checkout; the settings rules are in both settings files
+  (uncommitted, the manager's to commit on the owner's word);
+  `.claude/dispatch.json` is missing; skills PR 46 is open, so the
+  plugin is not in the live clone
+  (`C:\Users\benha\claude-live\skills-plugins-hooks-agents`) and
+  `CLAUDE_CODE_PLUGIN_DIRS` names only the `owner-queue` folder. The
+  manager kept the three entries open.
+  - `/security-review` now loads in the planner's session but reviews
+    the session's own branch only; it found nothing here and did not
+    cover PR 46. Still owed from a session in the skills repository.
 - **Then:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
 - **Out with the manager:** the brief for #225 (the part of #92 an
   agent may do: the spike workflow, ready for the owner to fire). The
@@ -81,9 +94,10 @@ planner session can resume from the repository alone. The rules are in
   one. A map carries the stage it finishes in (#69 Stage C, #70 Stage
   D). Work outside the stages is "Tooling and upkeep" (#151, #162,
   #167, #218, #130, #211).
-- **The GitHub Project** (project 2, "Dynasty FF: plan"): still by the
-  owner's hand are the grouping of each view and the auto-add
-  workflow. Until then, add each new ticket with
+- **The GitHub Project** (project 2, "Dynasty FF: plan") is finished
+  (read through the API 2026-10-12): "By stage" grouped by Milestone,
+  "By map" by Parent issue, "Auto-add to project" on. Check that the
+  next new ticket lands there by itself; if not,
   `gh project item-add 2 --owner benjamininja --url <url>`.
 - **`owner-queue` 0.5.0 is proven live** (2026-10-12): an answer
   pressed in the manager's pane arrived in the planner's chat, once,
@@ -117,7 +131,7 @@ planner session can resume from the repository alone. The rules are in
 | #70 | In-season Fantrax league flows | #211 (owner, upkeep); #97, #201 (stage C); #225, #230, #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
-| #162 | Managing-session roles and plugin | #167, #218 (after #167) |
+| #162 | Managing-session roles and plugin | #167, #234, #218 (after #167 and #234) |
 
 #140 was placed as blocked by nothing; one clause of its acceptance
 needed #97 (see "Lessons").
