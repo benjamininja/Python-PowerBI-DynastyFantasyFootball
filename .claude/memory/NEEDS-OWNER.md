@@ -33,6 +33,45 @@ can be traced.
 
 ## Decisions
 
+### [ ] PR #207: keep the by-player relationship on Dead Money?
+- Ticket: #140
+- Context: the ticket names two relationships for `Fact_DeadMoney`
+  (team, season). The builder added a third, `Fact_DeadMoney[GSISID]`
+  to `Dim_NFLPlayers`, because two report visuals break `Dead Money -
+  Active - Current Year` by player; without it the team's total repeats
+  on every player row. The auditor's worry: under a player filter, a
+  Dead Money row with no `gsis_id` would drop out of `Remaining Salary
+  Cap`. Measured by the manager: 34 rows, 0 with no `gsis_id`.
+- Options: (a) keep it; (b) the builder deletes the one block in `relationships.tmdl` and the two visuals are changed later
+- Recommended: (a), because the two visuals need it and no row is affected today
+- Blocks: the merge of #207.
+- Raised: 2026-10-12, by the #140 builder through the builder manager
+
+### [ ] How PR #207 is proven before #97
+- Ticket: #140, PR #207
+- Context: the ticket's acceptance compares the report with
+  `fact_team_cap`, which does not exist until #97 PR 2. Until #97 the
+  report exempts IR-slot salary and the bot does not, so the two differ
+  by each team's IR salary. The planner read #207 against its ticket:
+  no breach (its read is on the PR).
+- Options: (a) prove it now with the parity formula of #96 (cap, less non-Minors and non-IR salary, less this season's Dead Money) and move the `fact_team_cap` equality into the acceptance of #97; (b) hold PR #207 until #97 PR 2 has merged
+- Recommended: (a), because the report shows no Dead Money at all today, and the IR difference is named in the PR
+- Blocks: the merge of #207.
+- Raised: 2026-10-12, by the planner
+
+### [ ] One anchor for "this season" in every cap figure
+- Ticket: #206 part 1, built in #97 PR 2
+- Context: Power BI takes this season from the calendar (`Dim_Season`
+  relative season 0, which flips on 1 March), while the bot and `02e`
+  take it from the season on the roster table. On 2027-03-01 the report
+  would show blank salary and the old next-season charges while the bot
+  shows the 2026 figures. Reported by the cap-ledger-auditor from
+  reading the code; not measured.
+- Options: (a) the roster's season is the anchor for every consumer, and the published cap table carries it; (b) the calendar is the anchor, and the ETL rolls the roster season on 1 March; (c) leave both and add a Review check that fires when they disagree
+- Recommended: (a), because ADR-0016 computes cap figures once in the ETL and consumers read them
+- Blocks: #97 PR 2.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] A builder cannot write its memory files: where does its plan go?
 - Ticket: #166, #140
 - Context: the #140 builder's Edit of `RESUME.md` and `NEEDS-OWNER.md`
@@ -51,6 +90,36 @@ can be traced.
 - Raised: 2026-10-12, by the #140 builder through the builder manager
 
 ## Actions
+
+### [ ] Review PR #207 (Power BI Dead Money) and refresh in Power BI Desktop
+- Ticket: #140
+- Steps: 1. Read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/207
+  by commit (four commits: model, measures, `status` retirement, audit
+  follow-up). 2. Check out the branch: `git fetch origin` then
+  `git switch feat/140-pbi-dead-money` will fail while the builder's
+  worktree holds it, so open
+  `.claude/worktrees/b140-pbi-dead-money/pbi/mouserat2/Mouserat2.pbip`
+  in Power BI Desktop. 3. Refresh: it should succeed with `status` gone
+  and `Fact_DeadMoney` loaded. 4. Model view: three new relationships
+  on `Fact_DeadMoney`, many-to-one, single direction, active. 5. On the
+  Fantasy Teams page compare `Dead Money - Active - Current Year` and
+  `Remaining Salary Cap` per team with what the bot shows; IR-slot
+  salary is the one expected difference until #97. 6. Check the column
+  widths of the four pivots that lost a selector. 7. Say "approved" in
+  the manager's session, or say what to change. The manager then
+  merges and cleans up.
+- Context: the manager re-proved Green and posted it on the PR: 779
+  tests and the bot suite pass; 33 tables identical to `main`, and
+  `fact_fantasy_teams` differs only by the dropped `status` column
+  (one value, `active`, on all 1,103 rows). No agent can open Power BI
+  Desktop, so the refresh and the 28-team check of the ticket are
+  yours. Also in the PR beyond the ticket: four report visuals lose a
+  dead `columnWidth` selector; `data/fact_fantasy_teams.parquet` is
+  committed from the branch; audit findings went to ticket #206
+  (`Tier: unset`, the planner's).
+- Blocks: the merge of #207.
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Try owner-queue 0.4.0 in a fresh session
 - Ticket: #167
