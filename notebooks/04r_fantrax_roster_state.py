@@ -47,7 +47,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import DATA, fantrax_public_get, load_replace_partition
+from etl_helpers import DATA, fantrax_public_get, write_table
 
 # league_id/raw_dir live on 04a's own LeagueConfig. The season id, the league
 # clock and the Update-Set states are 04p's.
@@ -235,7 +235,8 @@ def main() -> int:
               f"(Fantrax's current period is {current})")
         return 0
 
-    total = load_replace_partition(state, STATE_PATH, part_cols=("season_id", "period"))
+    total = write_table("fact_roster_state", state, mode="replace_partition",
+                        keys=("season_id", "period"))
     per_period = state.groupby("period").size().to_dict()
     newest = state[state["period"] == state["period"].max()]
     print(f"[ok] fact_roster_state: {len(state)} rows for {season_id}, periods {per_period} "
