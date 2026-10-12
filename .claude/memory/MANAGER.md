@@ -26,6 +26,20 @@ are out of date. This block is the current state.
   sequence (approval) gate." Once the owner approves a PR, the manager
   merges on green, pulls, deletes the branch, resets. Do not leave an
   approved PR for the owner to merge.
+- **Second key (owner, 2026-10-12, evening):** asked "Does a builder's
+  green PR need your approved before the manager merges it?", the owner
+  answered "agreed, option a": no. The manager's re-proof of Green is
+  the second key. The owner's "approved" covers the manager's own PRs
+  and rule changes.
+- **Fewer PRs (owner, 2026-10-12, evening):** "if we have many, we can
+  plan a sequence. ideally, we try to limit into fewer prs and review
+  by commit". So: one PR per check-in at most, one commit per topic,
+  the commit list given to the owner as the review order. When several
+  PRs must wait on the owner, name the sequence and ask for one word
+  that covers it; then merge them in that order without asking again.
+  Do not leave the owner to press merge.
+- **Queue rules for the pane** (#191) and the role files with the
+  two-key merge (#192) are on `main`; the owner merged both.
 - **#166 is settled.** On `main`: the three role files (#184), the
   dispatch recipe, tiers and the wider relay in `GOAL-RUN.md` (#185).
   The decisions are in the #166 comment of 2026-10-12 headed
