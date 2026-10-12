@@ -38,17 +38,6 @@ can be traced.
 
 ## Actions
 
-### [ ] Approve the planner state PR #216
-- Ticket: #151, #162
-- Steps: read
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/216
-  (`PLANNER.md` only) and say "approved" in the manager's session, or
-  say what to change. The manager then merges it and cleans up.
-- Context: the planner's record of the GitHub Project it built and of
-  the correction to #140.
-- Blocks: nothing in the build.
-- Raised: 2026-10-12, by the planner
-
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
 - Steps: 1. Open https://github.com/users/benjamininja/projects/2
@@ -122,22 +111,6 @@ can be traced.
 - Blocks: #97 PR 1, and through it the #110 rename and #108's first
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
-
-### [ ] Say "commit the settings files"
-- Ticket: #166, #186
-- Steps: say "commit the settings files" in the manager's session. The
-  manager commits both files as you wrote them and merges.
-- Context: your edits are in the main checkout, uncommitted, and both
-  files parse. Builders' file: four new allow rules (`compare_tables.py`,
-  `02d --raw-dir`, Edit and Write under `.claude/memory/**`) and two
-  new deny rules (the managers' file); now 55 allow, 32 deny. Managers'
-  file: two new deny rules (`.claude/agents/**`); now 37 allow, 21
-  deny. A builder is started with the main checkout's builders' file,
-  so the rules already apply to the next dispatch; the commit makes
-  them tracked. Whether the allow rule lifts the denial of a builder's
-  Edit under `.claude/memory/` is proven at that dispatch.
-- Blocks: nothing running.
-- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Free the last leftover worktree folder
 - Ticket: #164 (closeout)

@@ -30,8 +30,10 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- No builder is running. One PR is open: the planner's #216, waiting
-  for the owner's "approved". `main` is clean; 779 tests.
+- No builder is running. No PR is open. `main` is clean; 779 tests.
+  The planner's #216 was merged on the owner's "approved" and the
+  owner's edits to both settings files were committed unedited on
+  the owner's "commit the settings files" (both 2026-10-12).
 - The planner built the GitHub Project (`projects/2`, private). Tell
   the planner the number of any ticket the manager creates, so it is
   added to the Project until auto-add is on.
@@ -90,7 +92,7 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   and the manager writes them.
 - The builders' file in the main checkout now allows
   `compare_tables.py`, `02d --raw-dir` and Edit/Write under
-  `.claude/memory/**` (owner's edit, 2026-10-12, not yet committed).
+  `.claude/memory/**` (owner's edit, 2026-10-12, committed).
   Not yet proven on a builder.
 - Re-proof: in the builder's worktree at the PR head. The bot suite
   runs in a throwaway venv from `discord_bot/requirements.txt` (kept
@@ -151,13 +153,8 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #92 #93 #116. In no stage: #130,
    #211 (the owner's).
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the word "commit
-the settings files" (the owner's edits sit uncommitted in the main
-checkout: builders 55 allow / 32 deny, managers 37 / 21; on the word,
-commit both unedited from a branch and merge on green; do not
-`git restore` or stash them meanwhile); the
-`04t` capture; the Power BI check (#211); try the 0.4.2 pane; the
-planner's PR #216 (merge on "approved"); the Project's
+**Left with the owner** (all in `NEEDS-OWNER.md`): the
+`04t` capture; the Power BI check (#211); try the 0.4.2 pane; the Project's
 views by hand; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two
 upstream scratch worktrees; later: the `migrate.yml` secret, the first
