@@ -11,13 +11,16 @@ planner session can resume from the repository alone. The rules are in
   fresh session (queue entry). What it turns up is the next work on
   the tool. Not yet seen in a real pane: whether "Open the queue file"
   opens the file, and how Submit is drawn.
-- **PR #207 (#140):** the owner approved it to merge (2026-10-12,
-  late; passed to the manager). The check in Power BI Desktop is left
-  open as #211: Power BI is a deprioritized asset.
-- **Then:** the GitHub Project. Projects is on (owner, 2026-10-12);
-  the token still lacks the `project` scope (`gh auth status`: gist,
-  read:org, repo, workflow). The owner runs
-  `gh auth refresh -s project`.
+- **The GitHub Project is built** (2026-10-12): project 2 of the
+  owner's account, "Dynasty FF: plan", private, linked to the
+  repository. Views "By stage", "By map" and "Yours" (the label
+  `owner-led`), each filtered to open items. Left for the owner's hand,
+  because the API has no call for them: the grouping of each view and
+  the workflow that adds new issues (in the manager's queue). Until
+  that workflow is on, the planner adds each new ticket with
+  `gh project item-add 2 --owner benjamininja --url <url>`.
+- **PR #207 (#140) is merged**; the check in Power BI Desktop is open
+  as #211 (owner's hand; Power BI is a deprioritized asset).
 - **Then:** plan #167 with the owner (the upstream plugin
   `session-dispatch-managers-build-review`; it takes `owner-queue`
   0.4.0 or later as a dependency; the wayfinder template gains a
@@ -37,7 +40,7 @@ planner session can resume from the repository alone. The rules are in
 |---|---|
 | The plan | The wayfinder maps and their tickets, all of them. The stage table in `GOAL-RUN.md` is the manager's, derived from the maps; where they disagree the maps win and the planner says so |
 | Stages | Each stage is a milestone on its tickets, kept by the planner |
-| Project | One GitHub Project as a derived view: labels, state, parent map, milestone. No field of its own |
+| Project | One GitHub Project as a derived view: labels, state, parent map, milestone. No field of its own. Private. A ticket that waits on the owner's own hand carries the label `owner-led` |
 | Wiki | None for now; owner-facing pages are a fog item on map #151 |
 | A found gap | A ticket with evidence, tier and done condition. The planner fixes gaps in documents it owns; code, tests, data and notebooks go to the manager. The manager gets all it needs to disposition, and the planner stays on the gap until it is closed |
 | Live builds | The planner reads a builder's PR when the manager asks |
@@ -51,7 +54,7 @@ planner session can resume from the repository alone. The rules are in
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
 | #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
-| #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #140 (PR #207 open); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
+| #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
 | #162 | Managing-session roles and plugin | #166, #167 |
@@ -86,7 +89,7 @@ after the fix).
 
 | Ticket | Found | Disposition | Healed |
 |---|---|---|---|
-| #140 | Power BI prices Dead Money from `Status = "Cut"`; no `fact_dead_money` in the model (`_Measures.tmdl:680-810`) | single brief, now | PR #207 open; waits on the owner's TMDL review |
+| #140 | Power BI prices Dead Money from `Status = "Cut"`; no `fact_dead_money` in the model (`_Measures.tmdl:680-810`) | single brief, now | healed 2026-10-12 (PR #207): `Fact_DeadMoney` is in the model on `main` and no measure reads `Status = "Cut"`. Not opened in Power BI Desktop: #211 |
 | #200 | the page draws no waiver or free-agency line (`index.html:511`) | single brief, now | healed 2026-10-12 (PR #204): `index.html` on `main` names both signals |
 | #201 | a defaulted contract at a drop is printed, not queued (`02d:1709`); no reversed-drop test | stage C, after #97 PR 1 | open |
 | #97 (comment) | `02e:169` sums Dead Money over every season in the roster table | the rewrite of `02e` in #97 | open |
