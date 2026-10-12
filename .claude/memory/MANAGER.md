@@ -30,34 +30,21 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- **Open now.** Builder `b92-runner-spike` (id `d6acd1df`, ticket
-  #225, medium) is idle with **PR #228** open and green. Re-proved at
-  `b6b5923` and posted; the planner read it as no breach; the owner's
-  two pane answers are recorded on the PR. **One word is left: the
-  owner's "merge 228"** (the ticket names the owner's read of the
-  workflow). The other open PR is the planner's #226: merge on the
-  owner's "approved", without `--delete-branch`.
-- **On "merge 228"**: one CI read, squash-merge, pull; #225 closes,
-  #92 stays open. Then write this Action into the queue, "Store the
-  spike secrets and fire the Fantrax runner spike" (Ticket #92, #225):
-  1. Settings, Environments, New environment `fantrax-spike`,
-  deployment branches limited to `main`, **before the first run** (if
-  the workflow runs first GitHub makes the environment with no branch
-  rule). 2. Environment secrets by name: `FANTRAX_EMAIL`,
-  `FANTRAX_PASSWORD`, `FANTRAX_TOTP_SECRET` (the bare base32 setup
-  key); the account is the owner's choice, question 2 of #92 asks
-  about one without commissioner rights. 3. Fire: Actions tab,
-  `fantrax-runner-spike`, Run workflow, branch `main`; or a fenced
-  block with `gh workflow run fantrax-runner-spike.yml --ref main`.
-  4. Report the summary page's Login line, read table and step
-  seconds. Context: checkpoint 1; prints verdicts, HTTP statuses and
-  seconds only; question 1 wants several runs on different days; until
-  #230 merges a run ends at `needs_code`, and the owner chose to fire
-  anyway and again after. Page: `docs/research/fantrax-runner-spike.md`.
-  The old entry "Fire the first Fantrax runner login (later)" is
-  replaced by it. Then close out the builder (worktree
-  `b92-runner-spike`, scratch files `workspace/_b225_*`, branches
-  `feat/225-runner-spike-workflow` and `worktree-b92-runner-spike`).
+- **Open now: nothing.** On the owner's words (2026-10-12, late):
+  PR #228 merged (#225 closed, #92 open), the planner's #226 merged,
+  both settings files committed unedited. Builder `d6acd1df` is
+  closed out (session, worktree, scratch files, remote branch).
+  The fire Action is in the queue ("Store the spike secrets and
+  fire the Fantrax runner spike"); the owner reports the run's
+  summary in chat, and fires again after #230 merges.
+- The git guard hook also blocks `git branch -D` for an agent
+  (2026-10-12). A builder's squash-merged local branches are left
+  for the owner: one queue Action with the command. The remote
+  branch delete (`git push origin --delete`) is not blocked.
+- A pane answer that arrives again after a compact is a repeat
+  from this session's prompt queue (the planner's read of the
+  transcript, 2026-10-12). Act on a pane answer only when its entry
+  is still in the queue file.
 - The owner's git guard hook (new 2026-10-12) blocks a shell command
   that holds `git push` while `main` is checked out when the command
   starts, even if the command switches branch first. So: switch and
@@ -91,19 +78,17 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   diff of the main checkout's queue in its own call before any `git
   restore` of it**: a pane tick or answer sits there uncommitted, and
   a restore in the same command drops it unread.
-- **Uncommitted in the main checkout: the owner's edits to both
-  settings files** (the dispatch rules of #167: one allow line in
-  the managers' file, four deny lines in each). Do not restore or
-  stash them; commit them unedited only on the owner's "commit the
-  settings files". The owner ticked the three #167 entries done in
-  the pane; found on 2026-10-12: user-folder `dispatch-projects.json`
-  exists, `.claude/dispatch.json` does not, skills PR 46 is open and
-  the plugin folder is not in the live clone. The entries stay open
-  with that written in them.
+- The owner's dispatch rules of #167 are committed in both settings
+  files (one allow line for the script in the managers' file, four
+  deny lines in each). Optional and the owner's, after the script's
+  first real dispatch: remove the allow rule
+  `PowerShell(*claude.exe --bg *)` from the managers' file. Still
+  open of #167 (found 2026-10-12): `.claude/dispatch.json` is not
+  written, skills PR 46 is open, the plugin folder is not in the
+  live clone.
 - The dispatch plugin (#167 step 2) is skills PR 46; four queue
   entries carry the owner's steps. Until its first real dispatch the
-  recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
-  the owner's "approved".
+  recipe in `GOAL-RUN.md` stands.
 - Nothing of #110 went out: PRs #145 to #148 had done its four free
   parts; only the `roster_slot` rename is left, after #97.
 - Worktree cleanup, on the owner's approved plan (2026-10-12): four
@@ -246,11 +231,10 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #225 #230 #92 #93 #116. Tooling
    and upkeep: #151 #162 #167 #218 #130 #211.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): "merge 228";
-"approved" for #226; the
-code prompt for #230; skills PR 46 and the three #167 entries (owner-
-only files, settings rules then "commit the settings files", plugin
-folder); the Power BI check (#211); the stale
+**Left with the owner** (all in `NEEDS-OWNER.md`): the spike
+(environment, secrets, fire, report); two local branches to delete; the
+code prompt for #230; skills PR 46 and the two #167 entries (owner-
+only files, plugin folder); the Power BI check (#211); the stale
 worktree entries (close the idle session, pause OneDrive, prune); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user
