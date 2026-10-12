@@ -52,6 +52,21 @@ the goal texts below already do.
 
 (Order and the two warnings proven by the dry dispatch of 2026-10-12.)
 
+**The belt (owner's approval 2026-10-12, #166).** Step 3 also passes
+the deny rules below with `--disallowedTools`, after the prompt (the
+flag takes a list, so the prompt comes before it). The builders'
+settings file stays the fence; the flag can only deny, and it holds
+even if the file is changed or is not read. Why: the owner's
+user-level allow rules reach a builder, so only a deny rule fences
+one. Cost: the list lives in two places and both are kept in step.
+
+`PowerShell`, `Bash(gh pr merge*)`, `Bash(gh api*)`,
+`Bash(gh issue close*)`, `Bash(gh issue edit*)`,
+`Bash(gh issue delete*)`, `Bash(git push origin --delete*)`,
+`Bash(python -c*)`, `Bash(python3*)`,
+`Bash(.venv/Scripts/python.exe -c*)`,
+`Bash(./.venv/Scripts/python.exe -c*)`.
+
 The read line, first in every builder's prompt: "Read
 `C:\Users\benha\.claude\memory\preferences.md`, then
 `.claude/memory/RESUME.md` Standing rules and NEXT, then
@@ -224,6 +239,31 @@ the failing output; it is not merged. Why: nothing reaches `main` on
 one session's own report, while the builder's branch is still pushed,
 so its work is backed up and tested by CI. Cost: the builder waits a
 few minutes per PR.
+
+**The planner's read (owner's approval 2026-10-12, #166, #162).** The
+manager asks the planner to read a builder's PR against its ticket
+when the PR:
+
+- changes an ADR, a table's grain or a key;
+- touches a file its ticket did not name;
+- leaves a done condition unmet, or rewords one;
+- adds a design choice the ticket did not make;
+- outgrew its tier.
+
+The read does not replace the re-proof of Green; both are done. The
+planner answers "no breach" or "plan breach". A plan breach holds the
+merge until planner and manager agree, or the owner rules. A design
+choice the read turns up goes to the owner as a Decision in
+`NEEDS-OWNER.md`; the planner's advice is not the owner's answer.
+Why: the manager proves that the work is green, not that it is the
+work the plan asked for. Cost: one more message round on such a PR.
+
+**Stages and gap tickets (owner's approval 2026-10-12, #162).** A
+stage is a milestone on the tracker, kept by the planner; the table
+under "Stages" is its copy for the dispatch. A gap ticket from the
+planner's sweep carries its tier, evidence, files, proposed disposition
+and done condition. The disposition is advice: whether and when to
+dispatch is the manager's, on the owner's word.
 
 **Check-ins.** Event-driven: a park, a PR reported green, a stopped or
 idle builder. One fallback look after 60 quiet minutes. No polling.
