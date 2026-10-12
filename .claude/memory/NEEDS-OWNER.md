@@ -192,19 +192,6 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
 - Blocks: closing #167.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Finish the GitHub Project's views by hand
-- Ticket: #151
-- Steps: 1. Open https://github.com/users/benjamininja/projects/2
-  2. In view "By stage" open the view menu, Group by, Milestone. 3. In
-  view "By map", Group by, Parent issue. 4. Three-dot menu, Workflows,
-  "Auto-add to project": pick this repository, filter
-  `is:issue,pr is:open`, turn it on and save.
-- Context: the Project and its three views exist; the API cannot set a
-  view's grouping or the auto-add workflow.
-- Blocks: nothing; until auto-add is on the planner adds new tickets
-  itself.
-- Raised: 2026-10-12, by the planner
-
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
 - Steps: open `pbi/mouserat2`, refresh, look at the Dead Money
