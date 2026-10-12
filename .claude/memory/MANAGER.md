@@ -46,7 +46,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   Its other two denials need no rule: `git ls-remote` (network) and
   a `git log` that named login-step files (project deny rules).
 - Parked by this builder: the login has no TOTP step and `pyotp` is
-  not in `requirements.txt`; no ticket yet, the planner is asked.
+  not in `requirements.txt`. That is ticket #230 (medium, stage D);
+  its dispatch waits on the owner's report of the code prompt.
+- Planner's read of PR #228: no breach, with one design choice for
+  the owner (a pageError code and an exception class name on a
+  public log): Decision in the queue, it blocks the merge. In the
+  fire Action written on merge, say: make the environment
+  `fantrax-spike` with deployment branches limited to `main`
+  **before** the first run, or GitHub makes it with no branch rule.
+- The dispatch plugin (#167 step 2) is skills PR 46; four queue
+  entries carry the owner's steps. Until its first real dispatch the
+  recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
+  the owner's "approved".
 - Nothing of #110 went out: PRs #145 to #148 had done its four free
   parts; only the `roster_slot` rename is left, after #97.
 - Worktree cleanup, on the owner's approved plan (2026-10-12): four

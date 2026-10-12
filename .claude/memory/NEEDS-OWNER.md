@@ -39,6 +39,24 @@ can be traced.
 
 ## Decisions
 
+### [ ] PR #228: may the spike print a Fantrax error code on the public run log?
+- Ticket: #225 (PR #228)
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+- Context: #225 says the run reports only the login outcome, each
+  read's name and HTTP status, and step times. The PR also prints a
+  pageError code when it matches `[A-Z0-9_]{3,48}` (else the word
+  other), and the class name of an exception. No error text, payload,
+  cookie or account detail is printed. The repository is public, so
+  the log is public. This is the one design choice the ticket did not
+  make; the planner read the rest of the PR as no breach. Also for
+  your read: the driver reads `dim_fantasy_teams` to take one team id
+  for one request; the id goes into the request only and is not
+  printed.
+- Options: (a) accept both as built; (b) print the word page_error only, no code; (c) accept the code, drop the exception class name
+- Recommended: (a), because a refused read cannot be told from a wrong request shape without the code, and question 2 of #92 needs that
+- Blocks: the merge of PR #228. Answer (a) and "merge 228" together merge it; (b) or (c) goes back to the builder first.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] Fire the spike before the TOTP login code exists?
 - Ticket: #92, #225
 - Context: the existing Fantrax login fills the email and password and
@@ -46,8 +64,8 @@ can be traced.
   `requirements.txt`. With 2FA on, a runner login stops at the code
   prompt. The spike driver reports that as `needs_code`: the runner
   reached the prompt, which shows no challenge on the way, but the
-  reads are not made and questions 2 and 3 of #92 stay open. No ticket
-  exists yet for the TOTP step; the planner is asked to write one.
+  reads are not made and questions 2 and 3 of #92 stay open. The TOTP
+  step is ticket #230; it waits on your report of the code prompt.
 - Options: (a) fire as soon as the secrets are stored, then fire again after the login code merges; (b) hold the first fire until the TOTP login code has merged
 - Recommended: (a), because a run before the login code lands already answers whether the runner is challenged, which decides whether the login code is worth finishing for Actions at all; a second run covers questions 2 and 3
 - Blocks: your first fire of the spike.
@@ -88,6 +106,134 @@ can be traced.
   (store the secrets, fire the run) is added here.
 - Blocks: #225, and through it #92.
 - Raised: 2026-10-12, by the builder manager
+
+### [ ] Approve the planner state PR #226
+- Ticket: #167, #225
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/226
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's state before its compact: the dispatch plugin
+  in hand, the milestones, #225.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #230: report what the Fantrax code prompt looks like
+- Ticket: #230
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Log in to Fantrax once in a normal browser window where the
+  code prompt appears (a private window does it). 2. At the prompt,
+  note the label of the code field and the text of the button that
+  submits it. 3. Write both on #230, or say them in a session. No
+  code, secret or account detail goes on the ticket.
+- Context: #230 is the ticket for the login answering the
+  second-factor code prompt (TOTP), medium tier, stage D. The login
+  code fills the email and the password only. The fill step for the
+  code is written against what you report, not against a guess; no
+  agent may look.
+- Blocks: the dispatch of #230.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Skills PR 46: review, run the security review, merge
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Open a session rooted in the skills repository and run
+  `/security-review` on branch `session-dispatch-plugin`. It did not
+  run from the planner's session, where the command is not available.
+  2. Read https://github.com/benjamininja/skills-plugins-hooks-agents/pull/46
+  , most of all `scripts/dispatch.ps1`. 3. Merge it. 4. Pull the live
+  clone at `C:\Users\benha\claude-live\skills-plugins-hooks-agents`.
+- Context: the dispatch plugin (#167 step 2) is a dry-run-first script
+  that starts a builder, two skills and templates. 12 tests of the
+  script pass; the full suite passed (155) before the last script
+  change; CI runs it all.
+- Blocks: the three #167 entries below, and #218.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: write the two owner-only files for the dispatch script
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Create `.claude/dispatch.json` in the main checkout with
+  the first block. 2. Create `dispatch-projects.json` in your user
+  `.claude` folder with the second block. 3. Say so in the manager's
+  session, and say whether `dispatch.json` is to be committed.
+
+```json
+{
+  "agent": "stage-builder",
+  "buildersSettings": ".claude/builders.settings.json",
+  "claude": "C:\\Users\\benha\\.local\\bin\\claude.exe",
+  "setup": [
+    "python -m venv .venv",
+    ".venv\\Scripts\\python.exe -m pip install -r requirements.txt"
+  ],
+  "readLine": "Read C:\\Users\\benha\\.claude\\memory\\preferences.md, then .claude/memory/RESUME.md Standing rules and NEXT, then .claude/memory/GOAL-RUN.md and NEEDS-OWNER.md."
+}
+```
+
+```json
+{
+  "projects": [
+    "C:/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball"
+  ]
+}
+```
+
+- Context: waits on skills PR 46. The script refuses to run without
+  the first file, and refuses `-Apply` in a project that is not in the
+  second (your ruling to the planner, 2026-10-12). No agent writes
+  either. The setup lines and the read line are today's, from
+  `GOAL-RUN.md`.
+- Blocks: the first dispatch with the script.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: settings rules for the dispatch script
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. In `.claude/managers.settings.json`, add the first block's
+  line to `permissions.allow`. 2. In both
+  `.claude/managers.settings.json` and `.claude/builders.settings.json`,
+  add the second block's lines to `permissions.deny`. 3. Optional,
+  once the script has made one real dispatch: remove the allow rule
+  `PowerShell(*claude.exe --bg *)` from the managers' file, so a
+  builder can only be started through the script. 4. Say "commit the
+  settings files" in the manager's session.
+
+```
+"PowerShell(*session-dispatch-managers-build-review\\scripts\\dispatch.ps1 *)"
+```
+
+```
+"Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
+"Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
+```
+
+- Context: waits on skills PR 46. The allow rule lets the manager run
+  the script without a prompt. The deny rules keep every session from
+  writing the two owner-only files.
+- Blocks: the first dispatch with the script.
+- Raised: 2026-10-12, by the planner
+
+### [ ] #167: load the plugin in the manager's and builders' sessions
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Steps: 1. Add the folder in the block to the user environment
+  variable `CLAUDE_CODE_PLUGIN_DIRS`, beside the owner-queue folder
+  already in it. 2. Restart the sessions. 3. In the manager's session,
+  invoke the session-dispatch skill for the next real ticket; the
+  manager runs the dry run, then `-Apply`.
+
+```
+C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
+```
+
+- Context: waits on the two entries above. The planner has not
+  verified how that variable separates two folders on Windows (most
+  likely a semicolon). If the second folder does not load, say so and
+  the planner finds out. #167 closes on the first real dispatch
+  through the script, not on the PR.
+- Blocks: closing #167.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
