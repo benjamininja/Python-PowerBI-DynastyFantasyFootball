@@ -79,7 +79,27 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   lifts it. **Owner's answer (pane, 2026-10-12 17:33, on #166): the
   planner designs a move of the builders' state files (`RESUME.md`,
   a builder's copy of the queue) to a folder outside `.claude/`.**
-  The planner has been told. Until that lands, the stopgap holds.
+  That is ticket #234 (the planner's, through the plan gate with
+  the owner; #218 waits on it). Until it lands, the stopgap holds.
+- The owner ticked "Finish the GitHub Project's views by hand" done
+  in the pane twice (2026-10-12); the planner's first API read
+  showed no grouping and no auto-add, and it re-checks after the
+  second tick. Entry removed; the planner sends a fresh one if a
+  point is still open. A TEST Decision for owner-queue 0.6.0 (Post
+  comment) sits in the queue for the planner: do not remove it or
+  touch its Answer or Note lines until the planner says. **Read the
+  diff of the main checkout's queue in its own call before any `git
+  restore` of it**: a pane tick or answer sits there uncommitted, and
+  a restore in the same command drops it unread.
+- **Uncommitted in the main checkout: the owner's edits to both
+  settings files** (the dispatch rules of #167: one allow line in
+  the managers' file, four deny lines in each). Do not restore or
+  stash them; commit them unedited only on the owner's "commit the
+  settings files". The owner ticked the three #167 entries done in
+  the pane; found on 2026-10-12: user-folder `dispatch-projects.json`
+  exists, `.claude/dispatch.json` does not, skills PR 46 is open and
+  the plugin folder is not in the live clone. The entries stay open
+  with that written in them.
 - The dispatch plugin (#167 step 2) is skills PR 46; four queue
   entries carry the owner's steps. Until its first real dispatch the
   recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
@@ -230,7 +250,7 @@ the two rule additions (#214).
 "approved" for #226; the
 code prompt for #230; skills PR 46 and the three #167 entries (owner-
 only files, settings rules then "commit the settings files", plugin
-folder); the Project's views; the Power BI check (#211); the stale
+folder); the Power BI check (#211); the stale
 worktree entries (close the idle session, pause OneDrive, prune); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user

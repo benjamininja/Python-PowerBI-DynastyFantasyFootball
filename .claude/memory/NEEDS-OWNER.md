@@ -39,6 +39,15 @@ can be traced.
 
 ## Decisions
 
+### [ ] TEST: owner-queue 0.6.0 trial, nothing depends on it
+- Ticket: #167
+- Context: a test entry for the Post comment button. Press Post comment, type a few words, and try Send as comment, then Send as answer, then one send with Enter.
+- Options: (a) it works; (b) it does not work
+- Recommended: none; type an answer instead, to try Send as answer
+- Blocks: nothing
+- Raised: 2026-10-12, by the planner
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+
 ## Actions
 
 ### [ ] Read the spike workflow in PR #228, then say "merge 228"
@@ -136,7 +145,10 @@ can be traced.
 }
 ```
 
-- Context: waits on skills PR 46. The script refuses to run without
+- Context: you ticked this done in the pane (2026-10-12). The
+  manager's look found `dispatch-projects.json` in your user folder,
+  and no `.claude/dispatch.json` in the main checkout: that one is
+  still to write (step 1). Waits on skills PR 46. The script refuses to run without
   the first file, and refuses `-Apply` in a project that is not in the
   second (your ruling to the planner, 2026-10-12). No agent writes
   either. The setup lines and the read line are today's, from
@@ -165,7 +177,10 @@ can be traced.
 "Edit(~/.claude/dispatch-projects.json)", "Write(~/.claude/dispatch-projects.json)"
 ```
 
-- Context: waits on skills PR 46. The allow rule lets the manager run
+- Context: you ticked this done in the pane (2026-10-12) and the
+  rules are in both files in the main checkout, uncommitted; both
+  parse. What is left is step 4: say "commit the settings files".
+  The allow rule lets the manager run
   the script without a prompt. The deny rules keep every session from
   writing the two owner-only files.
 - Blocks: the first dispatch with the script.
@@ -184,25 +199,15 @@ can be traced.
 C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
 ```
 
-- Context: waits on the two entries above. The planner has not
+- Context: you ticked this done in the pane (2026-10-12), but skills
+  PR 46 is still open and the plugin's folder is not in the live
+  clone yet, so nothing can load from it. Merge PR 46 and pull the
+  live clone first, then restart the sessions. The planner has not
   verified how that variable separates two folders on Windows (most
   likely a semicolon). If the second folder does not load, say so and
   the planner finds out. #167 closes on the first real dispatch
   through the script, not on the PR.
 - Blocks: closing #167.
-- Raised: 2026-10-12, by the planner
-
-### [ ] Finish the GitHub Project's views by hand
-- Ticket: #151
-- Steps: 1. Open https://github.com/users/benjamininja/projects/2
-  2. In view "By stage" open the view menu, Group by, Milestone. 3. In
-  view "By map", Group by, Parent issue. 4. Three-dot menu, Workflows,
-  "Auto-add to project": pick this repository, filter
-  `is:issue,pr is:open`, turn it on and save.
-- Context: the Project and its three views exist; the API cannot set a
-  view's grouping or the auto-add workflow.
-- Blocks: nothing; until auto-add is on the planner adds new tickets
-  itself.
 - Raised: 2026-10-12, by the planner
 
 ### [ ] Check the Dead Money model in Power BI Desktop
