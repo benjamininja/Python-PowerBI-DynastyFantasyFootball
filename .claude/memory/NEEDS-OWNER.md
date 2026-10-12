@@ -12,6 +12,9 @@ keep the format:
 - a Decision's choices are written `- Options: (a) ...; (b) ...` and
   `- Recommended: (a), because ...`. The pane shows one button per
   option;
+- text the owner must paste goes in a fenced block (three backticks),
+  one fence per paste, written exactly as it is pasted. Inline code is
+  for names only. The pane draws one Copy button per fence;
 - secrets are named, never written. No owner PII, no team names.
 
 The owner answers by a button in the pane, or in chat. A button writes
@@ -71,21 +74,21 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Try owner-queue 0.4.1
+### [ ] Try owner-queue 0.4.2
 - Ticket: #167
 - Steps: 1. Run `/reload-plugins` (or start a fresh session) and check
-  the first line reads `owner-queue 0.4.1`. 2. Open a Decision whose
-  options hold code: each option is drawn in full as text with a
-  Choose button under it and a Copy button beside it for each code
-  span; press one and paste. 3. Press "Print in chat" on an entry and
-  select the printed text with the mouse. 4. Tell the planner what is
+  the first line reads `owner-queue 0.4.2`. 2. Open an entry that holds
+  a fenced block: it shows one "Copy block N" button per fence and no
+  button for inline code; press one and paste. 3. Open a Decision
+  whose options hold code: each option is drawn in full as text with a
+  Choose button under it. 4. Press "Print in chat" on an entry and
+  select the printed text with the mouse. 5. Tell the planner what is
   off.
 - Context: you have trialled 0.4.0 (version line, staging and Submit
-  work). These steps are what is new in 0.4.1. Upstream copy is commit
-  fc7cf19 on PR 39 of the skills repository. A Submit sends its chat
-  message to the session the pane is open in, not to the session that
-  raised the entry; the `Answer:` line in the main checkout's file is
-  what counts.
+  work). Upstream copy is commit 8469f6e on PR 39 of the skills
+  repository. A Submit sends its chat message to the session the pane
+  is open in, not to the session that raised the entry; the `Answer:`
+  line in the main checkout's file is what counts.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
@@ -120,27 +123,20 @@ can be traced.
   migration: all of stage C.
 - Raised: 2026-10-11, #97 grill
 
-### [ ] Add four allow rules to the builders' file
+### [ ] Say "commit the settings files"
 - Ticket: #166, #186
-- Steps: 1. In `.claude/builders.settings.json` add to `allow`:
-  `"Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)"` and
-  `"Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)"`,
-  `"Edit(.claude/memory/**)"` and `"Write(.claude/memory/**)"` (your
-  pane answer of 2026-10-12: a builder writes its own memory files).
-  2. Optional, same file, add to `deny`:
-  `"Edit(.claude/managers.settings.json)"` and
-  `"Write(.claude/managers.settings.json)"`. 3. Optional, in
-  `.claude/managers.settings.json` add to `deny`:
-  `"Edit(.claude/agents/**)"` and `"Write(.claude/agents/**)"`. 4. Say
-  "commit the settings files" and the manager commits and merges them.
-- Context: both files are tracked since PR #197. #186 is merged, so its
-  two proof commands exist and need one rule each; without them a stage C
-  builder parks at its first "tables identical" proof.
-  A builder's Edit under `.claude/memory/` is denied in `dontAsk` mode
-  today; whether an allow rule lifts that is proven at the next
-  dispatch. Until then a builder's plan rides in its PR body, its
-  parks come by message, and the manager writes the memory docs.
-- Blocks: stage C's proofs. Not #97's start.
+- Steps: say "commit the settings files" in the manager's session. The
+  manager commits both files as you wrote them and merges.
+- Context: your edits are in the main checkout, uncommitted, and both
+  files parse. Builders' file: four new allow rules (`compare_tables.py`,
+  `02d --raw-dir`, Edit and Write under `.claude/memory/**`) and two
+  new deny rules (the managers' file); now 55 allow, 32 deny. Managers'
+  file: two new deny rules (`.claude/agents/**`); now 37 allow, 21
+  deny. A builder is started with the main checkout's builders' file,
+  so the rules already apply to the next dispatch; the commit makes
+  them tracked. Whether the allow rule lifts the denial of a builder's
+  Edit under `.claude/memory/` is proven at that dispatch.
+- Blocks: nothing running.
 - Raised: 2026-10-12, by the builder manager
 
 ### [ ] Free the last leftover worktree folder
