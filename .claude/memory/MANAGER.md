@@ -57,9 +57,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - The queue: whatever waits on the owner goes into the **main
   checkout's** `NEEDS-OWNER.md`, never chat alone. The planner sends a
   ready entry; the manager writes it. Decisions use `(a) ...; (b) ...`.
-  The pane (`owner-queue` 0.4.0) stages answers and writes `Answer:`
+  The pane (`owner-queue` 0.4.1) stages answers and writes `Answer:`
   lines on Submit; no agent touches one. Before merging a state PR,
-  check the main checkout's copy for a pane-written line. A session
+  check the main checkout's copy for a pane-written line. A Submit's
+  chat message goes to the session the pane is open in, so an answer
+  to the manager's entry can arrive through the planner: read the
+  line in the file itself. Put anything the owner must paste in
+  backticks (each code span gets a Copy button). A session
   started before 2026-10-12 runs an old pane that reads its own
   worktree's file: an answer there does not count.
 - A planner PR is merged without `--delete-branch`; its branches and
@@ -150,7 +154,7 @@ the two rule additions (#214).
 for the builders' file (the two proof commands; Edit and Write under
 `.claude/memory/**`, the owner's pane answer (a) of 2026-10-12), then
 "commit the settings files"; the
-`04t` capture; the Power BI check (#211); try the 0.4.0 pane; the
+`04t` capture; the Power BI check (#211); try the 0.4.1 pane; the
 planner's PR #216 (merge on "approved"); the Project's
 views by hand; the idle session in
 `.claude/worktrees/brave-euclid-5d75b2` and `git worktree prune`; two

@@ -71,24 +71,21 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Try owner-queue 0.4.0 in a fresh session
+### [ ] Try owner-queue 0.4.1
 - Ticket: #167
-- Steps: 1. Start a new session (a running one keeps its old copy).
-  2. Type `/owner`. Check the first line reads `owner-queue 0.4.0` and
-  the footer names the main checkout's file. 3. Open a decision and
-  press an option, open an action and press Mark done: both show in
-  green and `NEEDS-OWNER.md` is unchanged. 4. Press Clear, stage them
-  again, press Submit: the file gains the `Answer:` line and the ticked
-  box, and one message arrives in chat. 5. Press a Copy button of a
-  code span and paste it. 6. Type `/owner show a1` and select the
-  printed text with the mouse. 7. Press "Open the queue file" and say
-  whether it opened. 8. Tell the planner what did not work.
-- Context: 0.4.0 stages a pressed option or Mark done and writes
-  nothing until Submit. 18 automated tests pass; none of this has been
-  pressed in the real pane. Upstream copy is commit 359a15a on PR 39 of
-  the skills repository. A session started before 2026-10-12 still runs
-  an older copy that reads its own worktree's file: an answer pressed
-  there does not reach the main checkout's queue and does not count.
+- Steps: 1. Run `/reload-plugins` (or start a fresh session) and check
+  the first line reads `owner-queue 0.4.1`. 2. Open a Decision whose
+  options hold code: each option is drawn in full as text with a
+  Choose button under it and a Copy button beside it for each code
+  span; press one and paste. 3. Press "Print in chat" on an entry and
+  select the printed text with the mouse. 4. Tell the planner what is
+  off.
+- Context: you have trialled 0.4.0 (version line, staging and Submit
+  work). These steps are what is new in 0.4.1. Upstream copy is commit
+  fc7cf19 on PR 39 of the skills repository. A Submit sends its chat
+  message to the session the pane is open in, not to the session that
+  raised the entry; the `Answer:` line in the main checkout's file is
+  what counts.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
