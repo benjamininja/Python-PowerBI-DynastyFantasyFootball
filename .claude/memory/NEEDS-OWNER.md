@@ -66,6 +66,41 @@ can be traced.
 
 ## Actions
 
+### [ ] Confirm: merge PR #207 without the Power BI check?
+- Ticket: #140, #211
+- Steps: say "merge 207" in the manager's session, and answer the
+  Decision on the by-player relationship above (or say "keep it"). The
+  manager then merges, writes the memory-doc updates and closes out
+  the builder.
+- Context: the planner reports that you said in its session, of PR
+  #207: "approved to complete. leave open a need to check in power bi.
+  it's a deprioritized asset." A peer's report is not your word to the
+  manager, and it did not cover the relationship Decision. If you
+  confirm, the review-and-refresh entry below is replaced by the check
+  on #211.
+- Blocks: the merge of #207.
+- Raised: 2026-10-12, by the builder manager
+
+### [ ] Check the Dead Money model in Power BI Desktop
+- Ticket: #211
+- Steps: open `pbi/mouserat2`, refresh, look at the Dead Money
+  measures for a team that has dead money, and write the result on
+  #211.
+- Context: the planner reports PR #207 approved to merge without this
+  check. Power BI is deprioritized; do it when Power BI is next opened.
+- Blocks: nothing.
+- Raised: 2026-10-12, by the planner
+
+### [ ] Approve the planner state PR #212
+- Ticket: #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/212
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's state caught up after #209.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
+
 ### [ ] Review PR #207 (Power BI Dead Money) and refresh in Power BI Desktop
 - Ticket: #140
 - Steps: 1. Read
