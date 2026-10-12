@@ -5,10 +5,11 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, evening)
+## START HERE (state 2026-10-12, night)
 
-- **Next:** the first sweep of stages A and B (see "Sweeps"). It is
-  read-only, and nothing is ticketed until the owner has seen the list.
+- **Done:** sweep 1 of stages A and B (see "Sweeps" and "Gaps").
+- **Next:** `owner-queue`. The owner's live trial of 0.3.0 is the first
+  input; the planner owns the tool from here (see the table below).
 - **Then:** the GitHub Project, once the owner has turned Projects on
   and given the token the `project` scope (in the owner's queue).
 - **Then:** plan #167 with the owner (the upstream plugin
@@ -31,6 +32,7 @@ planner session can resume from the repository alone. The rules are in
 | A found gap | A ticket with evidence, tier and done condition. The planner fixes gaps in documents it owns; code, tests, data and notebooks go to the manager. The manager gets all it needs to disposition, and the planner stays on the gap until it is closed |
 | Live builds | The planner reads a builder's PR when the manager asks |
 | Sweeps | When the owner asks |
+| `owner-queue` (2026-10-12, night) | The planner owns the tool with the owner: the mod's code and tests, the entry format of `NEEDS-OWNER.md`, the upstream copy (PR 39 of the skills repository) and where it goes next. Managers still write the queue entries and send the planner what they need from the tool |
 | Merging | The manager merges the planner's PRs after the owner's approval. One PR per check-in, one commit per topic |
 
 ## Maps
@@ -38,12 +40,14 @@ planner session can resume from the repository alone. The rules are in
 | Map | What it is | Open |
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
-| #70 | In-season Fantrax league flows | #97 (stage C); #92, #93, #116 (stage D); #140 (no stage); #130 owner-led |
-| #71 | nflverse in-season stats and injuries | no open ticket; the map itself is open |
+| #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
+| #70 | In-season Fantrax league flows | #97, #201 (stage C); #92, #93, #116 (stage D); #140, #200 (no stage, single briefs); #130 owner-led |
+| #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
 | #162 | Managing-session roles and plugin | #166, #167 |
 
-#140 is open and sits in no stage; the first sweep places it.
+#140 and #200 sit in no stage: each is proposed to the manager as a
+single brief, and nothing blocks either.
 
 ## Milestones
 
@@ -63,12 +67,23 @@ without a command and its output, or a file and line, is left out.
 
 | Sweep | Scope | Result |
 |---|---|---|
-| 1 | Stages A and B | not started |
+| 1 | Stages A and B | 2026-10-12, `main` at 383d22f. All six closed tickets hold; `pytest tests` 776 pass. Six gaps, in "Gaps". Maps #66 and #71 closed; maps #69, #70 and #162 and `PLAN.md` corrected |
 
 ## Gaps
 
-None recorded yet. Each row: ticket, where found, disposition, healed
-(the evidence re-run after the fix).
+Each row: ticket, where found, disposition, healed (the evidence re-run
+after the fix).
+
+| Ticket | Found | Disposition | Healed |
+|---|---|---|---|
+| #140 | Power BI prices Dead Money from `Status = "Cut"`; no `fact_dead_money` in the model (`_Measures.tmdl:680-810`) | single brief, now | open |
+| #200 | the page draws no waiver or free-agency line (`index.html:511`) | single brief, now | open |
+| #201 | a defaulted contract at a drop is printed, not queued (`02d:1709`); no reversed-drop test | stage C, after #97 PR 1 | open |
+| #97 (comment) | `02e:169` sums Dead Money over every season in the roster table | the rewrite of `02e` in #97 | open |
+| none | `05a:163-166` counts stat rows as games | dropped by the owner; recorded on map #71 | not healed, by ruling |
+| manager's | `project-fantasy-football.md:399` lists the nflverse tables as not built | the manager's next memory PR | open |
+
+To re-run when a row's PR merges: the file and line named in the row.
 
 ## Asked by the manager
 
@@ -90,6 +105,9 @@ No PR read asked yet.
   different bytes.
 
 ## Lessons
+
+- A sweep's subagent report is checked against the file before it goes
+  to the owner; what was not checked is said so on the ticket.
 
 - A by-hand item left only in chat is lost. It goes to the manager as
   a ready queue entry, every time.
