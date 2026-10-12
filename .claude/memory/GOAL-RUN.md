@@ -118,6 +118,14 @@ call not on that list is a denied call.
 
 ## Park protocol
 
+Owner's ruling 2026-10-12: "when there are questions/decisions for me
+or actions needed of me, this is where we are moving it so the context
+is sticky even though the session itself has gained new entries. it's a
+shared entry across sessions. everything should be clear on tracing."
+So every session, not only a builder, puts what it leaves with the
+owner into `NEEDS-OWNER.md`. The planner does not write that file: it
+sends the builder manager a ready entry. Chat alone is not enough.
+
 1. Stop work on the ticket. Do not answer the owner's side.
 2. Append an entry to `NEEDS-OWNER.md`, in the format its header gives:
    under `## Decisions` for a choice (Ticket, Context with the evidence,
@@ -276,6 +284,10 @@ Notes per stage:
   and decide how tables stay off Supabase's Data API (row-level security
   on, or a schema that is not exposed); run the connector's security
   advisors after each migration.
+  `migrate.yml` is live from the day #108 merges (owner's ruling
+  2026-10-12): it is the only way the schema reaches the real project
+  without an agent writing to it. #108's PR names the secret it reads
+  and waits for the owner to store it.
   The Postgres backend is developed against `TEST_DATABASE_URL`; the
   backfill of the real project runs only after the golden round-trip
   passes. #111 ends with options for the owner, not a decision.
