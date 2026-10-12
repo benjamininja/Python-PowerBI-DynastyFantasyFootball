@@ -88,16 +88,18 @@ git -C ..\skills-plugins-hooks-agents worktree prune -v
 ```
 
 - Context: on your word (2026-10-12) the manager deleted four of the
-  five leftover folders and removed the upstream scratch worktree
-  `spha-wt`. What is left is harmless and only untidy: one empty folder
+  five leftover folders, removed the upstream scratch worktrees
+  `spha-wt` and `oq39` (the planner said it was finished with it)
+  and deleted the local branch `owner-queue-030`. What is left is harmless and only untidy: one empty folder
   held by the idle session, five stale entries under `.git/worktrees/`
-  of this repository and one (`spha-wt`) in the upstream repository.
+  of this repository and two (`spha-wt`, `oq39`) in the upstream
+  repository.
   Git reports "Permission denied" on deleting them, in the manager's
   shell and in yours; the folders carry OneDrive's attributes, so the
   likely holder is OneDrive sync. `git worktree list` is already
-  correct in both repositories. The upstream worktree `oq39` and its
-  branch `owner-queue-030` wait for the planner to say it is finished
-  with them; the manager removes them then.
+  correct in both repositories. The planner's new scratch worktree
+  of the upstream repository (branch `session-dispatch-plugin`) is
+  live and stays.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the builder manager
 
