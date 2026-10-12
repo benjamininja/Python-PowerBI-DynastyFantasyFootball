@@ -66,6 +66,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
         break
 fx = importlib.import_module("04a_fantrax_weekly_scrape")
 CFG = fx.CFG
+etl = fx.etl
 
 # %%
 # ---- Constants ----------------------------------------------------------------
@@ -202,20 +203,14 @@ def eligibility_to_frame(pulls: dict) -> pd.DataFrame:
 # ---- Durable eligibility snapshot (fact_minor_eligibility) ---------------------
 def load_eligibility(df: pd.DataFrame, cfg, season: int, week: str,
                      capture_date: str) -> str:
-    """Land the eligibility pull as a parquet fact (replace-by-(season, week)),
+    """Land the eligibility pull as a fact (replace-by-(season, week)),
     so the eligible population has queryable week-over-week history — the raw
     JSON alone can't answer 'when did this player cross 20 GP'. `capture_date`
     is the run's ISO day, read once by run() and stamped on every row."""
     df = df.assign(season=season, week=week, capture_date=capture_date)
-    path = f"{cfg.data_dir}/{ELIGIBILITY_FACT}.parquet"
-    if Path(path).exists():
-        old = pd.read_parquet(path)
-        keys = set(map(tuple, df[["season", "week"]].drop_duplicates().to_numpy()))
-        mask = old[["season", "week"]].apply(tuple, axis=1).isin(keys)
-        df = pd.concat([old[~mask], df], ignore_index=True)
     df = df.drop_duplicates(subset=["scorer_id", "season", "week"], keep="last")
-    df.to_parquet(path, index=False)
-    return path
+    etl.write_table(ELIGIBILITY_FACT, df, mode="replace_partition", keys=("season", "week"))
+    return f"{cfg.data_dir}/{ELIGIBILITY_FACT}.parquet"
 
 
 # ---- Main -----------------------------------------------------------------------

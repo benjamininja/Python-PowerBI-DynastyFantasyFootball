@@ -329,6 +329,12 @@ declared `datetime64[us, UTC]` columns, added after this inventory), and a
 batch's column order is the caller's (the registry fixes the set, not the
 order; `fact_draft_pick` is published in another order). `fact_trade_log`
 is refused by the grain guard until #109 merges.
+Phase 2 (2026-10-12) moved every `load_replace_partition` /
+`upsert_dynasty_crosswalk` caller to `write_table`. Phase 3 moved 04a
+`load_fact`, 04v `load_eligibility` and 02d's transaction-event delete, and
+added two rules to the seam: an `object` column with a numeric `sql_type`
+(no value seen yet) accepts its first numbers uncast, and an object column
+of numbers and `pd.NA` is cast through `to_numeric`.
 
 0. **Prereqs** (decision tickets): the Composite `source_player_id` grain,
    the `fact_fantasy_teams` grain, `fact_trade_log` in `data_model.yml`, SQL
