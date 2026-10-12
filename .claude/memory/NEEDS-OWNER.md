@@ -9,10 +9,21 @@ keep the format:
 - fields as `- Label: value`. Decisions carry Ticket, Context, Options,
   Recommended, Blocks, Raised. Actions carry Ticket, Steps, Context, Blocks,
   Raised;
+- a Decision's choices are written `- Options: (a) ...; (b) ...` and
+  `- Recommended: (a), because ...`. The pane shows one button per
+  option;
 - secrets are named, never written. No owner PII, no team names.
 
-The owner answers in chat. The session then records the answer where it
-belongs and deletes the entry (or marks it `[x]` until the next state-back).
+The owner answers by a button in the pane, or in chat. A button writes
+`- Answer: ...` as the last field of the entry and sends the answer to
+that session's chat. **No agent writes, edits or removes an `Answer:`
+line.** A pane answer is the owner's wherever it lands: the session that
+picks it up records it on the ticket, acts, and removes the entry (or
+marks an Action `[x]` until the next state-back).
+
+The pane reads the **main checkout's** copy of this file, from any
+session or worktree. That copy is the queue; a worktree's copy is not
+shown.
 
 This file is the one place for what waits on the owner, across every
 session (owner, 2026-10-12). A session that may not write it (the
