@@ -5,10 +5,14 @@ updates dim_fantrax_crosswalk (match_method='manual'), back-fills gsis_id into
 fact_fantrax_adp, and leaves the filled review CSV in place as the decision
 record. Collision-checks that no gsis_id ends up claimed by two scorer_ids.
 """
+import sys
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
+import etl_helpers as etl
 
 root = Path(r"C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball")
 REVIEW_CSV = root / "data" / "review" / "review_fantrax_crosswalk.csv"
@@ -78,12 +82,12 @@ if len(dups):
     print(xw[xw["gsis_id"].isin(dups.index)][["scorer_id", "player_name", "gsis_id",
                                               "match_method"]].to_string(index=False))
     raise SystemExit(f"COLLISION: {len(dups)} gsis_id claimed by >1 scorer_id — not applied")
-xw.to_parquet(XWALK, index=False)
+etl.write_table("dim_fantrax_crosswalk", xw)
 
 fact = pd.read_parquet(FACT)
 key = xw.set_index("scorer_id")["gsis_id"]
 fact["gsis_id"] = fact["scorer_id"].map(key)
-fact.to_parquet(FACT, index=False)
+etl.write_table("fact_fantrax_adp", fact)
 
 print(f"applied {len(resolved)} manual matches, {len(new_ids)} marked 'new'")
 print(f"fact_fantrax_adp gsis coverage: {fact['gsis_id'].notna().sum()}/{len(fact)} "
