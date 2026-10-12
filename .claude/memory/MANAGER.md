@@ -30,7 +30,14 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- No builder is running. No PR is open. `main` is clean; 779 tests.
+- No builder is running. One PR is open: the planner's #220
+  (`PLANNER.md` only), waiting for the owner's "approved"; merge it
+  without `--delete-branch`. `main` is clean; 779 tests.
+- owner-queue is 0.5.0: an entry may carry `- Session: <id>` and the
+  pane sends the answer to that session's chat. The planner's id for
+  that line is `22ca1b72-576b-45a1-8435-30ad14e53bda`; `/owner id`
+  prints this session's. Read ticket #218 (shrink `GOAL-RUN.md` once
+  the plugin is proven; blocked by #167) before the next dispatch.
   The planner's #216 was merged on the owner's "approved" and the
   owner's edits to both settings files were committed unedited on
   the owner's "commit the settings files" (both 2026-10-12).

@@ -15,6 +15,9 @@ keep the format:
 - text the owner must paste goes in a fenced block (three backticks),
   one fence per paste, written exactly as it is pasted. Inline code is
   for names only. The pane draws one Copy button per fence;
+- an entry whose answer should come back to a session carries
+  `- Session: <that session's id>`. Leave it out for an entry any
+  session may act on (owner-queue 0.5.0);
 - secrets are named, never written. No owner PII, no team names.
 
 The owner answers by a button in the pane, or in chat. A button writes
@@ -36,7 +39,30 @@ can be traced.
 
 ## Decisions
 
+### [ ] Test entry for owner-queue 0.5.0 (changes nothing in the build)
+- Ticket: #167
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Context: a trial of the message back. This entry names the planner's
+  session. Answer it in the pane of the **manager's** session and press
+  Submit. The answer should arrive in the planner's chat and not in the
+  manager's. Either option proves it.
+- Options: (a) test answer one; (b) test answer two
+- Recommended: (a), because either answer proves the routing
+- Blocks: nothing.
+- Raised: 2026-10-12, by the builder manager for the planner
+
 ## Actions
+
+### [ ] Approve the planner state PR #220
+- Ticket: #167, #162
+- Steps: read
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/220
+  (`PLANNER.md` only) and say "approved" in the manager's session, or
+  say what to change. The manager then merges it and cleans up.
+- Context: the planner's state after the planning of #167 and
+  owner-queue 0.5.0; it is the planner's pointer for its next compact.
+- Blocks: nothing in the build.
+- Raised: 2026-10-12, by the planner
 
 ### [ ] Finish the GitHub Project's views by hand
 - Ticket: #151
@@ -63,21 +89,21 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Try owner-queue 0.4.2
+### [ ] Try owner-queue 0.5.0
 - Ticket: #167
-- Steps: 1. Run `/reload-plugins` (or start a fresh session) and check
-  the first line reads `owner-queue 0.4.2`. 2. Open an entry that holds
-  a fenced block: it shows one "Copy block N" button per fence and no
-  button for inline code; press one and paste. 3. Open a Decision
-  whose options hold code: each option is drawn in full as text with a
-  Choose button under it. 4. Press "Print in chat" on an entry and
-  select the printed text with the mouse. 5. Tell the planner what is
-  off.
-- Context: you have trialled 0.4.0 (version line, staging and Submit
-  work). Upstream copy is commit 8469f6e on PR 39 of the skills
-  repository. A Submit sends its chat message to the session the pane
-  is open in, not to the session that raised the entry; the `Answer:`
-  line in the main checkout's file is what counts.
+- Steps: 1. Run `/reload-plugins` in the planner's session and in the
+  manager's session and check the first line of the pane reads
+  `owner-queue 0.5.0`. 2. In the manager's pane, answer the Decision
+  "Test entry for owner-queue 0.5.0" and press Submit. 3. Check the
+  answer arrives in the planner's chat within a few seconds and does
+  not arrive in the manager's chat. 4. Tell the planner what is off.
+- Context: 0.5.0 adds the message back: an entry may carry
+  `- Session: <id>`, and the session it names gets the pane-written
+  answer in its own chat, once. Submit tells the pressing session only
+  of entries that name it or name no session. `/owner id` prints a
+  session's id. Builders are unchanged. Upstream copy is commit 851aedc
+  on PR 39 of the skills repository. The checks of 0.4.2 (Copy block
+  buttons, options drawn in full, Print in chat) still apply.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
