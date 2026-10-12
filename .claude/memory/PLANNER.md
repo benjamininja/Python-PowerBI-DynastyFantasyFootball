@@ -24,9 +24,9 @@ planner session can resume from the repository alone. The rules are in
   the wayfinder template; an ADR. Proof is the manager's next real
   dispatch with it.
 - **Then, step 3:** #218 (shrink `GOAL-RUN.md`), blocked by #167.
-- **#166** closes when the owner's edited settings files are committed
-  on `main` with the rules for `compare_tables.py` and `02d --raw-dir`
-  (the owner has edited them; the manager commits on the owner's word).
+- **#166 is closed** (2026-10-12): PR #219 committed the owner's
+  settings edits, and `.claude/builders.settings.json` on `main` holds
+  the rules for `compare_tables.py` and `02d --raw-dir`.
 - **The GitHub Project is built** (2026-10-12): project 2 of the
   owner's account, "Dynasty FF: plan", private, linked to the
   repository. Views "By stage", "By map" and "Yours" (the label
@@ -63,7 +63,7 @@ planner session can resume from the repository alone. The rules are in
 | #70 | In-season Fantrax league flows | #211 (owner, no stage); #97, #201 (stage C); #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
-| #162 | Managing-session roles and plugin | #166, #167, #218 (after #167) |
+| #162 | Managing-session roles and plugin | #167, #218 (after #167) |
 
 #140 was placed as blocked by nothing; one clause of its acceptance
 needed #97 (see "Lessons").
