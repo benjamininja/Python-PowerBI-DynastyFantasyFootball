@@ -14,63 +14,13 @@ keep the format:
 The owner answers in chat. The session then records the answer where it
 belongs and deletes the entry (or marks it `[x]` until the next state-back).
 
+This file is the one place for what waits on the owner, across every
+session (owner, 2026-10-12). A session that may not write it (the
+planner) sends the builder manager a ready entry. Each entry says who
+raised it and when, and each answer is recorded on its ticket, so it
+can be traced.
+
 ## Decisions
-
-### [ ] May a builder call Fantrax's public API?
-- Ticket: #166
-- Context: stage B ran `04p` and `04u`, which call Fantrax's public API
-  with no login. Two of the six rules in the #166 addendum allow them.
-- Options: (a) allow both exact commands; (b) leave both out, and a
-  builder that needs them parks.
-- Recommended: (a). They are exact commands with no wildcard and cannot
-  reach a login step.
-- Blocks: nothing until a stage C builder needs a refresh.
-- Raised: 2026-10-12, #166 addendum
-
-### [ ] How does an item from the planner or the manager reach this queue?
-- Ticket: #166, #167
-- Context: on 2026-10-12 four by-hand items from the #166 grilling sat in
-  chat only. The planner may not write `.claude/memory/*`; and each
-  worktree has its own copy of this file, so the pane shows only the copy
-  of the folder its session runs in.
-- Options: (a) rule only: any session that leaves something for the owner
-  sends the manager a ready entry, and the manager writes it (the builder
-  writes it while one runs); (b) rule (a), and the `owner-queue` mod reads
-  the main checkout's copy from any worktree; (c) the queue moves out of
-  the repo to one file per project under the user folder, so every
-  session reads and writes the same one.
-- Recommended: (b). The rule closes today's gap now; the mod change makes
-  the pane the same in every session. It is an upstream change for #167.
-- Blocks: nothing; until settled the planner hands entries to the
-  manager, as now.
-- Raised: 2026-10-12, by the owner
-
-### [ ] Is `migrate.yml` live from the day #108 merges?
-- Ticket: #108 (task, map #69)
-- Context: ADR-0018 says `migrate.yml` applies migrations on merge. #108
-  lands it in stage C; cutover comes later. #135's backfill needs the
-  schema on the real project before cutover, and no agent may apply a
-  migration through the connector or fire a workflow.
-- Options: (a) live on merge from #108 on, with the database secret
-  stored by you first; (b) merged switched off behind a repo variable,
-  like the crons, and switched on at cutover.
-- Recommended: (a). It is the only way the schema reaches the real
-  project without an agent writing to it. With (b) the backfill and the
-  restore drill wait for cutover.
-- Blocks: #108's workflow, and the planner's README and CONTRIBUTING rows
-  for `supabase/`.
-- Raised: 2026-10-12, by the builder manager
-
-### [ ] Delete the local branch `feat/77-seam-phase5`?
-- Ticket: #77 (closed)
-- Context: left by the stage B builder. It holds two wip commits that
-  were never proven green and are not on `main`; phase 5 itself merged
-  from another branch. The manager may not delete unmerged work.
-- Options: (a) delete it: `git branch -D feat/77-seam-phase5`, by your
-  hand or on your word; (b) keep it.
-- Recommended: (a). #77 is closed and the guard test passes on `main`.
-- Blocks: nothing.
-- Raised: 2026-10-12, stage B closeout
 
 ## Actions
 
@@ -96,7 +46,8 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
   https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/166#issuecomment-6129147381 .
   4. Commit it on a branch, open a PR, merge it.
 - Context: a dispatched builder runs in `dontAsk`; this list is its whole
-  fence. No agent may write the file.
+  fence. No agent may write the file. You accepted the two rules
+  for the Fantrax public API scripts (`04p`, `04u`) on 2026-10-12.
 - Blocks: every dispatch, so #186 and stage C.
 - Raised: 2026-10-12, #166 grill
 
@@ -127,6 +78,18 @@ belongs and deletes the entry (or marks it `[x]` until the next state-back).
   regenerable output; no tracked file is uncommitted there.
 - Blocks: nothing.
 - Raised: 2026-10-12, stage B closeout
+
+### [ ] Store the database secret for `migrate.yml` (later)
+- Ticket: #108 (task, map #69)
+- Steps: when #108's PR names the Actions secret it reads, store that
+  secret in the repository's `main`-only environment. Then say so in
+  chat.
+- Context: you ruled on 2026-10-12 that `migrate.yml` is live from the
+  day #108 merges. It applies the migrations to the real project on
+  merge, so the secret must be there first. No agent reads or writes a
+  secret.
+- Blocks: merging #108.
+- Raised: 2026-10-12, by the builder manager
 
 ### [ ] Fire the first Fantrax runner login (later)
 - Ticket: #92, #93
