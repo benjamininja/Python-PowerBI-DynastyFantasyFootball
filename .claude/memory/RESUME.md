@@ -152,8 +152,12 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     recommended").** Applied in phase 6: `02e` keeps its `to_parquet`,
     the guard test names that one write as its exception and cites #97,
     the entry is gone from `NEEDS-OWNER.md`.
-  - **#77 phase 6: BUILT on branch `feat/77-seam-phase6`, one PR that
-    closes #77.** Every table read in `notebooks/` and `scripts/` goes
+  - **STAGE B DONE 2026-10-12: #109, #77, #149 and #86 are CLOSED.**
+    Posted after the last merge: Resolution on #77, its line on map
+    #69, #86's line on map #71, and a note on #97 (delete the `02e`
+    entry from `ALLOWED` in `tests/test_storage_guard.py` when the table
+    is re-keyed). Nothing of stage B is parked.
+  - **#77 phase 6: MERGED as PR #181 (`93b9138`), which closed #77.** Every table read in `notebooks/` and `scripts/` goes
     through `read_table` (`table_exists` where code tested a path).
     `01e` wrote with a direct `to_parquet` that phase 5 missed: its
     build cell was stored one character per source element, so no text
