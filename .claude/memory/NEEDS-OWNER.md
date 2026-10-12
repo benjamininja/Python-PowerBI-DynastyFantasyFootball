@@ -39,50 +39,23 @@ can be traced.
 
 ## Decisions
 
-### [ ] PR #228: may the spike print a Fantrax error code on the public run log?
-- Ticket: #225 (PR #228)
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-- Context: #225 says the run reports only the login outcome, each
-  read's name and HTTP status, and step times. The PR also prints a
-  pageError code when it matches `[A-Z0-9_]{3,48}` (else the word
-  other), and the class name of an exception. No error text, payload,
-  cookie or account detail is printed. The repository is public, so
-  the log is public. This is the one design choice the ticket did not
-  make; the planner read the rest of the PR as no breach. Also for
-  your read: the driver reads `dim_fantasy_teams` to take one team id
-  for one request; the id goes into the request only and is not
-  printed.
-- Options: (a) accept both as built; (b) print the word page_error only, no code; (c) accept the code, drop the exception class name
-- Recommended: (a), because a refused read cannot be told from a wrong request shape without the code, and question 2 of #92 needs that
-- Blocks: the merge of PR #228. Answer (a) and "merge 228" together merge it; (b) or (c) goes back to the builder first.
-- Raised: 2026-10-12, by the planner
-
-### [ ] Fire the spike before the TOTP login code exists?
-- Ticket: #92, #225
-- Context: the existing Fantrax login fills the email and password and
-  never answers a second-factor prompt, and `pyotp` is not in
-  `requirements.txt`. With 2FA on, a runner login stops at the code
-  prompt. The spike driver reports that as `needs_code`: the runner
-  reached the prompt, which shows no challenge on the way, but the
-  reads are not made and questions 2 and 3 of #92 stay open. The TOTP
-  step is ticket #230; it waits on your report of the code prompt.
-- Options: (a) fire as soon as the secrets are stored, then fire again after the login code merges; (b) hold the first fire until the TOTP login code has merged
-- Recommended: (a), because a run before the login code lands already answers whether the runner is challenged, which decides whether the login code is worth finishing for Actions at all; a second run covers questions 2 and 3
-- Blocks: your first fire of the spike.
-- Raised: 2026-10-12, by the stage builder of #225 through the builder manager
-
-### [ ] A builder still cannot write under `.claude/memory/`: make the stopgap the rule?
+### [ ] A builder cannot write under `.claude/memory/`: stopgap as the rule, or move the files?
 - Ticket: #166
-- Context: the allow rules you added (`Edit(.claude/memory/**)`,
-  `Write(.claude/memory/**)`) did not lift the denial. The #225
-  builder tried one Edit of `RESUME.md` in `dontAsk` mode and was
-  denied; not retried. The likely cause is the CLI's own guard on a
-  path under `.claude/`, which a settings rule does not override in
-  that mode. Two builders have now worked under the stopgap without
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+- Context: you added the rules to the right file: lines 57 and 58 of
+  `.claude/builders.settings.json` (`"Edit(.claude/memory/**)"`,
+  `"Write(.claude/memory/**)"`), and the pattern is right. No file or
+  line can lift this. The CLI's documentation ("Protected paths", in
+  the permission modes page) says a write under a `.claude` folder is
+  never pre-approved by an allow rule: the check runs before the allow
+  rules, and in `dontAsk` mode it becomes a denial. Only bypass mode
+  writes there unattended, which our rules forbid for a session. The
+  two lines have no effect and can stay or go; removing them is your
+  edit. Two builders have now worked under the stopgap without
   trouble: the plan rides in the PR body, a park comes by message, the
   manager writes the memory docs and the queue.
-- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) keep it a stopgap and ask the planner to find a way for a builder to write those files
-- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and it costs no new permission
+- Options: (a) the stopgap becomes the rule and the manager writes it into `GOAL-RUN.md`; (b) the planner designs a move of the builders' state files (`RESUME.md`, a builder's copy of the queue) to a folder outside `.claude/`, where a builder may write
+- Recommended: (a), because it already works, it keeps the queue and the state files in one writer's hands, and a move touches every role file and runbook for little gain
 - Blocks: nothing running.
 - Raised: 2026-10-12, by the builder manager
 
@@ -102,8 +75,12 @@ can be traced.
   `fantrax-spike` that does not exist until you make it. The manager
   re-proved Green (output on the PR): 816 tests, 0 Gate failures. The
   run log of a public repository is public; the driver prints verdicts,
-  HTTP statuses and seconds only. After the merge the next Action
-  (store the secrets, fire the run) is added here.
+  HTTP statuses and seconds only. The planner read the PR as no
+  breach. You answered in the pane (2026-10-12 17:19): the error
+  code and exception class name on the log are accepted as built,
+  and the spike is fired as soon as the secrets are stored. So one
+  word is left: "merge 228". After the merge the next Action (make
+  the environment, store the secrets, fire the run) is added here.
 - Blocks: #225, and through it #92.
 - Raised: 2026-10-12, by the builder manager
 

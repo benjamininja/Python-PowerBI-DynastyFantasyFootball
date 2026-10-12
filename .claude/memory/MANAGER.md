@@ -54,6 +54,15 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   fire Action written on merge, say: make the environment
   `fantrax-spike` with deployment branches limited to `main`
   **before** the first run, or GitHub makes it with no branch rule.
+- Owner's pane answers, 2026-10-12 17:19, recorded on PR #228: the
+  log's error code and exception class name are accepted as built;
+  the spike is fired as soon as the secrets are stored and again
+  after #230 merges. Only the word "merge 228" is left.
+- Why a builder cannot write under `.claude/memory/` (CLI docs,
+  "Protected paths"): a write under a `.claude` folder is checked
+  before the allow rules and is denied in `dontAsk` mode; no rule
+  lifts it. Decision in the queue: stopgap as the rule, or move the
+  builders' state files out of `.claude/`.
 - The dispatch plugin (#167 step 2) is skills PR 46; four queue
   entries carry the owner's steps. Until its first real dispatch the
   recipe in `GOAL-RUN.md` stands. The planner's PR #226 waits for
