@@ -5,7 +5,7 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, evening, before a compact)
+## START HERE (state 2026-10-12, late evening)
 
 - **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
   `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
@@ -33,39 +33,44 @@ planner session can resume from the repository alone. The rules are in
 - **#230** (new, Stage D, medium, child of #70): the login answers the
   TOTP code prompt. Its first step is an owner Action (report the
   prompt's field label and button text); not free to dispatch before.
-- **In hand: `owner-queue` 0.6.1 is in the live copy, not committed.**
-  (`~/.claude/mods/owner-queue`, updated on the owner's word
-  2026-10-12, twice: 0.6.0, then 0.6.1.) The source is the scratch
-  worktree `<planner scratchpad>\oq6`, branch `owner-queue-060` off
-  `origin/owner-queue-mod` (skills PR 39), all changes uncommitted.
-  `claude plugin validate` passes, 24 tests pass. `tsc` did not run
-  (no Node on this machine's path).
-  - Built: `Post comment` on the last row before `Mark done`; under
-    it a one-line field whose own send (and Enter) posts a comment,
-    then `Send as answer` (open decision) and `Cancel`. `Other...` is
-    gone. A comment is a `- Note: <text> | pane, <day> <time>, session
-    <id>` line; a typed answer is `- Answer: (other) <text> | pane,
-    ...`. Store keys `notes` and `noted:<session>`. A Note the pane
-    did not write is flagged and never carried.
-  - Change from the plan: the draft is kept in a module variable, not
-    in `$.state`, so a key press redraws nothing.
-  - Proven by the owner in 0.6.0: a comment sent in the planner's pane
-    is said there; a comment on the TEST entry sent in the manager's
-    pane arrived in the planner's chat.
-  - **Not proven:** `Send as answer` (the one button that must read
-    the typed text); how 0.6.1 looks (the owner called 0.6.0 ugly;
-    0.6.1 moved the button, removed the doubled send, dropped the
-    label). Wait for the owner's look or a screenshot.
-  - The owner wants the box to grow while typing. The API's `Input` is
-    one line. Offered, not built: a wrapped preview under the field,
-    redrawn at each key press.
-  - A TEST Decision raised by the planner is in the queue (manager's
-    PR #235). The manager removes it when the planner says the trial
-    is over. A test `Note:` line also sits in the #228 entry.
-  - After the owner's look: PII check, commit and push to
-    `owner-queue-mod` (PR 39); send the manager the `Note:` rule for
-    the head of `NEEDS-OWNER.md`; add it to the plugin's
-    `templates/NEEDS-OWNER.md` (skills PR 46).
+- **`owner-queue` 0.7.1 is live and pushed** (skills PR 39, commit
+  `47808da`, on the owner's word "the editor opened, commit it",
+  2026-10-12). 26 tests pass. Merging PR 39 waits on the owner's word.
+  - In it since 0.5.0: `Post comment` (a `Note:` line, or a typed
+    `Answer: (other) ...`), sent at once; a `Time:` line on every chat
+    message; every code span copied from under its field, a numbered
+    field drawn one step per row; `Write in editor` (a draft file in
+    the mod's own `drafts` folder, opened by the system's opener);
+    `Print in chat` removed; lines between the groups.
+  - Seen by the owner in the real pane: comments, the carry to the
+    raising session, the `Time:` line, the editor opening. **Never
+    tried there:** `Send as answer`.
+  - The app's `Input` is one line and draws its own send control,
+    which a mod cannot remove (labelled `Enter`). The API removes no
+    file: a sent draft is emptied.
+  - The trial is over; the owner marked the TEST decision done in the
+    pane. The head rules for `NEEDS-OWNER.md` (the `Note:` rule, the
+    `Time:` line, code marks, fenced blocks, numbered steps) went to
+    the manager as text, to confirm with the owner.
+  - Owed: the same rules in the plugin's `templates/NEEDS-OWNER.md`
+    (skills PR 46).
+- **A repeat of old pane answers after a compact** (manager's session,
+  2026-10-12) was the app's prompt queue, not the mod: two sends made
+  while the session was busy were delivered again, merged. The `Time:`
+  line marks such a repeat.
+- **Told to the owner, 2026-10-12, open:** the saved
+  `CLAUDE_CODE_PLUGIN_DIRS` names only the session-dispatch folder, and
+  that folder does not exist (`C:\Users\benha\claude-live` was not
+  found from the planner's session). The next app start will not load
+  `owner-queue`. Two folders are joined by a semicolon on Windows.
+- **Skills PR 46:** the owner said the review, security review, merge
+  and pull are "for planner" (relayed by the manager). Asked the owner
+  which: the author's own security read then a merge on the owner's
+  word, or `/security-review` from a session in the skills repository.
+  No answer yet; nothing merged.
+- **#237** (the manager's standing cleanup ticket): `wayfinder:task`,
+  `tier:low`, "Tooling and upkeep", no parent. Auto-add to the Project
+  worked.
 - **#234** (new, child of #162, "Tooling and upkeep", tier none): the
   planner designs a move of the builders' state files out of
   `.claude/`, by the owner's answer of 2026-10-12 as the manager
