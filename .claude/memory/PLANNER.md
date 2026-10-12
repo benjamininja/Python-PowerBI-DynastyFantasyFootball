@@ -7,33 +7,32 @@ planner session can resume from the repository alone. The rules are in
 
 ## START HERE (state 2026-10-12, evening, before a compact)
 
-- **In hand: #167 step 2, the dispatch plugin.** Plan approved by the
-  owner (`C:\Users\benha\.claude\plans\look-across-our-project-sorted-candy.md`).
-  Written and **not committed**, in a scratch worktree of the skills
-  repository: `<planner scratchpad>\sd`, branch
-  `session-dispatch-plugin` off `origin/main` (26e8cbb), folder
-  `plugins/session-dispatch-managers-build-review/`.
-  - Done: `scripts/dispatch.ps1` (dry run by default, `-Apply` acts);
-    `tests/test_session_dispatch.py` (10 pass); the manifest; twelve
-    templates (made by `mk_templates.py` in the scratchpad); two
-    skills. `claude plugin validate` passes (one warning: no author).
-  - **Owner's ruling after the safety audit:** two skills.
-    `session-rules` (any session may load it: roles, tiers, parking,
-    the Never list) and `session-dispatch` (manual only: the script,
-    merges, closeout).
-  - Left: fix `templates/PROJECT-RULES.md` line 4 (it still names
-    `session-dispatch`; fix it in `mk_templates.py`); re-run
-    `skill-safety-auditor` on both skills (pass `model: sonnet`, its
-    own model line does not load) and show the owner the table; the
-    README; ADR 0013 and its line in the skills repo's `MEMORY.md`;
-    `build_catalog.py` with a clean diff; a dry run against a copy of
-    this project's builders' settings; `/security-review`; the PR;
-    queue entries for the owner's by-hand steps (create
-    `.claude/dispatch.json`, the allow rule for the script, the deny
-    rules for `dispatch.json`, `CLAUDE_CODE_PLUGIN_DIRS`); a ticket
-    for the `Tier:` line in `wayfinder` after the owner's re-vendor.
-  - Not known: why `pytest -q tests` on the whole folder ran past two
-    minutes there (the new file alone takes 11 seconds).
+- **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
+  `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+  - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
+    and `session-dispatch` (manual only), thirteen templates, ADR 0013,
+    12 tests.
+  - **Owner's ruling 2026-10-12:** `-Apply` acts only in a main checkout
+    named in `<user profile>/.claude/dispatch-projects.json`, which the
+    owner writes. Without it, the allow rule for the script was as wide
+    as a rule for any PowerShell line.
+  - Owed: `/security-review` from a session rooted in the skills
+    repository (the command is not available in the planner's session;
+    the PR says so). Then the owner merges and pulls the live clone.
+  - The owner's by-hand steps went to the manager as ready queue
+    entries: the two owner-only files, the settings rules, the plugin
+    folder in `CLAUDE_CODE_PLUGIN_DIRS` (separator for two folders not
+    verified).
+  - #167 closes on the first real dispatch through the script. Watch
+    there: whether `--disallowedTools` takes path-scoped rules.
+  - Still to open: a ticket under #162 for the `Tier:` line in
+    `wayfinder`, after the owner's re-vendor.
+- **PR #228 (#225) read: no breach.** One choice is the owner's: the
+  spike prints a Fantrax error code on a public log. Entry sent to the
+  manager.
+- **#230** (new, Stage D, medium, child of #70): the login answers the
+  TOTP code prompt. Its first step is an owner Action (report the
+  prompt's field label and button text); not free to dispatch before.
 - **Then: `owner-queue` 0.6.0, a "Post comment" button** (owner,
   2026-10-12). A one-line `Input` opens in the entry; Enter sends the
   text to the session the entry names (else the pressing session) as
@@ -83,7 +82,7 @@ planner session can resume from the repository alone. The rules are in
 |---|---|---|
 | #69 | Supabase storage foundation | #108, #110, #111, #135 to #138 (stage C) |
 | #66 | trade-bud waiver-activity signal | closed 2026-10-12 (sweep 1); its one gap is #200 on map #70 |
-| #70 | In-season Fantrax league flows | #211 (owner, upkeep); #97, #201 (stage C); #225, #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
+| #70 | In-season Fantrax league flows | #211 (owner, upkeep); #97, #201 (stage C); #225, #230, #92, #93, #116 (stage D); #206 (stage C, after #97); #130 owner-led. #200 merged (PR #204) |
 | #71 | nflverse in-season stats and injuries | closed 2026-10-12 (sweep 1) |
 | #151 | Metadata and principles | all tickets closed; fog items not ticketed |
 | #162 | Managing-session roles and plugin | #167, #218 (after #167) |
