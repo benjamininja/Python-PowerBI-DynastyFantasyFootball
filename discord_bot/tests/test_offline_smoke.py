@@ -159,7 +159,6 @@ def _cap_frames(dead_rows):
             "team_key":       ["A01", "A01", "A02"],
             "contract_id":    ["1st", "1st", "1st"],
             "contract_value": [10_000_000.0, 8_000_000.0, 5_000_000.0],
-            "status":         ["active", "active", "active"],
             "roster_status":  ["Active", None, "Active"],
             "season":         ["2026-2027"] * 3,
         }),
@@ -189,16 +188,15 @@ def test_capmath_reads_fact_dead_money():
 
 def test_capmath_dead_money_outlives_the_roster_row():
     """A dropped player is off fact_fantasy_teams, so the charge can belong to
-    a team with no roster row at all, and a roster `status` prices nothing."""
+    a team with no roster row at all."""
     frames = _cap_frames([("A03", "2026-2027", 2_000_000.0)])
     frames["dim_fantasy_teams.parquet"] = pd.DataFrame({
         "team_key":         ["A01", "A03"],
         "original_cap":     [300_000_000.0, 300_000_000.0],
         "reinvestment_cap": [0.0, 0.0],
     })
-    frames["fact_fantasy_teams.parquet"].loc[1, "status"] = "Cut"
     t = _teams_with(frames).set_index("team_key")
-    assert t.loc["A01", "dead_money"] == 0.0            # "Cut" is not read
+    assert t.loc["A01", "dead_money"] == 0.0
     assert t.loc["A03", "dead_money"] == 2_000_000.0
     assert t.loc["A03", "active_roster_salary"] == 0.0
     assert t.loc["A03", "remaining_cap_current_yr"] == 298_000_000.0

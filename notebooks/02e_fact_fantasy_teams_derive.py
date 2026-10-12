@@ -21,7 +21,7 @@
 # logic is written general so `resign`/`fa_*`/`drop` slot in without change.
 #
 # **Output schema:** team_key, gsis_id, player_key, contract_id, contract_value,
-# contract_year, status, acquired_method, roster_status, season.
+# contract_year, acquired_method, roster_status, season.
 # `dead_money` is NOT stored here (dropped 2026-07-13): Dead Money is its own
 # fact, `fact_dead_money`, written by 02f from the ledger's drops (#96).
 # `roster_status` (added 2026-07-13) is OBSERVED state stamped from the newest
@@ -136,7 +136,6 @@ fact_fantasy_teams = pd.DataFrame({
     "contract_id":    active["contract_id"],
     "contract_value": active["contract_value"],
     "contract_year":  active["contract_year"],
-    "status":         active["status"],
     "acquired_method": active["acquired_method"],
     "roster_status":  active["roster_status"],
     "season":         active["season_id"],

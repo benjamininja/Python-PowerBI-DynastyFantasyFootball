@@ -175,8 +175,7 @@ def _league_lines(cfg: Config, gsis: str) -> list[str]:
     return [
         f"Owner    {render.safe_str(owner, 24)}",
         f"Contract {render.fmt_money(r.get('contract_value'))}"
-        f" · cap {render.fmt_money(r.get('cap_hit'))}"
-        f" · {render.safe_str(r.get('status')) or '—'}",
+        f" · cap {render.fmt_money(r.get('cap_hit'))}",
     ]
 
 

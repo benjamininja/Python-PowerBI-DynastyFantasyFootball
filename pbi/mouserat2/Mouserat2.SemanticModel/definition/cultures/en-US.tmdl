@@ -10387,92 +10387,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_fantasy_team.status": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_FantasyTeams",
-			          "ConceptualProperty": "Status"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "status": {
-			            "State": "Generated"
-			          }
-			        },
-			        {
-			          "category": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "importance": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "prestige": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "prominence": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.736
-			          }
-			        },
-			        {
-			          "condition": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.714
-			          }
-			        },
-			        {
-			          "class": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.714
-			          }
-			        },
-			        {
-			          "level": {
-			            "Type": "Noun",
-			            "State": "Suggested",
-			            "Source": {
-			              "Agent": "Thesaurus"
-			            },
-			            "Weight": 0.714
-			          }
-			        }
-			      ]
-			    },
 			    "fact_fantasy_team.acquired_method": {
 			      "Definition": {
 			        "Binding": {
@@ -27871,39 +27785,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "fact_fantasy_teams_have_acquired_methods"
-			        }
-			      ]
-			    },
-			    "fact_fantasy_team_has_status": {
-			      "Binding": {
-			        "ConceptualEntity": "Fact_FantasyTeams"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "fact_fantasy_team": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team"
-			          }
-			        },
-			        "fact_fantasy_team.status": {
-			          "Target": {
-			            "Entity": "fact_fantasy_team.status"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "fact_fantasy_team"
-			            },
-			            "Object": {
-			              "Role": "fact_fantasy_team.status"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "fact_fantasy_teams_have_statuses"
 			        }
 			      ]
 			    },
