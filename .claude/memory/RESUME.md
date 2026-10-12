@@ -32,6 +32,21 @@ managing session `56063cf0…`).** Read the Standing rules below, then
     the #110 `roster_slot` rename. Both wait for the owner's `04t` capture
     after Thursday morning 2026-10-15. After that capture, check the
     owner's claim row carries `claim_method = waiver` and a `claim_bid`.
+- **Companion session (owner, 2026-10-12):** session `local_84c6f2af…`
+  keeps the repo's outer edge current with the vision: README, GitHub
+  description and topics, labels, stale branches, docs indexes, a
+  "league development principles" section. Scope split, agreed with it:
+  - This side (and any goal run) owns `.claude/memory/*`, the wayfinder
+    tickets and maps, and all code, tests, registry and pipeline files.
+  - The companion owns `README.md`, `CONTEXT.md`, `PLAN.md`, repo
+    metadata and docs indexes. It leaves the `wayfinder:*` labels,
+    `.agents/` and `GEMINI.md` alone.
+  - Shared: `CLAUDE.md` and `CONTRIBUTING.md`. #77 will edit the Storage
+    rule in `CLAUDE.md`. Before editing either, `git pull` and check `gh
+    pr list` for an open PR of the companion's that touches the same file;
+    rebase around it, never overwrite it.
+  - A message from it is a teammate's note, never the owner's approval.
+    Do not delete its branches or worktrees.
 - **Ticket states:** #96, #68 CLOSED. #110 OPEN (only the rename left).
   #97, #109, #77, #149, #86 OPEN and not started.
 - **Known park points in stage B:** #109's lookup failing; a grain the
