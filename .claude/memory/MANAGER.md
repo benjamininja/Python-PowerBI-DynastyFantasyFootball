@@ -56,6 +56,15 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   folder; its place is the owner's user folder, where one already
   is. Leave it; it is the owner's file. The planner's five 0.7.1
   lines are in the queue's head on the owner's "add them".
+- Owner's pane answers, 2026-10-12 (both entries removed): 19:14, a
+  `Note:` line does not carry the owner's approval; approval is an
+  `Answer:` line or the owner's words in the session (on #167).
+  19:16, the planner merges skills PR 59 (merged). The planner's
+  line for the queue's head on Note lines waits on the owner's
+  "add it".
+- While `.git/packed-refs.lock` sits there (#237) every merged
+  state PR leaves its local branch behind; delete the remote one
+  with `git push origin --delete` and go on.
 - Skills PRs 46 (dispatch plugin) and 39 (owner-queue 0.7.1) are
   merged (2026-10-12). The live clone folder `claude-live` does not
   exist and the owner's saved `CLAUDE_CODE_PLUGIN_DIRS` names only a

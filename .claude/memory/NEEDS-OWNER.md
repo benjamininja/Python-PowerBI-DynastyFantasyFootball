@@ -54,24 +54,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] Skills PR 59: merge the queue-entry writing rules
-- Ticket: #167
-- Context: Text only, three files of the dispatch plugin: `templates/NEEDS-OWNER.md`, `skills/session-rules/references/parking.md`, `templates/agents/central-builder-manager.md`. They gain the rules owner-queue 0.7.1 reads: values in code marks, commands in fenced blocks, numbered steps, the Note line, the Time line. 16 tests pass. PR: https://github.com/benjamininja/skills-plugins-hooks-agents/pull/59
-- Options: (a) the planner merges it; (b) the owner merges it; (c) changes first, said in a comment
-- Recommended: (a), because it is text only and matches the head already in this file
-- Blocks: nothing; a new project's queue file would start with the old rule "inline code is for names only"
-- Raised: central-planner, 2026-10-12
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-
-### [ ] Can a pane comment (a Note line) carry the owner's approval?
-- Ticket: #167
-- Context: The plugin's `session-rules` skill says only the owner's words in a session, or an `Answer:` line the pane wrote, are approval. A `Note:` line is also written only by the pane, from the owner's typed words. PR 59 leaves the skill unchanged.
-- Options: (a) no: a comment is a comment, approval needs an answer or the owner's words in the session; (b) yes: a pane-written Note that states an approval counts
-- Recommended: (a), because a comment leaves the entry open and its scope is easy to misread
-- Blocks: nothing
-- Raised: central-planner, 2026-10-12
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
