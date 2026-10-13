@@ -63,6 +63,15 @@ can be traced.
 - Raised: central-planner, 2026-10-12
 - Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
 
+### [ ] Skills PR 61: the builder's state rules in the dispatch plugin
+- Ticket: #234
+- Context: Text only, four files of the plugin: the `session-rules` skill, its parking reference, the builder role template and the README. Same design as PR #244: a builder's state is its ticket and its commits, it writes no file under `.claude/`, only the manager writes the queue. 16 tests pass. PR: https://github.com/benjamininja/skills-plugins-hooks-agents/pull/61
+- Options: (a) the planner merges it on green; (b) the owner merges it; (c) changes first, said in a comment
+- Recommended: (a), because it is the approved design and text only
+- Blocks: nothing today; a new project would start with the old parking rule
+- Raised: central-planner, 2026-10-12
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
