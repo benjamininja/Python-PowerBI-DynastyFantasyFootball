@@ -5,7 +5,64 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, night, before a compact)
+## START HERE (state 2026-10-30, at a clear boundary)
+
+Read this block first. Anything below that disagrees with it is older.
+`origin/main` = `d21c3e1`; nothing has merged since 2026-10-14. The
+manager's state is in PR #257 (branch `chore/manager-state-reset`),
+blocked like this file's PR by the red CI below. Find the manager with
+`ListAgents`, by name; pipe addresses go stale on a restart.
+
+1. **First: CI is red, so nothing can merge (manager's report).** `tests`
+   fails 3 of 882 in `tests/test_etl_checks.py::TestDeadMoneyChecks`:
+   `TypeError`, `operation 'sub' not supported for dtype 'str' with dtype
+   'float64'`, at `notebooks/etl_checks.py:323`
+   (`charged - dead["cap_hit_pct"]`). CI's loose pins now install pandas
+   3.1.0 and pyarrow 26.0.0; the local `.venv` has 3.0.3 and 24.0.0 and
+   passes. Unknown: whether a real pipeline run hits it too. **The manager
+   asked for a ticket, tier and brief; none is written.** It comes before
+   all other work. Plan it with the owner, including how pins are held.
+2. **Then the spike schedule, overdue.** Due off 2026-10-21; it still logs
+   in to Fantrax daily. Its removal PR needs green CI and a dispatch.
+3. **#92 and #230 are the planner's call (manager's record, 2026-10-30, on
+   both tickets).** 15 scheduled runs, 2026-10-15 to 10-29: login passed
+   15 of 15, `Code sent by: verify_click` 15 of 15, all four reads HTTP 200.
+   GitHub started them 3 to 5.5 hours after the cron, so a capture on a
+   schedule cannot count on a start time.
+   - #92 question 1 looks answered. Question 2 (an account without
+     commissioner rights) depends on which account the secrets hold; not
+     known here. Question 3: read a run's timings.
+   - #230 says it closes on the owner's run from an empty profile; each
+     runner login is one, but that is the owner's word to give. Self-submit
+     is answered (Verify is clicked). What a refused code shows is still
+     unseen.
+4. **Skills PR 61 is still open, green on 2026-10-14.** The owner's answer
+   reached the planner only through the manager, which is not approval for
+   the planner. Merge on the owner's own word in this session; re-check CI.
+5. **#97:** PR 1 merged (PR #253, `d21c3e1`). PR 2 is `fact_team_cap`,
+   writer `02h`. **Three notes of the planner's may not have reached the
+   builder** (the service went down first): the player card prints the
+   stored `cap_hit` while `/roster` and `/cap` charge IR until PR 3, and
+   ADR-0016's Consequences line misses that; the out-of-season fallback in
+   the amendment should read as added at build; `02g` in the settled design
+   is taken (the builder already chose `02h`).
+6. **#251:** tier low, milestone Stage C, owner's decision to drop the
+   ledger's `cap_hit`, brief on the ticket. Not dispatched.
+7. **The background service was down at the manager's reset** (`claude
+   stop`, `rm`, `logs` fail), so no builder runs or can start. The manager
+   tries it first; the owner may need to restart the app.
+8. **Closed or done since 2026-10-12:** #234 (on proof), #254 (PR #256), the
+   two dead allow rules (PR #255, by the owner), the live clone and both
+   plugin folders (verified; the pane loads).
+9. **Queue on `main` is stale** until the manager's PRs land: it still lists
+   the hand-fired spike, the live clone and the allow rules.
+10. **Then:** plan #218 (shrink `GOAL-RUN.md`), in plan mode, to the owner
+    before anything is written.
+11. **Not deleted, needs the owner's word:** skills branch
+    `needs-owner-template-rules`; `docs/planner-state-6`,
+    `docs/planner-state-7`; the stray local `docs/builder-state-234`.
+
+## Earlier state (2026-10-12, partly stale)
 
 - **#234 is designed and in review** (plan gate passed with the owner,
   2026-10-12; the design is a comment on #234).
