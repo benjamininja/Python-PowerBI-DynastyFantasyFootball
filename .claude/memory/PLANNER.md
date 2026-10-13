@@ -5,10 +5,43 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, late evening, before a compact)
+## START HERE (state 2026-10-12, night)
 
-- **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
-  `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+- **#234 is designed and in review** (plan gate passed with the owner,
+  2026-10-12; the design is a comment on #234).
+  - Owner's decisions: a builder's lasting state is its ticket and its
+    commits, with a git-ignored scratch folder `builder-state/`; a
+    builder never writes the queue, it sends the manager a ready entry.
+    A builder writes no file under `.claude/`. No new ADR.
+  - **PR #244** (branch `docs/builder-rules-234`): the two role files
+    and `.gitignore`. Waits on the owner's approval; entry in the queue.
+  - **Skills PR 61** (branch `builder-state-rules`, scratch worktree
+    `<planner scratchpad>\tpl`): the same rules in the plugin. Waits on
+    the owner's word to merge; entry sent to the manager.
+  - The manager has the text for `GOAL-RUN.md` and an optional Action
+    for the owner (two dead allow rules in the builders' settings).
+  - **Closes on proof:** the next dispatched builder posts its plan and
+    a state-back comment with no denied call. The manager reports it.
+  - A stray local branch `docs/builder-state-234` sits in the scratch
+    worktree `<planner scratchpad>\b234`, unpushed and unused.
+- **Next, the planner's: the brief for #230** (medium). The owner's
+  markup of the code prompt is the newest comment on #230: one input
+  `input[name="two-factor-key"]`, a submit button "Verify" that is
+  disabled until the field is valid, Angular Material (type like a
+  user). Not known: self-submit on the sixth digit; what a wrong code
+  shows. The dispatch waits on the owner's word.
+- **Then:** #218 (shrink `GOAL-RUN.md`), its own plan.
+- **Skills PR 59 is merged** (by the planner on the owner's word,
+  2026-10-12; merge commit `56ff4f7`): the queue-entry writing rules in
+  the plugin's templates. Owner's ruling in the pane the same day: a
+  pane comment (`Note:`) is never approval; recorded on #167 and in the
+  `session-rules` skill.
+- In the skills repository, `tests/test_git_guardrails.py` hangs on the
+  owner's machine and passes in CI. Reported to the manager for #237.
+- The guardrail hook blocks `git reset --hard` in any command. Do not
+  route around it.
+- **#167 step 2, the dispatch plugin (skills PR 46, merged; see below)**
+  (branch `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
   - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
     and `session-dispatch` (manual only), thirteen templates, ADR 0013,
     12 tests.
@@ -53,9 +86,8 @@ planner session can resume from the repository alone. The rules are in
     pane. The head rules for `NEEDS-OWNER.md` (the `Note:` rule, the
     `Time:` line, code marks, fenced blocks, numbered steps) went to
     the manager as text, to confirm with the owner.
-  - **Next, the planner's:** the same rules in the dispatch plugin's
-    `templates/NEEDS-OWNER.md`, as a small new PR on the skills
-    repository (PR 46 is merged). Told to the owner.
+  - The same rules are in the dispatch plugin's templates since
+    skills PR 59.
 - **A repeat of old pane answers after a compact** (manager's session,
   2026-10-12) was the app's prompt queue, not the mod: two sends made
   while the session was busy were delivered again, merged. The `Time:`
