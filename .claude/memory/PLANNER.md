@@ -5,7 +5,7 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, night)
+## START HERE (state 2026-10-12, night, before a compact)
 
 - **#234 is designed and in review** (plan gate passed with the owner,
   2026-10-12; the design is a comment on #234).
@@ -24,13 +24,24 @@ planner session can resume from the repository alone. The rules are in
     a state-back comment with no denied call. The manager reports it.
   - A stray local branch `docs/builder-state-234` sits in the scratch
     worktree `<planner scratchpad>\b234`, unpushed and unused.
-- **Next, the planner's: the brief for #230** (medium). The owner's
-  markup of the code prompt is the newest comment on #230: one input
-  `input[name="two-factor-key"]`, a submit button "Verify" that is
-  disabled until the field is valid, Angular Material (type like a
-  user). Not known: self-submit on the sixth digit; what a wrong code
-  shows. The dispatch waits on the owner's word.
-- **Then:** #218 (shrink `GOAL-RUN.md`), its own plan.
+- **The brief for #230 is written** (2026-10-12): a comment on the
+  ticket (issuecomment-6135590120), medium, built against the owner's
+  pasted markup, fakes only. The PR says Refs #230; the ticket closes
+  on the owner's run from an empty profile. Not known until then:
+  self-submit on the sixth digit; what a wrong code shows. Recommended
+  to the owner: dispatch after PR #244 is merged.
+- **Next, the planner's: plan #218** (shrink `GOAL-RUN.md`) in plan
+  mode, to the owner before anything is written. It is blocked by #167
+  and #234; the plan can be made now. The manager applies the #234 text
+  to `GOAL-RUN.md` in its own PR first; plan against that.
+- **This file's PR is #246** (branch `docs/planner-state-7`). PR #226
+  was merged earlier; `docs/planner-state-6` is unused, not deleted.
+- **In the owner's queue (on `main` since PR #245), all from the
+  planner:** approve PR #244; merge skills PR 61 (answer comes to the
+  planner, who merges); approve PR #246; when to dispatch #230; the
+  optional settings clean-up; the clone and `setx` for the plugin
+  folders. The manager set its own id as `Session:` on the three it
+  acts on (#244, #246, the #230 dispatch).
 - **Skills PR 59 is merged** (by the planner on the owner's word,
   2026-10-12; merge commit `56ff4f7`): the queue-entry writing rules in
   the plugin's templates. Owner's ruling in the pane the same day: a
