@@ -40,6 +40,11 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - **Spike run 1 (2026-10-12, by the owner): the login stopped at
   the second-factor code prompt, not a network block (34.5 s); no
   read.** On #92. The owner fires again after #230 merges.
+- **#230: the owner reported the code prompt (2026-10-12, a
+  screenshot; written on #230).** The planner has been told and
+  writes the brief; the dispatch (medium) waits on the brief and
+  the owner's word. The owner also typed a one-time code in chat:
+  not used, not recorded, expired.
 - **Owner's rule (2026-10-12): lagging cleanup an agent could not
   finish is not handed to the owner. Park it on the standing
   ticket #237** for a later retry by an agent session. On it now:
@@ -268,8 +273,7 @@ the two rule additions (#214).
    #135 to #138 #111 #201 #206; D #225 #230 #92 #93 #116. Tooling
    and upkeep: #151 #162 #167 #218 #130 #211.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the spike (fire again after #230); the
-code prompt for #230; skills PR 46 and the two #167 entries (owner-
+**Left with the owner** (all in `NEEDS-OWNER.md`): the spike (fire again after #230); the live clone and plugin variable; skills PR 46 and the two #167 entries (owner-
 only files, plugin folder); the Power BI check (#211); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user

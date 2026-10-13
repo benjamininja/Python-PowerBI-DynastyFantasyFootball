@@ -92,22 +92,6 @@ gh workflow run fantrax-runner-spike.yml --ref main
 - Blocks: #92, and through it enabling the crons.
 - Raised: 2026-10-12, by the builder manager
 
-### [ ] #230: report what the Fantrax code prompt looks like
-- Ticket: #230
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Steps: 1. Log in to Fantrax once in a normal browser window where the
-  code prompt appears (a private window does it). 2. At the prompt,
-  note the label of the code field and the text of the button that
-  submits it. 3. Write both on #230, or say them in a session. No
-  code, secret or account detail goes on the ticket.
-- Context: #230 is the ticket for the login answering the
-  second-factor code prompt (TOTP), medium tier, stage D. The login
-  code fills the email and the password only. The fill step for the
-  code is written against what you report, not against a guess; no
-  agent may look.
-- Blocks: the dispatch of #230.
-- Raised: 2026-10-12, by the planner
-
 ### [ ] Make the live clone and name both plugin folders, before the next app restart
 - Ticket: #167
 - Raised: 2026-10-12, by the planner
