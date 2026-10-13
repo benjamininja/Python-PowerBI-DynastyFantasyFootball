@@ -12,7 +12,7 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
-## START HERE (state at the third compact, 2026-10-12, evening)
+## START HERE (state at the fourth compact, 2026-10-12, night)
 
 The sections below this block are in the order things happened and are
 out of date. This block is the current state. Then read `GOAL-RUN.md`,
@@ -30,6 +30,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
+- **At this compact:** no builder runs, no PR is open, `main` is
+  level with the remote. **The next move is the planner's brief for
+  #230; then ask the owner for the word to dispatch it (medium).**
+  Untracked in the main checkout and not the manager's: `.agents/`,
+  `GEMINI.md`, `.claude/dispatch-projects.json`. Eight merged local
+  branches sit there because of the stale lock (#237): two of #225
+  and six `chore/...` state branches.
 - **Open now: nothing.** On the owner's words (2026-10-12, late):
   PR #228 merged (#225 closed, #92 open), the planner's #226 merged,
   both settings files committed unedited. Builder `d6acd1df` is
@@ -40,11 +47,16 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - **Spike run 1 (2026-10-12, by the owner): the login stopped at
   the second-factor code prompt, not a network block (34.5 s); no
   read.** On #92. The owner fires again after #230 merges.
-- **#230: the owner reported the code prompt (2026-10-12, a
-  screenshot; written on #230).** The planner has been told and
-  writes the brief; the dispatch (medium) waits on the brief and
-  the owner's word. The owner also typed a one-time code in chat:
-  not used, not recorded, expired.
+- **#230: the owner reported the code prompt (2026-10-12): a
+  screenshot, two element paths, then the card's HTML pasted from
+  the inspector. All on #230; the last comment replaces the
+  guesses.** The field is `input[name="two-factor-key"]` (one
+  box, six digits), the button is `button[type="submit"]` reading
+  `Verify`, disabled until the field is valid; Angular Material, so
+  the fill types like a user. The planner has been told and writes
+  the brief; the dispatch (medium) waits on the brief and the
+  owner's word. The owner also typed a one-time code in chat: not
+  used, not recorded, expired.
 - **Owner's rule (2026-10-12): lagging cleanup an agent could not
   finish is not handed to the owner. Park it on the standing
   ticket #237** for a later retry by an agent session. On it now:
@@ -267,14 +279,18 @@ the two rule additions (#214).
    re-proof) and #206 parts 2 and 3 (player card through the cap
    module; a Review check for a Dead Money row with no `gsis_id`).
 3. Stage D: #230 (TOTP login step, medium) is dispatched after the
-   owner reports the code prompt and the planner writes the brief;
+   planner writes the brief and the owner gives the word (the code
+   prompt is reported, on the ticket). Try the plugin's dispatch
+   script first if the owner has made the live clone and restarted
+   (dry run, then `-Apply`); else the recipe in `GOAL-RUN.md`;
    #92 closes on the owner's spike runs; #93 and #116 behind it.
 4. Milestones: A #96 #68; B #109 #77 #149 #86; C #186 #97 #110 #108
    #135 to #138 #111 #201 #206; D #225 #230 #92 #93 #116. Tooling
    and upkeep: #151 #162 #167 #218 #130 #211.
 
-**Left with the owner** (all in `NEEDS-OWNER.md`): the spike (fire again after #230); the live clone and plugin variable; skills PR 46 and the two #167 entries (owner-
-only files, plugin folder); the Power BI check (#211); the
+**Left with the owner** (all in `NEEDS-OWNER.md`): the spike (fire again after #230); the live clone and plugin
+variable, then a restart (before the app is next closed); "add it" for
+the planner's head line on Note lines; the Power BI check (#211); the
 `04t` capture; later: the `migrate.yml` secret, cutover. Also told in
 chat: two `git commit --no-verify` allow rules sit in the owner's user
 settings.
