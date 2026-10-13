@@ -54,6 +54,42 @@ can be traced.
 
 ## Decisions
 
+### [ ] Dispatch the builder for #230 (the login answers the code prompt)
+- Ticket: #230
+- Context: The brief is on the ticket: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/230#issuecomment-6135590120 . Tier medium. It builds against the markup the owner pasted, on fakes only; no agent logs in. Two things stay unknown until the owner's run: whether the form submits itself on the sixth digit, and what a wrong code shows.
+- Options: (a) dispatch now; (b) dispatch after PR #244 is merged, so the builder reads the new role file; (c) hold
+- Recommended: (b), because the old role file still tells a builder to write `RESUME.md`, which its mode refuses; the brief covers it, but one source is cleaner
+- Blocks: #92's runner login, and with it the scheduled capture of ADR-0015
+- Raised: central-planner, 2026-10-12
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+
+### [ ] PR #244: the builder's state rules in the role files (#234)
+- Ticket: #234
+- Context: Two role files and one line of `.gitignore`, from the design the owner approved on 2026-10-12. A builder's plan and state-back become ticket comments; it writes no file under `.claude/`; it parks by message and the manager writes the queue; `builder-state/` is ignored. PR: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/244
+- Options: (a) approved, the manager merges on green; (b) changes first, said in a comment
+- Recommended: (a), because it is the approved design and text only
+- Blocks: the next dispatch still reads the old role file, which tells a builder to write `RESUME.md`
+- Raised: central-planner, 2026-10-12
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+
+### [ ] Skills PR 61: the builder's state rules in the dispatch plugin
+- Ticket: #234
+- Context: Text only, four files of the plugin: the `session-rules` skill, its parking reference, the builder role template and the README. Same design as PR #244: a builder's state is its ticket and its commits, it writes no file under `.claude/`, only the manager writes the queue. 16 tests pass. PR: https://github.com/benjamininja/skills-plugins-hooks-agents/pull/61
+- Options: (a) the planner merges it on green; (b) the owner merges it; (c) changes first, said in a comment
+- Recommended: (a), because it is the approved design and text only
+- Blocks: nothing today; a new project would start with the old parking rule
+- Raised: central-planner, 2026-10-12
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+
+### [ ] PR #246: the planner's state file
+- Ticket: #162
+- Context: `.claude/memory/PLANNER.md` only. It records the #234 design and its two PRs, the merged skills PRs 39, 46 and 59, the ruling that a pane comment is never approval, and what is next (the #230 brief, then #218). It includes two state commits made after PR #226 was merged. PR: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/246
+- Options: (a) approved, the manager merges on green; (b) changes first, said in a comment
+- Recommended: (a), because it is the planner's own state file and changes no rule
+- Blocks: nothing; a new planner session would resume from older state
+- Raised: central-planner, 2026-10-12
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
+
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
@@ -128,6 +164,14 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
   through the script, not on the PR.
 - Blocks: closing #167.
 - Raised: 2026-10-12, by the planner
+
+### [ ] Remove two dead allow rules from the builders' settings file
+- Ticket: #234
+- Steps: 1. Open `.claude/builders.settings.json` in the main checkout. 2. In the `allow` list, delete the line `"Edit(.claude/memory/**)",` and the line `"Write(.claude/memory/**)"`. 3. Remove the comma that now ends the line above them, the `02d_fact_roster_transactions.py --raw-dir` rule, so the list stays valid JSON. 4. Commit it on a branch and tell the manager.
+- Context: In a builder's mode a write under `.claude/` is refused before any allow rule is read, so the two rules never take effect and only mislead a reader. Optional; nothing breaks if they stay.
+- Blocks: nothing
+- Raised: central-planner, 2026-10-12
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
