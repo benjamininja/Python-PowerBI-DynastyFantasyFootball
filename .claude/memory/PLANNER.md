@@ -13,32 +13,23 @@ manager's state is in PR #257 (branch `chore/manager-state-reset`),
 blocked like this file's PR by the red CI below. Find the manager with
 `ListAgents`, by name; pipe addresses go stale on a restart.
 
-1. **First: CI is red, so nothing can merge (manager's report).** `tests`
-   fails 3 of 882 in `tests/test_etl_checks.py::TestDeadMoneyChecks`:
-   `TypeError`, `operation 'sub' not supported for dtype 'str' with dtype
-   'float64'`, at `notebooks/etl_checks.py:323`
-   (`charged - dead["cap_hit_pct"]`). CI's loose pins now install pandas
-   3.1.0 and pyarrow 26.0.0; the local `.venv` has 3.0.3 and 24.0.0 and
-   passes. Unknown: whether a real pipeline run hits it too. **The manager
-   asked for a ticket, tier and brief; none is written.** It comes before
-   all other work. Plan it with the owner, including how pins are held.
-2. **Then the spike schedule, overdue.** Due off 2026-10-21; it still logs
-   in to Fantrax daily. Its removal PR needs green CI and a dispatch.
-3. **#92 and #230 are the planner's call (manager's record, 2026-10-30, on
-   both tickets).** 15 scheduled runs, 2026-10-15 to 10-29: login passed
-   15 of 15, `Code sent by: verify_click` 15 of 15, all four reads HTTP 200.
-   GitHub started them 3 to 5.5 hours after the cron, so a capture on a
-   schedule cannot count on a start time.
-   - #92 question 1 looks answered. Question 2 (an account without
-     commissioner rights) depends on which account the secrets hold; not
-     known here. Question 3: read a run's timings.
-   - #230 says it closes on the owner's run from an empty profile; each
-     runner login is one, but that is the owner's word to give. Self-submit
-     is answered (Verify is clicked). What a refused code shows is still
-     unseen.
-4. **Skills PR 61 is still open, green on 2026-10-14.** The owner's answer
-   reached the planner only through the manager, which is not approval for
-   the planner. Merge on the owner's own word in this session; re-check CI.
+1. **CI is red, so nothing can merge. Ticket #259 is written** (tier low,
+   Tooling and upkeep, brief on it) and waits on the manager's dispatch,
+   which waits on the service (7). Cause: `.map(rate)` at
+   `notebooks/etl_checks.py:322` on an empty `str` Series returns `str`
+   under pandas 3.1.0. Fix tried in memory: 100 passed. Published
+   `fact_dead_money` has 34 rows, so today's data misses it; a full pipeline
+   under 3.1 was not run. Owner's decision: keep loose floors, fix breaks as
+   they come. When it merges, re-run the evidence.
+2. **Spike schedule:** the owner disabled the workflow (`disabled_manually`),
+   so the daily login has stopped. Its removal PR still follows #259.
+3. **#92 and #230 are closed** (2026-10-30). The secrets hold the
+   commissioner and the owner accepts that; a plain member's access stays
+   untested. Runs take about 70 seconds. What a refused code shows is still
+   unseen. A capture on a schedule cannot count on a start time.
+4. **Skills PR 61 is merged** on the owner's word (merge commit `9cfb4a0`).
+   CI was green on its head, last run 2026-10-13; `main`'s 3 newer commits
+   touch none of its files. Its branch is not deleted.
 5. **#97:** PR 1 merged (PR #253, `d21c3e1`). PR 2 is `fact_team_cap`,
    writer `02h`. **Three notes of the planner's may not have reached the
    builder** (the service went down first): the player card prints the
@@ -56,11 +47,16 @@ blocked like this file's PR by the red CI below. Find the manager with
    plugin folders (verified; the pane loads).
 9. **Queue on `main` is stale** until the manager's PRs land: it still lists
    the hand-fired spike, the live clone and the allow rules.
-10. **Then:** plan #218 (shrink `GOAL-RUN.md`), in plan mode, to the owner
-    before anything is written.
-11. **Not deleted, needs the owner's word:** skills branch
-    `needs-owner-template-rules`; `docs/planner-state-6`,
-    `docs/planner-state-7`; the stray local `docs/builder-state-234`.
+10. **Next:** plan #218 (shrink `GOAL-RUN.md`), in plan mode, to the owner
+    before anything is written. The owner asked for this after a compact.
+11. **Not deleted, needs the owner's word:** skills branches
+    `needs-owner-template-rules`, `builder-state-rules`;
+    `docs/planner-state-6`, `docs/planner-state-7`; the stray local
+    `docs/builder-state-234`.
+12. **Worktree:** `.claude/worktrees/metadata-principles` still has the
+    leftover cherry-pick and the unpushed `4f23f16`. The lock is gone (owner),
+    but it was left alone, since this file's work runs in scratch worktree
+    `ps8`.
 
 ## Earlier state (2026-10-12, partly stale)
 
