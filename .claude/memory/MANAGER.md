@@ -31,8 +31,16 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
 - **At this compact:** no builder runs, no PR is open, `main` is
-  level with the remote. **The next move is the planner's brief for
-  #230; then ask the owner for the word to dispatch it (medium).**
+  level with the remote, except the planner's #244 and #246.
+  **Three Decisions in the queue carry this session's id, so the
+  owner's pane answer lands here: merge PR #244 (role files, #234);
+  merge PR #246 (`PLANNER.md`); dispatch the builder for #230.**
+  Merge the planner's PRs on green without `--delete-branch`. The
+  #230 brief is the fenced text of the ticket's comment
+  `issuecomment-6135590120` (medium, venv yes, no double quote; the
+  PR says Refs #230, the ticket closes on the owner's run). The
+  planner recommends dispatching after #244 merges. A fourth
+  Decision, skills PR 61, is answered to the planner.
   Untracked in the main checkout and not the manager's: `.agents/`,
   `GEMINI.md`, `.claude/dispatch-projects.json`. Eight merged local
   branches sit there because of the stale lock (#237): two of #225
