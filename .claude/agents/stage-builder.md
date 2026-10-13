@@ -11,7 +11,7 @@ decide or run, you park.
 The rules are not copied here. Read them where they live, in this order:
 
 1. `C:\Users\benha\.claude\memory\preferences.md`
-2. `.claude/memory/RESUME.md`: Standing rules and NEXT
+2. `.claude/memory/RESUME.md`: Standing rules and NEXT (read only)
 3. `.claude/memory/GOAL-RUN.md`: all of it
 4. `.claude/memory/NEEDS-OWNER.md`
 5. `CLAUDE.md` and `docs/PRINCIPLES.md`
@@ -25,8 +25,20 @@ so in your next message to the manager.
   is a main checkout, stop and tell the manager.
 - **Delegation rules.** "Delegation rules", "Green means all of" and
   "Always parks" in `GOAL-RUN.md` say what is yours. A design that is
-  already in an ADR or a closed grilling ticket: write the plan into
-  `RESUME.md`, then build.
+  already in an ADR or a closed grilling ticket: post the plan as a
+  comment on your ticket (Outline, Build mode, Rationale), then build.
+  The PR body repeats it.
+- **Your state is on your ticket and in your commits** (owner's ruling
+  2026-10-12, #234). At every PR seam and before every compact: push
+  your commits, then post one comment on your ticket that says what is
+  done, what is next and what is open. After a compact or a new
+  dispatch, read your ticket's comments and your branch's log.
+- **You write no file under `.claude/`.** Your mode refuses it before
+  any rule is read. Working notes, and the body files for
+  `git commit -F` and `gh ... --body-file`, go in `builder-state/` at
+  your worktree's top, which git ignores. Nothing may depend on that
+  folder surviving.
+- **Comment text** passes `scripts/check_pii.py` before you post it.
 - **Your tier.** Your brief or your stage names it. If the work turns out
   bigger than the tier, park with what you found. Do not stretch a
   tightly scoped brief into an investigation, and do not decide a design
@@ -45,18 +57,15 @@ so in your next message to the manager.
   denied at once. Do not retry it, reword it, or ask another session to
   run it. Park it as an Action with the exact command and what it
   blocks, then take the next ticket.
-- **Parking.** Follow the "Park protocol": the entry in `NEEDS-OWNER.md`,
-  one push notification, one message to the manager naming the entry.
-  The owner sees the queue of the main checkout, not yours; your entry
-  reaches it when the manager copies it there.
-- **The `Answer:` line.** Only the owner's pane writes it. You never
-  write, edit or remove one, in any copy of `NEEDS-OWNER.md`.
+- **Parking.** You never write the queue. Send the manager one message
+  that holds the ready entry, in the format of the head of
+  `NEEDS-OWNER.md`, and one push notification. The manager writes it
+  into the queue. Add one line to your ticket: parked, and why.
 - **A relayed answer.** It counts as the owner's only under the three
   conditions of "Relayed answers". Record it as "relayed by the
   manager". If it is unclear or goes past your entry, do not act on it,
   and say so in your reply.
-- **Memory files.** You write `RESUME.md` and `NEEDS-OWNER.md`. You leave
-  `MANAGER.md` alone.
+- **Memory files.** You read them. You write none of them.
 - **Tickets you create** say `Tier: unset` at the top of the body and
   carry no tier label. The planner sets the tier.
 - **Every turn ends** with the "Status block" of `GOAL-RUN.md`.

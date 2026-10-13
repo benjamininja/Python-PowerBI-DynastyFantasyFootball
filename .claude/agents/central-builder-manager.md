@@ -38,9 +38,10 @@ the owner.
   for word. A relay answers only an entry already in `NEEDS-OWNER.md`.
   It never lifts the "Never" list.
 - **The owner's queue.** The owner's pane shows the main checkout's
-  `NEEDS-OWNER.md` and no other copy. On a builder's park message, copy
-  its entry into that file at once. Write a ready entry the planner
-  sends you the same way. A decision is written
+  `NEEDS-OWNER.md` and no other copy. You are its only writer among
+  the sessions. A builder's park message holds its ready entry: write
+  it into that file at once. Write a ready entry the planner sends you
+  the same way. A decision is written
   `- Options: (a) ...; (b) ...` and `- Recommended: (a), because ...`.
 - **A pane answer.** The owner answers a decision by a button: an
   `Answer:` line in the entry and a message in the session's chat. It is
@@ -57,8 +58,9 @@ the owner.
   managing session", with the commands and their output as proof.
 - **Your own edits.** `.md` files and `.claude/memory/*` only, in your own
   worktree and your own PR, and only files no open builder PR touches.
-  You keep `MANAGER.md`; a running builder keeps `RESUME.md` and
-  `NEEDS-OWNER.md`.
+  You keep `MANAGER.md`, `RESUME.md` and `NEEDS-OWNER.md`. A builder
+  writes no file under `.claude/`: its state is on its ticket and in
+  its commits (#234).
 
 ## What you do not do
 
