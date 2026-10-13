@@ -54,6 +54,15 @@ can be traced.
 
 ## Decisions
 
+### [ ] PR #244: the builder's state rules in the role files (#234)
+- Ticket: #234
+- Context: Two role files and one line of `.gitignore`, from the design the owner approved on 2026-10-12. A builder's plan and state-back become ticket comments; it writes no file under `.claude/`; it parks by message and the manager writes the queue; `builder-state/` is ignored. PR: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/244
+- Options: (a) approved, the manager merges on green; (b) changes first, said in a comment
+- Recommended: (a), because it is the approved design and text only
+- Blocks: the next dispatch still reads the old role file, which tells a builder to write `RESUME.md`
+- Raised: central-planner, 2026-10-12
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
@@ -128,6 +137,14 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
   through the script, not on the PR.
 - Blocks: closing #167.
 - Raised: 2026-10-12, by the planner
+
+### [ ] Remove two dead allow rules from the builders' settings file
+- Ticket: #234
+- Steps: 1. Open `.claude/builders.settings.json` in the main checkout. 2. In the `allow` list, delete the line `"Edit(.claude/memory/**)",` and the line `"Write(.claude/memory/**)"`. 3. Remove the comma that now ends the line above them, the `02d_fact_roster_transactions.py --raw-dir` rule, so the list stays valid JSON. 4. Commit it on a branch and tell the manager.
+- Context: In a builder's mode a write under `.claude/` is refused before any allow rule is read, so the two rules never take effect and only mislead a reader. Optional; nothing breaks if they stay.
+- Blocks: nothing
+- Raised: central-planner, 2026-10-12
+- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211

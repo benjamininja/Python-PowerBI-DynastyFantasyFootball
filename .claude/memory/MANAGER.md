@@ -37,6 +37,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `GEMINI.md`, `.claude/dispatch-projects.json`. Eight merged local
   branches sit there because of the stale lock (#237): two of #225
   and six `chore/...` state branches.
+- **#234 (builders' state out of `.claude/`), reported by the
+  planner 2026-10-12, night; to confirm with the owner.** The
+  planner says the owner approved the design in its session (a
+  comment on #234). The planner's PR #244 holds the role files and
+  one `.gitignore` line: a Decision is in the queue; merge it on
+  the owner's "approved", on green, without `--delete-branch`.
+  **Owed by the manager: the matching text in `GOAL-RUN.md`**, a
+  rule change, so its PR waits for the owner's "approved". The
+  seven edits are in the section "Pending `GOAL-RUN.md` edits for
+  #234" at the end of this file. Proof of #234: the next builder
+  posts its plan comment and a state-back comment with no denied
+  call; tell the planner and it closes the ticket.
 - **Open now: nothing.** On the owner's words (2026-10-12, late):
   PR #228 merged (#225 closed, #92 open), the planner's #226 merged,
   both settings files committed unedited. Builder `d6acd1df` is
@@ -701,3 +713,43 @@ ends.
 - CI is read once (`gh pr view <n> --json
   mergeStateStatus,statusCheckRollup`); if it is still running, report
   and stop. `mcp__ccd_pr__get_status` reads the app's cache.
+
+## Pending `GOAL-RUN.md` edits for #234 (the planner's text, 2026-10-12, night)
+
+Apply in the manager's own PR, reworded to fit; the PR waits for the
+owner's "approved". Delete this section once it has merged.
+
+1. "Delegation rules", row "Plan gate": replace "write the plan into
+   `RESUME.md` (Outline → Build mode → Rationale), then build" with
+   "post the plan as a comment on the ticket (Outline → Build mode →
+   Rationale), then build; the PR body repeats it".
+2. Row "Windows": "One PR per compaction: push the commits and post a
+   state-back comment on the ticket (done, next, open), then compact,
+   at every PR seam and at 125K–150K tokens."
+3. "A denied call": replace "The builder parks it as an Action in
+   `NEEDS-OWNER.md` (what was denied, the exact command, what it
+   blocks), messages the managing session, and takes the next ticket"
+   with "The builder parks it: one message to the managing session
+   that holds a ready Action entry (what was denied, the exact command,
+   what it blocks). The manager writes it into the queue. The builder
+   takes the next ticket."
+4. "Park protocol", step 2, last sentence ("So a builder writes the
+   entry in its worktree's copy, and the manager copies it ..."):
+   "A builder never writes the queue (owner's ruling 2026-10-12,
+   #234): the message of step 3 holds its ready entry, and the manager
+   writes it into the main checkout's copy at once. The builder adds
+   one line to its ticket: parked, and why."
+5. Step 5, "Record it (ADR, ticket Resolution or `RESUME.md`, as
+   fits)": add "a builder records it as a comment on its ticket".
+6. A new short paragraph, near "A denied call": "**A builder's state
+   (owner's ruling 2026-10-12, #234).** A builder runs in `dontAsk`,
+   where a write under `.claude/` is refused before any allow rule is
+   read. So a builder writes no file there. Its lasting state is its
+   ticket's comments and its pushed commits; after a compact or a new
+   dispatch it reads those. Working notes and message body files go in
+   `builder-state/` at its worktree's top, which git ignores; nothing
+   depends on that folder. `RESUME.md` is the manager's file; a builder
+   reads its Standing rules."
+7. The read line: after "`.claude/memory/RESUME.md` Standing rules and
+   NEXT" add "(read only)". The owner's `.claude/dispatch.json` needs
+   no change.
