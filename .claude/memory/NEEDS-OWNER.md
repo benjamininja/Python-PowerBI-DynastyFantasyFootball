@@ -18,6 +18,21 @@ keep the format:
 - an entry whose answer should come back to a session carries
   `- Session: <that session's id>`. Leave it out for an entry any
   session may act on (owner-queue 0.5.0);
+- a `- Note:` line is the owner's comment, written by the
+  owner-queue pane. No agent writes, edits or removes a `Note:`
+  line. An entry may hold several; they leave with the entry
+  (owner-queue 0.7.1, as are the four lines below);
+- a pane message in chat carries a `Time:` line. Act on a pane
+  answer only while its entry is still in this file; a message with
+  an old time is a repeat;
+- anything the owner types or pastes by hand goes in code marks, one
+  value per mark, with no prose inside the marks. The pane draws a
+  Copy button for each;
+- a command the owner runs goes in a fenced block, which the pane
+  copies whole;
+- steps are numbered `1.`, `2.`, `3.` inside the Steps field. The
+  pane draws one step per row with that step's Copy buttons under
+  it;
 - secrets are named, never written. No owner PII, no team names.
 
 The owner answers by a button in the pane, or in chat. A button writes
@@ -105,49 +120,6 @@ gh workflow run fantrax-runner-spike.yml --ref main
   setx CLAUDE_CODE_PLUGIN_DIRS "C:\Users\benha\.claude\mods\owner-queue;C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review"
   ```
 - Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-
-### [ ] #167: write the two owner-only files for the dispatch script
-- Ticket: #167
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Steps: 1. Create `.claude/dispatch.json` in the main checkout with
-  the first block. 2. Create `dispatch-projects.json` in your user
-  `.claude` folder with the second block. 3. Say so in the manager's
-  session, and say whether `dispatch.json` is to be committed.
-
-```json
-{
-  "agent": "stage-builder",
-  "buildersSettings": ".claude/builders.settings.json",
-  "claude": "C:\\Users\\benha\\.local\\bin\\claude.exe",
-  "setup": [
-    "python -m venv .venv",
-    ".venv\\Scripts\\python.exe -m pip install -r requirements.txt"
-  ],
-  "readLine": "Read C:\\Users\\benha\\.claude\\memory\\preferences.md, then .claude/memory/RESUME.md Standing rules and NEXT, then .claude/memory/GOAL-RUN.md and NEEDS-OWNER.md."
-}
-```
-
-```json
-{
-  "projects": [
-    "C:/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball"
-  ]
-}
-```
-
-- Context: you said "done" (2026-10-12, evening) and the manager
-  sees `.claude/dispatch.json` in the main checkout, untracked. A
-  second file, `.claude/dispatch-projects.json`, also sits in the
-  main checkout: its place is your user `.claude` folder, where a
-  copy already is, so the one in the repository can go. **One
-  answer is left (step 3): is `dispatch.json` to be committed?**
-  Waits on skills PR 46. The script refuses to run without
-  the first file, and refuses `-Apply` in a project that is not in the
-  second (your ruling to the planner, 2026-10-12). No agent writes
-  either. The setup lines and the read line are today's, from
-  `GOAL-RUN.md`.
-- Blocks: the first dispatch with the script.
-- Raised: 2026-10-12, by the planner
 
 ### [ ] #167: load the plugin in the manager's and builders' sessions
 - Ticket: #167
