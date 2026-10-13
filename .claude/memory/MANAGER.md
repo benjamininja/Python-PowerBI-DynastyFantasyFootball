@@ -49,6 +49,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   manager stopped two hung git commands on the owner's word. While
   the locks sit there a git command that writes those two branches
   fails; other branches work.
+- `.claude/dispatch.json` is committed on the owner's word ("commit
+  dispatch.json", 2026-10-12), as the owner wrote it; no agent
+  edits it (deny rules). An untracked copy of
+  `dispatch-projects.json` sits in the repository's `.claude`
+  folder; its place is the owner's user folder, where one already
+  is. Leave it; it is the owner's file. The planner's five 0.7.1
+  lines are in the queue's head on the owner's "add them".
 - Skills PRs 46 (dispatch plugin) and 39 (owner-queue 0.7.1) are
   merged (2026-10-12). The live clone folder `claude-live` does not
   exist and the owner's saved `CLAUDE_CODE_PLUGIN_DIRS` names only a
