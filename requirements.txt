@@ -10,6 +10,7 @@ beautifulsoup4>=4.12
 python-dotenv>=1.0
 thefuzz>=0.20
 playwright>=1.45
+pyotp>=2.9           # 04a _login answers the Fantrax second-factor code prompt (FANTRAX_TOTP_SECRET)
 nflreadpy>=0.1
 openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
 pyyaml>=6            # docs/*.yml registries (check_data_model.py, etl_checks.py)
