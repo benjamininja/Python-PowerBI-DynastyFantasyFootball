@@ -7,6 +7,8 @@ bad replies and bad rows a capture does not hold. Nothing here touches the
 network; main() runs against a temp data dir with a canned Fantrax.
 """
 import importlib
+import json
+import os
 import sys
 from pathlib import Path
 
@@ -318,7 +320,48 @@ class TestMain:
             rs.main()
         assert not (data / "fact_roster_state.parquet").exists()
 
-    def test_a_season_the_period_dim_lacks_raises(self, env):
+    def test_a_season_the_period_dim_lacks_keeps_the_current_roster_only(self, env):
+        data, raw, fantrax = env
         self.season_year = 2027
-        with pytest.raises(ValueError, match="2027-2028 is not in dim_scoring_period"):
-            rs.main()
+        assert rs.main() == 0
+        assert fantrax.asked == [None]
+        assert not (data / "fact_roster_state.parquet").exists()
+        assert [p.name for p in raw.iterdir()] == ["fantrax_public_rosters_2027_p03.json"]
+
+    def test_every_saved_reply_is_stamped(self, env):
+        _, raw, _ = env
+        rs.main()
+        for p in raw.iterdir():
+            body = json.loads(p.read_text(encoding="utf-8"))
+            assert body["season_id"] == SEASON
+            assert pd.Timestamp(body["captured_at"]).tzinfo is not None
+            assert "rosters" in body and "period" in body
+
+
+class TestNewestReply:
+    def save(self, raw, name, body, mtime=None):
+        p = raw / name
+        p.write_text(json.dumps(body), encoding="utf-8")
+        if mtime is not None:
+            os.utime(p, (mtime, mtime))
+        return p
+
+    def test_the_highest_year_then_period_wins(self, tmp_path):
+        self.save(tmp_path, "fantrax_public_rosters_2026_p17.json",
+                  {"captured_at": "2027-02-01T00:00:00+00:00", "period": 17})
+        self.save(tmp_path, "fantrax_public_rosters_2026_p09.json", {"period": 9})
+        newest = self.save(tmp_path, "fantrax_public_rosters_2027_p01.json",
+                           {"captured_at": "2027-03-02T12:00:00+00:00", "period": 1})
+        self.save(tmp_path, "fantrax_inseason_2027_p05.json", {})
+        path, body, captured, season = rs.newest_reply(tmp_path)
+        assert path == newest and body["period"] == 1
+        assert captured == ts("2027-03-02 12:00") and season == "2027-2028"
+
+    def test_an_unstamped_reply_takes_the_file_time_and_name(self, tmp_path):
+        self.save(tmp_path, "fantrax_public_rosters_2026_p06.json", {"period": 6},
+                  mtime=ts("2026-10-14 22:12").timestamp())
+        _, _, captured, season = rs.newest_reply(tmp_path)
+        assert captured == ts("2026-10-14 22:12") and season == SEASON
+
+    def test_no_reply_is_none(self, tmp_path):
+        assert rs.newest_reply(tmp_path) is None
