@@ -139,6 +139,8 @@ the in-season checks wait for #116. The July decisions above stand.
 
    *Amended at build (#115): grain uniqueness is checked over rows whose grain columns are all non-null, so a new duplicate still blocks. Rows with a null grain column file one `grain_null_key` Review finding per table, with the count in its detail. At build time these were `fact_fantasy_teams` (29), `fact_dynasty_ranking_metrics` (1,812 Composite rows) and `fact_trade_log` (125, until #109 gives it a key). Required keys are listed per table as `required_keys`, only where a key is never legitimately null.*
 
+   *Amended 2026-10-14 (#97): `fact_fantasy_teams` is re-keyed on `(team_key, scorer_id)`, both always set, so it no longer files `grain_null_key`; a rostered copy with no `gsis_id` keeps its row.*
+
    *Built in #118: the Period Scoring coverage Gate (`etl_checks.scoring_coverage_errors`). Besides every Scoring Period from 1 to the last closed one, it requires 28 teams, 14 per Conference, in every period the table holds.*
 5. **No FPts-YTD-non-decreasing check.** A drop during a closing period is a normal stat correction. A change to a closed period is Drift, which is already checked.
 6. **Collapse** means a table shrinks by more than 20%, or to zero rows, against the last published snapshot.

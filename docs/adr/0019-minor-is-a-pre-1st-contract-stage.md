@@ -2,7 +2,7 @@
 
 - Status: accepted. Designed through HITL grilling on 2026-10-02. Built 2026-10-03 (#113): the `dim_contract` row and `02d` contract sourcing. The drift check (decision 4) and the `contract_year` clock are still unbuilt.
 - Date: 2026-10-02
-- **Supersedes the headline of** [ADR-0011](0011-minors-is-placement-not-contract.md) ("there is no Minor contract type"). The rest of ADR-0011 stands: `04v` is read-only, the repo has no Fantrax write path, IR charges full salary, and only the Minors slot is cap-exempt.
+- **Supersedes the headline of** [ADR-0011](0011-minors-is-placement-not-contract.md) ("there is no Minor contract type"). The rest of ADR-0011 stands: `04v` is read-only, the repo has no Fantrax write path, IR charges full salary, and only the Minors slot is cap-exempt. *2026-10-14 (#97): the IR part no longer stands. By the owner's ruling of 2026-10-12 the IR slot is cap-exempt too; dropping an IR player still creates Dead Money ([ADR-0016's #97 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-14-the-cap-module-the-current-roster-and-the-cap-table-97), decision 3).*
 - [ADR-0010](0010-minors-stash-season-boundary.md) stays superseded. Its stash rule does not come back (decision 5).
 - Settles [ADR-0018](0018-supabase-schema-and-rls.md) decision 6: the `contract_id` FK is no longer provisional once `dim_contract` has its `Minor` row.
 - Scope:
@@ -90,7 +90,7 @@
 
 ## Consequences
 
-- **The cap path is unchanged.** Only the Minors slot is exempt, in the same four places ADR-0011 lists: `capmath.py`, `02e`, and the `Active Roster Salary` and `Remaining Salary Cap` measures.
+- **The cap path is unchanged.** Only the Minors slot is exempt, in the same four places ADR-0011 lists: `capmath.py`, `02e`, and the `Active Roster Salary` and `Remaining Salary Cap` measures. *Amended 2026-10-14 (#97): the Minors and IR slots are exempt, and the ETL's rule lives in one place, `notebooks/etl_cap.py`, which stamps `fact_fantasy_teams.cap_exempt`. The contract still exempts nobody.*
 - **Dead money (#96) needs no special case.** `capmath` prices only Cut players on Guaranteed contracts, and `Minor` is not guaranteed. *The ledger's own `cap_hit` column, which nothing reads and #97 replaces, shows 0 on a `Minor` draft row.*
 - **Build work, in one issue under #70** *(#113, built 2026-10-03)*:
   - the `01b` seed row;
