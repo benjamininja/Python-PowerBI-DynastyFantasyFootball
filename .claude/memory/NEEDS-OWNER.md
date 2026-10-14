@@ -56,41 +56,40 @@ can be traced.
 
 ## Actions
 
-### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
-- Ticket: #92, #225
-- Steps: 1. On GitHub: Settings, Environments, New environment, name
-  `fantrax-spike`, and limit its deployment branches to `main`. Do
-  this **before the first run**: if the workflow runs first, GitHub
-  makes the environment itself, with no branch rule. 2. In that
-  environment add three secrets by name: `FANTRAX_EMAIL`,
+### [ ] Fire the Fantrax runner spike again: #230 is merged, the login now types the code
+- Ticket: #230, #92
+- Steps: 1. In the repository's `fantrax-spike` environment, confirm
+  the three secrets exist by name: `FANTRAX_EMAIL`,
   `FANTRAX_PASSWORD`, `FANTRAX_TOTP_SECRET` (the bare base32 setup
-  key, no spaces). Which account is your choice; question 2 of #92
-  asks about one without commissioner rights. 3. Fire the run:
-  Actions tab, `fantrax-runner-spike`, Run workflow, branch `main`,
-  or the block below. 4. Report in the manager's session what the
-  run's summary page shows: the Login line, the read table and the
-  step seconds.
+  key, no spaces). They were all set for run 1. 2. Fire the run from
+  `main`: Actions tab, `fantrax-runner-spike`, Run workflow, or the
+  block below. It starts from an empty profile every run. 3. Report
+  in the manager's session the Login line (`passed`, `needs_code`,
+  `challenged` or `failed`), the class name after `Login step
+  raised:` if any (`TotpCodeRefused`, `TotpSecretMissing`), the read
+  table and the step seconds. 4. If you can tell: did the form submit
+  by itself on the sixth digit, and what did a wrong or expired code
+  look like?
 
 ```bash
 gh workflow run fantrax-runner-spike.yml --ref main
 ```
 
-- Context: **run 1 is done (2026-10-12): steps 1 to 4 all worked.**
-  The login stopped at the second-factor code prompt, not a network
-  block (34.5 s); all three secrets were set; no read was made. It
-  is written on #92. What is left is steps 3 and 4 again: once
-  after #230 merges, and on other days.
-  Checkpoint 1 of stage D. PR #228 merged on your "merge
-  228" (2026-10-12). The run prints verdicts, HTTP statuses,
-  exception class names and seconds only, on a public log. Question 1
-  of #92 wants several runs on different days. Until the login code
-  of #230 merges a run ends at `needs_code`; you chose to fire anyway
-  and again after (pane, 2026-10-12 17:19). No agent fires this or
-  stores a secret. The page: `docs/research/fantrax-runner-spike.md`.
-  If the runner is blocked, authed captures stay on the home PC
-  (ADR-0015).
-- Blocks: #92, and through it enabling the crons.
-- Raised: 2026-10-12, by the builder manager
+- Context: PR #249 (merged 2026-10-14) makes the one login path type
+  the current code from `FANTRAX_TOTP_SECRET`. No agent has logged
+  in; it is proven on a fake page only, so your run is the first
+  sight of the real page. A refusal is detected as the code field
+  still showing 10 s after the submit; the PR body lists the
+  assumptions. Run 1 (2026-10-12) stopped at the code prompt, not a
+  network block. #92 question 1 wants several runs on different days,
+  so fire it again on later days too. The run prints verdicts, HTTP
+  statuses, exception class names and seconds only, on a public log.
+  No agent fires this or stores a secret. If the runner is blocked,
+  authed captures stay on the home PC (ADR-0015).
+- Blocks: closing #230; #92's runner login, and with it the scheduled
+  capture of ADR-0015 and enabling the crons.
+- Raised: stage-builder (#230), 2026-10-14; merged into the builder
+  manager's entry of 2026-10-12
 
 ### [ ] Make the live clone and name both plugin folders, before the next app restart
 - Ticket: #167
