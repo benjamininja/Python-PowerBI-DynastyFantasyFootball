@@ -54,42 +54,6 @@ can be traced.
 
 ## Decisions
 
-### [ ] Dispatch the builder for #230 (the login answers the code prompt)
-- Ticket: #230
-- Context: The brief is on the ticket: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/230#issuecomment-6135590120 . Tier medium. It builds against the markup the owner pasted, on fakes only; no agent logs in. Two things stay unknown until the owner's run: whether the form submits itself on the sixth digit, and what a wrong code shows.
-- Options: (a) dispatch now; (b) dispatch after PR #244 is merged, so the builder reads the new role file; (c) hold
-- Recommended: (b), because the old role file still tells a builder to write `RESUME.md`, which its mode refuses; the brief covers it, but one source is cleaner
-- Blocks: #92's runner login, and with it the scheduled capture of ADR-0015
-- Raised: central-planner, 2026-10-12
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-
-### [ ] PR #244: the builder's state rules in the role files (#234)
-- Ticket: #234
-- Context: Two role files and one line of `.gitignore`, from the design the owner approved on 2026-10-12. A builder's plan and state-back become ticket comments; it writes no file under `.claude/`; it parks by message and the manager writes the queue; `builder-state/` is ignored. PR: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/244
-- Options: (a) approved, the manager merges on green; (b) changes first, said in a comment
-- Recommended: (a), because it is the approved design and text only
-- Blocks: the next dispatch still reads the old role file, which tells a builder to write `RESUME.md`
-- Raised: central-planner, 2026-10-12
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-
-### [ ] Skills PR 61: the builder's state rules in the dispatch plugin
-- Ticket: #234
-- Context: Text only, four files of the plugin: the `session-rules` skill, its parking reference, the builder role template and the README. Same design as PR #244: a builder's state is its ticket and its commits, it writes no file under `.claude/`, only the manager writes the queue. 16 tests pass. PR: https://github.com/benjamininja/skills-plugins-hooks-agents/pull/61
-- Options: (a) the planner merges it on green; (b) the owner merges it; (c) changes first, said in a comment
-- Recommended: (a), because it is the approved design and text only
-- Blocks: nothing today; a new project would start with the old parking rule
-- Raised: central-planner, 2026-10-12
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-
-### [ ] PR #246: the planner's state file
-- Ticket: #162
-- Context: `.claude/memory/PLANNER.md` only. It records the #234 design and its two PRs, the merged skills PRs 39, 46 and 59, the ruling that a pane comment is never approval, and what is next (the #230 brief, then #218). It includes two state commits made after PR #226 was merged. PR: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/246
-- Options: (a) approved, the manager merges on green; (b) changes first, said in a comment
-- Recommended: (a), because it is the planner's own state file and changes no rule
-- Blocks: nothing; a new planner session would resume from older state
-- Raised: central-planner, 2026-10-12
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-
 ## Actions
 
 ### [ ] Fire the Fantrax runner spike again (after #230, and on other days)
@@ -184,24 +148,6 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
   the bot does not, so the two differ by each team's IR salary.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
-
-### [ ] Fresh 04t capture, after Wednesday 2026-10-14, 8:00 am
-- Ticket: #97 (task, map #70)
-- Steps: once the waiver run of Wednesday 2026-10-14, 8:00 am, has
-  executed your claim and its conditional drop, run `python notebooks/04t_fantrax_transaction_history.py`
-  from the repo root. Then say "04t done" in chat.
-- Context: the date moved from Thursday on your word, 2026-10-12: the
-  rules page says bids are "processed on: Wed, Thu at 8:00 am" and the
-  published ledger holds 66 Wednesday and 59 Thursday waiver claims. A
-  later capture (Friday, say) holds the same row and needs nothing
-  more. If the claim lost its bid there is no row: say so, and one new
-  claim or drop made after a lineup lock replaces it.
-  #97 PR 1 needs a ledger that holds a move made after a lineup
-  lock. A session cannot run `04t` (deny rules in `.claude/settings.json`).
-  The same row tests the bid rule of #68.
-- Blocks: #97 PR 1, and through it the #110 rename and #108's first
-  migration: all of stage C.
-- Raised: 2026-10-11, #97 grill
 
 ### [ ] Store the database secret for `migrate.yml` (later)
 - Ticket: #108 (task, map #69)
