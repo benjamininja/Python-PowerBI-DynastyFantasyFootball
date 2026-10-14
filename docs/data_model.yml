@@ -161,8 +161,9 @@ tables:
       it has no term, so contract_year and total_years are null on that row
       (hence the nullable Int64), and it costs no Dead Money (cap_hit_pct 0,
       not guaranteed). `cap_exempt` is descriptive only: no consumer reads
-      it. The one cap exemption is the Minors Roster Slot
-      (fact_fantasy_teams.roster_status = "Minors", ADR-0011).
+      it. The cap exemption is by Roster Slot, Minors and IR
+      (fact_fantasy_teams.cap_exempt, #97; IR since the owner's ruling of
+      2026-10-12, reversing ADR-0011).
 
   - name: dim_fantasy_teams
     type: dim
@@ -478,24 +479,45 @@ tables:
 
   - name: fact_fantasy_teams
     type: fact
-    grain: "(team_key, gsis_id)"
+    grain: "(team_key, scorer_id)"
     chain: fantrax_core
-    required_keys: [team_key]
+    required_keys: [team_key, scorer_id]
     columns:
       - { name: team_key, dtype: str }
+      - { name: scorer_id, dtype: str }
       - { name: gsis_id, dtype: str }
       - { name: player_key, dtype: str }
       - { name: contract_id, dtype: str }
       - { name: contract_value, dtype: float64 }
       - { name: contract_year, dtype: float64 }
+      - { name: cap_hit, dtype: float64 }
+      - { name: cap_exempt, dtype: bool }
       - { name: acquired_method, dtype: str }
+      - { name: acquired_date, dtype: "datetime64[us]" }
       - { name: roster_status, dtype: str }
       - { name: season, dtype: str }
+      - { name: roster_captured_at, dtype: "datetime64[us, UTC]" }
+      - { name: ledger_captured_at, dtype: "datetime64[us, UTC]" }
     edges:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
       - { to: dim_contract, via: direct, on: contract_id }
+    notes: >
+      The current Roster State, all year (ADR-0016 decision 8, #97): one row
+      per player copy, from the newest getTeamRosters reply 04r saved
+      (contract_value is Fantrax's salary, contract_id its contract). The
+      ledger adds acquired_method / acquired_date from the move that opened
+      the copy's open stint, else `unknown`. cap_hit is contract_value, or 0
+      when cap_exempt: the Minors or IR slot (owner's ruling 2026-10-12;
+      etl_cap.EXEMPT_SLOTS). dim_contract.cap_exempt is a different,
+      descriptive flag that nothing reads. roster_captured_at is the reply's
+      read instant (null when built from the ledger replay out of season,
+      with roster_status blank); ledger_captured_at is the newest transaction
+      capture's. The Review check roster_membership compares the two
+      streams. roster_status keeps Active / Reserve / Inj Res / Minors until
+      #110 renames it roster_slot.
 
   - name: fact_roster_transactions
     type: fact

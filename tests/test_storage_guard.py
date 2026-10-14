@@ -23,13 +23,6 @@ ARROW_IO = re.compile(r"\bpq\.\w+|\bpyarrow\.parquet\.\w+\(|\bParquet(File|Write
 
 # (file, pattern found on the line) -> why it may stay.
 ALLOWED = {
-    # The owner's decision of 2026-10-12: fact_fantasy_teams is keyed
-    # (team_key, gsis_id) and the seam refuses a missing key, so a rostered
-    # player with no gsis_id would stop the scheduled run. #97 rewrites 02e,
-    # moves this write into the seam under (team_key, scorer_id) and deletes
-    # this entry.
-    ("notebooks/02e_fact_fantasy_teams_derive.py", "fact_fantasy_teams.to_parquet(FFT_PATH, index=False)"):
-        "#97",
     # Not table I/O: the row count in the footer of the copy git holds at HEAD.
     ("notebooks/etl_checks.py", "pq.ParquetFile(io.BytesIO(r.stdout)).metadata.num_rows"):
         "reads git's bytes, not the store",

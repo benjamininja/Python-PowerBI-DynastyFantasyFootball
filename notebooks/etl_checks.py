@@ -40,6 +40,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import yaml
 
+import etl_cap as cap
 from etl_helpers import DATA, REVIEW, read_stored
 
 REPO = Path(__file__).resolve().parent.parent
@@ -420,6 +421,34 @@ def default_contract_drop_findings(ledger: pd.DataFrame,
     return out
 
 
+def roster_membership_findings(roster: pd.DataFrame,
+                               ledger: pd.DataFrame) -> list[tuple[str, str]]:
+    """The ledger replay against the current roster, membership only (#97;
+    zero grace, ADR-0008 decision 9). One finding per copy on the roster with
+    no open stint on the ledger, and per open stint with no roster row.
+
+    Held back, with one finding in their place: a roster built from the
+    ledger replay (no saved reply; nothing to compare), and a ledger whose
+    transaction capture is older than the roster read ("ledger is stale")."""
+    if roster.empty:
+        return []
+    read = pd.to_datetime(roster["roster_captured_at"], utc=True).max()
+    if pd.isna(read):
+        return [("replay", "fact_fantasy_teams was built from the ledger replay: no saved "
+                           "roster reply, so membership is not compared")]
+    led = pd.to_datetime(roster["ledger_captured_at"], utc=True).max()
+    if pd.isna(led) or led < read:
+        when = "no transaction capture" if pd.isna(led) else f"captured {led.isoformat()}"
+        return [("ledger_stale", f"the ledger is stale ({when}; roster read "
+                                 f"{read.isoformat()}): per-row membership findings held "
+                                 "until 04t and 02d run again")]
+    extra, missing = cap.membership_differences(roster, cap.open_stints(ledger))
+    return ([(f"{t}|{s}", f"{s} is on {t}'s roster with no open stint on the ledger")
+             for t, s in extra]
+            + [(f"{t}|{s}", f"the ledger has {s} on {t}, the roster does not")
+               for t, s in missing])
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -462,6 +491,9 @@ DOMAIN_CHECKS = [
     DomainCheck("default_contract_drop", "review", "fact_roster_transactions",
                 lambda load: default_contract_drop_findings(load("fact_roster_transactions"),
                                                             load("dim_scoring_period"))),
+    DomainCheck("roster_membership", "review", "fact_fantasy_teams",
+                lambda load: roster_membership_findings(load("fact_fantasy_teams"),
+                                                        load("fact_roster_transactions"))),
 ]
 
 
