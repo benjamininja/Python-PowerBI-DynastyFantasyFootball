@@ -53,6 +53,7 @@
 # **Setup:**
 #   pip install playwright python-dotenv && playwright install chromium
 #   .env  ->  FANTRAX_EMAIL=...   FANTRAX_PASSWORD=...      (gitignore .env)
+#   2FA   ->  FANTRAX_TOTP_SECRET=...  (bare base32 key; needs pyotp, in requirements.txt)
 
 # %%
 # ---- Setup & Config ---------------------------------------------------------
@@ -63,6 +64,7 @@ import json
 import os
 import re
 import sys
+import time
 
 import pandas as pd
 
@@ -104,6 +106,9 @@ class LeagueConfig:
     user_data_dir: str = "data/.pw_profile"   # persistent session lives here (gitignore)
     headless: bool = True                     # set False on first run to clear captcha
     nav_timeout_ms: int = 30_000
+    code_poll_ms: int = 250                   # second-factor prompt: poll step
+    code_key_delay_ms: int = 60               # second-factor prompt: pause between keys
+    code_settle_ms: int = 10_000              # second-factor prompt: fixed wait for the verdict
     # --- Scheduling / week derivation ---
     snapshot_season: int = 2026
     week1_thursday: str = "2026-09-10"        # TODO verify 2026 NFL Week-1 Thursday
@@ -193,13 +198,36 @@ def resolve_season_or_projection(cfg: LeagueConfig, run_dt: date | None = None) 
 # ---- Scraper ----------------------------------------------------------------
 # Playwright imported lazily inside methods so this file still parses/imports
 # in environments where Playwright isn't installed (e.g. the fact notebook).
+def _now() -> float:
+    return time.time()
+
+
+class TotpLoginError(RuntimeError):
+    pass
+
+
+class TotpSecretMissing(TotpLoginError):
+    pass
+
+
+class TotpCodeRefused(TotpLoginError):
+    pass
+
+
 class FantraxScraper:
     """
     Headless-browser scraper for the Fantrax draft-ranking board.
 
     Persistent context => log in once, reuse the session on scheduled runs.
-    Credentials come from env (.env): FANTRAX_EMAIL / FANTRAX_PASSWORD.
+    Credentials come from env (.env): FANTRAX_EMAIL / FANTRAX_PASSWORD, and
+    FANTRAX_TOTP_SECRET when Fantrax asks for the second-factor code.
     """
+
+    CODE_FIELD = "input[name='two-factor-key']"
+    CODE_BUTTON = "button[type='submit']"
+    CODE_BUTTON_TEXT = "Verify"
+    CODE_MIN_LEFT_S = 3
+    TOTP_ENV = "FANTRAX_TOTP_SECRET"
 
     def __init__(self, cfg: LeagueConfig = CFG):
         self.cfg = cfg
@@ -262,14 +290,100 @@ class FantraxScraper:
                 "Login form interaction failed — see data/raw/login_debug.png "
                 "and adjust selectors in _login()."
             )
-        # SPA keeps connections open, so 'networkidle' never fires. Wait for the
-        # login form to go away (navigation off /login); fall back to a short
-        # settle. Auth is verified for real by the retry-probe in fetch().
+        # SPA keeps connections open, so 'networkidle' never fires. The code
+        # prompt is drawn inside the login component, so the URL may not change
+        # between the two steps: tell the prompt from a finished login by the
+        # code field, not by a navigation. Auth is verified for real by the
+        # retry-probe in fetch().
+        if not self._await_code_prompt(page):
+            return
+        self._answer_code_prompt(page)
         try:
             page.wait_for_url(lambda u: "/login" not in u,
                               timeout=self.cfg.nav_timeout_ms)
         except Exception:
             page.wait_for_timeout(3000)
+
+    def _polls(self, wait_ms: int) -> int:
+        return max(1, wait_ms // self.cfg.code_poll_ms)
+
+    def _await_code_prompt(self, page) -> bool:
+        field = page.locator(self.CODE_FIELD).first
+        for _ in range(self._polls(self.cfg.nav_timeout_ms)):
+            if field.is_visible():
+                return True
+            if "/login" not in page.url:
+                return False
+            page.wait_for_timeout(self.cfg.code_poll_ms)
+        page.wait_for_timeout(3000)
+        return False
+
+    def _totp_code(self, secret: str, page) -> str:
+        try:
+            import pyotp
+        except ModuleNotFoundError:
+            raise TotpLoginError(
+                "pyotp is not installed; run pip install -r requirements.txt."
+            ) from None
+        try:
+            totp = pyotp.TOTP("".join(secret.split()))
+            totp.at(0)
+        except Exception:
+            raise TotpLoginError(
+                f"{self.TOTP_ENV} is not a usable base32 key."
+            ) from None
+        now = _now()
+        left = totp.interval - now % totp.interval
+        if left < self.CODE_MIN_LEFT_S:
+            page.wait_for_timeout(int((left + 1) * 1000))
+            now = _now()
+        return totp.at(now)
+
+    def _answer_code_prompt(self, page) -> None:
+        secret = os.getenv(self.TOTP_ENV)
+        if not secret or not secret.strip():
+            raise TotpSecretMissing(
+                f"Fantrax asked for a second-factor code and {self.TOTP_ENV} "
+                "is not set."
+            )
+        code = self._totp_code(secret, page)
+        field = page.locator(self.CODE_FIELD).first
+        try:
+            field.click()
+            field.press_sequentially(code, delay=self.cfg.code_key_delay_ms)
+        except Exception:
+            raise TotpLoginError(
+                "Could not type the second-factor code into the Fantrax prompt."
+            ) from None
+        button = page.locator(
+            self.CODE_BUTTON, has_text=self.CODE_BUTTON_TEXT).first
+        for _ in range(self._polls(self.cfg.code_settle_ms)):
+            if not field.is_visible():
+                break
+            if button.count() and button.is_enabled():
+                try:
+                    button.click(timeout=5000)
+                except Exception:
+                    if field.is_visible():
+                        raise TotpLoginError(
+                            "Could not press Verify on the Fantrax code prompt."
+                        ) from None
+                break
+            page.wait_for_timeout(self.cfg.code_poll_ms)
+        else:
+            raise TotpCodeRefused(
+                "Fantrax did not accept the second-factor code: the Verify "
+                "button never enabled. One code was tried; no retry."
+            )
+        for _ in range(self._polls(self.cfg.code_settle_ms)):
+            if not field.is_visible() or "/login" not in page.url:
+                return
+            page.wait_for_timeout(self.cfg.code_poll_ms)
+        raise TotpCodeRefused(
+            "Fantrax still showed the second-factor code prompt after one "
+            "code was submitted: the code was refused or had expired. "
+            "One code was tried; no retry."
+        )
 
     # --- payload --------------------------------------------------------------
     def _payload(self) -> dict:
