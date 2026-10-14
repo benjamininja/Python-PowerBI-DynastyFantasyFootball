@@ -3,6 +3,7 @@ no network, no login."""
 import dataclasses
 import importlib.util
 import re
+import types
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -16,6 +17,7 @@ _spec.loader.exec_module(rs)
 
 WORKFLOW = REPO / ".github" / "workflows" / "fantrax-runner-spike.yml"
 PAGE = REPO / "docs" / "research" / "fantrax-runner-spike.md"
+CODE_FIELD = "input[name='two-factor-key']"
 SENTINEL = "Zebediah Quillfeather"
 SECRET_NAMES = {"FANTRAX_EMAIL", "FANTRAX_PASSWORD", "FANTRAX_TOTP_SECRET"}
 READ_NAMES = ["getPlayerStats", "getLiveScoringStats", "getTeamRosterInfo",
@@ -109,6 +111,47 @@ class TestLoginOutcome:
         assert rs.login_outcome(clean, rs.NOT_LOGGED_IN) == rs.FAILED
         assert rs.login_outcome(clean, rs.CF_CHALLENGE) == rs.CHALLENGED
         assert rs.login_outcome(clean, None) == rs.FAILED
+
+
+class FakeProbePage:
+    def __init__(self, code_visible):
+        self.code_visible = code_visible
+        self.selectors = []
+
+    def title(self):
+        return "Fantrax"
+
+    def locator(self, selector):
+        self.selectors.append(selector)
+        return FakeProbeLocator(self, selector)
+
+
+class FakeProbeLocator:
+    def __init__(self, page, selector):
+        self.page = page
+        self.selector = selector
+
+    def count(self):
+        return 0
+
+    @property
+    def first(self):
+        return self
+
+    def is_visible(self):
+        return self.page.code_visible and self.selector == CODE_FIELD
+
+
+class TestCodePromptSignal:
+    @pytest.mark.parametrize("visible, verdict", [(True, rs.NEEDS_CODE), (False, None)])
+    def test_needs_code_keys_on_the_code_field(self, visible, verdict):
+        scraper = types.SimpleNamespace(cfg=types.SimpleNamespace(), CODE_FIELD=CODE_FIELD)
+        session = rs.PlaywrightSession(scraper)
+        session.page = FakeProbePage(visible)
+        signals = session.signals()
+        assert signals.code_prompt is visible
+        assert rs.early_stop(signals) == verdict
+        assert CODE_FIELD in session.page.selectors
 
 
 class TestRunSpike:

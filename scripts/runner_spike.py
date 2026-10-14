@@ -268,8 +268,8 @@ class PlaywrightSession:
             signals.cf_challenge = signals.cf_challenge or title.startswith("just a moment")
             frames = self.page.locator("iframe[src*='challenges.cloudflare.com']")
             signals.cf_challenge = signals.cf_challenge or frames.count() > 0
-            prompt = self.page.get_by_text(re.compile(r"authenticator|6-digit", re.I))
-            signals.code_prompt = prompt.count() > 0
+            field = self.page.locator(self.scraper.CODE_FIELD).first
+            signals.code_prompt = field.is_visible()
         except Exception:
             pass
         return signals
