@@ -43,6 +43,8 @@ desktop.ini
 .claude/settings.json
 .claude/settings.local.json
 .claude/learnings.db
+# A builder session's working notes and message body files (#234). Never tracked.
+builder-state/
 pbi/.claude/
 Prompts.txt
 
