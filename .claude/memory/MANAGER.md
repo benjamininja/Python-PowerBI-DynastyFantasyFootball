@@ -30,6 +30,20 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
+- **2026-10-14, evening (after the fourth compact):** the owner said
+  "04t done"; the capture holds 4 waiver claims with a bid and 1 drop
+  stamped 2026-10-14 08:00 (counts only). Dispatched `b97-cap-module`
+  (#97, high, id `6ebb28eb`), #234 rules in its brief. It asked twice:
+  told to run the plain allow-listed `02d --raw-dir` form (its env-var
+  prefix broke the match); the manager ran the no-login step
+  `04r_roster_state` with `--no-commit` at 17:12 (raw p03 to p06
+  rewritten) and restored `data/fact_roster_state.parquet`. The pane
+  did not load for the owner (the plugin folder variable names only
+  the missing live clone), so the owner answered in chat: PR #244 and
+  PR #246 approved and merged (`77ed448`, `c6db6fb`); skills PR 61 to
+  the planner; #230 after #244, so `b230-totp-login` was dispatched
+  (medium, id `ca3ace05`). Planner told. Still owed: the `GOAL-RUN.md`
+  text for #234 (its own PR, the owner's "approved").
 - **At this compact:** no builder runs, no PR is open, `main` is
   level with the remote, except the planner's #244 and #246.
   **Three Decisions in the queue carry this session's id, so the
