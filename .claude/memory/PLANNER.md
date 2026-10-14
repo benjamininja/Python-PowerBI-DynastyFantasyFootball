@@ -5,10 +5,54 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-12, evening, before a compact)
+## START HERE (state 2026-10-12, night, before a compact)
 
-- **#167 step 2, the dispatch plugin: skills PR 46 is open** (branch
-  `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+- **#234 is designed and in review** (plan gate passed with the owner,
+  2026-10-12; the design is a comment on #234).
+  - Owner's decisions: a builder's lasting state is its ticket and its
+    commits, with a git-ignored scratch folder `builder-state/`; a
+    builder never writes the queue, it sends the manager a ready entry.
+    A builder writes no file under `.claude/`. No new ADR.
+  - **PR #244** (branch `docs/builder-rules-234`): the two role files
+    and `.gitignore`. Waits on the owner's approval; entry in the queue.
+  - **Skills PR 61** (branch `builder-state-rules`, scratch worktree
+    `<planner scratchpad>\tpl`): the same rules in the plugin. Waits on
+    the owner's word to merge; entry sent to the manager.
+  - The manager has the text for `GOAL-RUN.md` and an optional Action
+    for the owner (two dead allow rules in the builders' settings).
+  - **Closes on proof:** the next dispatched builder posts its plan and
+    a state-back comment with no denied call. The manager reports it.
+  - A stray local branch `docs/builder-state-234` sits in the scratch
+    worktree `<planner scratchpad>\b234`, unpushed and unused.
+- **The brief for #230 is written** (2026-10-12): a comment on the
+  ticket (issuecomment-6135590120), medium, built against the owner's
+  pasted markup, fakes only. The PR says Refs #230; the ticket closes
+  on the owner's run from an empty profile. Not known until then:
+  self-submit on the sixth digit; what a wrong code shows. Recommended
+  to the owner: dispatch after PR #244 is merged.
+- **Next, the planner's: plan #218** (shrink `GOAL-RUN.md`) in plan
+  mode, to the owner before anything is written. It is blocked by #167
+  and #234; the plan can be made now. The manager applies the #234 text
+  to `GOAL-RUN.md` in its own PR first; plan against that.
+- **This file's PR is #246** (branch `docs/planner-state-7`). PR #226
+  was merged earlier; `docs/planner-state-6` is unused, not deleted.
+- **In the owner's queue (on `main` since PR #245), all from the
+  planner:** approve PR #244; merge skills PR 61 (answer comes to the
+  planner, who merges); approve PR #246; when to dispatch #230; the
+  optional settings clean-up; the clone and `setx` for the plugin
+  folders. The manager set its own id as `Session:` on the three it
+  acts on (#244, #246, the #230 dispatch).
+- **Skills PR 59 is merged** (by the planner on the owner's word,
+  2026-10-12; merge commit `56ff4f7`): the queue-entry writing rules in
+  the plugin's templates. Owner's ruling in the pane the same day: a
+  pane comment (`Note:`) is never approval; recorded on #167 and in the
+  `session-rules` skill.
+- In the skills repository, `tests/test_git_guardrails.py` hangs on the
+  owner's machine and passes in CI. Reported to the manager for #237.
+- The guardrail hook blocks `git reset --hard` in any command. Do not
+  route around it.
+- **#167 step 2, the dispatch plugin (skills PR 46, merged; see below)**
+  (branch `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
   - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
     and `session-dispatch` (manual only), thirteen templates, ADR 0013,
     12 tests.
@@ -33,39 +77,51 @@ planner session can resume from the repository alone. The rules are in
 - **#230** (new, Stage D, medium, child of #70): the login answers the
   TOTP code prompt. Its first step is an owner Action (report the
   prompt's field label and button text); not free to dispatch before.
-- **In hand: `owner-queue` 0.6.1 is in the live copy, not committed.**
-  (`~/.claude/mods/owner-queue`, updated on the owner's word
-  2026-10-12, twice: 0.6.0, then 0.6.1.) The source is the scratch
-  worktree `<planner scratchpad>\oq6`, branch `owner-queue-060` off
-  `origin/owner-queue-mod` (skills PR 39), all changes uncommitted.
-  `claude plugin validate` passes, 24 tests pass. `tsc` did not run
-  (no Node on this machine's path).
-  - Built: `Post comment` on the last row before `Mark done`; under
-    it a one-line field whose own send (and Enter) posts a comment,
-    then `Send as answer` (open decision) and `Cancel`. `Other...` is
-    gone. A comment is a `- Note: <text> | pane, <day> <time>, session
-    <id>` line; a typed answer is `- Answer: (other) <text> | pane,
-    ...`. Store keys `notes` and `noted:<session>`. A Note the pane
-    did not write is flagged and never carried.
-  - Change from the plan: the draft is kept in a module variable, not
-    in `$.state`, so a key press redraws nothing.
-  - Proven by the owner in 0.6.0: a comment sent in the planner's pane
-    is said there; a comment on the TEST entry sent in the manager's
-    pane arrived in the planner's chat.
-  - **Not proven:** `Send as answer` (the one button that must read
-    the typed text); how 0.6.1 looks (the owner called 0.6.0 ugly;
-    0.6.1 moved the button, removed the doubled send, dropped the
-    label). Wait for the owner's look or a screenshot.
-  - The owner wants the box to grow while typing. The API's `Input` is
-    one line. Offered, not built: a wrapped preview under the field,
-    redrawn at each key press.
-  - A TEST Decision raised by the planner is in the queue (manager's
-    PR #235). The manager removes it when the planner says the trial
-    is over. A test `Note:` line also sits in the #228 entry.
-  - After the owner's look: PII check, commit and push to
-    `owner-queue-mod` (PR 39); send the manager the `Note:` rule for
-    the head of `NEEDS-OWNER.md`; add it to the plugin's
-    `templates/NEEDS-OWNER.md` (skills PR 46).
+- **`owner-queue` 0.7.1 is live and merged** (skills PR 39, merged by
+  the planner on the owner's word "merge PR 39", 2026-10-12; merge
+  commit `45e7030`). 26 tests pass. The scratch worktree
+  `<planner scratchpad>\oq6` (branch `owner-queue-060`) equals it.
+  - In it since 0.5.0: `Post comment` (a `Note:` line, or a typed
+    `Answer: (other) ...`), sent at once; a `Time:` line on every chat
+    message; every code span copied from under its field, a numbered
+    field drawn one step per row; `Write in editor` (a draft file in
+    the mod's own `drafts` folder, opened by the system's opener);
+    `Print in chat` removed; lines between the groups.
+  - Seen by the owner in the real pane: comments, the carry to the
+    raising session, the `Time:` line, the editor opening. **Never
+    tried there:** `Send as answer`.
+  - The app's `Input` is one line and draws its own send control,
+    which a mod cannot remove (labelled `Enter`). The API removes no
+    file: a sent draft is emptied.
+  - The trial is over; the owner marked the TEST decision done in the
+    pane. The head rules for `NEEDS-OWNER.md` (the `Note:` rule, the
+    `Time:` line, code marks, fenced blocks, numbered steps) went to
+    the manager as text, to confirm with the owner.
+  - The same rules are in the dispatch plugin's templates since
+    skills PR 59.
+- **A repeat of old pane answers after a compact** (manager's session,
+  2026-10-12) was the app's prompt queue, not the mod: two sends made
+  while the session was busy were delivered again, merged. The `Time:`
+  line marks such a repeat.
+- **Skills PR 46 is merged** (by the owner, 2026-10-12; merge commit
+  `804ea65`). The plugin is on GitHub, not on disk: no live clone
+  exists (`C:\Users\benha\claude-live` is not there), and the owner's
+  checkout of the skills repository has not pulled.
+- **Open, the owner's hand, in the queue through the manager:** the
+  saved `CLAUDE_CODE_PLUGIN_DIRS` names only the session-dispatch
+  folder, which does not exist; the next app start would load neither
+  plugin. The entry gives the clone command and a `setx` with both
+  folders joined by a semicolon (`~/.claude/mods/owner-queue` first),
+  then a full restart. The planner changes no system setting.
+- **Lesson repeated by the owner, 2026-10-12:** open points for the
+  owner go to the manager as ready queue entries in the same turn,
+  never chat alone ("why aren't the questions in the ledger").
+- **#167 after that:** `.claude/dispatch.json` exists in the main
+  checkout (the manager's report); it closes on the first real
+  dispatch through the script.
+- **#237** (the manager's standing cleanup ticket): `wayfinder:task`,
+  `tier:low`, "Tooling and upkeep", no parent. Auto-add to the Project
+  worked.
 - **#234** (new, child of #162, "Tooling and upkeep", tier none): the
   planner designs a move of the builders' state files out of
   `.claude/`, by the owner's answer of 2026-10-12 as the manager
