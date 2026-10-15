@@ -157,6 +157,15 @@ class TestFromReply:
         run(raw)
         assert (data / "fact_fantasy_teams.parquet").read_bytes() == first
 
+    def test_a_reply_missing_a_team_fails_and_publishes_nothing(self, env):
+        data, raw = env
+        partial = {**REPLY, "rosters": {"ta": REPLY["rosters"]["ta"]}}
+        (raw / "fantrax_public_rosters_2026_p06.json").write_text(
+            json.dumps(partial), encoding="utf-8")
+        with pytest.raises(ValueError, match="missing"):
+            fe.main(["--raw-dir", str(raw)])
+        assert not (data / "fact_fantasy_teams.parquet").exists()
+
     def test_the_table_matches_the_registry(self, env):
         data, raw = env
         run(raw)
@@ -196,6 +205,14 @@ class TestCapSummary:
         assert out.loc["A01", "dead_money"] == 10.0          # not 10 + 8
         assert out.loc["A01", "cap_room"] == 300.0 - 10.0 - 10.0
         assert out.loc["B01", "cap_room"] == 289.0
+
+    def test_a_team_exactly_at_the_cap_is_not_over(self):
+        teams = TEAMS.assign(original_cap=300_000_000.0)
+        fact = pd.DataFrame({"team_key": ["A01"] * 3 + ["B01"],
+                             "cap_hit": [100_000_000.1, 100_000_000.2, 99_999_999.7, 0.0],
+                             "season": [SEASON] * 4})
+        out = fe.cap_summary(fact, None, teams).set_index("team_key")
+        assert out.loc["A01", "cap_room"] == 0.0
 
 
 class TestRosterMembership:

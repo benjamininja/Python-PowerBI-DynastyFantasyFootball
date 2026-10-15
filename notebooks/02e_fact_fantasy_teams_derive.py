@@ -119,7 +119,8 @@ def finish(rows: pd.DataFrame, stints: pd.DataFrame, contracts: pd.DataFrame,
 def from_reply(body: dict, season_id: str, stints, teams, contracts, assets,
                crosswalk, roster_at, ledger_at) -> pd.DataFrame:
     """The saved getTeamRosters reply -> fact_fantasy_teams. Parsed by 04r's
-    own parser, so a reply it would refuse is refused here too."""
+    own checks and parser, so a reply it would refuse is refused here too."""
+    rs.check_reply(body, None, set(teams["fantrax_team_id"]))
     rows = rs.rosters_to_state(body, teams, set(contracts["contract_id"]), season_id,
                                int(body["period"]), rs.league_day(roster_at))
     return finish(rows, stints, contracts, assets, crosswalk, season_id, roster_at, ledger_at)
@@ -149,7 +150,7 @@ def cap_summary(fact: pd.DataFrame, dead: pd.DataFrame | None,
           else pd.Series(dtype="float64", name="dead_money"))
     out = out.join(dm).fillna({"charged_salary": 0.0, "dead_money": 0.0})
     out["cap_room"] = (out["original_cap"] - out["charged_salary"]
-                       - out["dead_money"] - out["reinvestment_cap"])
+                       - out["dead_money"] - out["reinvestment_cap"]).round(2)
     return out.reset_index()
 
 

@@ -40,6 +40,18 @@ class TestCarriesNextSeason:
     def test_contract(self, contract, carries):
         assert cap.carries_next_season(pd.Series([contract]), CONTRACTS).tolist() == [carries]
 
+    def test_the_published_dim_contract(self):
+        import etl_helpers
+        real = etl_helpers.read_table("dim_contract")
+        ids = real["contract_id"]
+        got = dict(zip(ids, cap.carries_next_season(ids, real)))
+        carrying = {"Minor"} | {c for c, y, t in zip(ids, real["contract_year"],
+                                                     real["total_years"])
+                                if pd.notna(y) and pd.notna(t) and y < t}
+        assert {c for c, v in got.items() if v} == carrying
+        assert got["Minor"] and got["1st"]
+        assert not got["Tag"] and not got["FA"] and not got["X"]
+
 
 class TestDeadMoneyByTeam:
     DEAD = pd.DataFrame({
