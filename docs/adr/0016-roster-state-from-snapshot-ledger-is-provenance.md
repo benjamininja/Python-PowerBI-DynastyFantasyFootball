@@ -1,6 +1,6 @@
 # Roster State is read from the snapshot; the ledger is provenance; cap math is computed once
 
-- Status: accepted. Designed through HITL grilling on 2026-09-27 ([#82](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/82)); not yet built. **Amended 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81))**: the in-season fact model, see [the amendment](#amendment-2026-10-03-in-season-fact-model-81).
+- Status: accepted. Designed through HITL grilling on 2026-09-27 ([#82](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/82)); not yet built. **Amended 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81))**: the in-season fact model, see [the amendment](#amendment-2026-10-03-in-season-fact-model-81). **Amended 2026-10-14 ([#97](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/97))**: the cap module, the current roster and the cap table, see [the amendment](#amendment-2026-10-14-the-cap-module-the-current-roster-and-the-cap-table-97).
 - Date: 2026-09-27
 - Amends:
   - [ADR-0003](0003-event-sourced-roster-transactions.md): the ledger stops being the source of *current rosters*. It stays the source of acquisition history. This ADR also closes ADR-0003's open "`dead_money` schedule by contract year".
@@ -213,3 +213,43 @@
 - **Still open, harmless under decision 5:**
   - which instant the public per-period snapshot represents;
   - why 15 non-starters had no scoring entry in final period 1.
+
+## Amendment 2026-10-14: the cap module, the current roster and the cap table (#97)
+
+- Amends decision 8 (where cap math lives and what `fact_fantasy_teams` is), the 2026-10-03 amendment's decision 16 (only the grain moves here; the `roster_slot` rename stays with #110) and [ADR-0011](0011-minors-is-placement-not-contract.md)'s IR rule.
+- Designed through HITL grilling on 2026-10-11 ([#97](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/97)); the IR and season rulings are the owner's of 2026-10-12. Built in three PRs: the module and the roster (this text lands with the first), `fact_team_cap`, and the consumers.
+
+### Context
+
+- Cap math lived in `discord_bot/capmath.py`; trade-bud reached it through `sys.path` and a monkeypatch; `02e` built the roster by replaying the ledger.
+- The replay goes stale between transaction captures (`04t` is not a pipeline step until #93), and a past period's public roster is the roster at its lineup lock (the 2026-10-04 notes above). Whether the **current** public roster (`getTeamRosters` with no period) is live or lock-frozen was measured before building:
+  - *Measured 2026-10-14 (counts and ids only).* The waiver run of Wednesday 08:00 executed 4 claims with a bid and 1 conditional drop, each stamped Scoring Period 6, the period in play. The no-period reply read that afternoon has all 4 claimed copies on their claiming teams and the dropped copy off its team, which period 5's reply still showed. The current roster is live; the design stands.
+
+### Decision
+
+1. **One cap module, in `notebooks/`** (`etl_cap.py`), imported by the ETL only. The bot and trade-bud import no cap math; they read published tables.
+2. **`fact_fantasy_teams` is built from the current public roster**, the newest `getTeamRosters` reply `04r` saved (it reads the no-period roster on every run, all year, and stamps each saved reply with `captured_at` and `season_id`). Slot, salary and contract are Fantrax's. The ledger adds provenance: `acquired_method` and `acquired_date` from the move that opened the copy's open stint, else `unknown`. New columns `scorer_id` (the grain is `(team_key, scorer_id)`), `acquired_date`, `cap_hit`, `cap_exempt`. `02e` makes no network call.
+   - *Built (#97 PR 1) with two more columns, `roster_captured_at` (the reply's read instant) and `ledger_captured_at` (the newest transaction capture's), which the replay check below compares. The table is written through the storage seam.*
+   - With no saved reply, `02e` fails in the regular season and the playoffs. Out of season it builds from the ledger replay with slots blank (every salary charged), and the replay check files one finding.
+3. **Exemption (owner's ruling).** Salary in the **Minors slot and the IR slot** is not counted against the cap, whatever the contract. Dropping an IR player still creates Dead Money by the contract's percentage. This reverses ADR-0011's "IR charges full salary". Fantrax's own total charges IR and is treated as wrong on this point.
+4. **Cap table.** `fact_team_cap`, grain `(season_id, team_key)`, this season and next. The next-season row counts every contract with a following year (`contract_year < total_years`), plus `Minor`, at the same salary, with no slot exempt.
+   - **This season is the roster table's `season`** in every cap figure; nothing takes it from the calendar (owner's ruling 2026-10-12, #206 part 1).
+   - Dead Money is charged one season at a time: a season's row carries only that season's rows of `fact_dead_money`.
+5. **Fantrax's Salary Remaining** sits on the current-season row. A Review check compares it on Fantrax's basis (IR salary added back): `original_cap − charged salary − IR salary − Dead Money`, to $1, only when both sides are from the same league day.
+6. **Replay check** (`roster_membership`, Review, membership only, zero grace per [ADR-0008](0008-regression-testing-standard.md) decision 9): one finding per roster copy with no open stint on the ledger and per open stint with no roster row. While the transaction capture is older than the roster read, one "ledger is stale" finding files and the per-row findings are held back.
+7. **Consumers.** The bot shows the league's cap room plus a line with the team's IR-exempt salary. trade-bud's what-if sheds the giver's charge today and charges the receiver the full salary.
+8. **Not here:** the Power BI changes (#140), the Minor contract rules (#130), the `roster_slot` rename (#110).
+
+### Alternatives considered
+
+- **Keep the replay as the roster** and check the snapshot against it. Rejected: the snapshot is what Fantrax enforces; the ledger can only vouch for membership.
+- **Read the latest per-period Roster State** instead of the no-period reply. Rejected: it stops at period 12 and does not exist off-season.
+- **Cap math in a module the bot imports.** Rejected by decision 8 itself: the math would run in two places at runtime.
+- **Charge IR, as Fantrax does.** Rejected by the owner: IR is cap relief in this league.
+- **A grace period on the replay check.** Not now: `etl_checks` has no grace mechanism yet (#116); the stale-ledger guard covers the common case.
+
+### Consequences
+
+- `02e` no longer writes outside the storage seam; its entry leaves the static guard's exceptions.
+- Until the consumer PR, the bot and trade-bud still compute with the old rule (IR charged) from the same table.
+- Power BI already exempts `Inj Res` in its measures; modelling `fact_team_cap` there is #140.

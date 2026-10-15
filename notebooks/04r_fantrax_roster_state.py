@@ -27,8 +27,12 @@
 # not one of the four Roster Slots; a contract is not in dim_contract.
 #
 # **Outputs:**
-# - `data/raw/fantrax_public_rosters_{year}_p{NN}.json` -- verbatim responses
-#   (untracked)
+# - `data/raw/fantrax_public_rosters_{year}_p{NN}.json` -- each response,
+#   stamped with `captured_at` (UTC) and `season_id` (untracked). The one with
+#   the highest year and period is the current roster `02e` builds
+#   `fact_fantasy_teams` from (#97). It is saved on every run, also when the
+#   league's season is not yet in dim_scoring_period (then no Roster State is
+#   read and the run does not fail).
 # - `fact_roster_state.parquet` -- grain `(season_id, period, team_key,
 #   scorer_id)`, replace-by-`(season_id, period)`
 #
@@ -38,6 +42,7 @@
 import importlib
 import json
 import random
+import re
 import sys
 import time
 from pathlib import Path
@@ -166,6 +171,29 @@ def rosters_to_state(payload: dict, teams: pd.DataFrame, contract_ids,
     return df[STATE_COLUMNS]
 
 
+RAW_PATTERN = re.compile(r"^fantrax_public_rosters_(\d{4})_p(\d{2})\.json$")
+
+
+def newest_reply(raw_dir) -> tuple[Path, dict, pd.Timestamp, str] | None:
+    """The current roster as the last run saw it: the saved reply with the
+    highest (year, period). A period is never asked for past the one Fantrax
+    calls current, so that file is the last no-period reply. Returns (path,
+    reply, captured_at in UTC, season_id), or None when no reply is saved. A
+    reply saved before #97 has no stamp: the file's time and the year in its
+    name stand in."""
+    found = [(int(m.group(1)), int(m.group(2)), p) for p in Path(raw_dir).glob("*.json")
+             if (m := RAW_PATTERN.match(p.name))]
+    if not found:
+        return None
+    year, _, path = max(found)
+    body = json.loads(path.read_text(encoding="utf-8"))
+    stamp = body.get("captured_at")
+    captured = (pd.Timestamp(stamp) if stamp
+                else pd.Timestamp(path.stat().st_mtime, unit="s", tz="UTC"))
+    season_id = body.get("season_id") or lg.season_id_of({"seasonYear": year})
+    return path, body, captured.tz_convert("UTC"), season_id
+
+
 def collect(fetch, periods: pd.DataFrame, teams: pd.DataFrame, contract_ids,
             season_id: str, now) -> tuple[pd.DataFrame, int]:
     """Read every period due this run.
@@ -200,9 +228,6 @@ def main() -> int:
     season_id = lg.season_id_of(info)
     year = int(info["seasonYear"])
     periods = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
-    if periods is None or season_id not in set(periods["season_id"]):
-        raise ValueError(f"season {season_id} is not in dim_scoring_period -- run 04p first")
-    periods = periods[periods["season_id"] == season_id]
     teams = read_table("dim_fantasy_teams")
     contract_ids = set(read_table("dim_contract")["contract_id"])
 
@@ -219,10 +244,21 @@ def main() -> int:
         reply = fantrax_public_get("getTeamRosters", FX_CFG.league_id,
                                    expect=("period", "rosters"), **params)
         # Saved before any check, under the period the reply echoes, so a
-        # reply that fails a check is still on disk to look at.
+        # reply that fails a check is still on disk to look at. The no-period
+        # reply saved last is the current roster 02e builds from (#97).
         name = RAW_NAME.format(year=year, period=int(reply["period"]))
-        (raw_dir / name).write_text(json.dumps(reply, indent=2), encoding="utf-8")
+        stamped = {"captured_at": now.isoformat(), "season_id": season_id, **reply}
+        (raw_dir / name).write_text(json.dumps(stamped, indent=2), encoding="utf-8")
         return reply
+
+    if periods is None or season_id not in set(periods["season_id"]):
+        # The league's new season before 04p has its periods: keep the current
+        # roster for 02e, read no Roster State.
+        current = check_reply(fetch(None), None, set(teams["fantrax_team_id"]))
+        print(f"[warn] season {season_id} is not in dim_scoring_period: kept the current "
+              f"roster (period {current}), read no Roster State -- run 04p")
+        return 0
+    periods = periods[periods["season_id"] == season_id]
 
     state, current = collect(fetch, periods, teams, contract_ids, season_id, now)
 

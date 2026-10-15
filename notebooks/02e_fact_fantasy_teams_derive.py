@@ -1,45 +1,32 @@
 # %% [markdown]
-# # 02e_fact_fantasy_teams_derive  (ledger replay -> current roster)
+# # 02e_fact_fantasy_teams_derive  (current roster + provenance + cap charge)
 #
-# **Purpose:** Derive the current-roster fact `fact_fantasy_teams` from the
-# event-sourced `fact_roster_transactions` ledger (ADR-0003: the ledger is the
-# SSOT; this fact is a *replay projection*, never scraped independently).
-# `fact_fantasy_teams` is the only location for contract/salary/cap-hit data --
-# it no longer rolls cap totals up into `dim_fantasy_teams`. Consumers compute
-# active-roster-salary/remaining-cap live from this fact instead of reading a
-# cached snapshot: Power BI via the DAX measures in `_Measures.tmdl`
-# ('Active Roster Salary', 'Remaining Salary Cap'), the Discord bot via
-# `discord_bot/capmath.py`. Same formula, computed where it's consumed.
+# **Purpose:** the current Roster State, `fact_fantasy_teams`, all year
+# (ADR-0016 decision 8 and its #97 amendment). The roster is Fantrax's as
+# observed: the newest getTeamRosters reply `04r` saved (it reads the
+# current roster on every run). The ledger adds provenance: how and when the
+# copy joined the team. `etl_cap` stamps each row's charge: salary in the
+# Minors or IR slot is cap-exempt (owner's ruling 2026-10-12).
 #
-# **Replay rule:** order events by `event_seq`; the **last** event per
-# `(team_key, asset_id)` defines that player's current contract. `event_seq` is
-# the ledger's sort order only: its key is `(transaction_id, scorer_id,
-# team_key, event_type)` (ADR-0016 decision 6), which this replay does not
-# need. Terminal `drop`
-# events remove the player from the active roster. v1 has only `startup_draft`
-# events (all active), so this is one active row per drafted player — but the
-# logic is written general so `resign`/`fa_*`/`drop` slot in without change.
+# **Grain:** `(team_key, scorer_id)`, one row per player copy (one copy per
+# Conference). Written through the storage seam.
 #
-# **Output schema:** team_key, gsis_id, player_key, contract_id, contract_value,
-# contract_year, acquired_method, roster_status, season.
-# `dead_money` is NOT stored here (dropped 2026-07-13): Dead Money is its own
-# fact, `fact_dead_money`, written by 02f from the ledger's drops (#96).
-# `roster_status` (added 2026-07-13) is OBSERVED state stamped from the newest
-# Scoring Period in `fact_roster_state` — Minors placement is cap-exempt
-# downstream.
-# `conference` and
-# `cap_hit` are NOT stored (removed 2026-07-11) -- both are 100% derivable
-# (`TeamKey`->`Dim_FantasyTeams`; a kept player's charge is the full
-# ContractValue), so caching them here just duplicated that math a second time.
-# Power BI derives them live (`_Measures.tmdl` 'Active Roster Salary' =
-# SUM(ContractValue), current season, RosterStatus <> "Minors"); the bot's
-# `discord_bot/capmath.py` applies the same rule in pandas. CapHitPct on
-# Dim_Contract is dead-money-only (prices a CUT, never a kept player).
+# **Provenance:** `acquired_method` / `acquired_date` come from the ledger move
+# that opened the copy's open stint on that team. A roster row with no open
+# stint is `unknown`, never guessed. Membership is checked by `etl_checks`
+# (`roster_membership`, Review), which reads `roster_captured_at` and
+# `ledger_captured_at`.
 #
-# **Run:**  python notebooks/02e_fact_fantasy_teams_derive.py
-#   (after 02d and 02f; re-run during the live draft to refresh roster state.)
+# **No saved reply:** in the regular season or the playoffs the run fails.
+# Otherwise it builds from the ledger replay with slots blank (every salary
+# charged), and the Review check files one finding.
+#
+# **Run:**  python notebooks/02e_fact_fantasy_teams_derive.py [--raw-dir DIR]
+#   (after 04r, 02d and 02f; no network.)
 
 # %%
+import argparse
+import importlib
 import sys
 from pathlib import Path
 
@@ -48,149 +35,175 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
+import etl_cap as cap
 import etl_helpers as etl
-from etl_helpers import CFG, DATA
 
-FFT_PATH       = DATA / "fact_fantasy_teams.parquet"
+rs = importlib.import_module("04r_fantrax_roster_state")
 
 # fact_roster_state.roster_slot -> the roster_status values this fact has always
 # carried. They stay until #110 renames the column to roster_slot.
 SLOT_TO_STATUS = {"Starter": "Active", "Bench": "Reserve", "IR": "Inj Res", "Minors": "Minors"}
 
-TERMINAL = {"drop", "trade_away"}   # event_types that REMOVE a player from the active roster
+TXN_FILES = "fantrax_txn_history_*.json"
+UNKNOWN = "unknown"
+
+COLUMNS = ["team_key", "scorer_id", "gsis_id", "player_key", "contract_id",
+           "contract_value", "contract_year", "cap_hit", "cap_exempt",
+           "acquired_method", "acquired_date", "roster_status", "season",
+           "roster_captured_at", "ledger_captured_at"]
+
 
 # %%
-# ---- Replay the ledger -> latest contract per (team_key, asset_id) ---------
-ledger = etl.read_table("fact_roster_transactions")
-assets = etl.read_table("dim_roster_asset")
-teams  = etl.read_table("dim_fantasy_teams")
-print(f"[info] ledger: {len(ledger)} events, {ledger['event_type'].nunique()} type(s)")
+def in_season(periods: pd.DataFrame, now) -> bool:
+    """Is `now` inside a season's Scoring Periods (regular season or playoffs)?"""
+    bounds = periods.groupby("season_id").agg(start=("start_at", "min"), end=("end_at", "max"))
+    return bool(((bounds["start"] <= now) & (now <= bounds["end"])).any())
 
-# last event wins per player+team (event_seq = canonical order: startup slots
-# 1..490, then trade/claim/drop legs from 100_000 in chronological order).
-latest = (ledger.sort_values("event_seq")
-          .drop_duplicates(["team_key", "asset_id"], keep="last"))
-active = latest[~latest["event_type"].isin(TERMINAL)].copy()
 
-# acquired_method = the copy's FIRST event (how the player arrived), not the
-# last — contract-state events (minor_*) update the contract columns via
-# last-event-wins above but must not masquerade as an acquisition method.
-first = (ledger.sort_values("event_seq")
-         .drop_duplicates(["team_key", "asset_id"], keep="first")
-         .rename(columns={"event_type": "acquired_method"})
-         [["team_key", "asset_id", "acquired_method"]])
-active = active.merge(first, on=["team_key", "asset_id"], how="left")
+def ledger_captured_at(raw_dir) -> pd.Timestamp:
+    """When the newest transaction capture was written (04t stamps no time of
+    its own), or NaT when there is none."""
+    files = list(Path(raw_dir).glob(TXN_FILES))
+    if not files:
+        return pd.NaT
+    return pd.Timestamp(max(f.stat().st_mtime for f in files), unit="s", tz="UTC")
 
-# roster_status: OBSERVED Roster Slot (Active/Reserve/Inj Res/Minors) stamped
-# from the newest Scoring Period in fact_roster_state (04r), keyed exactly on
-# (team_key, scorer_id) — the ledger rows carry scorer_id, no gsis fallback
-# needed. Not a derived rollup (allowed to live on the fact): cap exemption
-# follows the Minors SLOT, not the Minor contract, so consumers (capmath, PBI
-# measures) exclude roster_status == "Minors" salaries from the charge.
-# Null = not on that roster (e.g. before 04r's first run) -> charged, the safe
-# default. 04r reads regular-season periods only, so the stamp stops moving
-# after the last one (#97).
-if etl.table_exists("fact_roster_state"):
-    _st = etl.read_table("fact_roster_state")
-    _st = _st[_st["season_id"] == _st["season_id"].max()]
-    _period = int(_st["period"].max())
-    _st = _st[_st["period"] == _period]
-    _st = (_st.assign(roster_status=_st["roster_slot"].map(SLOT_TO_STATUS))
-           [["team_key", "scorer_id", "roster_status"]]
-           .drop_duplicates(subset=["team_key", "scorer_id"]))
-    active = active.merge(_st, on=["team_key", "scorer_id"], how="left")
-    n_minor = (active["roster_status"] == "Minors").sum()
-    print(f"[info] roster_status stamped from Roster State, Scoring Period {_period} "
-          f"({_st.shape[0]} roster rows; {n_minor} in the Minors slot, cap-exempt)")
-    # Reverse check: roster rows with no matching active ledger row are
-    # observed ownership the ledger doesn't know about (a move made after the
-    # newest transaction capture). Surface them; the ledger side of such a
-    # pair keeps roster_status null and is charged (safe default).
-    _led_keys = set(zip(active["team_key"], active["scorer_id"]))
-    _orphans = _st[[k not in _led_keys
-                    for k in zip(_st["team_key"], _st["scorer_id"])]]
-    if len(_orphans):
-        print(f"[warn] {len(_orphans)} roster row(s) have no active ledger "
-              f"row for that (team, scorer) — ledger gap (trade/FA move not in "
-              f"ledger?). Examples:")
-        print(_orphans.head(8).to_string(index=False))
-    _unseen = int(active["roster_status"].isna().sum())
-    if _unseen:
-        print(f"[warn] {_unseen} active ledger row(s) are not on that roster — "
-              f"roster_status null (charged)")
-else:
-    active["roster_status"] = pd.NA
-    print("[warn] no fact_roster_state.parquet — roster_status all null "
-          "(every salary charged)")
 
-# resolve asset_id -> gsis_id / player_key via the polymorphic bridge.
-res = assets.set_index("asset_id")[["gsis_id", "player_key"]]
-active = active.merge(res, on="asset_id", how="left", suffixes=("", "_asset"))
-# prefer the ledger snapshot's gsis_id; fall back to the asset's current resolver.
-active["gsis_id"] = active["gsis_id"].fillna(active["gsis_id_asset"])
+def identity(scorer_ids: pd.Series, assets: pd.DataFrame,
+             crosswalk: pd.DataFrame) -> pd.DataFrame:
+    """scorer_id -> gsis_id / player_key: the ledger's player asset first,
+    then dim_fantrax_crosswalk."""
+    out = pd.DataFrame({"scorer_id": scorer_ids})
+    for src in (assets[assets["scorer_id"].notna()], crosswalk):
+        ids = src.drop_duplicates("scorer_id").set_index("scorer_id")
+        for col in ("gsis_id", "player_key"):
+            got = out["scorer_id"].map(ids[col])
+            out[col] = out[col].fillna(got) if col in out else got
+    return out[["gsis_id", "player_key"]].set_axis(scorer_ids.index)
 
-fact_fantasy_teams = pd.DataFrame({
-    "team_key":       active["team_key"],
-    "gsis_id":        active["gsis_id"],
-    "player_key":     active["player_key"],
-    "contract_id":    active["contract_id"],
-    "contract_value": active["contract_value"],
-    "contract_year":  active["contract_year"],
-    "acquired_method": active["acquired_method"],
-    "roster_status":  active["roster_status"],
-    "season":         active["season_id"],
-}).reset_index(drop=True)
 
-fact_fantasy_teams.to_parquet(FFT_PATH, index=False)
-print(f"[ok] fact_fantasy_teams: {len(fact_fantasy_teams)} active roster rows -> {FFT_PATH.name}")
+def finish(rows: pd.DataFrame, stints: pd.DataFrame, contracts: pd.DataFrame,
+           assets: pd.DataFrame, crosswalk: pd.DataFrame, season_id: str,
+           roster_at, ledger_at) -> pd.DataFrame:
+    """Roster rows (team_key, scorer_id, roster_slot, salary, contract_id) ->
+    fact_fantasy_teams: provenance, identity, contract year and cap charge."""
+    opened = stints.set_index(["team_key", "scorer_id"])
+    key = pd.MultiIndex.from_frame(rows[["team_key", "scorer_id"]])
+    method = pd.Series(opened["event_type"].reindex(key).to_numpy(), index=rows.index)
+    when = pd.Series(opened["event_date"].reindex(key).to_numpy(), index=rows.index)
+    ids = identity(rows["scorer_id"], assets, crosswalk)
+    charge = cap.stamp_cap(rows["roster_slot"], rows["salary"])
+    year = rows["contract_id"].map(contracts.set_index("contract_id")["contract_year"])
+    fact = pd.DataFrame({
+        "team_key": rows["team_key"].astype("str"),
+        "scorer_id": rows["scorer_id"].astype("str"),
+        "gsis_id": ids["gsis_id"],
+        "player_key": ids["player_key"],
+        "contract_id": rows["contract_id"],
+        "contract_value": rows["salary"].astype("float64"),
+        "contract_year": pd.to_numeric(year).astype("float64"),
+        "cap_hit": charge["cap_hit"],
+        "cap_exempt": charge["cap_exempt"],
+        "acquired_method": method.fillna(UNKNOWN).astype("str"),
+        "acquired_date": pd.to_datetime(when).astype("datetime64[us]"),
+        "roster_status": rows["roster_slot"].map(SLOT_TO_STATUS),
+        "season": season_id,
+        "roster_captured_at": pd.Series(roster_at, index=rows.index,
+                                        dtype="datetime64[us, UTC]"),
+        "ledger_captured_at": pd.Series(ledger_at, index=rows.index,
+                                        dtype="datetime64[us, UTC]"),
+    })
+    return fact.sort_values(["team_key", "scorer_id"], ignore_index=True)[COLUMNS]
+
+
+def from_reply(body: dict, season_id: str, stints, teams, contracts, assets,
+               crosswalk, roster_at, ledger_at) -> pd.DataFrame:
+    """The saved getTeamRosters reply -> fact_fantasy_teams. Parsed by 04r's
+    own checks and parser, so a reply it would refuse is refused here too."""
+    rs.check_reply(body, None, set(teams["fantrax_team_id"]))
+    rows = rs.rosters_to_state(body, teams, set(contracts["contract_id"]), season_id,
+                               int(body["period"]), rs.league_day(roster_at))
+    return finish(rows, stints, contracts, assets, crosswalk, season_id, roster_at, ledger_at)
+
+
+def from_replay(ledger: pd.DataFrame, stints, contracts, assets, crosswalk,
+                ledger_at) -> pd.DataFrame:
+    """No saved reply, out of season: the open stints, at their ledger terms,
+    with no Roster Slot (so every salary is charged)."""
+    season_id = ledger["season_id"].dropna().max()
+    rows = pd.DataFrame({
+        "team_key": stints["team_key"], "scorer_id": stints["scorer_id"],
+        "roster_slot": pd.Series(pd.NA, index=stints.index, dtype="object"),
+        "salary": stints["contract_value"], "contract_id": stints["contract_id"]})
+    return finish(rows, stints, contracts, assets, crosswalk, season_id, pd.NaT, ledger_at)
+
+
+def cap_summary(fact: pd.DataFrame, dead: pd.DataFrame | None,
+                teams: pd.DataFrame) -> pd.DataFrame:
+    """Per team, this season only (the roster's own `season`): charged salary,
+    this season's Dead Money and the cap room left. Printed, not published
+    (the cap table is fact_team_cap's)."""
+    season = fact["season"].iloc[0] if len(fact) else None
+    roll = fact.groupby("team_key")["cap_hit"].sum().rename("charged_salary")
+    out = teams.set_index("team_key")[["original_cap", "reinvestment_cap"]].join(roll)
+    dm = (cap.dead_money_by_team(dead, season) if dead is not None
+          else pd.Series(dtype="float64", name="dead_money"))
+    out = out.join(dm).fillna({"charged_salary": 0.0, "dead_money": 0.0})
+    out["cap_room"] = (out["original_cap"] - out["charged_salary"]
+                       - out["dead_money"] - out["reinvestment_cap"]).round(2)
+    return out.reset_index()
+
 
 # %%
-# ---- Summary -----------------------------------------------------------------
-# Live-computed for display only -- not persisted. A KEPT player's cap charge
-# is the FULL contract_value: cap_hit_pct on dim_contract is DEAD-MONEY-ONLY
-# (what's owed if you CUT the player) — same rule as the DAX 'Active Roster
-# Salary' comment and capmath.roster_with_cap_hit (2026-07-13 audit fix: this
-# summary used to multiply by cap_hit_pct, a 2x understatement that also
-# silently zero-charged Minor-CONTRACT players kept active).
-fact_fantasy_teams["cap_hit"] = fact_fantasy_teams["contract_value"]
-# The Minors Roster Slot is the only cap exemption (roster_status == "Minors");
-# null roster_status charges — same rule as capmath / DAX.
-fact_fantasy_teams.loc[
-    fact_fantasy_teams["roster_status"] == "Minors", "cap_hit"] = 0.0
-# Dead Money is its own fact (fact_dead_money, written by 02f from the
-# ledger's drops; ADR-0016 decision 5), not a column here: this season's rows
-# per team come off the cap — same rule as capmath.teams_with_cap.
-roll = (fact_fantasy_teams.groupby("team_key")
-        .agg(active_roster_salary=("cap_hit", "sum"))
-        .reset_index())
-if etl.table_exists("fact_dead_money"):
-    _dead = etl.read_table("fact_dead_money")
-    _dead = _dead[_dead["season_id"].isin(set(fact_fantasy_teams["season"]))]
-    roll = roll.merge(_dead.groupby("team_key")["dead_money"].sum().reset_index(),
-                      on="team_key", how="outer")
-else:
-    roll["dead_money"] = 0.0
-    print("[warn] no fact_dead_money.parquet — run 02f; the summary charges no Dead Money")
-chk = teams.merge(roll, on="team_key", how="left")
-for c in ("active_roster_salary", "dead_money"):
-    chk[c] = chk[c].fillna(0)
-chk["remaining_cap_current_yr"] = chk["original_cap"] - (
-    chk["active_roster_salary"] + chk["dead_money"] + chk["reinvestment_cap"])
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description="Build fact_fantasy_teams.")
+    ap.add_argument("--raw-dir", type=Path, default=None,
+                    help="where 04r's and 04t's raw files are (default: 04a's raw dir)")
+    args = ap.parse_args(argv)
+    raw_dir = Path(args.raw_dir or rs.FX_CFG.raw_dir)
+    now = pd.Timestamp.now(tz="UTC")
 
-print("\n=== roster + cap (teams with picks) ===")
-print(chk[chk["active_roster_salary"] > 0][
-    ["team_key", "team_name", "active_roster_salary", "remaining_cap_current_yr"]
-].to_string(index=False))
-# The invariant that matters is remaining cap >= 0 (the old
-# `remaining <= original` check was vacuously true). Warn, don't assert:
-# an over-cap team is a league-side compliance problem to surface, not a
-# reason to kill the scheduled pipeline run.
-_over = chk[chk["remaining_cap_current_yr"] < 0]
-if len(_over):
-    print(f"[warn] {len(_over)} team(s) OVER the cap:")
-    print(_over[["team_key", "team_name", "remaining_cap_current_yr"]]
-          .to_string(index=False))
-assert fact_fantasy_teams["team_key"].notna().all()
-print(f"\nrostered players: {len(fact_fantasy_teams)} | "
-      f"avg cap_hit: {fact_fantasy_teams['cap_hit'].mean():,.0f} | "
-      f"total committed: {fact_fantasy_teams['cap_hit'].sum():,.0f}")
+    ledger = etl.read_table("fact_roster_transactions")
+    assets = etl.read_table("dim_roster_asset")
+    teams = etl.read_table("dim_fantasy_teams")
+    contracts = etl.read_table("dim_contract")
+    crosswalk = etl.read_table("dim_fantrax_crosswalk")
+    periods = etl.read_table("dim_scoring_period")
+    stints = cap.open_stints(ledger)
+    ledger_at = ledger_captured_at(raw_dir)
+
+    newest = rs.newest_reply(raw_dir)
+    if newest is not None:
+        path, body, roster_at, season_id = newest
+        fact = from_reply(body, season_id, stints, teams, contracts, assets, crosswalk,
+                          roster_at, ledger_at)
+        print(f"[info] roster: {path.name} (period {int(body['period'])}, {season_id}, "
+              f"read {roster_at.isoformat()}"
+              f"{'' if body.get('captured_at') else ', the file time: no stamp'})")
+    elif in_season(periods, now):
+        raise FileNotFoundError(f"no saved getTeamRosters reply in {raw_dir} during the "
+                                "season -- run 04r")
+    else:
+        fact = from_replay(ledger, stints, contracts, assets, crosswalk, ledger_at)
+        print(f"[warn] no saved roster reply in {raw_dir}: built from the ledger replay, "
+              "slots blank (every salary charged)")
+
+    total = etl.write_table("fact_fantasy_teams", fact)
+    by_method = fact["acquired_method"].value_counts().to_dict()
+    exempt = fact[fact["cap_exempt"]].groupby("roster_status").size().to_dict()
+    print(f"[ok] fact_fantasy_teams: {total} rows; acquired {by_method}; "
+          f"cap-exempt by slot {exempt}; ledger captured {ledger_at}")
+
+    dead = etl.read_table("fact_dead_money") if etl.table_exists("fact_dead_money") else None
+    if dead is None:
+        print("[warn] no fact_dead_money -- run 02f; the summary charges no Dead Money")
+    summary = cap_summary(fact, dead, teams)
+    over = summary[summary["cap_room"] < 0]
+    print(f"[info] cap room ({fact['season'].iloc[0] if len(fact) else 'no season'}): "
+          f"min {summary['cap_room'].min():,.0f}, {len(over)} team(s) over the cap"
+          + (f": {sorted(over['team_key'])}" if len(over) else ""))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

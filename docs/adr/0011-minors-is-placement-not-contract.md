@@ -8,7 +8,14 @@
   cap-exempt. *2026-10-04 (#117): `fact_roster_placement` is retired. The
   slot now comes from `fact_roster_state`
   ([ADR-0016](0016-roster-state-from-snapshot-ledger-is-provenance.md)), and
-  `04v` captures eligibility only.*
+  `04v` captures eligibility only.* *2026-10-14 (#97): **the IR line is
+  reversed.** The owner ruled on 2026-10-12 that salary in the IR slot, like
+  the Minors slot, is not counted against the cap; dropping an IR player
+  still creates Dead Money. The rule lives in one place now,
+  `notebooks/etl_cap.py` (`EXEMPT_SLOTS`), which stamps
+  `fact_fantasy_teams.cap_exempt`
+  ([ADR-0016's #97 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-14-the-cap-module-the-current-roster-and-the-cap-table-97)).
+  The "IR cap treatment" section below is history.*
 - Date: 2026-07-26
 - **Supersedes** [ADR-0010](0010-minors-stash-season-boundary.md) (stash
   durability across season boundaries), which modelled protection for a

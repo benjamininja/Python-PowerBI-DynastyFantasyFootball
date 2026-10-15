@@ -73,8 +73,9 @@ Where a player sits on a team: **Starter**, **Bench**, **IR** or **Minors**.
 Only Starters score. Fantrax calls Starter "Active" and Bench "Reserve"; those
 words are not used here. Not the NFL injury designation (Questionable/Doubtful/
 Out), which belongs to the player, not the slot. The Minors slot is not the
-Minor contract: a Minor player can sit in any slot. Only the Minors slot takes
-a player's salary off the cap.
+Minor contract: a Minor player can sit in any slot. Only the Minors and IR
+slots take a player's salary off the cap (owner's ruling, 2026-10-12; Fantrax
+charges IR and is treated as wrong on this).
 _Avoid_: active, reserve, roster status, injury status
 
 **Minors Eligibility**:
@@ -126,9 +127,18 @@ Cap charged to a team for dropping a player on a guaranteed contract. It follows
 the rest of the contract: each remaining guaranteed contract year charges its own
 rate in its own season, to the dropping team, even if the player is later
 re-claimed. Trades never create it. Only a drop that ends a stint creates it: a
-drop by a team the ledger never saw acquire the player charges nothing. Stored
-in `fact_dead_money`, one row per season charged.
+drop by a team the ledger never saw acquire the player charges nothing.
+Dropping a player from the IR slot still creates it. Stored in
+`fact_dead_money`, one row per season charged, and a season's cap figures
+carry only that season's rows.
 _Avoid_: cut penalty, cap hit (that's a rostered player's charge)
+
+**Cap Hit**:
+What a rostered player charges against this season's cap: the full salary, or
+nothing while the player sits in the Minors or IR slot. The contract never
+exempts anyone. Computed in one place for the ETL (`notebooks/etl_cap.py`) and
+stored on `fact_fantasy_teams`.
+_Avoid_: dead money (that's a dropped player's charge), salary (charged or not)
 
 ### Results
 

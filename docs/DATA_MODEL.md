@@ -68,6 +68,7 @@ graph LR
     fact_nfl_combine_pro_day_metrics --> dim_rookie_prospect
     fact_fantasy_teams --> dim_fantasy_teams
     fact_fantasy_teams --> dim_nfl_players
+    fact_fantasy_teams -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_fantasy_teams --> dim_rookie_prospect
     fact_fantasy_teams --> dim_contract
     fact_roster_transactions --> dim_fantasy_teams
