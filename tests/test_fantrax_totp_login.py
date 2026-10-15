@@ -227,6 +227,27 @@ class TestRefusedCode:
         assert page.clicks == 0
 
 
+class TestHowTheCodeWentIn:
+    def test_a_form_that_submits_itself_is_recorded_as_self_submit(self, scraper):
+        scraper._login(FakePage(valid_code=fake_code(NOW), self_submit=True))
+        assert scraper.code_sent_by == "self_submit"
+
+    def test_a_clicked_verify_button_is_recorded_as_verify_click(self, scraper):
+        page = FakePage(valid_code=fake_code(NOW), enable_after=3)
+        scraper._login(page)
+        assert page.clicks == 1
+        assert scraper.code_sent_by == "verify_click"
+
+    def test_no_prompt_leaves_it_unset(self, scraper):
+        scraper._login(FakePage(prompt=False))
+        assert scraper.code_sent_by is None
+
+    def test_a_second_login_starts_from_unset(self, scraper):
+        scraper._login(FakePage(valid_code=fake_code(NOW), self_submit=True))
+        scraper._login(FakePage(prompt=False))
+        assert scraper.code_sent_by is None
+
+
 class TestNothingLeaks:
     @pytest.mark.parametrize("outcome", ["accepted", "refused", "no_secret"])
     def test_neither_secret_nor_code_reaches_output_errors_or_files(

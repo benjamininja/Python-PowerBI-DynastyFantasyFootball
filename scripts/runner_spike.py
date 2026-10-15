@@ -42,6 +42,7 @@ OK, PAGE_ERROR, NOT_LOGGED_IN = "ok", "page_error", "not_logged_in"
 CF_CHALLENGE, HTTP_ERROR, BAD_BODY = "cf_challenge", "http_error", "bad_body"
 NO_RESPONSE, SKIPPED = "no_response", "skipped"
 
+CODE_SENT_BY = ("self_submit", "verify_click")
 SPIKE_PERIOD = 1
 PAUSE_S = 1.0
 CODE_PATTERN = re.compile(r"[A-Z0-9_]{3,48}")
@@ -75,6 +76,7 @@ class Report:
     login: str = FAILED
     login_seconds: float = 0.0
     login_note: str | None = None
+    code_sent_by: str | None = None
     secrets: dict = field(default_factory=dict)
     reads: list = field(default_factory=list)
     steps: list = field(default_factory=list)
@@ -164,6 +166,8 @@ def run_spike(session, reads, judge, clock=time.perf_counter, sleep=time.sleep) 
     signals = session.login()
     report.login_seconds = clock() - start
     report.login_note = getattr(session, "login_error", None)
+    sent = getattr(getattr(session, "scraper", None), "code_sent_by", None)
+    report.code_sent_by = sent if sent in CODE_SENT_BY else None
     stop = early_stop(signals)
     if stop:
         report.login = stop
@@ -198,6 +202,7 @@ def render(report: Report) -> str:
              f"({report.login_seconds:.1f} s)"]
     if report.login_note:
         lines.append(f"Login step raised: {report.login_note}")
+    lines.append(f"Code sent by: {report.code_sent_by or 'none'}")
     lines += ["", "Secrets set (names only): " + ", ".join(
         f"{name} {'yes' if present else 'NO'}" for name, present in report.secrets.items()), ""]
     if report.reads:

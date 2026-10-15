@@ -202,6 +202,27 @@ class TestRunSpike:
         assert spike(session).login_note == "TimeoutError"
 
 
+class TestCodeSentBy:
+    @pytest.mark.parametrize("held, line", [
+        ("self_submit", "Code sent by: self_submit"),
+        ("verify_click", "Code sent by: verify_click"),
+        (None, "Code sent by: none"),
+        (SENTINEL, "Code sent by: none"),
+    ])
+    def test_one_summary_line_with_one_of_three_words(self, held, line):
+        scraper = types.SimpleNamespace(code_sent_by=held)
+        report = spike(FakeSession(replies=[GOOD] * 4, scraper=scraper))
+        text = rs.render(report)
+        assert text.count("Code sent by:") == 1
+        assert line in text.splitlines()
+        assert SENTINEL not in text
+
+    def test_the_line_is_there_when_the_run_stopped_early(self):
+        scraper = types.SimpleNamespace(code_sent_by="verify_click")
+        session = FakeSession(rs.PageSignals(code_prompt=True), scraper=scraper)
+        assert "Code sent by: verify_click" in rs.render(spike(session))
+
+
 class TestRender:
     def build(self):
         session = FakeSession(replies=[GOOD, DENIED, DEAD, RuntimeError(SENTINEL)],
@@ -318,10 +339,11 @@ class TestWorkflow:
     def wf(self):
         return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
-    def test_fires_by_hand_only(self, wf):
+    def test_fires_by_hand_and_on_the_one_daily_schedule(self, wf):
         triggers = wf.get("on", wf.get(True))
-        assert set(triggers) == {"workflow_dispatch"}
+        assert set(triggers) == {"workflow_dispatch", "schedule"}
         assert not (triggers["workflow_dispatch"] or {}).get("inputs")
+        assert triggers["schedule"] == [{"cron": "17 14 * * *"}]
 
     def test_job_is_fenced(self, wf):
         job = wf["jobs"]["spike"]

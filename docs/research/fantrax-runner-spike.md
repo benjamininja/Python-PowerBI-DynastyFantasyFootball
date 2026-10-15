@@ -8,16 +8,16 @@ the workflow or log in to Fantrax; those are the owner's.
 ## Gist
 
 - One workflow, `.github/workflows/fantrax-runner-spike.yml`, fired by hand
-  from `main`. It installs the authed path on `ubuntu-latest`, logs in once
-  headless, makes the four reads #92 lists, and reports only verdicts, HTTP
-  statuses and seconds.
-- **Before the TOTP login code lands, a run cannot get past the code
-  prompt.** `FantraxScraper._login` in `04a` fills the email and password
-  and never answers a second-factor prompt, and `pyotp` is not in
-  `requirements.txt`. The spike reports that stop as `needs_code`. It still
-  answers whether the runner is challenged on the way to the prompt. The
-  login-code change is parked (no ticket yet); the driver needs no change
-  when it lands, because it calls `_login` as it stands.
+  from `main` and, for now, by GitHub once a day. It installs the authed path
+  on `ubuntu-latest`, logs in once headless, makes the four reads #92 lists,
+  and reports only verdicts, HTTP statuses and seconds.
+- **The login code has landed (PR #249, #230).** `FantraxScraper._login` in
+  `04a` answers the second-factor prompt with a code computed from
+  `FANTRAX_TOTP_SECRET` (`pyotp` is in `requirements.txt`). One code, one
+  attempt, no retry. The driver calls `_login` as it stands and reports how
+  the code went in on the `Code sent by:` line. Whether the form submits
+  itself on the sixth digit or needs the `Verify` click is not known yet; that
+  line is how the first runs show it.
 
 ## What the authed path needs on a runner
 
@@ -29,7 +29,7 @@ Read from `04a`, `04s`, `04t`, `04v` and `04w`; nothing was run.
 | Python packages | importing `04a` imports `etl_helpers` (pandas, pyarrow, requests, thefuzz) and reads `dim_position` from the checkout | `pip install -r requirements.txt`, the same file `tests.yml` installs |
 | Credentials | `_creds()` reads `FANTRAX_EMAIL` and `FANTRAX_PASSWORD` from the environment; `python-dotenv` is optional | environment secrets, passed to one step only |
 | A session | the profile dir `data/.pw_profile` holds the cookies | a runner starts empty, so every run is a full login; the driver uses a throwaway temp dir |
-| A second factor | owner's decision on #92 (2026-09-27): TOTP, `FANTRAX_TOTP_SECRET` | **not in the login code yet** (see Gist) |
+| A second factor | owner's decision on #92 (2026-09-27): TOTP, `FANTRAX_TOTP_SECRET` | answered by `_login` since PR #249 (see Gist); the secret is passed to the driver's step only |
 | Writable disk | `_login` saves `login_debug.png` into `raw_dir` when the form fails | the driver points `raw_dir` at a temp dir; nothing is uploaded |
 
 The four reads reuse the payload builders of the notebooks that make them,
@@ -72,8 +72,12 @@ Or, from a terminal at the repo root:
 gh workflow run fantrax-runner-spike.yml --ref main
 ```
 
-It has no schedule and no other trigger. The environment may ask for a
-reviewer's approval if one is configured; approve it.
+GitHub also fires it daily at 14:17 UTC (`schedule`, cron `17 14 * * *`)
+until the schedule comes off. The schedule is temporary: it exists so #92
+question 1 gets runs on different days, and it is removed by its own PR once
+that question is answered. A hand run still works beside it. It has no other
+trigger. The environment may ask for a reviewer's approval if one is
+configured; approve it.
 
 ## Read the output
 
@@ -87,8 +91,22 @@ them but what is listed below.
 |---|---|---|
 | `passed` | the probe read came back authed | read the table |
 | `challenged` | Cloudflare answered the page or a read with its challenge header, or showed its interstitial. The run stops | question 1 of #92 is answered: see the fallback below |
-| `needs_code` | the login form took the email and password and the next screen asked for the authenticator code. Not a block | run again once the TOTP login code has landed |
+| `needs_code` | the code field was still up after `_login` returned: the prompt was never answered (`TotpSecretMissing`) or the code was refused or had expired (`TotpCodeRefused`). Not a block | read the `Login step raised:` line for which |
 | `failed` | no challenge and no code prompt, and the probe was not authed. Wrong password, a changed login form, or a timeout | the line under the headline names the exception class, never its message |
+
+**Lines under the headline:**
+
+- `Login step raised: <class name>`: shown only when `_login` raised. The
+  class name only, never the message. `TotpCodeRefused` and
+  `TotpSecretMissing` are the two code-step names; others are `TotpLoginError`
+  (no `pyotp`, an unusable key, a failed typing or `Verify` click),
+  `RuntimeError` (the login form could not be filled) and Playwright's
+  `TimeoutError`.
+- `Code sent by: <self_submit | verify_click | none>`: how the code went in.
+  `self_submit`: the field was gone before any click, so the form submitted
+  itself. `verify_click`: the driver clicked `Verify`. `none`: no code was
+  submitted (no prompt appeared, the secret was missing, or the code never
+  went in). The code and the secret are never shown.
 
 **Read table**, one row per read: HTTP status, a verdict, a code and the
 seconds.
@@ -117,7 +135,7 @@ and accounts stay out of it.
 
 ```
 Spike run: <date>, workflow run <number>, runner ubuntu-latest.
-1. Login from a runner: <passed | challenged | needs_code | failed>. Runs so far: <n> on <n> different days, <n> passed, <n> challenged.
+1. Login from a runner: <passed | challenged | needs_code | failed>. Code sent by: <self_submit | verify_click | none>. Runs so far: <n> on <n> different days, <n> passed, <n> challenged.
 2. Account without commissioner rights: <used | not used>. Reads: getPlayerStats <verdict>, getLiveScoringStats <verdict>, getTeamRosterInfo <verdict>, getTransactionDetailsHistory <verdict>.
 3. Runtime: install python packages <s>, install chromium <s>, login <s>, reads <s> in all, job total <m s>.
 ```
@@ -155,6 +173,6 @@ else:
 
 ## Parked
 
-The TOTP step in `_login` and the dependency on `pyotp`: any change the
-login code itself needs to run headless. The workflow already passes
-`FANTRAX_TOTP_SECRET` to the driver's step so it needs no edit then.
+Any change the login code itself needs to run headless beyond the code step
+of PR #249. The workflow already passes `FANTRAX_TOTP_SECRET` to the driver's
+step.
