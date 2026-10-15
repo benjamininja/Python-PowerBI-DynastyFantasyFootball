@@ -228,9 +228,12 @@ class FantraxScraper:
     CODE_BUTTON_TEXT = "Verify"
     CODE_MIN_LEFT_S = 3
     TOTP_ENV = "FANTRAX_TOTP_SECRET"
+    SENT_SELF_SUBMIT = "self_submit"
+    SENT_VERIFY_CLICK = "verify_click"
 
     def __init__(self, cfg: LeagueConfig = CFG):
         self.cfg = cfg
+        self.code_sent_by = None
         Path(cfg.raw_dir).mkdir(parents=True, exist_ok=True)
         Path(cfg.user_data_dir).mkdir(parents=True, exist_ok=True)
 
@@ -274,6 +277,7 @@ class FantraxScraper:
         (type/placeholder fallbacks); a failure screenshot is saved for fast
         fixing if Fantrax changes the form.
         """
+        self.code_sent_by = None
         email, pwd = self._creds()
         page.goto(self.cfg.login_url, wait_until="domcontentloaded",
                   timeout=self.cfg.nav_timeout_ms)
@@ -359,6 +363,7 @@ class FantraxScraper:
             self.CODE_BUTTON, has_text=self.CODE_BUTTON_TEXT).first
         for _ in range(self._polls(self.cfg.code_settle_ms)):
             if not field.is_visible():
+                self.code_sent_by = self.SENT_SELF_SUBMIT
                 break
             if button.count() and button.is_enabled():
                 try:
@@ -368,6 +373,9 @@ class FantraxScraper:
                         raise TotpLoginError(
                             "Could not press Verify on the Fantrax code prompt."
                         ) from None
+                    self.code_sent_by = self.SENT_SELF_SUBMIT
+                else:
+                    self.code_sent_by = self.SENT_VERIFY_CLICK
                 break
             page.wait_for_timeout(self.cfg.code_poll_ms)
         else:
