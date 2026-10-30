@@ -14,8 +14,8 @@ blocked like this file's PR by the red CI below. Find the manager with
 `ListAgents`, by name; pipe addresses go stale on a restart.
 
 1. **CI is red, so nothing can merge. Ticket #259 is written** (tier low,
-   Tooling and upkeep, brief on it) and waits on the manager's dispatch,
-   which waits on the service (7). Cause: `.map(rate)` at
+   Tooling and upkeep, brief on it) and its builder is running (7).
+   Cause: `.map(rate)` at
    `notebooks/etl_checks.py:322` on an empty `str` Series returns `str`
    under pandas 3.1.0. Fix tried in memory: 100 passed. Published
    `fact_dead_money` has 34 rows, so today's data misses it; a full pipeline
@@ -39,16 +39,29 @@ blocked like this file's PR by the red CI below. Find the manager with
    is taken (the builder already chose `02h`).
 6. **#251:** tier low, milestone Stage C, owner's decision to drop the
    ledger's `cap_hit`, brief on the ticket. Not dispatched.
-7. **The background service was down at the manager's reset** (`claude
-   stop`, `rm`, `logs` fail), so no builder runs or can start. The manager
-   tries it first; the owner may need to restart the app.
+7. **The background service is back** (2026-10-30): #259's builder,
+   `task-259-working-folder`, is running. #259 is not yet merged.
 8. **Closed or done since 2026-10-12:** #234 (on proof), #254 (PR #256), the
    two dead allow rules (PR #255, by the owner), the live clone and both
    plugin folders (verified; the pane loads).
 9. **Queue on `main` is stale** until the manager's PRs land: it still lists
    the hand-fired spike, the live clone and the allow rules.
-10. **Next:** plan #218 (shrink `GOAL-RUN.md`), in plan mode, to the owner
-    before anything is written. The owner asked for this after a compact.
+10. **#218 is planned and approved by the owner** (plan on the ticket,
+    `issuecomment-6523061021`), but gated: the plugin has had no real
+    dispatch. The owner's queue Action comes first (pull the live clone,
+    restart, `"Skill"` allow rule, new `readLine`). Then the next dispatch
+    goes through the script, in a session where the owner has run
+    `/session-dispatch`. Pass: pid and own worktree; deny list passed by
+    `--disallowedTools`; transcript shows `session-rules` loaded. The
+    manager reports it; the planner then closes #167 and writes the shrink
+    text on #218 and its role-file PR. Nothing before that. If the skill
+    does not load, stop and take the cause to the owner.
+    `task-259-working-folder` went by the recipe, so it is not the proof.
+    **Open, the owner's answer in the manager's session:** the owner said
+    "approved 234" there, while the plan folds #234's edits into the shrink.
+    The manager holds that PR. The planner dropped its fold request and
+    recommended merging it; the shrink text is written against `main`
+    either way.
 11. **Not deleted, needs the owner's word:** skills branches
     `needs-owner-template-rules`, `builder-state-rules`;
     `docs/planner-state-6`, `docs/planner-state-7`; the stray local
