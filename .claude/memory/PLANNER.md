@@ -21,6 +21,13 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    second scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the
    PII scan needs one). #273 (low) waits on #97. `b97-team-cap`'s worktree goes to the owner
    after Brief 1 merges. Skills-repo item 4 is held by the owner's later word, no new tooling.
+   Planner's open question to the owner, not yet answered: may #97 close with its three
+   proofs moved (Power BI to #211; replay diff and `salary_remaining` to #93)? Recommended
+   yes. On the answer: tell the manager, and on a yes add the lines to those tickets.
+   When #272 and #271 merge: the next script-dispatched builder and a grep sweep close #218.
+   Worktrees: this file's branch is checked out in the earlier session's scratchpad `ps8`;
+   `docs/shrink-roles-218` in this session's `w218` (remove once merged, with the owner's yes).
+   Check a builder's file before its closeout: the scoping worktree was removed soon after.
 1. **Earlier: the scoping session for #97 PR 3.** PR #269
    (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
    `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
