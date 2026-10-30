@@ -56,42 +56,22 @@ can be traced.
 
 ## Actions
 
-### [ ] Fire the Fantrax runner spike again: #230 is merged, the login now types the code
-- Ticket: #230, #92
-- Steps: 1. In the repository's `fantrax-spike` environment, confirm
-  the three secrets exist by name: `FANTRAX_EMAIL`,
-  `FANTRAX_PASSWORD`, `FANTRAX_TOTP_SECRET` (the bare base32 setup
-  key, no spaces). They were all set for run 1. 2. Fire the run from
-  `main`: Actions tab, `fantrax-runner-spike`, Run workflow, or the
-  block below. It starts from an empty profile every run. 3. Report
-  in the manager's session the Login line (`passed`, `needs_code`,
-  `challenged` or `failed`), the class name after `Login step
-  raised:` if any (`TotpCodeRefused`, `TotpSecretMissing`), the read
-  table and the step seconds. 4. If you can tell: did the form submit
-  by itself on the sixth digit, and what did a wrong or expired code
-  look like?
+### [ ] Remove the spike schedule (#254, #92): approve its small PR when due
+- Ticket: #254, #92
+- Due: when #92 is answered, or seven days after the #254 merge
+  (2026-10-21), whichever is first.
+- Step: the manager opens one small PR that deletes the `schedule`
+  trigger from `fantrax-runner-spike.yml` and the header line about
+  it. You approve it like #254 (a workflow trigger change).
+- Context: PR #256 (merged 2026-10-14, `b436823`) fires the spike
+  daily at 14:17 UTC; no one fires it by hand now. The manager reads
+  each run's summary (the `Code sent by:` word included) and records
+  it on #92 and #230.
+- Raised: the planner, 2026-10-14 (ready entry), written by the
+  builder manager
+- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
 
-```bash
-gh workflow run fantrax-runner-spike.yml --ref main
-```
-
-- Context: PR #249 (merged 2026-10-14) makes the one login path type
-  the current code from `FANTRAX_TOTP_SECRET`. No agent has logged
-  in; it is proven on a fake page only, so your run is the first
-  sight of the real page. A refusal is detected as the code field
-  still showing 10 s after the submit; the PR body lists the
-  assumptions. Run 1 (2026-10-12) stopped at the code prompt, not a
-  network block. #92 question 1 wants several runs on different days,
-  so fire it again on later days too. The run prints verdicts, HTTP
-  statuses, exception class names and seconds only, on a public log.
-  No agent fires this or stores a secret. If the runner is blocked,
-  authed captures stay on the home PC (ADR-0015).
-- Blocks: closing #230; #92's runner login, and with it the scheduled
-  capture of ADR-0015 and enabling the crons.
-- Raised: stage-builder (#230), 2026-10-14; merged into the builder
-  manager's entry of 2026-10-12
-
-### [ ] Make the live clone and name both plugin folders, before the next app restart
+### [x] Make the live clone and name both plugin folders, before the next app restart
 - Ticket: #167
 - Raised: 2026-10-12, by the planner
 - Why: the saved `CLAUDE_CODE_PLUGIN_DIRS` names one folder, which does not exist. At the next app start neither `owner-queue` nor the dispatch plugin would load.
@@ -103,6 +83,7 @@ gh workflow run fantrax-runner-spike.yml --ref main
   setx CLAUDE_CODE_PLUGIN_DIRS "C:\Users\benha\.claude\mods\owner-queue;C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review"
   ```
 - Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Note: this is what i received when attempting the first command in terminal: fatal: destination path 'C:\Users\benha\claude-live\skills-plugins-hooks-agents' already exists and is not an empty directory. | pane, 2026-10-14 18:58:45, session 56063cf0-bc0e-400b-bb12-5b1aeb644f85
 
 ### [ ] #167: load the plugin in the manager's and builders' sessions
 - Ticket: #167
@@ -127,14 +108,7 @@ C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-
   through the script, not on the PR.
 - Blocks: closing #167.
 - Raised: 2026-10-12, by the planner
-
-### [ ] Remove two dead allow rules from the builders' settings file
-- Ticket: #234
-- Steps: 1. Open `.claude/builders.settings.json` in the main checkout. 2. In the `allow` list, delete the line `"Edit(.claude/memory/**)",` and the line `"Write(.claude/memory/**)"`. 3. Remove the comma that now ends the line above them, the `02d_fact_roster_transactions.py --raw-dir` rule, so the list stays valid JSON. 4. Commit it on a branch and tell the manager.
-- Context: In a builder's mode a write under `.claude/` is refused before any allow rule is read, so the two rules never take effect and only mislead a reader. Optional; nothing breaks if they stay.
-- Blocks: nothing
-- Raised: central-planner, 2026-10-12
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
+- Note: check if this is done | pane, 2026-10-30 08:15:56, session a3f025ae-a21b-4f55-ab21-a8465c8c59b4
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
