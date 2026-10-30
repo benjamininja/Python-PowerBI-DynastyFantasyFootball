@@ -319,7 +319,7 @@ def dead_money_errors(dead: pd.DataFrame, ledger: pd.DataFrame,
                     "cap_hit_pct x contract_value")
 
     rate = contracts[contracts["guaranteed"].astype(bool)].set_index("contract_id")["cap_hit_pct"]
-    charged = dead["charge_contract_id"].map(rate)
+    charged = dead["charge_contract_id"].map(rate).astype("float64")
     bad = charged.isna() | ((charged - dead["cap_hit_pct"]).abs() > 1e-9)
     if bad.any():
         errs.append(f"{int(bad.sum())} rows whose charge_contract_id is not a guaranteed "
