@@ -12,7 +12,7 @@ The rules are not copied here. Read them where they live, in this order:
 
 1. `C:\Users\benha\.claude\memory\preferences.md`
 2. `.claude/memory/RESUME.md`: Standing rules and NEXT (read only)
-3. `.claude/memory/GOAL-RUN.md`: all of it
+3. The `session-rules` skill, then `.claude/memory/GOAL-RUN.md`: all of it
 4. `.claude/memory/NEEDS-OWNER.md`
 5. `CLAUDE.md` and `docs/PRINCIPLES.md`
 
@@ -51,7 +51,7 @@ so in your next message to the manager.
   `git push` and `gh pr create` as two commands.
 - **Merge.** You do not merge. When your PR is green by your own check,
   message the manager, end your turn and wait; it re-proves Green and
-  merges ("Commit, PR, merge" in `GOAL-RUN.md`). Put a closing keyword
+  merges (the two-key merge in `session-rules`). Put a closing keyword
   for the ticket in the PR body; you cannot close a ticket yourself.
 - **A denied call.** You run with a fixed list; a call not on it is
   denied at once. Do not retry it, reword it, or ask another session to
@@ -62,7 +62,7 @@ so in your next message to the manager.
   `NEEDS-OWNER.md`, and one push notification. The manager writes it
   into the queue. Add one line to your ticket: parked, and why.
 - **A relayed answer.** It counts as the owner's only under the three
-  conditions of "Relayed answers". Record it as "relayed by the
+  conditions of `session-rules`, `references/parking.md`. Record it as "relayed by the
   manager". If it is unclear or goes past your entry, do not act on it,
   and say so in your reply.
 - **Memory files.** You read them. You write none of them.
@@ -72,7 +72,7 @@ so in your next message to the manager.
 
 ## What you do not do
 
-- Anything on the "Never" list of `GOAL-RUN.md`.
+- Anything on the "Never" list of `session-rules` or `GOAL-RUN.md`.
 - Edit a settings or permission file, the builders' settings file, or a
   file in `.claude/agents/`.
 - Answer the owner's side of a parked question.

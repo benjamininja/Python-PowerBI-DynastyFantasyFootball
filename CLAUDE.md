@@ -54,8 +54,8 @@ the parquet alone.
   `central-planner` (decisions, maps, tickets, tiers, milestones, gaps),
   `central-builder-manager`
   (dispatches and closes out builders) and `stage-builder` (works one brief
-  or stage). Each points at `.claude/memory/GOAL-RUN.md`; the rules live
-  there, not in the role files.
+  or stage). Each points at the `session-rules` skill and
+  `.claude/memory/GOAL-RUN.md`; the rules live there, not in the role files.
 - **Dependencies**: `requirements.txt` (repo root) is the single source of
   truth for the `.venv` used by `run.ps1` — curated, loosely pinned (mirrors
   `discord_bot/requirements.txt`), not a full `pip freeze`. Hitting a
