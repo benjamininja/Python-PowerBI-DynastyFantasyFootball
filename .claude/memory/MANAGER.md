@@ -22,8 +22,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 **Latest, 2026-10-30, third compact. This overrides what follows.**
 - **Merged:** #263 (stage D), #264 (state-back, on the owner's approval).
 - **Builder running: `b254-remove-schedule`**, session `85ecbf65`, PR #265,
-  commit `4902af2`, idle. It reported the PR green and waits. Not yet done:
-  re-prove Green and post it on the PR. The YAML trigger check is the changed
+  commit `4902af2`, idle. It reported the PR green and waits. Green is
+  re-proved and posted on the PR (`issuecomment-6524433809`); it waits on
+  the owner's `approved 265`. The YAML trigger check is the changed
   test in `tests/test_runner_spike.py`; the builder's parse script was denied
   and dropped, never to be run by another route. The owner approves #265 (a
   workflow trigger). Then close out in the order of the skill's
@@ -32,10 +33,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   pass; `session-rules` did not load. Planner's cause:
   `session-rules/SKILL.md` has an unquoted colon in its description, so its
   YAML fails to parse. #167 stays open, #218 stays gated, b254 is not the
-  proof. **Hold the next dispatch** (#97 PR 2, #251, #201, #206) until the
-  planner says the fix is merged and the live clone is pulled. A `--bg`
+  proof. The hold is lifted: the planner confirms the fix is merged (skills PR 62,
+  `70e8504`) and the live clone pulled. Next proving dispatch: #97 PR 2, then
+  #251, #201, #206; report the three checks to the planner. A `--bg`
   session with the fix is untested; the next dispatch shows that.
-- **With the planner, on the owner's word:** that fix; a CI check on every
+- **With the planner, on the owner's word:** the owner-queue pane must not
+  open by itself (the bottom line stays, it opens on click); a CI check on every
   `SKILL.md`'s frontmatter; `dispatch.ps1` refusing `-Apply` when the live
   clone is behind `origin/main`. No auto-pull.
 - **`dispatch.ps1`:** never redirect its output (`*>&1`). In PowerShell 5.1
