@@ -31,8 +31,21 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   the manager still writes the entries.
 - **Peers' pipe addresses go stale on a restart: use `ListAgents` and
   the session's name, never an address written here.**
-- **At this reset (2026-10-30).** `origin/main` = the merge of this
-  state PR, on `d21c3e1`. No other PR open. No work has merged since
+- **CI is red for every new PR, so nothing can merge.** `tests` fails 3
+  of 882 in `tests/test_etl_checks.py::TestDeadMoneyChecks`: `TypeError:
+  operation 'sub' not supported for dtype 'str' with dtype 'float64'`
+  at `notebooks/etl_checks.py:323` (`charged - dead["cap_hit_pct"]`).
+  Not caused by any change here: CI's loose pins now install pandas
+  3.1.0 and pyarrow 26.0.0; local `.venv` has 3.0.3 and 24.0.0 and
+  passes all 21 of that class; main's last CI, 2026-10-15, was green.
+  Unknown yet: whether a real pipeline run also hits it. No ticket yet:
+  ask the planner for one (tier, brief). It comes before all other
+  work, the schedule removal included. Never merge past red.
+- **This state PR, #257, is open and blocked by that.** Until it merges,
+  this block is only on branch `chore/manager-state-reset`; `main` still
+  has the fifth-compact block. Merge it when CI is fixed.
+- **At this reset (2026-10-30).** `origin/main` = `d21c3e1`. No other
+  PR open. No work has merged since
   2026-10-14; nothing ran here for 16 days. **No builder runs.**
 - **The background service is down** since 2026-10-14: `claude stop`,
   `rm` and `logs` fail with `connect ENOENT
