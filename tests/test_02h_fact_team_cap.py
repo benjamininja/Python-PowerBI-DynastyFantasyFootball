@@ -391,6 +391,22 @@ class TestTeamCapGate:
         t.loc[0, "cap_room"] += 1.0
         assert any("cap_room" in e for e in self.errors(t))
 
+    @pytest.mark.parametrize("col", cap.TEAM_CAP_FIGURES)
+    def test_a_null_figure_fails(self, col):
+        t = self.table()
+        t.loc[0, col] = float("nan")
+        assert any(col in e for e in self.errors(t))
+
+    def test_a_null_on_both_sides_fails(self):
+        teams = self.TEAMS_28.astype({"original_cap": float})
+        teams.loc[0, "original_cap"] = float("nan")
+        t = ft.with_fantrax(cap.team_cap(self.ROSTER_28, self.DEAD_28, teams, CONTRACTS, SEASONS),
+                            self.ROSTER_28, None, teams)
+        t.loc[t["team_key"] == "T00", "original_cap"] = float("nan")
+        errs = etl_checks.team_cap_errors(t, self.ROSTER_28, self.DEAD_28, teams,
+                                          CONTRACTS, SEASONS)
+        assert any("original_cap" in e for e in errs)
+
     def test_a_roster_rebuilt_without_02h_fails(self):
         moved = self.ROSTER_28.assign(cap_hit=self.ROSTER_28["cap_hit"] + 1.0)
         assert any("charged_salary" in e for e in self.errors(self.table(), r=moved))
