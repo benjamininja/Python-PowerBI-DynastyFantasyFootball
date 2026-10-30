@@ -19,7 +19,45 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Latest, 2026-10-30, fourth compact. This overrides what follows.**
+**Latest, 2026-10-30, fifth compact. This overrides what follows.**
+- **Merged:** #268 (`dc2f904`); #269 (`5d5284e`, #97 PR 2, merged by the owner by
+  hand before the Gate bug was fixed).
+- **Builder running: `b97-null-gate`**, session `374154ca`, pid 10984, tier low
+  (Sonnet), turn cap 30, #97 Brief 1, branch `fix/97-team-cap-null-gate`. It
+  messages this session when green. Then re-prove Green, including
+  `cap-ledger-auditor` (cap change; name the files, ADR-0016 and #97 in its
+  prompt), post the output, merge, pull, close out.
+- **Then, each after the one before merges:** Brief 2 (bot, tier medium, raised by
+  the planner), Brief 3 (trade-bud, tier medium, says `Closes #97`; relabels
+  `index.html:647-648`; the manager runs the clean-venv `export_static` build at
+  re-proof). Briefs: #97 issuecomment-6525377052; planner's read and tiers:
+  issuecomment-6525394229. The owner's answer on closing #97 is recorded on the
+  ticket; the planner adds the moved proofs to #211 and #93. Both briefs run with
+  setup: never `-NoSetup`. After them, #251, #201, #206; #108 goes as a scoping
+  session first, not a build at high. #273 is the planner's follow-up.
+- **The trial (owner, in the planner's session):** Opus plans work down and does
+  not build it, no rule change yet. The first scoping session, `b97-scope-pr3`,
+  worked and is closed out.
+- **Merge denied.** My `gh pr merge` of #270, #271 and #272 was refused by the
+  auto-mode classifier as "Merge Without Review", though the owner approved all
+  three by pane and all were green. Not retried. Action in the queue with the
+  commands. Unknown: whether a builder's PR hits the same refusal. Brief 1's is
+  the first test; a refusal there is parked the same way.
+- **When #271 and #272 merge:** close #218's loop with the planner, and drop the
+  "Pending `GOAL-RUN.md` edits" section of this file. #272 moves the common rules
+  to the `session-rules` skill.
+- **`--plugin-dir` proof passed**, #167 closed by the planner. A follow-up with
+  `--resume --bg` passes the same `--plugin-dir`.
+- **`b97-team-cap` is stopped, its worktree kept** (uncommitted Gate fix, also in
+  this session's scratchpad as `b97-gate-fix.patch`). After Brief 1 merges, queue
+  its removal for the owner's word. `claude stop` takes the short id only.
+  `.claude/worktrees/b97-cap-module` is older and unchecked.
+- **`NEEDS-OWNER.md` is edited and uncommitted in the main checkout**, on purpose:
+  the pane reads it. The #218 and #270 entries hold `Answer:` lines and leave
+  once the merges happen. Commit it at the next state-back after that.
+- **The planner session changed:** find the current one by name; it was cleared.
+
+**Earlier, 2026-10-30, fourth compact.**
 - **Merged:** #265 (`f4103ce`), #266 (`246be85`), #267 (`f93e1d6`, the planner's
   state-back). Builder `b254-remove-schedule` is closed out. #265's PR, worktree
   and branches are done with.
