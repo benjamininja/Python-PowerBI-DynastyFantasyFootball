@@ -69,7 +69,7 @@ one. Cost: the list lives in two places and both are kept in step.
 
 The read line, first in every builder's prompt: "Read
 `C:\Users\benha\.claude\memory\preferences.md`, then
-`.claude/memory/RESUME.md` Standing rules and NEXT, then
+`.claude/memory/RESUME.md` Standing rules and NEXT (read only), then
 `.claude/memory/GOAL-RUN.md` and `NEEDS-OWNER.md`."
 
 **A job in no plan.** The manager may dispatch a read-only or tightly
@@ -85,11 +85,11 @@ dispatches again.
 
 | Matter | Rule |
 |---|---|
-| Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: write the plan into `RESUME.md` (Outline → Build mode → Rationale), then build. A new design decision parks. |
+| Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: post the plan as a comment on the ticket (Outline → Build mode → Rationale), then build; the PR body repeats it. A new design decision parks. |
 | Commit, PR, merge | Two-key merge (owner's ruling 2026-10-12). The builder commits, pushes its own branch and opens the PR. It does not merge. When the PR is green by its own check it messages the manager, ends its turn and waits. The manager re-proves green (below), squash-merges with `--delete-branch`, pulls, and wakes the builder, which starts its next branch from the new `origin/main`. |
 | Tracker | The builder posts Resolutions as comments and creates new task tickets (`Tier: unset`). A ticket closes through its PR's closing keyword when the manager merges. The manager closes or edits any other ticket and adds the pointer to the map's Decisions so far. Text goes through `check_pii.py` first. |
 | Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes only. The owner stores the secrets and fires the first runner login. |
-| Windows | One PR per compaction: state-back to `RESUME.md`, then compact, at every PR seam and at 125K–150K tokens. |
+| Windows | One PR per compaction: push the commits and post a state-back comment on the ticket (done, next, open), then compact, at every PR seam and at 125K–150K tokens. |
 
 **Green means all of:**
 - every CI check SUCCESS on one read of
@@ -132,9 +132,10 @@ A finding that needs a design choice parks the ticket with its PR left open.
 
 **A denied call** (owner's ruling 2026-10-12, #164): a call the permission
 system refuses is never retried and never worked around by another
-route, and no other session is asked to make it. The builder parks it as
-an Action in `NEEDS-OWNER.md` (what was denied, the exact command, what
-it blocks), messages the managing session, and takes the next ticket.
+route, and no other session is asked to make it. The builder parks it:
+one message to the managing session that holds a ready Action entry
+(what was denied, the exact command, what it blocks). The manager writes
+it into the queue. The builder takes the next ticket.
 A builder runs in `dontAsk` with `.claude/builders.settings.json`, so a
 call not on that list is a denied call. Two limits, found in the dry
 dispatch of 2026-10-12: a read-only command runs without a rule, and
@@ -142,6 +143,15 @@ the owner's user-level allow rules reach a builder too. So what a
 builder must never do is a **deny** rule in the builders' file (a deny
 beats an allow from anywhere): merging, `gh api`, `python -c`, closing
 or editing a ticket, and the "Never" list.
+
+**A builder's state** (owner's ruling 2026-10-12, #234): a builder runs
+in `dontAsk`, where a write under `.claude/` is refused before any allow
+rule is read. So a builder writes no file there. Its lasting state is
+its ticket's comments and its pushed commits; after a compact or a new
+dispatch it reads those. Working notes and message body files go in
+`builder-state/` at its worktree's top, which git ignores; nothing
+depends on that folder. `RESUME.md` is the manager's file; a builder
+reads its Standing rules.
 
 ## Park protocol
 
@@ -160,10 +170,11 @@ sends the builder manager a ready entry. Chat alone is not enough.
    the owner's hand (Ticket, Steps, Context, Blocks, Raised). Options
    are written `(a) ...; (b) ...` and Recommended `(a), because ...`.
    The `owner-queue` pane reads the main checkout's copy only, and only
-   the manager and the planner have the pane. So a builder writes the
-   entry in its worktree's copy, and the manager copies it into the
-   main checkout's copy at once, when the builder's message of step 3
-   arrives.
+   the manager and the planner have the pane. A builder never writes the
+   queue (owner's ruling 2026-10-12, #234): the message of step 3 holds
+   its ready entry, and the manager writes it into the main checkout's
+   copy at once. The builder adds one line to its ticket: parked, and
+   why.
 3. Send one desktop push notification. No public post. If a managing
    session started this one, also send it one message that names the
    entry; the push does not arrive when Remote Control is off.
@@ -176,7 +187,8 @@ sends the builder manager a ready entry. Chat alone is not enough.
    a builder's entry the manager relays it, quoting the line. A relay
    from the managing session counts as the owner's answer under the
    rule below. Record it
-   (ADR, ticket Resolution or `RESUME.md`, as fits), remove the entry in
+   (ADR, ticket Resolution or `RESUME.md`, as fits; a builder records it
+   as a comment on its ticket), remove the entry in
    the same turn, and put the ticket back in the queue. The same goes for
    an action the owner reports done, or one the session finds done (a
    closed ticket, a secret now present by name): remove it at once, so the
