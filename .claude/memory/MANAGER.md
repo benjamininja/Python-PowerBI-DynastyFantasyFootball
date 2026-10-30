@@ -19,64 +19,53 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Latest, 2026-10-30, before a compact. This overrides what follows.**
-- **The background service was never broken.** It is on-demand:
-  `claude daemon --help` says it "runs on demand and exits when the
-  last client disconnects", and `claude --bg` starts it. A failed stop of
-  `6d8dadd9` (a settled entry from 2026-10-15) proves nothing, and the
-  owner's app restart was not needed. Test with `claude daemon status`.
-- **Builder for #259 is working** (resumed 12:39 UTC, transcript shows
-  tool calls in its worktree): `8319ac47`, listed as
-  `task-259-working-folder`, worktree
-  `.claude/worktrees/b259-pandas-empty-map`, branch
-  `worktree-b259-pandas-empty-map`, tier low, turn cap 30. Its first two
-  turns died on an expired CLI login; the owner logged in (`claude auth
-  status` is the check, no agent logs in). A flagless resume kept its
-  saved options. It messages this session when its PR is green. Then
-  re-prove Green, including
-  `pytest tests/` on the main `.venv` (pandas 3.0.3), since its venv has
-  CI's 3.1.0. Merge it, then tell the planner, which re-runs its evidence.
-- **Dispatch findings.** (1) `claude agents --json` gives a new builder
-  no `pid` and shows the launch folder as `cwd`, so read `cwd` from the
-  transcript `.jsonl` under `~/.claude/projects/<worktree slug>/`. I
-  stopped `2de6353b` on that false alarm; its transcript showed the
-  worktree. (2) Resuming with flags starts a copy, as `8319ac47` did;
-  `2de6353b` is stopped. Without flags the same session continues. (3)
-  `GOAL-RUN.md` step 4 needs both corrected, with the owner's approval.
-- **#218 (planner, 2026-10-30; plan approved in its session, latest
-  comment on #218; each PR still needs the owner's approval).** The owner
-  has a queue entry: pull the live clone, restart, two settings edits.
-  The next dispatch after that goes through `dispatch.ps1` (dry run,
-  `-Apply`) in a session where the owner ran `/session-dispatch`. Report
-  to the planner: pid and own worktree; deny list passed by
-  `--disallowedTools`; transcript shows `session-rules` loaded. It closes
-  #167 on that. #259's builder went by the recipe, so it is not that gate.
-- **#234 edits are on hold.** The planner asks to fold them into the #218
-  shrink; the owner said "approved 234" here. Asked the owner; do not open
-  the PR until they answer.
-- **Owed in my next `GOAL-RUN.md` change:** stage D and "After the goals"
-  still treat #92 and the spike as open; both tickets are closed.
-- **Owner's words this session:** "258 still approved" (covers `ceee374`;
-  merge on green, the planner's PR); "approved 234" (open the
-  `GOAL-RUN.md` PR with the seven edits below, merge on green). The queue
-  entry for #258 stays until merged.
-- **Owner's rulings recorded:** versions keep loose floors, on #259, no
-  `requirements.txt` change. #92 and #230 are closed by the planner.
-  Secrets hold the commissioner account, accepted.
-- **Spike workflow is `disabled_manually`** by the owner; no more logins.
-  The schedule removal PR still follows #259 (low builder, the owner
-  approves it). Removing the schedule does not re-enable the workflow.
-- **Order after #259:** merge #257, #258, the #234 PR; schedule removal;
-  `claude rm 2de6353b` and close out `6d8dadd9` (`rm` it, the worktree
-  `b254-spike-schedule` first checked for uncommitted files); #97 PR 2
-  on a new branch (planner's notes 1 and 2; note 3 is moot, the builder
-  chose `02h`); #251 (tell the #97 builder it rewrites the ledger);
-  #201; #206.
-- **Queue:** uncommitted in the main checkout; commit it on a branch with
-  no builder PR touching it. Owner's standing request: every ask to the
-  owner carries the exact absolute path or command and the steps, in the
-  same reply; never a relative path or a pointer to an earlier message.
-- `.git/packed-refs.lock` is gone (owner deleted it).
+**Latest, 2026-10-30, second compact. This overrides what follows.**
+- **Merged today:** #260 (#259, CI fix, `bdd3d84`), #258, #257, #261 (#234's
+  seven `GOAL-RUN.md` edits), #262 (the owner's #218 settings). CI is green
+  on new PRs.
+- **#263 open** (`docs/goal-run-stage-d`): stage D and "After the goals" no
+  longer treat #92 and the spike as open. The owner approved it in this
+  session. Merge on green; it is `GOAL-RUN.md` only.
+- **Next: the proving dispatch.** The spike schedule removal, tier low, name
+  `b254-remove-schedule`. The brief is in this session's scratchpad,
+  `b254-remove-prompt.txt`. The owner invoked `/session-dispatch` in this
+  session; if a compact drops it, the skill's rule still asks for the
+  owner's invocation, so ask. Dry run first, read it, then `-Apply`, from
+  PowerShell. Script:
+  `C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review\scripts\dispatch.ps1`.
+  Report to the planner by name: pid and own worktree; deny list passed by
+  `--disallowedTools`; transcript shows `session-rules` loaded. That closes
+  #167 and opens #218. The owner approves the builder's PR (a workflow
+  trigger change); removing the schedule does not re-enable the workflow.
+- **Then:** #97 PR 2 on a new branch (the planner's notes 1 and 2: the player
+  card `discord_bot/player.py` `_league_lines` prints stored `cap_hit`, new
+  rule, IR 0, while `/roster` and `/cap` use the old rule, PR 3 fixes both; if
+  PR 2 touches ADR-0016 add one Consequences line; PR 2 marks the out-of-season
+  fallback in the ADR amendment as added at build); #251 (tell the #97 builder
+  it rewrites the ledger; brief `issuecomment-6181677843`); #201; #206.
+- **Green, Review:** `roster_membership` "ledger is stale" files on every run
+  until `04t` is a pipeline step (#93), by design and never blocking (the
+  planner, on #97's plan). `stintless_drop` repeats. Neither counts as new. A
+  fresh worktree's `data/review` is empty, so it counts every finding as new:
+  compare with main's run.
+- **Bot suite:** `.venv` has no `discord`. This session's scratchpad `botvenv`
+  has it, built from `discord_bot/requirements.txt`.
+- **`claude rm` also removes the worktree** when it can. `6d8dadd9` and
+  `8319ac47` are removed, `2de6353b` is gone from the list. The folder
+  `.claude/worktrees/b259-pandas-empty-map` hit `Permission denied` on removal
+  (a lock); parked in the owner's last report, not retried.
+- **Left behind, harmless, all merged:** local branches
+  `worktree-b254-spike-schedule`, `worktree-b259-pandas-empty-map`,
+  `docs/planner-state-8`, `chore/manager-state-reset`, `docs/goal-run-234`. The
+  guard hook blocks `git branch -D` for an agent. Scratch worktrees `ms` and
+  `g234` in this session's scratchpad hold two of them.
+- **Dispatch findings still owed to `GOAL-RUN.md` step 4 (owner's approval):**
+  a new builder may list no pid and the launch folder as `cwd`, so read `cwd`
+  from the transcript; resuming with flags starts a copy, without flags it
+  continues. The background service is on demand: test with `claude daemon
+  status`.
+- **Owner's standing request:** every ask carries the exact absolute path or
+  command and the steps, in the same reply.
 
 **Who and what**
 - This session: `dynastyFantasyFootball-central-builder-manager` (id
@@ -839,43 +828,3 @@ ends.
 - CI is read once (`gh pr view <n> --json
   mergeStateStatus,statusCheckRollup`); if it is still running, report
   and stop. `mcp__ccd_pr__get_status` reads the app's cache.
-
-## Pending `GOAL-RUN.md` edits for #234 (the planner's text, 2026-10-12, night)
-
-Apply in the manager's own PR, reworded to fit; the PR waits for the
-owner's "approved". Delete this section once it has merged.
-
-1. "Delegation rules", row "Plan gate": replace "write the plan into
-   `RESUME.md` (Outline → Build mode → Rationale), then build" with
-   "post the plan as a comment on the ticket (Outline → Build mode →
-   Rationale), then build; the PR body repeats it".
-2. Row "Windows": "One PR per compaction: push the commits and post a
-   state-back comment on the ticket (done, next, open), then compact,
-   at every PR seam and at 125K–150K tokens."
-3. "A denied call": replace "The builder parks it as an Action in
-   `NEEDS-OWNER.md` (what was denied, the exact command, what it
-   blocks), messages the managing session, and takes the next ticket"
-   with "The builder parks it: one message to the managing session
-   that holds a ready Action entry (what was denied, the exact command,
-   what it blocks). The manager writes it into the queue. The builder
-   takes the next ticket."
-4. "Park protocol", step 2, last sentence ("So a builder writes the
-   entry in its worktree's copy, and the manager copies it ..."):
-   "A builder never writes the queue (owner's ruling 2026-10-12,
-   #234): the message of step 3 holds its ready entry, and the manager
-   writes it into the main checkout's copy at once. The builder adds
-   one line to its ticket: parked, and why."
-5. Step 5, "Record it (ADR, ticket Resolution or `RESUME.md`, as
-   fits)": add "a builder records it as a comment on its ticket".
-6. A new short paragraph, near "A denied call": "**A builder's state
-   (owner's ruling 2026-10-12, #234).** A builder runs in `dontAsk`,
-   where a write under `.claude/` is refused before any allow rule is
-   read. So a builder writes no file there. Its lasting state is its
-   ticket's comments and its pushed commits; after a compact or a new
-   dispatch it reads those. Working notes and message body files go in
-   `builder-state/` at its worktree's top, which git ignores; nothing
-   depends on that folder. `RESUME.md` is the manager's file; a builder
-   reads its Standing rules."
-7. The read line: after "`.claude/memory/RESUME.md` Standing rules and
-   NEXT" add "(read only)". The owner's `.claude/dispatch.json` needs
-   no change.
