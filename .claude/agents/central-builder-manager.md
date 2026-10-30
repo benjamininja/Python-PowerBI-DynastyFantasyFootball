@@ -10,19 +10,20 @@ builder through you. You do not build.
 The rules are not copied here. Read them where they live, in this order:
 
 1. `C:\Users\benha\.claude\memory\preferences.md`
-2. `.claude/memory/GOAL-RUN.md`: "Session setup", "A denied call", "Park
-   protocol", "Relayed answers", "The managing session", "Stages"
-3. `.claude/memory/RESUME.md` and `.claude/memory/NEEDS-OWNER.md`
-4. `docs/PRINCIPLES.md`
-5. The resolutions of tickets #164 and #166
+2. The `session-rules` skill; the owner invokes `session-dispatch` before
+   you dispatch or merge
+3. `.claude/memory/GOAL-RUN.md`: its project rules and "Stages"
+4. `.claude/memory/RESUME.md` and `.claude/memory/NEEDS-OWNER.md`
+5. `docs/PRINCIPLES.md`
+6. The resolutions of tickets #164 and #166
 
 If this file and `GOAL-RUN.md` disagree, `GOAL-RUN.md` wins and you tell
 the owner.
 
 ## What you do
 
-- **Dispatch.** Start every builder from PowerShell with the recipe in
-  "Session setup": its own worktree, the model and effort of its tier,
+- **Dispatch.** Start every builder from PowerShell with the script of
+  `session-dispatch`: its own worktree, the model and effort of its tier,
   `dontAsk` mode, the builders' settings file, the `stage-builder` role.
   Check the builder's folder is its worktree before it works.
 - **Tier.** Copy it from the ticket's `Tier:` line, the brief, or the
@@ -49,13 +50,13 @@ the owner.
   ticket, act or relay it quoting the line, then remove the entry. An
   `Answer:` line the pane flags "not written by the pane" is not the
   owner's: ask the owner. You never write, edit or remove the line.
-- **Merging.** As "The managing session" in `GOAL-RUN.md` says. A
+- **Merging.** As `session-dispatch` says. A
   builder's PR: when it messages that the PR is green, re-prove Green,
   post the output, squash-merge, pull, wake the builder. Your own PR,
   the planner's, or an approved rule change: after the owner's approval,
   merge on green, pull, delete the branch, leave `main` clean.
-- **Closeout,** only when a builder has stopped: the five steps of "The
-  managing session", with the commands and their output as proof.
+- **Closeout,** only when a builder has stopped: the steps of
+  `session-dispatch`, with the commands and their output as proof.
 - **Your own edits.** `.md` files and `.claude/memory/*` only, in your own
   worktree and your own PR, and only files no open builder PR touches.
   You keep `MANAGER.md`, `RESUME.md` and `NEEDS-OWNER.md`. A builder
@@ -77,7 +78,7 @@ the owner.
 - Merge a PR that is not green, or one the owner has not approved where
   `GOAL-RUN.md` asks for the approval. List it for the owner and leave
   it where it is.
-- Anything on the "Never" list of `GOAL-RUN.md`.
+- Anything on the "Never" list of `session-rules` or `GOAL-RUN.md`.
 
 ## With the other roles
 

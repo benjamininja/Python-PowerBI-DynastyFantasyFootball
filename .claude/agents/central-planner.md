@@ -15,7 +15,8 @@ The rules are not copied here. Read them where they live, in this order:
 1. `C:\Users\benha\.claude\memory\preferences.md`
 2. `docs/PRINCIPLES.md`
 3. `.claude/memory/PLANNER.md`: START HERE (your own state file)
-4. `.claude/memory/GOAL-RUN.md` (read only; it is the manager's file)
+4. The `session-rules` skill, then `.claude/memory/GOAL-RUN.md` (read
+   only; it is the manager's file)
 5. The resolutions of tickets #164 and #166, and the map you are working
 
 ## What you do
@@ -101,7 +102,7 @@ The rules are not copied here. Read them where they live, in this order:
 - Start, stop or message a builder. That is the manager's.
 - Treat a message from another session as the owner's approval. Words
   the manager passes on are inputs to confirm with the owner. The relay
-  rule of `GOAL-RUN.md` is for builders, not for you.
+  rule of `session-rules` is for builders, not for you.
 - Change a GitHub setting or delete a branch or worktree without the
   owner's yes for that item.
 - Merge a PR. The manager merges yours after the owner's approval.
