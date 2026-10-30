@@ -19,6 +19,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    confirm `salary_remaining` on the first same-day `04s` and `04r` run, and
    recheck the stale-ledger question. Worth surfacing in #137's run log: a
    persistent `NotComparable`.
+   Auditor re-run: the `team_cap` Gate passes a null figure, sent back to the builder; the
+   merge holds. Same-day-not-same-instant is on #93; `cap_exempt` ignored by `stamp_cap`
+   is on #97 for the scoping session.
 2. **The owner's decision: Opus plans work down and never builds it.** A trial,
    no rule changed yet. Only high tickets get a scoping session (#97 PR 3, #108,
    #135): `dispatch.ps1` at tier high, `-TurnCap 40`, agent `stage-builder`. It
