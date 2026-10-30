@@ -5,57 +5,93 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-30, before a compact)
+## START HERE (state 2026-10-30, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
-No PR is open in this repository. Find the manager with `ListAgents`, by
-name. CI is green: #259 merged (PR #260, `bdd3d84`), and `main` passes on
-pandas 3.1.0 and pyarrow 26.0.0, 882 tests.
+Find the manager with `ListAgents`, by name. Approved plans: this block and
+`C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-1. **#218 is approved and gated; the proof is the next event.** The first
-   script dispatch (b254) passed two checks and failed the third:
-   `Unknown skill: session-rules`. Cause: an unquoted colon broke that
-   skill's YAML frontmatter. Fixed in skills PR 62 (`70e8504`); the live
-   clone is pulled to it. The manager's hold is lifted and its next builder
-   through the script is the proof, reported to the planner by name. Pass:
-   pid and own worktree; deny list by `--disallowedTools`; transcript shows
-   `session-rules` loaded. A `--bg` session with the fix is untested.
-   On a pass: close #167 with the evidence, post the shrink text on #218
-   against the merged #234 edits (PR #261, `41354e2`; the fold in the plan is
-   dropped), open the role-file and `CLAUDE.md:57` PR. On a fail: stop, take
-   the cause to the owner. The owner's two files are in (PR #262). The owner
-   will not restart the app: new processes read the plugin without it.
-2. **Skills repo plan, approved by the owner in order.**
-   Part 1 done: PR 63 (`e5c5a94`), every tracked SKILL.md's frontmatter is
-   tested. Part 2 not started and held until the proof passes: `dispatch.ps1`
-   fetches and compares the live clone with `origin/main`; `-Apply` refuses
-   when it is behind and prints the pull command; a dry run only reports; it
-   never pulls. The planner merges on green, on that approval.
-3. **Owner-queue no longer opens by itself:** PR 64 (`8aee46a`) and PR 65
-   (`a898308`), version 0.7.2, copied to `~/.claude/mods/owner-queue`, 27
-   tests pass there. A session gets it at its next launch or plugin reload.
-   CI does not run the mod's tests (`claude plugin test`): a gap, not
-   ticketed. PR 64 merged with one test failing for that reason.
-4. **Spike:** done. #92 and #230 closed; the daily schedule is off `main`
-   (PR #265), and Stage D stale lines are corrected (PR #263).
-5. **`roster_membership` "ledger is stale"** is by design until `04t` is a
-   step (#93); the manager weighs it.
-6. **#97:** PR 1 merged; PR 2 is `fact_team_cap`, writer `02h`. Three planner
-   notes may not have reached the builder, so they go in that brief: the
-   player card prints stored `cap_hit` while `/roster` and `/cap` charge IR
-   until PR 3 (ADR-0016's Consequences misses it); the out-of-season fallback
-   reads as added at build; `02g` in the settled design is taken.
-7. **#251:** tier low, Stage C, brief on it, not dispatched.
+0. **Latest (2026-10-30, after the proof).** The proof passed; #167 is closed. The scoping
+   result is on #97 (comment 6525377052); the planner's read, no breach, is comment 6525394229.
+   Tiers: Brief 1 (Gate fix) low, Brief 2 (bot) medium, Brief 3 (trade-bud) medium; one at a
+   time, each after the last merges. The manager has them; Brief 1 is free. **Next events:**
+   each brief's PR; the owner's answers in the queue. Open with the owner: Brief 3's closing
+   keyword (planner's entry, answer comes here); the #218 shrink pair, PRs #271 and #272, and
+   this file's PR #270 (those answers go to the manager). After #97: #110, then #108 as the
+   second scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the
+   PII scan needs one). #273 (low) waits on #97. `b97-team-cap`'s worktree goes to the owner
+   after Brief 1 merges. Skills-repo item 4 is held by the owner's later word, no new tooling.
+   Answered by the owner's pane, 09:40:06 (read in the manager's transcript): #97 closes with
+   Brief 3, its proofs moved; the lines are on #211 and #93. Brief 3 is no longer held. The
+   owner also approved #270 and the #218 pair by pane, but the merges were refused by the
+   permission classifier: all three are still open, parked with the owner. Brief 1 is running
+   (`b97-null-gate`, low). Rules have not moved until those merge.
+   When #272 and #271 merge: the next script-dispatched builder and a grep sweep close #218.
+   Worktrees: this file's branch is checked out in the earlier session's scratchpad `ps8`;
+   `docs/shrink-roles-218` in this session's `w218` (remove once merged, with the owner's yes).
+   Check a builder's file before its closeout: the scoping worktree was removed soon after.
+1. **Earlier: the scoping session for #97 PR 3.** PR #269
+   (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
+   `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
+   on #97 for the scoping session. Carried to #93: the first same-day `salary_remaining` run,
+   same day not same instant, stale ledger, a persistent `NotComparable`. `cap_exempt` ignored
+   by `stamp_cap` is on #97. The owner wants the build moving now: after the proof, no new
+   tooling; go to Stage C.
+2. **The owner's decision: Opus plans work down and never builds it.** A trial,
+   no rule changed yet. Only high tickets get a scoping session (#97 PR 3, #108,
+   #135): `dispatch.ps1` at tier high, `-TurnCap 40`, agent `stage-builder`. It
+   writes no code and opens no PR; its output is one comment on the ticket: one
+   brief per PR, in order, each with a low or medium tier, files, settled design,
+   done condition and proof, then open design questions. It questions the planner,
+   never the owner. The planner checks the briefs against the ADR and done condition,
+   takes open questions to the owner, sets tiers, tells the manager. An open design
+   question goes back to planning, never to a builder; an exception is the
+   owner's, one at a time. The manager sends back a low or Haiku brief with
+   no files or proof, and any build brief at high. The brief for #97 PR 3 is
+   on #97 (comment 6525071022). #108 is the second trial.
+   Then: compare token use with `b97-team-cap` from the transcripts and count parks
+   and rework (rough; the tickets differ). If the trials hold: write the flow in
+   `central-planner.md`, put rule text on a ticket for `GOAL-RUN.md` with #218's
+   shrink, and add a Haiku tier (Haiku 5.5, medium, 15 turns; mechanical only, never
+   cap, ledger, pipeline or schema) to `dispatch.ps1` with a test and to
+   `session-rules`. The script refuses a Haiku tier today.
+3. **That scoping session is also the #218 proof.** Two script dispatches failed
+   check 3 with `Unknown skill: session-rules`. Fixes: YAML colon (skills PR 62);
+   `--plugin-dir` on the start command (skills PR 66, `d193886`; the live clone is at
+   it). Cause of the second, likely not proven: a `--bg` daemon's parent is
+   `WmiPrvSE.exe`, so it does not inherit `CLAUDE_CODE_PLUGIN_DIRS`. `claude -p` with
+   the builder's flags, without `-w` or `--bg`, loaded it, and the bare name
+   resolved. `--bg` with the flag is untested. Pass: pid and own worktree; deny list by
+   `--disallowedTools`; transcript (not only its report) shows `session-rules`
+   loaded. On a pass: close #167 with the evidence, post the shrink text on #218
+   against current `main`, open the role-file and `CLAUDE.md:57` PR. On a fail:
+   stop, take what the transcript shows to the owner.
+4. **Skills repo, approved in order, after the proof:** `dispatch.ps1` fetches and
+   compares the live clone with `origin/main`; `-Apply` refuses when behind and prints
+   the pull command; a dry run only reports; it never pulls. The planner merges on
+   green, on that approval. CI does not run the mod's tests (`claude plugin test`):
+   a gap, not ticketed.
+5. **Owner-queue:** no auto-open, version 0.7.2, in `~/.claude/mods/owner-queue`;
+   the owner has reloaded plugins.
+6. **Trajectory:** Stages A and B done. Stage C: #97 then #110, #108, then #135 to
+   #138, then the owner's secret and cutover. Stage D: #93 and #116. The cap tickets
+   #251, #201 and #206 are low, briefs on them, not dispatched. Don't start more tooling
+   work until stages are moving.
+7. **`roster_membership` "ledger is stale"** is by design until `04t` is a step
+   (#93); the manager weighs it.
 8. **Not deleted, needs the owner's word:** skills branches
    `needs-owner-template-rules`, `builder-state-rules`,
    `fix/session-rules-frontmatter`, `test/skill-frontmatter`,
-   `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`; skills
-   worktree `C:/Users/benha/fr`; `docs/planner-state-6`, `-7`, `-8`; local
-   `docs/builder-state-234`; `.claude/worktrees/metadata-principles` (leftover
-   cherry-pick, unpushed `4f23f16`).
-9. **Working notes.** A long temp path breaks a skills-repo worktree on
-   Windows: use a short one. Chain with `set -e`, and never pipe a test run
-   through `tail` before a merge: that hid a failure on PR 64.
+   `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`,
+   `fix/dispatch-plugin-dir`; skills worktree `C:/Users/benha/fr`;
+   `docs/planner-state-6`, `-7`, `-8`, `-9`; local `docs/builder-state-234`;
+   `.claude/worktrees/metadata-principles` (leftover cherry-pick, unpushed `4f23f16`).
+9. **Working notes.** The owner will not restart the app: verify before listing a hand
+   item. A relayed answer is never approval; ask in this session. A skills-repo
+   worktree needs a short path on Windows. Gate a merge on the test's exit code, and
+   check the interpreter has pytest (`set -e` did not stop PR 66's push before tests
+   ran); the dynasty `.venv` runs the skills tests. A `git push` from a main-resolved
+   cwd is blocked: use `git -C <worktree> push`.
 
 ## Earlier state (2026-10-12, partly stale)
 
