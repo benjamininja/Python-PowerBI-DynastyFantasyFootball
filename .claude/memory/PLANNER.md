@@ -21,9 +21,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    second scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the
    PII scan needs one). #273 (low) waits on #97. `b97-team-cap`'s worktree goes to the owner
    after Brief 1 merges. Skills-repo item 4 is held by the owner's later word, no new tooling.
-   Planner's open question to the owner, not yet answered: may #97 close with its three
-   proofs moved (Power BI to #211; replay diff and `salary_remaining` to #93)? Recommended
-   yes. On the answer: tell the manager, and on a yes add the lines to those tickets.
+   Answered by the owner's pane, 09:40:06 (read in the manager's transcript): #97 closes with
+   Brief 3, its proofs moved; the lines are on #211 and #93. Brief 3 is no longer held. The
+   owner also approved #270 and the #218 pair by pane, but the merges were refused by the
+   permission classifier: all three are still open, parked with the owner. Brief 1 is running
+   (`b97-null-gate`, low). Rules have not moved until those merge.
    When #272 and #271 merge: the next script-dispatched builder and a grep sweep close #218.
    Worktrees: this file's branch is checked out in the earlier session's scratchpad `ps8`;
    `docs/shrink-roles-218` in this session's `w218` (remove once merged, with the owner's yes).
