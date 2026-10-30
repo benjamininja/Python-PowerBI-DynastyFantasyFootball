@@ -19,7 +19,34 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Latest, 2026-10-30, second compact. This overrides what follows.**
+**Latest, 2026-10-30, third compact. This overrides what follows.**
+- **Merged:** #263 (stage D), #264 (state-back, on the owner's approval).
+- **Builder running: `b254-remove-schedule`**, session `85ecbf65`, PR #265,
+  commit `4902af2`, idle. It reported the PR green and waits. Not yet done:
+  re-prove Green and post it on the PR. The YAML trigger check is the changed
+  test in `tests/test_runner_spike.py`; the builder's parse script was denied
+  and dropped, never to be run by another route. The owner approves #265 (a
+  workflow trigger). Then close out in the order of the skill's
+  `references/dispatch.md`.
+- **The proving dispatch failed one check:** pid, own worktree and deny list
+  pass; `session-rules` did not load. Planner's cause:
+  `session-rules/SKILL.md` has an unquoted colon in its description, so its
+  YAML fails to parse. #167 stays open, #218 stays gated, b254 is not the
+  proof. **Hold the next dispatch** (#97 PR 2, #251, #201, #206) until the
+  planner says the fix is merged and the live clone is pulled. A `--bg`
+  session with the fix is untested; the next dispatch shows that.
+- **With the planner, on the owner's word:** that fix; a CI check on every
+  `SKILL.md`'s frontmatter; `dispatch.ps1` refusing `-Apply` when the live
+  clone is behind `origin/main`. No auto-pull.
+- **`dispatch.ps1`:** never redirect its output (`*>&1`). In PowerShell 5.1
+  git's stderr then stops the script; it left a worktree the rerun reused.
+- **A brief's proof must be runnable under the builders' settings:** a script
+  file run by the venv python is not on the list. Grep tests for what a change
+  removes before calling a brief one file.
+- **Left in scratch worktree `g234`:** local branch `docs/goal-run-stage-d`,
+  merged. Harmless, like the others listed below.
+
+**Earlier, 2026-10-30, second compact.**
 - **Merged today:** #260 (#259, CI fix, `bdd3d84`), #258, #257, #261 (#234's
   seven `GOAL-RUN.md` edits), #262 (the owner's #218 settings). CI is green
   on new PRs.

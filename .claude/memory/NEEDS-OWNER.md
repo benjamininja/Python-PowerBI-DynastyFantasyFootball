@@ -56,65 +56,29 @@ can be traced.
 
 ## Actions
 
-### [ ] Remove the spike schedule (#254, #92): approve its small PR when due
+### [ ] Approve PR #265: the spike's daily schedule comes off
 - Ticket: #254, #92
-- Due: when #92 is answered, or seven days after the #254 merge
-  (2026-10-21), whichever is first.
-- Step: the manager opens one small PR that deletes the `schedule`
-  trigger from `fantrax-runner-spike.yml` and the header line about
-  it. You approve it like #254 (a workflow trigger change).
-- Context: PR #256 (merged 2026-10-14, `b436823`) fires the spike
-  daily at 14:17 UTC; no one fires it by hand now. The manager reads
-  each run's summary (the `Code sent by:` word included) and records
-  it on #92 and #230.
-- Raised: the planner, 2026-10-14 (ready entry), written by the
-  builder manager
-- Session: 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-
-### [x] Make the live clone and name both plugin folders, before the next app restart
-- Ticket: #167
-- Raised: 2026-10-12, by the planner
-- Why: the saved `CLAUDE_CODE_PLUGIN_DIRS` names one folder, which does not exist. At the next app start neither `owner-queue` nor the dispatch plugin would load.
-- Steps: 1. Make the live clone with block 1. 2. Save the variable with block 2; the two folders are joined by a semicolon. 3. Close the Claude app fully and open it again; `/reload-plugins` does not read a changed variable. 4. Check: the pane's first line reads `owner-queue 0.7.1`, and `/session-rules` is offered.
+- Steps: 1. Wait for the manager to post its Green output on the PR. 2. Open
+  the PR's Files tab and check the diff is two files: the workflow loses its
+  `schedule` trigger, and one test now requires manual runs only. 3. Reply in
+  the manager's session with the text below.
   ```
-  git clone https://github.com/benjamininja/skills-plugins-hooks-agents C:\Users\benha\claude-live\skills-plugins-hooks-agents
+  approved 265
   ```
-  ```
-  setx CLAUDE_CODE_PLUGIN_DIRS "C:\Users\benha\.claude\mods\owner-queue;C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review"
-  ```
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Note: this is what i received when attempting the first command in terminal: fatal: destination path 'C:\Users\benha\claude-live\skills-plugins-hooks-agents' already exists and is not an empty directory. | pane, 2026-10-14 18:58:45, session 56063cf0-bc0e-400b-bb12-5b1aeb644f85
-
-### [ ] #167: load the plugin in the manager's and builders' sessions
-- Ticket: #167
-- Session: 22ca1b72-576b-45a1-8435-30ad14e53bda
-- Steps: 1. Add the folder in the block to the user environment
-  variable `CLAUDE_CODE_PLUGIN_DIRS`, beside the owner-queue folder
-  already in it. 2. Restart the sessions. 3. In the manager's session,
-  invoke the session-dispatch skill for the next real ticket; the
-  manager runs the dry run, then `-Apply`.
-
-```
-C:\Users\benha\claude-live\skills-plugins-hooks-agents\plugins\session-dispatch-managers-build-review
-```
-
-- Context: skills PR 46 is merged (2026-10-12). Steps 1 and 2 are
-  now the entry above ("Make the live clone and name both plugin
-  folders"); what is left here is step 3, after that restart.
-  The planner has not
-  verified how that variable separates two folders on Windows (most
-  likely a semicolon). If the second folder does not load, say so and
-  the planner finds out. #167 closes on the first real dispatch
-  through the script, not on the PR.
-- Blocks: closing #167.
-- Raised: 2026-10-12, by the planner
-- Note: check if this is done | pane, 2026-10-30 08:15:56, session a3f025ae-a21b-4f55-ab21-a8465c8c59b4
+- Context: you approve this one because it changes a workflow trigger. It does
+  not re-enable the workflow; that stays disabled, as you set it. PR:
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/265
+- Blocks: closing out the builder `b254-remove-schedule`.
+- Raised: the planner, 2026-10-14; rewritten by the builder manager, 2026-10-30
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
-- Steps: open `pbi/mouserat2`, refresh, look at the Dead Money
-  measures for a team that has dead money, and write the result on
-  #211.
+- Steps: 1. Open this file in Power BI Desktop:
+  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\pbi\mouserat2\Mouserat2.pbip`
+  2. Click Refresh. 3. Find a team with dead money and look at its Dead Money
+  measures. 4. Comment what you saw on
+  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/211
+  This can wait until you next open Power BI.
 - Context: PR #207 merged on your word ("merge 207", 2026-10-12)
   without this check. Power BI is deprioritized; do it when Power BI
   is next opened. Until #97, the report exempts IR-slot salary and
