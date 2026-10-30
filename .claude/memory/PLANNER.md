@@ -11,7 +11,17 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-1. **The next event is the manager's report on the scoping session for #97 PR 3.** PR #269
+0. **Latest (2026-10-30, after the proof).** The proof passed; #167 is closed. The scoping
+   result is on #97 (comment 6525377052); the planner's read, no breach, is comment 6525394229.
+   Tiers: Brief 1 (Gate fix) low, Brief 2 (bot) medium, Brief 3 (trade-bud) medium; one at a
+   time, each after the last merges. The manager has them; Brief 1 is free. **Next events:**
+   each brief's PR; the owner's answers in the queue. Open with the owner: Brief 3's closing
+   keyword (planner's entry, answer comes here); the #218 shrink pair, PRs #271 and #272, and
+   this file's PR #270 (those answers go to the manager). After #97: #110, then #108 as the
+   second scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the
+   PII scan needs one). #273 (low) waits on #97. `b97-team-cap`'s worktree goes to the owner
+   after Brief 1 merges. Skills-repo item 4 is held by the owner's later word, no new tooling.
+1. **Earlier: the scoping session for #97 PR 3.** PR #269
    (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
    `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
    on #97 for the scoping session. Carried to #93: the first same-day `salary_remaining` run,
