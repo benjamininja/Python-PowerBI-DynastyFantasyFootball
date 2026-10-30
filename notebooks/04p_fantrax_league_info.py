@@ -48,6 +48,7 @@ for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
 import etl_checks as ec
+from etl_cap import LEAGUE_TZ
 from etl_helpers import DATA, fantrax_public_get, read_table, table_exists, write_table
 
 # league_id/raw_dir live on 04a's own LeagueConfig -- same import-by-file
@@ -60,8 +61,7 @@ DIVISION_PATH = DATA / "dim_division.parquet"
 RAW_NAME = "fantrax_public_leagueinfo.json"
 
 # Fantrax serves period bounds with an Eastern offset; the calendar dates
-# (`start_date`, `end_date`) are days on that clock.
-LEAGUE_TZ = "America/New_York"
+# (`start_date`, `end_date`) are days on that clock (etl_cap.LEAGUE_TZ).
 
 OPEN, CLOSING, CLOSED = "open", "closing", "closed"
 

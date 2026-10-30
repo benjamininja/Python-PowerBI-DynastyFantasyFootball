@@ -76,6 +76,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02f | `02f_fact_dead_money.py` | `fact_dead_money`: Dead Money from the ledger's drops, one row per season charged (ADR-0016 decision 5, #96). The schedule is read from `dim_contract` (the guaranteed rows of the dropped contract's type from its year on) and the seasons from `dim_season`. A drop that ends no stint (`contract_source = no_stint`) and a drop with no salary are skipped. Rewrites the whole table; no network |
 | 02g | `02g_nflverse_inseason.py` | `fact_nfl_snap_counts`, `fact_nfl_injuries`: snaps by Unit per game and the weekly injury report, current season, from nflverse (ADR-0017, #86). Each row carries the Scoring Period of its game date, read off `dim_scoring_period`. Snap rows with no `gsis_id` (offensive linemen, long snappers) are dropped and counted. Each run replaces the season; no login. In the scheduled run it is the `injury` group, in-season only |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams`, grain `(team_key, scorer_id)`: the current roster, from the newest `getTeamRosters` reply 04r saved (slot, salary and contract are Fantrax's; Starter → `Active`, Bench → `Reserve`, IR → `Inj Res`, Minors → `Minors` until #110). The ledger adds `acquired_method` / `acquired_date` from the move that opened the copy's open stint, else `unknown`. `etl_cap` stamps `cap_hit` and `cap_exempt` (the Minors and IR slots are exempt; ADR-0016's #97 amendment). Fails in season with no saved reply; out of season builds from the ledger replay with slots blank. `--raw-dir` reads the replies from another folder. Written through the storage seam; no network |
+| 02h | `02h_fact_team_cap.py` | `fact_team_cap`, grain `(season_id, team_key)`: the published cap table, this season and next (ADR-0016's #97 amendment), with `etl_cap`'s rules. This season is the `season` on `fact_fantasy_teams`, never the calendar. Each season's row carries only that season's Dead Money. Fantrax's Salary Remaining sits on the current-season row, from the newest `standings` reply `04s` saved for that season; the Review check `salary_remaining` compares it on Fantrax's basis on the same league day. `--raw-dir` reads the replies from another folder. Rewrites the whole table; no network |
 | 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
 | 03c | `03c_ktc_rankings.ipynb` | KeepTradeCut consensus (scraped) |
@@ -97,7 +98,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
-The `.py` rows (`02d`, `02e`, `02f`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
+The `.py` rows (`02d`, `02e`, `02f`, `02h`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 
 ## Scheduled pipeline (orchestrator)
@@ -105,7 +106,7 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e
+`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h
 → (04b, offseason)`, surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).

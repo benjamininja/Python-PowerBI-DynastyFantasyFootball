@@ -35,6 +35,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
+from etl_cap import season_after
 from etl_helpers import DATA, read_table, write_table
 
 OUT_PATH = DATA / "fact_dead_money.parquet"
@@ -72,19 +73,6 @@ def schedule(contracts: pd.DataFrame) -> dict[str, list[tuple[int, str, float]]]
                        for r in later.sort_values("contract_year").itertuples()]
         out[c.contract_id] = charges
     return out
-
-
-def season_after(seasons: pd.DataFrame, season_id: str, offset: int) -> str:
-    """The season `offset` seasons after `season_id`. Raises when dim_season
-    lacks either one."""
-    order = seasons.sort_values("season_start_year")["season_id"].tolist()
-    if season_id not in order:
-        raise ValueError(f"season {season_id} is not in dim_season")
-    i = order.index(season_id) + offset
-    if i >= len(order):
-        raise ValueError(f"dim_season has no season {offset} after {season_id} "
-                         "-- run 01f to extend it")
-    return order[i]
 
 
 def chargeable(ledger: pd.DataFrame) -> pd.DataFrame:

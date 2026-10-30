@@ -169,6 +169,10 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02e_derive", "cmd": _script("02e_fact_fantasy_teams_derive.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
+        # The published cap table (no network): this season is the roster's,
+        # and each season's row carries only that season's Dead Money.
+        {"name": "02h_team_cap", "cmd": _script("02h_fact_team_cap.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02f_dead_money", "02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04b_ktc_dynasty", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
          "phases": {"OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
         # Rookie chain (auto-safe scrapes only): 03a-03d ingest expert sources

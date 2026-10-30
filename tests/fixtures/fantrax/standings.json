@@ -1,0 +1,137 @@
+{
+ "responses": [
+  {
+   "data": {
+    "tableList": [
+     {
+      "header": {
+       "cells": [
+        {
+         "key": "win"
+        },
+        {
+         "key": "loss"
+        },
+        {
+         "key": "tie"
+        },
+        {
+         "key": "winpc"
+        },
+        {
+         "key": "div"
+        },
+        {
+         "key": "gamesback"
+        },
+        {
+         "key": "salaryRem"
+        },
+        {
+         "key": "pointsFor"
+        },
+        {
+         "key": "pointsAgainst"
+        },
+        {
+         "key": "streak"
+        },
+        {
+         "key": "playoffOdds"
+        }
+       ]
+      },
+      "rows": [
+       {
+        "fixedCells": [
+         {},
+         {
+          "teamId": "886rcw25mo31l0cy"
+         }
+        ],
+        "cells": [
+         {
+          "content": "3"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "1.000"
+         },
+         {
+          "content": "3-0-0"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "23,029,000"
+         },
+         {
+          "content": "1,194.82"
+         },
+         {
+          "content": "895.84"
+         },
+         {
+          "content": "3 (W)"
+         },
+         {
+          "content": ""
+         }
+        ]
+       },
+       {
+        "fixedCells": [
+         {},
+         {
+          "teamId": "1vtj2q04mnax2yvd"
+         }
+        ],
+        "cells": [
+         {
+          "content": "3"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "1.000"
+         },
+         {
+          "content": "3-0-0"
+         },
+         {
+          "content": "0"
+         },
+         {
+          "content": "67,821,000"
+         },
+         {
+          "content": "1,010.55"
+         },
+         {
+          "content": "974.94"
+         },
+         {
+          "content": "3 (W)"
+         },
+         {
+          "content": "100%"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

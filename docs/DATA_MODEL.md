@@ -31,6 +31,7 @@ graph LR
     dim_roster_asset{{dim_roster_asset}}
     fact_nfl_combine_pro_day_metrics[(fact_nfl_combine_pro_day_metrics)]
     fact_fantasy_teams[(fact_fantasy_teams)]
+    fact_team_cap[(fact_team_cap)]
     fact_roster_transactions[(fact_roster_transactions)]
     fact_dead_money[(fact_dead_money)]
     fact_trade_log[(fact_trade_log)]
@@ -71,6 +72,8 @@ graph LR
     fact_fantasy_teams -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_fantasy_teams --> dim_rookie_prospect
     fact_fantasy_teams --> dim_contract
+    fact_team_cap --> dim_fantasy_teams
+    fact_team_cap --> dim_season
     fact_roster_transactions --> dim_fantasy_teams
     fact_roster_transactions --> dim_roster_asset
     fact_roster_transactions --> dim_season
@@ -144,6 +147,7 @@ graph LR
     class dim_roster_asset resolver;
     class fact_nfl_combine_pro_day_metrics fact;
     class fact_fantasy_teams fact;
+    class fact_team_cap fact;
     class fact_roster_transactions fact;
     class fact_dead_money fact;
     class fact_trade_log fact;

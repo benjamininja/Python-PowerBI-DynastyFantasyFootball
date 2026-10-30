@@ -519,6 +519,58 @@ tables:
       streams. roster_status keeps Active / Reserve / Inj Res / Minors until
       #110 renames it roster_slot.
 
+  - name: fact_team_cap
+    type: fact
+    grain: "(season_id, team_key)"
+    chain: fantrax_core
+    required_keys: [season_id, team_key, is_current_season, original_cap, reinvestment_cap, charged_salary, ir_salary, minors_salary, dead_money, cap_room]
+    columns:
+      - { name: season_id, dtype: str }
+      - { name: team_key, dtype: str }
+      - { name: is_current_season, dtype: bool }
+      - { name: original_cap, dtype: float64 }
+      - { name: reinvestment_cap, dtype: float64 }
+      - { name: charged_salary, dtype: float64 }
+      - { name: ir_salary, dtype: float64 }
+      - { name: minors_salary, dtype: float64 }
+      - { name: dead_money, dtype: float64 }
+      - { name: cap_room, dtype: float64 }
+      - { name: roster_captured_at, dtype: "datetime64[us, UTC]" }
+      - { name: fantrax_salary_remaining, dtype: float64 }
+      - { name: fantrax_captured_at, dtype: "datetime64[us, UTC]" }
+      - { name: fantrax_period, dtype: Int64 }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_season, via: direct, on: season_id }
+    notes: >
+      The published cap table (ADR-0016's #97 amendment, decisions 4 and 5):
+      two rows per team, written whole by 02h with etl_cap's rules. This
+      season is the one `season` on fact_fantasy_teams, never the calendar
+      (is_current_season true); next season is dim_season's following one.
+      charged_salary on the current row sums fact_fantasy_teams.cap_hit, so
+      Minors and IR salary charge nothing and show in minors_salary and
+      ir_salary. On the next-season row it sums every contract with a
+      following year (contract_year < total_years, plus `Minor`) at the same
+      salary, no slot exempt, so ir_salary and minors_salary are 0. dead_money
+      is that season's rows of fact_dead_money only. cap_room is original_cap
+      - charged_salary - dead_money - reinvestment_cap; reinvestment_cap is an
+      in-season charge, 0 on the next-season row. The last four columns are
+      null on the next-season row. roster_captured_at is the roster's read
+      instant; null on the current row marks a roster built from the ledger
+      replay out of season, where slots are blank and every salary is charged.
+      fantrax_salary_remaining is Fantrax's own number, from the newest
+      standings reply 04s saved for this season (fantrax_captured_at,
+      fantrax_period); null with no such file, or with a reply 02h cannot read
+      (a warning, never a held Chain). Gate team_cap: 28 teams per season, the
+      seasons are the roster's and its following one, every figure equals a
+      recompute, and each season's Dead Money is all on known teams. Review
+      salary_remaining: Fantrax's number against original_cap - charged_salary
+      - ir_salary - dead_money, to $1, only when the roster read and the
+      capture fall on the same league day; on any other run it files and
+      clears nothing. Fantrax
+      charges IR and is treated as wrong on this point, which is why IR is
+      added back.
+
   - name: fact_roster_transactions
     type: fact
     grain: "(transaction_id, scorer_id, team_key, event_type)"

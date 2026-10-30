@@ -140,6 +140,14 @@ exempts anyone. Computed in one place for the ETL (`notebooks/etl_cap.py`) and
 stored on `fact_fantasy_teams`.
 _Avoid_: dead money (that's a dropped player's charge), salary (charged or not)
 
+**Cap Room**:
+What a team has left under the cap for a season: its cap minus charged salary,
+that season's Dead Money and, this season, its reinvestment charge. Published in
+`fact_team_cap`, this season and next. This season is the one on the roster table,
+never the calendar. Fantrax's own figure is **Salary Remaining**, which also
+charges IR salary.
+_Avoid_: remaining cap, cap space
+
 ### Results
 
 **Team Score**:
