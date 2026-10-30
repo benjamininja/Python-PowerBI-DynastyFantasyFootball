@@ -43,6 +43,19 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   worktree. (2) Resuming with flags starts a copy, as `8319ac47` did;
   `2de6353b` is stopped. Without flags the same session continues. (3)
   `GOAL-RUN.md` step 4 needs both corrected, with the owner's approval.
+- **#218 (planner, 2026-10-30; plan approved in its session, latest
+  comment on #218; each PR still needs the owner's approval).** The owner
+  has a queue entry: pull the live clone, restart, two settings edits.
+  The next dispatch after that goes through `dispatch.ps1` (dry run,
+  `-Apply`) in a session where the owner ran `/session-dispatch`. Report
+  to the planner: pid and own worktree; deny list passed by
+  `--disallowedTools`; transcript shows `session-rules` loaded. It closes
+  #167 on that. #259's builder went by the recipe, so it is not that gate.
+- **#234 edits are on hold.** The planner asks to fold them into the #218
+  shrink; the owner said "approved 234" here. Asked the owner; do not open
+  the PR until they answer.
+- **Owed in my next `GOAL-RUN.md` change:** stage D and "After the goals"
+  still treat #92 and the spike as open; both tickets are closed.
 - **Owner's words this session:** "258 still approved" (covers `ceee374`;
   merge on green, the planner's PR); "approved 234" (open the
   `GOAL-RUN.md` PR with the seven edits below, merge on green). The queue
