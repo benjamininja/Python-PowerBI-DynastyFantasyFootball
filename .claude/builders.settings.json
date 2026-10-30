@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "Read",
+      "Skill",
       "Grep",
       "Glob",
       "Edit",
