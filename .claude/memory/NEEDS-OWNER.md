@@ -56,21 +56,6 @@ can be traced.
 
 ## Actions
 
-### [ ] Approve PR #265: the spike's daily schedule comes off
-- Ticket: #254, #92
-- Steps: 1. Wait for the manager to post its Green output on the PR. 2. Open
-  the PR's Files tab and check the diff is two files: the workflow loses its
-  `schedule` trigger, and one test now requires manual runs only. 3. Reply in
-  the manager's session with the text below.
-  ```
-  approved 265
-  ```
-- Context: you approve this one because it changes a workflow trigger. It does
-  not re-enable the workflow; that stays disabled, as you set it. PR:
-  https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/pull/265
-- Blocks: closing out the builder `b254-remove-schedule`.
-- Raised: the planner, 2026-10-14; rewritten by the builder manager, 2026-10-30
-
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
 - Steps: 1. Open this file in Power BI Desktop:

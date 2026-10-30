@@ -19,7 +19,45 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Latest, 2026-10-30, third compact. This overrides what follows.**
+**Latest, 2026-10-30, fourth compact. This overrides what follows.**
+- **Merged:** #265 (`f4103ce`), #266 (`246be85`), #267 (`f93e1d6`, the planner's
+  state-back). Builder `b254-remove-schedule` is closed out. #265's PR, worktree
+  and branches are done with.
+- **Builder running: `b97-team-cap`**, session `0780bdeb`, pid 42944, tier high,
+  turn cap 200, #97 PR 2, branch `feat/97-team-cap`, worktree
+  `.claude/worktrees/b97-team-cap`. Brief: this session's scratchpad,
+  `b97-pr2-prompt.txt`. It messages this session when green. Then re-prove all
+  of Green, run `cap-ledger-auditor` (cap change), post the output, squash-merge
+  with `--delete-branch`, pull, close out. A builder's PR for a dispatched
+  ticket needs no further word. Its `02h` writes `fact_team_cap`; it was told
+  not to rebuild the ledger. The bot suite needs the scratchpad `botvenv`.
+- **Then:** #97 PR 3 (`Closes #97`; the owner's word to dispatch #97 is given),
+  #251, #201, #206. Before PR 3's brief, check `builders.settings.json` lists
+  every script the brief runs. The owner added the `02h --raw-dir` rule for this
+  PR; its text comes in with this state-back.
+- **The proving dispatch failed `session-rules` again.** Pid and own worktree
+  pass, deny list passes by the start command, `session-rules` did not load
+  (builder's report: `Unknown skill: session-rules`). #167 stays open, #218
+  stays gated. Planner's finding: the plugin loads through the owner's user
+  variable `CLAUDE_CODE_PLUGIN_DIRS`; `claude -p` with the builder's flags loads
+  it; the `--bg` daemon's parent is `WmiPrvSE.exe`, so it likely does not
+  inherit the variable (not proven).
+- **Fix waits with the planner:** `dispatch.ps1` passing `--plugin-dir` on the
+  start command. The owner said `approved.` here; the planner holds for the
+  owner's word in its own session, because a relayed answer is not approval. It
+  will say when merged and the live clone is pulled. Until then, no dispatch
+  counts as the proof. The next builder after that is the proof: same three
+  checks, reported to the planner by name.
+- **Told the owner, not fixed:** GitHub reports `fantrax-runner-spike` as
+  `active`, though it was to stay disabled. It has no schedule, so it fires by
+  hand only. The owner has the disable command. No agent runs it.
+- **The owner asked when daily refreshes finish:** no date. Stage C (11 open), D
+  (3 open), then the owner's parallel week and cutover. The PC task's state was
+  not confirmed.
+- **Local branch `docs/planner-state-9`** stays: the planner's scratch worktree
+  `ps8` holds it; on the planner's deletion list.
+
+**Earlier, 2026-10-30, third compact.**
 - **Merged:** #263 (stage D), #264 (state-back, on the owner's approval).
 - **Builder running: `b254-remove-schedule`**, session `85ecbf65`, PR #265,
   commit `4902af2`, idle. It reported the PR green and waits. Green is

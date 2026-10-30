@@ -55,7 +55,8 @@
       "Bash(.venv/Scripts/python.exe notebooks/04u_fantrax_public_api.py)",
       "Bash(.venv/Scripts/python.exe scripts/compare_tables.py *)",
       "Bash(.venv/Scripts/python.exe notebooks/02d_fact_roster_transactions.py --raw-dir *)",
-      "Bash(.venv/Scripts/python.exe notebooks/02e_fact_fantasy_teams_derive.py --raw-dir *)"    
+      "Bash(.venv/Scripts/python.exe notebooks/02e_fact_fantasy_teams_derive.py --raw-dir *)",
+      "Bash(.venv/Scripts/python.exe notebooks/02h_fact_team_cap.py --raw-dir *)"  
     ],
     "deny": [
       "PowerShell",
