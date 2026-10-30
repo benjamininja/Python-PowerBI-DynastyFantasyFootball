@@ -36,11 +36,8 @@ pandas 3.1.0 and pyarrow 26.0.0, 882 tests.
    tests pass there. A session gets it at its next launch or plugin reload.
    CI does not run the mod's tests (`claude plugin test`): a gap, not
    ticketed. PR 64 merged with one test failing for that reason.
-4. **Spike:** #92 and #230 closed. The owner fired one more manual run
-   (41063510308, login passed, four reads 200) and the workflow was then
-   `active`, so check whether its schedule is still on. The manager runs the
-   removal (b254). Stage D's stale lines in `GOAL-RUN.md`: the owner said
-   yes here; the manager needs that word in its own session.
+4. **Spike:** done. #92 and #230 closed; the daily schedule is off `main`
+   (PR #265), and Stage D stale lines are corrected (PR #263).
 5. **`roster_membership` "ledger is stale"** is by design until `04t` is a
    step (#93); the manager weighs it.
 6. **#97:** PR 1 merged; PR 2 is `fact_team_cap`, writer `02h`. Three planner
