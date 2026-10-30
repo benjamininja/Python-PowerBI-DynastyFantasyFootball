@@ -1,7 +1,6 @@
 # Spike for #92 (ADR-0015): can the authed Fantrax path log in headless from a
-# GitHub-hosted runner? Fires by hand (workflow_dispatch) and, TEMPORARILY,
-# once a day at 14:17 UTC so #92 question 1 gets runs on different days. The
-# schedule comes off by its own PR once that question is answered. Runs only
+# GitHub-hosted runner? Fires by hand only (workflow_dispatch); it has no
+# schedule. Runs only
 # from main. It reads three secrets from the `fantrax-spike` environment
 # (Settings -> Environments: deployment branches limited to main) and reports
 # verdicts, HTTP statuses and seconds only (scripts/runner_spike.py). Nothing is
@@ -12,8 +11,6 @@ name: fantrax-runner-spike
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '17 14 * * *'
 
 permissions:
   contents: read

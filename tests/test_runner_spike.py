@@ -339,11 +339,10 @@ class TestWorkflow:
     def wf(self):
         return yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
 
-    def test_fires_by_hand_and_on_the_one_daily_schedule(self, wf):
+    def test_fires_by_hand_only(self, wf):
         triggers = wf.get("on", wf.get(True))
-        assert set(triggers) == {"workflow_dispatch", "schedule"}
+        assert set(triggers) == {"workflow_dispatch"}
         assert not (triggers["workflow_dispatch"] or {}).get("inputs")
-        assert triggers["schedule"] == [{"cron": "17 14 * * *"}]
 
     def test_job_is_fenced(self, wf):
         job = wf["jobs"]["spike"]
