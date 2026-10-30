@@ -1,92 +1,27 @@
 # GOAL-RUN — finishing the wayfinder maps under `/goal`
 
 Approved by the owner 2026-10-11 (plan `proud-plotting-cocoa`; the four
-rulings were given 2026-10-05). This file is the runbook a goal session
-works from. `RESUME.md` still holds the state-back; `NEEDS-OWNER.md` holds
-everything waiting on the owner.
+rulings were given 2026-10-05). This file holds this project's own rules
+and the stage table a goal session works from. `RESUME.md` still holds the
+state-back; `NEEDS-OWNER.md` holds everything waiting on the owner.
 
 **Scope of the delegation:** goal runs on maps #69, #70, #71 and #66 only.
 Any other work keeps the standing rules in `RESUME.md` unchanged.
 
-## Session setup (builder manager, per dispatch)
-
-Owner's ruling 2026-10-12, #166. The builder manager starts every
-builder from PowerShell with the CLI at its full path. It copies the
-tier: for a stage, from the Tier column under "Stages"; for a single
-ticket, from the ticket's own `Tier:` line; otherwise from the brief.
-It never picks one. No tier, no dispatch: it asks the planner.
-
-| Tier | Model and effort | For | Turn cap |
-|---|---|---|---|
-| low | Sonnet 5.5, medium | tightly scoped work | 30 |
-| medium | Sonnet 5.5, high | work with an investigative step | 80 |
-| high | Opus 5.5, medium | a stage or other large work | 200 |
-
-The turn cap is written into the prompt ("Or stop after N turns"), as
-the goal texts below already do.
-
-1. Make the worktree: `git worktree add .claude/worktrees/<name> -b
-   worktree-<name>` from the main checkout. Made this way it holds no
-   settings file of its own.
-2. Build its `.venv` (`python -m venv .venv`, then
-   `.venv/Scripts/python.exe -m pip install -r requirements.txt`) and
-   check that `pytest` collects. A read-only low job whose brief says
-   `venv: no` skips this step.
-3. Start, from the main checkout: `claude.exe --bg -w <name> --name
-   <name> --model <tier's model> --effort <tier's effort>
-   --permission-mode dontAsk --settings <main checkout>\.claude\builders.settings.json
-   --agent stage-builder <prompt>`. `-w` takes the worktree that is
-   already there. The prompt is the read line below, then the `/goal`
-   text or the brief. It is read from a file and holds **no double
-   quote**: PowerShell cuts the prompt off at the first one. Never from
-   Git Bash: it rewrites `/goal` into a path.
-4. Check in `claude agents --json` that it has a `pid` and that its
-   `cwd` is `.claude/worktrees/<name>`. If it is not, stop it at once.
-5. Watch `status`, `state` and `waitingFor` in `claude agents --json`
-   and the transcript `.jsonl`; `claude logs` is not readable.
-6. Follow up: `claude stop <id>` first, then `claude --resume
-   <sessionId> --bg <message>` from the builder's worktree, with the
-   same mode and settings. Resuming a session that is still alive
-   starts a copy. Remove with `claude rm <id>` only at closeout; it
-   refuses while the worktree holds an uncommitted file.
-
-(Order and the two warnings proven by the dry dispatch of 2026-10-12.)
-
-**The belt (owner's approval 2026-10-12, #166).** Step 3 also passes
-the deny rules below with `--disallowedTools`, after the prompt (the
-flag takes a list, so the prompt comes before it). The builders'
-settings file stays the fence; the flag can only deny, and it holds
-even if the file is changed or is not read. Why: the owner's
-user-level allow rules reach a builder, so only a deny rule fences
-one. Cost: the list lives in two places and both are kept in step.
-
-`PowerShell`, `Bash(gh pr merge*)`, `Bash(gh api*)`,
-`Bash(gh issue close*)`, `Bash(gh issue edit*)`,
-`Bash(gh issue delete*)`, `Bash(git push origin --delete*)`,
-`Bash(python -c*)`, `Bash(python3*)`,
-`Bash(.venv/Scripts/python.exe -c*)`,
-`Bash(./.venv/Scripts/python.exe -c*)`.
-
-The read line, first in every builder's prompt: "Read
-`C:\Users\benha\.claude\memory\preferences.md`, then
-`.claude/memory/RESUME.md` Standing rules and NEXT (read only), then
-`.claude/memory/GOAL-RUN.md` and `NEEDS-OWNER.md`."
-
-**A job in no plan.** The manager may dispatch a read-only or tightly
-scoped job at low only, with the low turn cap, and names it in its next
-report. Anything that would need medium or high goes to the planner or
-the owner first.
-
-**Outgrown tier.** A builder whose work turns out bigger than its tier
-parks with what it found. The planner sets a new tier; the manager
-dispatches again.
+**The rules common to every project** are in two skills of the
+`session-dispatch-managers-build-review` plugin: `session-rules` (tiers,
+briefs, the generic Never list, a denied call, parking, relayed answers,
+the two-key merge), which every session loads, and `session-dispatch`
+(starting a builder, merging, closeout), which the owner invokes in a
+manager's session before any dispatch or merge. Where this file and
+`session-rules` disagree, this file wins, except that it never loosens a
+line under that skill's "Never".
 
 ## Delegation rules (goal runs only)
 
 | Matter | Rule |
 |---|---|
 | Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: post the plan as a comment on the ticket (Outline → Build mode → Rationale), then build; the PR body repeats it. A new design decision parks. |
-| Commit, PR, merge | Two-key merge (owner's ruling 2026-10-12). The builder commits, pushes its own branch and opens the PR. It does not merge. When the PR is green by its own check it messages the manager, ends its turn and waits. The manager re-proves green (below), squash-merges with `--delete-branch`, pulls, and wakes the builder, which starts its next branch from the new `origin/main`. |
 | Tracker | The builder posts Resolutions as comments and creates new task tickets (`Tier: unset`). A ticket closes through its PR's closing keyword when the manager merges. The manager closes or edits any other ticket and adds the pointer to the map's Decisions so far. Text goes through `check_pii.py` first. |
 | Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes only. The owner stores the secrets and fires the first runner login. |
 | Windows | One PR per compaction: push the commits and post a state-back comment on the ticket (done, next, open), then compact, at every PR seam and at 125K–150K tokens. |
@@ -102,219 +37,37 @@ dispatches again.
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
-**Always parks, never delegated:**
+**Always parks, past the skill's list:**
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
-- a new design decision inside a task ticket (ADR-worthy, or two defensible
-  answers);
 - a verify step that fails on real data (restore the tables from HEAD first);
-- CI red after two fix attempts;
 - checkpoint 1, the first Fantrax runner login;
 - checkpoint 2, cutover: `ETL_STORAGE=postgres` on the scheduled run,
   enabling a cron, the parallel week, unregistering the PC task, the
   consumer type pass going live;
-- closing a map; anything that reads or writes a secret; a destructive
-  database action outside the restore-drill scratch schema.
+- a destructive database action outside the restore-drill scratch schema.
 
-**Never, with or without a goal:**
+**Never, past the skill's list, with or without a goal:**
 - a Fantrax login or TOTP attempt; running `04a`, `04t`, `04v`, `04w`, or
   `04s` without `--from-raw`; `run_pipeline.py` other than `--check-only`,
   `--dry-run`, or `--no-commit --steps` naming no-login steps only;
-- `gh workflow run`, `gh secret`, a push to `main`, a force push,
-  `--no-verify`, `gh pr merge --admin` (most are denied in
-  `.claude/settings.json`; a denial is not to be worked around);
 - a `data/raw/` payload in the conversation; owner PII or team names in a
   committed file or a public post;
 - the Supabase connector for anything but looking: no `apply_migration`,
   no writing SQL through `execute_sql`, no create, delete, pause,
   restore, branch, deploy or cost tool (rule and allowed list in
-  `project-fantasy-football.md`, Supabase access);
-- weakening a test, a Gate or a rule to make a goal pass.
+  `project-fantasy-football.md`, Supabase access).
 
-**A denied call** (owner's ruling 2026-10-12, #164): a call the permission
-system refuses is never retried and never worked around by another
-route, and no other session is asked to make it. The builder parks it:
-one message to the managing session that holds a ready Action entry
-(what was denied, the exact command, what it blocks). The manager writes
-it into the queue. The builder takes the next ticket.
-A builder runs in `dontAsk` with `.claude/builders.settings.json`, so a
-call not on that list is a denied call. Two limits, found in the dry
-dispatch of 2026-10-12: a read-only command runs without a rule, and
-the owner's user-level allow rules reach a builder too. So what a
-builder must never do is a **deny** rule in the builders' file (a deny
-beats an allow from anywhere): merging, `gh api`, `python -c`, closing
-or editing a ticket, and the "Never" list.
+**A builder's fence.** Two limits, found in the dry dispatch of
+2026-10-12: a read-only command runs without a rule, and the owner's
+user-level allow rules reach a builder too. So what a builder must never
+do is a **deny** rule in `.claude/builders.settings.json`: a deny beats an
+allow from anywhere.
 
-**A builder's state** (owner's ruling 2026-10-12, #234): a builder runs
-in `dontAsk`, where a write under `.claude/` is refused before any allow
-rule is read. So a builder writes no file there. Its lasting state is
-its ticket's comments and its pushed commits; after a compact or a new
-dispatch it reads those. Working notes and message body files go in
-`builder-state/` at its worktree's top, which git ignores; nothing
-depends on that folder. `RESUME.md` is the manager's file; a builder
-reads its Standing rules.
+**The planner's read.** Past the skill's triggers, the manager also asks
+for it when a PR changes a table's grain or a key.
 
-## Park protocol
-
-Owner's ruling 2026-10-12: "when there are questions/decisions for me
-or actions needed of me, this is where we are moving it so the context
-is sticky even though the session itself has gained new entries. it's a
-shared entry across sessions. everything should be clear on tracing."
-So every session, not only a builder, puts what it leaves with the
-owner into `NEEDS-OWNER.md`. The planner does not write that file: it
-sends the builder manager a ready entry. Chat alone is not enough.
-
-1. Stop work on the ticket. Do not answer the owner's side.
-2. Append an entry to `NEEDS-OWNER.md`, in the format its header gives:
-   under `## Decisions` for a choice (Ticket, Context with the evidence,
-   Options, Recommended, Blocks, Raised) or under `## Actions` for work by
-   the owner's hand (Ticket, Steps, Context, Blocks, Raised). Options
-   are written `(a) ...; (b) ...` and Recommended `(a), because ...`.
-   The `owner-queue` pane reads the main checkout's copy only, and only
-   the manager and the planner have the pane. A builder never writes the
-   queue (owner's ruling 2026-10-12, #234): the message of step 3 holds
-   its ready entry, and the manager writes it into the main checkout's
-   copy at once. The builder adds one line to its ticket: parked, and
-   why.
-3. Send one desktop push notification. No public post. If a managing
-   session started this one, also send it one message that names the
-   entry; the push does not arrive when Remote Control is off.
-4. Take the next unblocked ticket of the stage. If none is left, print
-   `NEEDS-OWNER.md` and end the turn; the goal text counts that as met.
-5. The owner answers by a button in the pane or in chat; either is the
-   approval. A button writes an `Answer:` line into the entry, which no
-   agent writes, edits or removes. A pane answer is the owner's
-   wherever it lands: the session that picks it up acts on it, and for
-   a builder's entry the manager relays it, quoting the line. A relay
-   from the managing session counts as the owner's answer under the
-   rule below. Record it
-   (ADR, ticket Resolution or `RESUME.md`, as fits; a builder records it
-   as a comment on its ticket), remove the entry in
-   the same turn, and put the ticket back in the queue. The same goes for
-   an action the owner reports done, or one the session finds done (a
-   closed ticket, a secret now present by name): remove it at once, so the
-   list never shows finished work. The owner can also press "Mark done" in
-   the pane, which ticks the entry `[x]`; delete ticked entries at the
-   next state-back.
-
-### Relayed answers (owner's rulings 2026-10-12, #166)
-
-The owner may answer a parked entry in the managing session instead of
-the builder's. The managing session then sends the builder one message.
-It counts as the owner's answer only when all of these hold:
-
-- it answers an entry that is already in `NEEDS-OWNER.md`;
-- it quotes the question put to the owner and the owner's answer word
-  for word;
-- it comes from the session that started the builder.
-
-The builder records the answer with the note "relayed by the manager"
-and goes on. Under these three conditions a relay may answer any parked
-entry, including checkpoint 1, checkpoint 2, closing a map and a new
-decision (owner's ruling 2026-10-12, #166). A relay never lifts the
-"Never" list, and it never covers a question the builder has not
-parked: the builder parks first, then the answer comes. If a relay is
-unclear or goes past the entry, the builder does not act on it and says
-so in its reply.
-
-Why: the owner checks in as needed, not at every step; without this a
-park pulls the owner into each builder session. The word-for-word quote
-and the named source keep a misquote visible.
-
-## The managing session (owner's rulings 2026-10-12, #164, #166)
-
-Roles are set out in the #164 resolution; role files in
-`.claude/agents/` point here. The managing session is the builder
-manager (session name `dynastyFantasyFootball-central-builder-manager`):
-it starts and watches the builders, and the owner's words reach a
-builder through it, quoted word for word, within "Relayed answers"
-above. What it may do under a goal run:
-
-**Edits.** `.md` files and `.claude/memory/*` only, in its own worktree
-and its own PR, and only files no open builder PR touches. Never code,
-tests, notebooks or data. It never commits for a builder.
-
-**Merges (owner's ruling 2026-10-12).** The owner's words: "you should
-be merging the prs and then cleaning up and resetting. to me they are
-all the same sequence (approval) gate." So the owner's approval of a PR
-is one gate. After it the manager merges on green (one CI read,
-squash, `--delete-branch`), pulls, deletes the local branch and leaves
-the main checkout clean on `main`. This covers its own PRs and a rule
-change the owner has approved; the owner no longer merges those by
-hand. A settings or permission file stays the owner's own commit.
-
-**Merging a builder's PR (two-key merge, owner's ruling 2026-10-12).**
-A builder may not merge. When it messages that a PR is green, the
-manager re-proves every item of "Green means all of" itself, posts the
-output on the PR, squash-merges with `--delete-branch`, pulls, and
-wakes the builder. A PR that is not green goes back to the builder with
-the failing output; it is not merged. Why: nothing reaches `main` on
-one session's own report, while the builder's branch is still pushed,
-so its work is backed up and tested by CI. Cost: the builder waits a
-few minutes per PR.
-
-**The planner's read (owner's approval 2026-10-12, #166, #162).** The
-manager asks the planner to read a builder's PR against its ticket
-when the PR:
-
-- changes an ADR, a table's grain or a key;
-- touches a file its ticket did not name;
-- leaves a done condition unmet, or rewords one;
-- adds a design choice the ticket did not make;
-- outgrew its tier.
-
-The read does not replace the re-proof of Green; both are done. The
-planner answers "no breach" or "plan breach". A plan breach holds the
-merge until planner and manager agree, or the owner rules. A design
-choice the read turns up goes to the owner as a Decision in
-`NEEDS-OWNER.md`; the planner's advice is not the owner's answer.
-Why: the manager proves that the work is green, not that it is the
-work the plan asked for. Cost: one more message round on such a PR.
-
-**Stages and gap tickets (owner's approval 2026-10-12, #162).** A
-stage is a milestone on the tracker, kept by the planner; the table
-under "Stages" is its copy for the dispatch. A gap ticket from the
-planner's sweep carries its tier, evidence, files, proposed disposition
-and done condition. The disposition is advice: whether and when to
-dispatch is the manager's, on the owner's word. Each proof command on a
-ticket is one a builder may run under
-`.claude/builders.settings.json`, or the ticket says the manager runs
-it at re-proof. The planner writes tickets so; a ticket that does not
-is sent back to the planner before dispatch (owner, 2026-10-12).
-
-**Check-ins.** Event-driven: a park, a PR reported green, a stopped or
-idle builder. One fallback look after 60 quiet minutes. No polling.
-
-**Closeout, only when a builder has stopped.** Never while it is still
-running.
-
-1. For each open PR of that builder: re-prove every item of "Green
-   means all of" itself, post the output on the PR, then squash-merge
-   with `--delete-branch`. A PR that is not green is not merged; it is
-   listed for the owner.
-2. `git pull --ff-only` on the main checkout.
-3. Delete that builder's remaining branches, each only after `git
-   cherry` against `main` shows nothing missing.
-4. Remove that builder's worktree, only if it has no uncommitted file.
-5. State-back, then report to the owner with the proof: the commands
-   and their output.
-
-Anything unmerged, uncommitted, or not that builder's is listed for the
-owner and left where it is.
-
-Why: the builder ends with its tickets, and a stage's tail (stacked
-branches, the worktree, a last green PR) should not come to the owner
-item by item. Re-proving Green in the managing session keeps the merge
-from resting on the builder's own report.
-
-## Status block (end of every turn)
-
-The judge reads only the transcript, so each turn ends with fresh output of:
-
-- `gh issue view <n> --json number,state` for each ticket of the stage;
-- `gh pr list --state open --json number,title`;
-- `git status --short --branch`;
-- the last line of `pytest tests/` if code changed this turn;
-- the open entries of `NEEDS-OWNER.md` (titles only).
+**Status block.** Past the skill: a goal run ends every turn with it,
+changed or not, because the judge reads only the transcript.
 
 ## Stages
 
