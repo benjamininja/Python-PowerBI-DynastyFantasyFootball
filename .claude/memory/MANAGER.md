@@ -25,10 +25,16 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   last client disconnects", and `claude --bg` starts it. A failed stop of
   `6d8dadd9` (a settled entry from 2026-10-15) proves nothing, and the
   owner's app restart was not needed. Test with `claude daemon status`.
-- **Builder for #259 is running:** `8319ac47`, worktree
-  `.claude/worktrees/b259-pandas-empty-map`, branch
-  `worktree-b259-pandas-empty-map`, tier low, turn cap 30. It messages
-  this session when its PR is green. Then re-prove Green, including
+- **Builder for #259 has done nothing yet: its login expired.** `8319ac47`
+  (idle, `blocked`), worktree `.claude/worktrees/b259-pandas-empty-map`,
+  branch `worktree-b259-pandas-empty-map`, tier low, turn cap 30. Both its
+  turns answered "Login expired · Please run /login"; `daemon.log` says
+  "auth: no token found". The owner logs the CLI in (queue entry); no
+  agent logs in. Then `claude stop 8319ac47` and, from the worktree,
+  `claude --resume 8319ac47-49a3-44aa-bd94-64e820fbc1c1 --bg <message>`
+  with no flags. A flagless resume keeps its saved options; check them in
+  the transcript. It messages this session when its PR is green. Then
+  re-prove Green, including
   `pytest tests/` on the main `.venv` (pandas 3.0.3), since its venv has
   CI's 3.1.0. Merge it, then tell the planner, which re-runs its evidence.
 - **Dispatch findings.** (1) `claude agents --json` gives a new builder
