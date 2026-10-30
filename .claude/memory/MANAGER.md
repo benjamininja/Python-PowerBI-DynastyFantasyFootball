@@ -19,6 +19,47 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
+**Latest, 2026-10-30, before a compact. This overrides what follows.**
+- **The background service was never broken.** It is on-demand:
+  `claude daemon --help` says it "runs on demand and exits when the
+  last client disconnects", and `claude --bg` starts it. A failed stop of
+  `6d8dadd9` (a settled entry from 2026-10-15) proves nothing, and the
+  owner's app restart was not needed. Test with `claude daemon status`.
+- **Builder for #259 is running:** `8319ac47`, worktree
+  `.claude/worktrees/b259-pandas-empty-map`, branch
+  `worktree-b259-pandas-empty-map`, tier low, turn cap 30. It messages
+  this session when its PR is green. Then re-prove Green, including
+  `pytest tests/` on the main `.venv` (pandas 3.0.3), since its venv has
+  CI's 3.1.0. Merge it, then tell the planner, which re-runs its evidence.
+- **Dispatch findings.** (1) `claude agents --json` gives a new builder
+  no `pid` and shows the launch folder as `cwd`, so read `cwd` from the
+  transcript `.jsonl` under `~/.claude/projects/<worktree slug>/`. I
+  stopped `2de6353b` on that false alarm; its transcript showed the
+  worktree. (2) Resuming with flags starts a copy, as `8319ac47` did;
+  `2de6353b` is stopped. Without flags the same session continues. (3)
+  `GOAL-RUN.md` step 4 needs both corrected, with the owner's approval.
+- **Owner's words this session:** "258 still approved" (covers `ceee374`;
+  merge on green, the planner's PR); "approved 234" (open the
+  `GOAL-RUN.md` PR with the seven edits below, merge on green). The queue
+  entry for #258 stays until merged.
+- **Owner's rulings recorded:** versions keep loose floors, on #259, no
+  `requirements.txt` change. #92 and #230 are closed by the planner.
+  Secrets hold the commissioner account, accepted.
+- **Spike workflow is `disabled_manually`** by the owner; no more logins.
+  The schedule removal PR still follows #259 (low builder, the owner
+  approves it). Removing the schedule does not re-enable the workflow.
+- **Order after #259:** merge #257, #258, the #234 PR; schedule removal;
+  `claude rm 2de6353b` and close out `6d8dadd9` (`rm` it, the worktree
+  `b254-spike-schedule` first checked for uncommitted files); #97 PR 2
+  on a new branch (planner's notes 1 and 2; note 3 is moot, the builder
+  chose `02h`); #251 (tell the #97 builder it rewrites the ledger);
+  #201; #206.
+- **Queue:** uncommitted in the main checkout; commit it on a branch with
+  no builder PR touching it. Owner's standing request: every ask to the
+  owner carries the exact absolute path or command and the steps, in the
+  same reply; never a relative path or a pointer to an earlier message.
+- `.git/packed-refs.lock` is gone (owner deleted it).
+
 **Who and what**
 - This session: `dynastyFantasyFootball-central-builder-manager` (id
   `local_39e3ac7a…`). The owner's words reach a builder through it.
