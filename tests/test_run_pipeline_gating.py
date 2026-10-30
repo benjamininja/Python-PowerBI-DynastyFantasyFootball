@@ -188,3 +188,21 @@ class TestDeadMoneyStep:
 
     def test_its_table_is_in_the_same_chain(self):
         assert ec.load_registry()["fact_dead_money"]["chain"] == "fantrax_core"
+
+
+class TestTeamCapStep:
+    """02h publishes the cap table after what it reads, in the core Chain (#97)."""
+
+    STEPS = rp.build_steps(None)
+
+    def test_it_follows_dead_money_and_the_roster(self):
+        names = [s["name"] for s in self.STEPS]
+        step = self.STEPS[names.index("02h_team_cap")]
+        assert step["chain"] == "fantrax_core"
+        assert step["needs"] == ["02f_dead_money", "02e_derive"]
+        assert names.index("02f_dead_money") < names.index("02h_team_cap")
+        assert names.index("02e_derive") < names.index("02h_team_cap")
+        assert step["cmd"][-1].endswith("02h_fact_team_cap.py")
+
+    def test_its_table_is_in_the_same_chain(self):
+        assert ec.load_registry()["fact_team_cap"]["chain"] == "fantrax_core"

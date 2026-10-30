@@ -52,6 +52,7 @@ TEAMS_TOTAL = 28
 TEAMS_PER_CONFERENCE = 14
 UNIT_COLUMNS = ["fpts_offense", "fpts_defense", "fpts_special_teams"]
 POINTS_TOLERANCE = 0.01       # Fantrax serves points to the cent
+SALARY_TOLERANCE = 1.0        # Salary Remaining against cap room, to $1 (#97)
 STARTER_SLOT = "Starter"
 CLOSED = "closed"             # dim_scoring_period.update_set_state (04p's CLOSED)
 DROP = "drop"                 # fact_roster_transactions.event_type
@@ -449,6 +450,77 @@ def roster_membership_findings(roster: pd.DataFrame,
                for t, s in missing])
 
 
+class NotComparable(Exception):
+    """A Review check had nothing it may compare this run: it files nothing
+    and clears nothing, and it is not a failure."""
+
+
+def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFrame,
+                    teams: pd.DataFrame, contracts: pd.DataFrame,
+                    seasons: pd.DataFrame) -> list[str]:
+    """fact_team_cap agrees with what it is built from (ADR-0016's #97
+    amendment, decision 4): two seasons, each covering 28 teams; the current
+    row is the roster's season and the other its following one; every figure
+    equals a recompute, so a roster or Dead Money rebuilt without 02h does not
+    publish."""
+    errs = []
+    current = table[table["is_current_season"]]["season_id"].unique().tolist()
+    this = cap.roster_season(roster)
+    if current != [this]:
+        errs.append(f"current-season rows are {current}, the roster's season is {this}")
+    for season_id, rows in table.groupby("season_id"):
+        errs += [f"{season_id}: {e}" for e in coverage_errors(rows, teams)]
+    want = cap.team_cap(roster, dead, teams, contracts, seasons)
+    key = ["season_id", "team_key"]
+    m = want.merge(table, on=key, how="outer", suffixes=("", "_got"), indicator=True)
+    unmatched = m["_merge"] != "both"
+    if unmatched.any():
+        errs.append(f"{int(unmatched.sum())} rows are not the expected seasons "
+                    f"({sorted(want['season_id'].unique())})")
+    charged = dead.groupby("season_id")["dead_money"].sum()
+    for season_id, rows in want.groupby("season_id"):
+        if abs(rows["dead_money"].sum() - charged.get(season_id, 0.0)) > POINTS_TOLERANCE:
+            errs.append(f"{season_id}: Dead Money on a team outside dim_fantasy_teams")
+    both = m[~unmatched]
+    for col in cap.TEAM_CAP_FIGURES:
+        off = (both[col] - both[f"{col}_got"]).abs() > POINTS_TOLERANCE
+        if off.any():
+            errs.append(f"{int(off.sum())} rows whose {col} is not a recompute from the "
+                        "published tables (run 02h after 02f and 02e)")
+    return errs
+
+
+def salary_remaining_findings(table: pd.DataFrame,
+                              roster: pd.DataFrame) -> list[tuple[str, str]]:
+    """Fantrax's Salary Remaining against cap room, on Fantrax's basis: IR
+    salary added back, since Fantrax charges it (owner's ruling 2026-10-12,
+    #97), and no reinvestment charge. One finding per team off by more than
+    $1. Compared only when the roster read and Fantrax's capture fall on the
+    same league day: Fantrax serves today's value alone. Otherwise it raises
+    NotComparable, so the open findings stay open."""
+    rows = table[table["is_current_season"] & table["fantrax_salary_remaining"].notna()
+                 & table["roster_captured_at"].notna() & table["fantrax_captured_at"].notna()]
+    if rows.empty:
+        raise NotComparable("no roster read or no Fantrax number")
+    read_days = rows["roster_captured_at"].dt.tz_convert(cap.LEAGUE_TZ).dt.date
+    capture_days = rows["fantrax_captured_at"].dt.tz_convert(cap.LEAGUE_TZ).dt.date
+    rows = rows[read_days == capture_days]
+    if rows.empty:
+        raise NotComparable(f"roster read {read_days.iloc[0]}, Fantrax captured {capture_days.iloc[0]}")
+    led = pd.to_datetime(roster["ledger_captured_at"], utc=True).max()
+    ledger = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
+    out = []
+    for r in rows.itertuples():
+        read_day = pd.Timestamp(r.roster_captured_at).tz_convert(cap.LEAGUE_TZ).date()
+        ours = r.original_cap - r.charged_salary - r.ir_salary - r.dead_money
+        if abs(ours - r.fantrax_salary_remaining) > SALARY_TOLERANCE:
+            out.append((f"{r.season_id}|{r.team_key}",
+                        f"{r.team_key} period {r.fantrax_period} on {read_day}: Fantrax's Salary "
+                        f"Remaining {r.fantrax_salary_remaining:,.2f}, ours {ours:,.2f} on its "
+                        f"basis (ledger captured {ledger})"))
+    return out
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -494,6 +566,13 @@ DOMAIN_CHECKS = [
     DomainCheck("roster_membership", "review", "fact_fantasy_teams",
                 lambda load: roster_membership_findings(load("fact_fantasy_teams"),
                                                         load("fact_roster_transactions"))),
+    DomainCheck("team_cap", "gate", "fact_team_cap",
+                lambda load: team_cap_errors(load("fact_team_cap"), load("fact_fantasy_teams"),
+                                             load("fact_dead_money"), load("dim_fantasy_teams"),
+                                             load("dim_contract"), load("dim_season"))),
+    DomainCheck("salary_remaining", "review", "fact_team_cap",
+                lambda load: salary_remaining_findings(load("fact_team_cap"),
+                                                       load("fact_fantasy_teams"))),
 ]
 
 
@@ -565,6 +644,10 @@ def run_suite(tables: Iterable[str] | None = None,
         chain = registry[dc.table].get("chain")
         try:
             found = dc.fn(load)
+        except NotComparable as e:
+            results.append(Result(dc.name, dc.table, chain, dc.tier, True,
+                                  f"not compared: {e}", ran=False))
+            continue
         except Exception as e:
             # A Review check that cannot run is reported, files nothing and
             # clears nothing (`ran` False); a Gate that cannot run blocks.

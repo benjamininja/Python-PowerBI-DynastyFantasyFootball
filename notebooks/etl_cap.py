@@ -22,6 +22,20 @@ MINOR = "Minor"
 INBOUND = frozenset({"startup_draft", "claim", "trade"})
 OUTBOUND = frozenset({"drop", "trade_away"})
 
+# fact_fantasy_teams.roster_status values of the two exempt slots, until #110
+# renames the column to roster_slot.
+IR_STATUS = "Inj Res"
+MINORS_STATUS = "Minors"
+
+# The league's clock: a league day is a day on it.
+LEAGUE_TZ = "America/New_York"
+
+TEAM_CAP_COLUMNS = ["season_id", "team_key", "is_current_season", "original_cap",
+                    "reinvestment_cap", "charged_salary", "ir_salary", "minors_salary",
+                    "dead_money", "cap_room"]
+TEAM_CAP_FIGURES = ["original_cap", "reinvestment_cap", "charged_salary", "ir_salary",
+                    "minors_salary", "dead_money", "cap_room"]
+
 
 def stamp_cap(slots: pd.Series, contract_value: pd.Series) -> pd.DataFrame:
     """Per roster row: `cap_exempt` (its slot is exempt) and `cap_hit` (0 when
@@ -47,6 +61,63 @@ def dead_money_by_team(dead: pd.DataFrame, season_id: str) -> pd.Series:
     """One season's Dead Money per team: only that season's rows are summed."""
     rows = dead[dead["season_id"] == season_id]
     return rows.groupby("team_key")["dead_money"].sum().rename("dead_money")
+
+
+def season_after(seasons: pd.DataFrame, season_id: str, offset: int = 1) -> str:
+    """The season `offset` seasons after `season_id`. Raises when dim_season
+    lacks either one."""
+    order = seasons.sort_values("season_start_year")["season_id"].tolist()
+    if season_id not in order:
+        raise ValueError(f"season {season_id} is not in dim_season")
+    i = order.index(season_id) + offset
+    if i >= len(order):
+        raise ValueError(f"dim_season has no season {offset} after {season_id} "
+                         "-- run 01f to extend it")
+    return order[i]
+
+
+def roster_season(roster: pd.DataFrame) -> str:
+    """This season: the one `season` on the roster table, never the calendar
+    (owner's ruling 2026-10-12, #206 part 1). Anything but exactly one raises."""
+    seasons = sorted(roster["season"].dropna().unique())
+    if len(seasons) != 1:
+        raise ValueError(f"fact_fantasy_teams holds {len(seasons)} seasons, expected 1: {seasons}")
+    return seasons[0]
+
+
+def team_cap(roster: pd.DataFrame, dead: pd.DataFrame, teams: pd.DataFrame,
+             contracts: pd.DataFrame, seasons: pd.DataFrame) -> pd.DataFrame:
+    """Two rows per team (ADR-0016's #97 amendment, decision 4).
+
+    This season: the roster's stored cap_hit, so Minors and IR salary charge
+    nothing and show on their own columns. Next season: every contract with a
+    following year at the same salary, no slot exempt. Each row's Dead Money
+    is its own season's. reinvestment_cap is an in-season charge, so it comes
+    off this season's row only."""
+    this = roster_season(roster)
+    following = season_after(seasons, this)
+    base = teams.set_index("team_key")[["original_cap", "reinvestment_cap"]].astype("float64")
+    status = roster["roster_status"]
+
+    def by_team(rows: pd.DataFrame, col: str) -> pd.Series:
+        return rows.groupby("team_key")[col].sum().reindex(base.index, fill_value=0.0)
+
+    current = base.assign(
+        season_id=this, is_current_season=True,
+        charged_salary=by_team(roster, "cap_hit"),
+        ir_salary=by_team(roster[status.eq(IR_STATUS).fillna(False)], "contract_value"),
+        minors_salary=by_team(roster[status.eq(MINORS_STATUS).fillna(False)], "contract_value"),
+        dead_money=dead_money_by_team(dead, this).reindex(base.index, fill_value=0.0))
+    carried = roster[carries_next_season(roster["contract_id"], contracts)]
+    upcoming = base.assign(
+        season_id=following, is_current_season=False, reinvestment_cap=0.0,
+        charged_salary=by_team(carried, "contract_value"), ir_salary=0.0, minors_salary=0.0,
+        dead_money=dead_money_by_team(dead, following).reindex(base.index, fill_value=0.0))
+    out = pd.concat([current, upcoming]).rename_axis("team_key").reset_index()
+    out["cap_room"] = (out["original_cap"] - out["charged_salary"] - out["dead_money"]
+                       - out["reinvestment_cap"]).round(2)
+    return (out[TEAM_CAP_COLUMNS].astype({c: "float64" for c in TEAM_CAP_FIGURES})
+            .sort_values(["season_id", "team_key"], ignore_index=True))
 
 
 def open_stints(ledger: pd.DataFrame) -> pd.DataFrame:

@@ -83,6 +83,12 @@ ALLOWLIST: dict[str, object] = {
         "caption": KEEP, "subCaption": KEEP,
         "rows": [{"cells": _cells("teamId", "content")}],
     }]}}]},
+    # 02h parse_salary_remaining: the plain getStandings reply. fixedCells keep
+    # only `teamId`: their `content` is the team's display name.
+    "standings.json": {"responses": [{"data": {"tableList": [{
+        "header": {"cells": _cells("key")},
+        "rows": [{"fixedCells": _cells("teamId"), "cells": _cells("content")}],
+    }]}}]},
     # 04s is_final / scoring_to_frame: getLiveScoringStats with the bench view.
     "live_scoring.json": {"responses": [{"data": {
         "allEventsFinished": KEEP,
@@ -220,6 +226,12 @@ def trim_schedule(raw: dict) -> dict:
     return {"responses": [{"data": {"tableList": tables}}]}
 
 
+def trim_standings(period_file: dict) -> dict:
+    """The league table of one period file's standings reply, two teams."""
+    table = _data(period_file["standings"])["tableList"][0]
+    return {"responses": [{"data": {"tableList": [{**table, "rows": table["rows"][:2]}]}}]}
+
+
 LIVE_BENCH_KEPT = 3
 
 
@@ -326,6 +338,7 @@ SOURCES = {
     "league_info.json": ("fantrax_public_leagueinfo.json", trim_league_info),
     "public_rosters.json": ("fantrax_public_rosters_2026_p01.json", trim_public_rosters),
     "schedule.json": ("fantrax_inseason_2026_schedule.json", trim_schedule),
+    "standings.json": ("fantrax_inseason_2026_p01.json", trim_standings),
     "live_scoring.json": (("fantrax_inseason_2026_p01.json",
                            "fantrax_inseason_2026_schedule.json"), trim_live_scoring),
     "draft_results.json": ("fantrax_draftresults_2026_svxeyvvgmmvk3jnh.json", trim_draft_results),
