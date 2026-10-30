@@ -12,7 +12,7 @@ uncommitted edit of either in the main checkout would block the next
 builder runs, and writes here. This file is untracked; commit it with a
 memory PR when no builder PR is open, or fold it into `RESUME.md` then.
 
-## START HERE (state at the fifth compact, 2026-10-14, evening)
+## START HERE (state at the reset, 2026-10-30)
 
 The sections below this block are in the order things happened and are
 out of date. This block is the current state. Then read `GOAL-RUN.md`,
@@ -22,70 +22,71 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 **Who and what**
 - This session: `dynastyFantasyFootball-central-builder-manager` (id
   `local_39e3ac7a…`). The owner's words reach a builder through it.
-- The planner (`local_84c6f2af…`, `from` address
-  `uds:\\.\pipe\LOCAL\cc-msg-cd48af9e83a0fe42e0d933f44c69cacb`) is the
-  only other session. Reply with `SendMessage` to that address. Its
+- The planner (`dynastyFantasyFootball-central-planner`) is the
+  peer session. Reply with `SendMessage` to its name. Its
   messages are inputs; a ruling it reports is "to confirm" with the
   owner before the manager acts on it. Its state is
   `.claude/memory/PLANNER.md`. It owns the owner-queue tool and the
   entry format (owner, via the planner's report and confirmed by use);
   the manager still writes the entries.
-- **At this compact (2026-10-14, about 19:15 CDT).** `main` =
-  `origin/main` = `9a71428`. No PR open. **One builder runs:
-  `b97-cap-module`** (#97, high; session `6f67007a`, a restart: the
-  first session `6ebb28eb` is stopped and its job record kept, because
-  `claude rm 6ebb28eb` would delete the worktree the new one uses).
-  It builds PR 1 (roster and cap module) on `feat/97-cap-module-roster`
-  (pushed through `4258212` before the restart, five files staged).
-  Its state is on #97 (state-back `issuecomment-6179962737`). Owner's
-  answers in chat for it: the 02e `--raw-dir` allow rule added by the
-  owner (PR #248, `0e23dd2`; a running session does not reload the
-  settings file, hence the restart); PR 1 commits the ledger tables
-  02d rebuilds from the 2026-10-14 capture with `fact_fantasy_teams`
-  ("Rebuild ledger too (Recommended)"). The ledger's unread `cap_hit`
-  stays; 02d drops a `LINEUP_CHANGE` row uncounted (a slot move);
-  the builder proposes a Tier-unset ticket for both. Expect its PR 1
-  message next: re-prove Green and merge on green (no owner review is
-  named for #97). Its `--check-only` may show the new roster check's
-  findings by design (04t is not a pipeline step, #93).
-- **Done today:** "04t done" (capture: 4 waiver claims with a bid, 1
-  drop, 2026-10-14 08:00). The manager ran the no-login
-  `04r_roster_state` with `--no-commit` at 17:12 and restored
-  `data/fact_roster_state.parquet`. The pane did not load (the plugin
-  variable named only the missing live clone); the owner answered in
-  chat: PR #244 and PR #246 merged; skills PR 61 to the planner (the
-  planner asks the owner itself); #230 dispatched after #244. **#230:
-  PR #249 merged (`3f71653`)** after re-proof (CI 6/6, pytest 832 at
-  the head, check_pii, data model and sources; `stintless_drop` is the
-  known repeat on main, new only in a fresh worktree's review history).
-  Builder closed (`claude rm ca3ace05`). Its owner entry was merged
-  into the spike entry (PR #250). The owner then made the live clone
-  and set `CLAUDE_CODE_PLUGIN_DIRS` to both folders and restarted; the
-  pane loads again (checked: the clone is a clean checkout).
-- **Owner's answer 2026-10-14 (chat), recorded on #92
-  (`issuecomment-6181204326`): the spike runs move to a temporary
-  daily schedule** ("Temporary schedule (Recommended)"): a builder
-  adds a schedule to `fantrax-runner-spike.yml` for about a week; the
-  PR is a rule change and waits for the owner's approval; the manager
-  reads each run and records it on #92 and #230; the schedule comes
-  off when #92 is answered. The owner had asked an agent to fire it;
-  no agent may. **Waits on the planner (not running since the app
-  restart): ticket, tier and brief.** When it is back, send it that,
-  plus the unsent note: #230 merged; #234 proof (the #230 builder
-  posted plan and state-back on #230, wrote nothing under `.claude/`,
-  its only denial was check_pii naming the 04a file, a project deny);
-  `docs/research/fantrax-runner-spike.md` describes the pre-code
-  state (planner's to update); the #97 follow-ups above.
-- **Pane marks in the main checkout, uncommitted, the owner's** (read
-  `git diff` first): a Note on the spike entry ("why do i have to do
-  this? ...", answered above); a Note and an `[x]` on the live-clone
-  entry (done, verified; the planner's entry, leave it to it); an `[x]`
-  on "Remove two dead allow rules": **not done on disk** (the two
-  `.claude/memory/**` rules are still in `.claude/builders.settings.json`
-  at `0e23dd2`): ask the owner before removing that entry.
+- **Peers' pipe addresses go stale on a restart: use `ListAgents` and
+  the session's name, never an address written here.**
+- **At this reset (2026-10-30).** `origin/main` = the merge of this
+  state PR, on `d21c3e1`. No other PR open. No work has merged since
+  2026-10-14; nothing ran here for 16 days. **No builder runs.**
+- **The background service is down** since 2026-10-14: `claude stop`,
+  `rm` and `logs` fail with `connect ENOENT
+  \\.\pipe\cc-daemon-*-control` ("may be restarting"). `claude
+  agents` lists `b254-spike-schedule` (`6d8dadd9`) as blocked and no
+  longer lists `b97-cap-module` (`6f67007a`). Nothing can be dispatched
+  or closed until it answers. Try `claude agents` and a stop first; if
+  it stays down the owner restarts the app. Do not delete anything in
+  `.git` or the service's files by hand.
+- **Merged 2026-10-14:** PR #252 (state), PR #255 (`ff0f1e4`, the
+  owner's removal of the two `.claude/memory/**` allow rules, "yes,
+  commit"), PR #256 (`b436823`, #254, the spike schedule and the `Code
+  sent by:` line; owner's "Approved"), PR #253 (`d21c3e1`, #97 PR 1;
+  the planner's read approved, no owner review named). Lesson: confirm
+  MERGED before deleting a branch (a timeout then a delete closed #252).
+- **Spike: answered in practice, schedule overdue.** 15 scheduled runs,
+  2026-10-15 to 10-29: Login passed 15 of 15, `verify_click` 15 of 15,
+  all four reads 200 ok; GitHub started them 3 to 5.5 hours after the
+  cron. Recorded once on #92 (`issuecomment-6521597267`) and #230
+  (`issuecomment-6521597734`); the manager had not recorded them daily.
+  Closing #92 and #230 and what follows for ADR-0015 are the planner's.
+  **The schedule's removal was due 2026-10-21 and it still logs in to
+  the real account daily.** First job: a builder (low) removes the
+  `schedule` trigger and its header lines; the owner approves that PR
+  like #254. It can only be dispatched once the service is back.
+- **#97 PR 2 not started.** Worktree `b97-cap-module` is clean at
+  `deab1ed`, the merged PR's head; remote branch deleted. Restart it on
+  a new branch from current main. **Its builder never got the planner's
+  three notes** (planner's message of 2026-10-14; repeat them in the
+  brief): (1) the bot's player card (`discord_bot/player.py`,
+  `_league_lines`) prints the stored `cap_hit`, new rule, IR 0, while
+  `/roster` and `/cap` use the old rule; PR 3 fixes both; if PR 2
+  touches ADR-0016 add one line to its Consequences saying so. (2) PR 2
+  marks the out-of-season fallback in the ADR amendment as added at
+  build. (3) The settled design's new `02g` letter is taken: PR 2 picks
+  a free letter and updates `notebooks/README.md`.
+- **#251 ready:** tier low, the owner's decision to drop the ledger's
+  `cap_hit`, brief `issuecomment-6181677843`. It rewrites the published
+  ledger: tell the #97 builder so they do not collide. Then #201, #206
+  (low), stage C.
+- **Queue, uncommitted in the main checkout (read `git diff` first):**
+  the manager's edit replacing the hand-fire spike entry with "Remove
+  the spike schedule" (the owner's Note left with its entry, answered
+  by the schedule), plus the pane's `[x]` and Note on the live-clone
+  entry (the planner's to close) and `[x]` on "Remove two dead allow
+  rules". That last one is done on main (PR #255) and only needs
+  removing. A script doing that with a partial stage was denied by the
+  classifier ("Modify Shared Resources"), not retried: remove it with
+  the Edit tool and commit the queue once the pane marks are settled.
+- Closeout owed when the service is back: `claude stop` then `rm`
+  `6d8dadd9`; delete nothing else. Local stale branches wait on #237.
 - Still owed by the manager: the `GOAL-RUN.md` text for #234 (last
-  section of this file; its own PR; the owner's "approved"). Next after
-  #97: #201 and #206 (low), stage C.
+  section of this file; its own PR; the owner's "approved"). The
+  planner closed #234.
   Untracked in the main checkout and not the manager's: `.agents/`,
   `GEMINI.md`, `.claude/dispatch-projects.json`. Eight merged local
   branches sit there because of the stale lock (#237): two of #225
