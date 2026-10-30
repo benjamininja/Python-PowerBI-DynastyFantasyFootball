@@ -11,17 +11,13 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-1. **The next event is the manager's report on the scoping session for
-   #97 PR 3.** PR #269 (#97 PR 2) is open and CI green; `b97-team-cap` built it
-   and may still be running. The manager is re-proving Green and re-running
-   the auditor; the merge needs the owner's approval. The planner's read is
-   posted: no breach. Findings 4 and 5 are answered on the PR; carry to #93:
-   confirm `salary_remaining` on the first same-day `04s` and `04r` run, and
-   recheck the stale-ledger question. Worth surfacing in #137's run log: a
-   persistent `NotComparable`.
-   Auditor re-run: the `team_cap` Gate passes a null figure, sent back to the builder; the
-   merge holds. Same-day-not-same-instant is on #93; `cap_exempt` ignored by `stamp_cap`
-   is on #97 for the scoping session.
+1. **The next event is the manager's report on the scoping session for #97 PR 3.** PR #269
+   (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
+   `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
+   on #97 for the scoping session. Carried to #93: the first same-day `salary_remaining` run,
+   same day not same instant, stale ledger, a persistent `NotComparable`. `cap_exempt` ignored
+   by `stamp_cap` is on #97. The owner wants the build moving now: after the proof, no new
+   tooling; go to Stage C.
 2. **The owner's decision: Opus plans work down and never builds it.** A trial,
    no rule changed yet. Only high tickets get a scoping session (#97 PR 3, #108,
    #135): `dispatch.ps1` at tier high, `-TurnCap 40`, agent `stage-builder`. It
