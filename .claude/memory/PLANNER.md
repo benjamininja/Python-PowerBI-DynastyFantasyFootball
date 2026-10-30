@@ -5,57 +5,75 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-30, before a compact)
+## START HERE (state 2026-10-30, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
-No PR is open in this repository. Find the manager with `ListAgents`, by
-name. CI is green: #259 merged (PR #260, `bdd3d84`), and `main` passes on
-pandas 3.1.0 and pyarrow 26.0.0, 882 tests.
+Find the manager with `ListAgents`, by name. Approved plans: this block and
+`C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-1. **#218 is approved and gated; the proof is the next event.** The first
-   script dispatch (b254) passed two checks and failed the third:
-   `Unknown skill: session-rules`. Cause: an unquoted colon broke that
-   skill's YAML frontmatter. Fixed in skills PR 62 (`70e8504`); the live
-   clone is pulled to it. The manager's hold is lifted and its next builder
-   through the script is the proof, reported to the planner by name. Pass:
-   pid and own worktree; deny list by `--disallowedTools`; transcript shows
-   `session-rules` loaded. A `--bg` session with the fix is untested.
-   On a pass: close #167 with the evidence, post the shrink text on #218
-   against the merged #234 edits (PR #261, `41354e2`; the fold in the plan is
-   dropped), open the role-file and `CLAUDE.md:57` PR. On a fail: stop, take
-   the cause to the owner. The owner's two files are in (PR #262). The owner
-   will not restart the app: new processes read the plugin without it.
-2. **Skills repo plan, approved by the owner in order.**
-   Part 1 done: PR 63 (`e5c5a94`), every tracked SKILL.md's frontmatter is
-   tested. Part 2 not started and held until the proof passes: `dispatch.ps1`
-   fetches and compares the live clone with `origin/main`; `-Apply` refuses
-   when it is behind and prints the pull command; a dry run only reports; it
-   never pulls. The planner merges on green, on that approval.
-3. **Owner-queue no longer opens by itself:** PR 64 (`8aee46a`) and PR 65
-   (`a898308`), version 0.7.2, copied to `~/.claude/mods/owner-queue`, 27
-   tests pass there. A session gets it at its next launch or plugin reload.
-   CI does not run the mod's tests (`claude plugin test`): a gap, not
-   ticketed. PR 64 merged with one test failing for that reason.
-4. **Spike:** done. #92 and #230 closed; the daily schedule is off `main`
-   (PR #265), and Stage D stale lines are corrected (PR #263).
-5. **`roster_membership` "ledger is stale"** is by design until `04t` is a
-   step (#93); the manager weighs it.
-6. **#97:** PR 1 merged; PR 2 is `fact_team_cap`, writer `02h`. Three planner
-   notes may not have reached the builder, so they go in that brief: the
-   player card prints stored `cap_hit` while `/roster` and `/cap` charge IR
-   until PR 3 (ADR-0016's Consequences misses it); the out-of-season fallback
-   reads as added at build; `02g` in the settled design is taken.
-7. **#251:** tier low, Stage C, brief on it, not dispatched.
+1. **The next event is the manager's report on the scoping session for
+   #97 PR 3.** PR #269 (#97 PR 2) is open and CI green; `b97-team-cap` built it
+   and may still be running. The manager is re-proving Green and re-running
+   the auditor; the merge needs the owner's approval. The planner's read is
+   posted: no breach. Findings 4 and 5 are answered on the PR; carry to #93:
+   confirm `salary_remaining` on the first same-day `04s` and `04r` run, and
+   recheck the stale-ledger question. Worth surfacing in #137's run log: a
+   persistent `NotComparable`.
+2. **The owner's decision: Opus plans work down and never builds it.** A trial,
+   no rule changed yet. Only high tickets get a scoping session (#97 PR 3, #108,
+   #135): `dispatch.ps1` at tier high, `-TurnCap 40`, agent `stage-builder`. It
+   writes no code and opens no PR; its output is one comment on the ticket: one
+   brief per PR, in order, each with a low or medium tier, files, settled design,
+   done condition and proof, then open design questions. It questions the planner,
+   never the owner. The planner checks the briefs against the ADR and done condition,
+   takes open questions to the owner, sets tiers, tells the manager. An open design
+   question goes back to planning, never to a builder; an exception is the
+   owner's, one at a time. The manager sends back a low or Haiku brief with
+   no files or proof, and any build brief at high. The brief for #97 PR 3 is
+   on #97 (comment 6525071022). #108 is the second trial.
+   Then: compare token use with `b97-team-cap` from the transcripts and count parks
+   and rework (rough; the tickets differ). If the trials hold: write the flow in
+   `central-planner.md`, put rule text on a ticket for `GOAL-RUN.md` with #218's
+   shrink, and add a Haiku tier (Haiku 5.5, medium, 15 turns; mechanical only, never
+   cap, ledger, pipeline or schema) to `dispatch.ps1` with a test and to
+   `session-rules`. The script refuses a Haiku tier today.
+3. **That scoping session is also the #218 proof.** Two script dispatches failed
+   check 3 with `Unknown skill: session-rules`. Fixes: YAML colon (skills PR 62);
+   `--plugin-dir` on the start command (skills PR 66, `d193886`; the live clone is at
+   it). Cause of the second, likely not proven: a `--bg` daemon's parent is
+   `WmiPrvSE.exe`, so it does not inherit `CLAUDE_CODE_PLUGIN_DIRS`. `claude -p` with
+   the builder's flags, without `-w` or `--bg`, loaded it, and the bare name
+   resolved. `--bg` with the flag is untested. Pass: pid and own worktree; deny list by
+   `--disallowedTools`; transcript (not only its report) shows `session-rules`
+   loaded. On a pass: close #167 with the evidence, post the shrink text on #218
+   against current `main`, open the role-file and `CLAUDE.md:57` PR. On a fail:
+   stop, take what the transcript shows to the owner.
+4. **Skills repo, approved in order, after the proof:** `dispatch.ps1` fetches and
+   compares the live clone with `origin/main`; `-Apply` refuses when behind and prints
+   the pull command; a dry run only reports; it never pulls. The planner merges on
+   green, on that approval. CI does not run the mod's tests (`claude plugin test`):
+   a gap, not ticketed.
+5. **Owner-queue:** no auto-open, version 0.7.2, in `~/.claude/mods/owner-queue`;
+   the owner has reloaded plugins.
+6. **Trajectory:** Stages A and B done. Stage C: #97 then #110, #108, then #135 to
+   #138, then the owner's secret and cutover. Stage D: #93 and #116. The cap tickets
+   #251, #201 and #206 are low, briefs on them, not dispatched. Don't start more tooling
+   work until stages are moving.
+7. **`roster_membership` "ledger is stale"** is by design until `04t` is a step
+   (#93); the manager weighs it.
 8. **Not deleted, needs the owner's word:** skills branches
    `needs-owner-template-rules`, `builder-state-rules`,
    `fix/session-rules-frontmatter`, `test/skill-frontmatter`,
-   `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`; skills
-   worktree `C:/Users/benha/fr`; `docs/planner-state-6`, `-7`, `-8`; local
-   `docs/builder-state-234`; `.claude/worktrees/metadata-principles` (leftover
-   cherry-pick, unpushed `4f23f16`).
-9. **Working notes.** A long temp path breaks a skills-repo worktree on
-   Windows: use a short one. Chain with `set -e`, and never pipe a test run
-   through `tail` before a merge: that hid a failure on PR 64.
+   `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`,
+   `fix/dispatch-plugin-dir`; skills worktree `C:/Users/benha/fr`;
+   `docs/planner-state-6`, `-7`, `-8`, `-9`; local `docs/builder-state-234`;
+   `.claude/worktrees/metadata-principles` (leftover cherry-pick, unpushed `4f23f16`).
+9. **Working notes.** The owner will not restart the app: verify before listing a hand
+   item. A relayed answer is never approval; ask in this session. A skills-repo
+   worktree needs a short path on Windows. Gate a merge on the test's exit code, and
+   check the interpreter has pytest (`set -e` did not stop PR 66's push before tests
+   ran); the dynasty `.venv` runs the skills tests. A `git push` from a main-resolved
+   cwd is blocked: use `git -C <worktree> push`.
 
 ## Earlier state (2026-10-12, partly stale)
 
