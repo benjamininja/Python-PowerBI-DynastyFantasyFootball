@@ -323,7 +323,7 @@ The judge reads only the transcript, so each turn ends with fresh output of:
 | A. Ledger and cap | done | #96 PR 2 → #68 (both closed 2026-10-11; #97 moved to C) | done |
 | B. Seam | high | #109 → #77 → #149 → #86 (all closed 2026-10-12; #110's last part moved to C) | done |
 | C. Postgres | high | #97 → #110 `roster_slot` rename → #108 → Postgres backend and backfill → snapshot export step → `ops.etl_run_log` → restore drill → #111 | the fresh `04t` capture (after Wednesday 2026-10-14, 8:00 am) |
-| D. Schedule | high | #92 login code → Linux entrypoint → #93 → #116 | the TOTP secret stored; B and C merged |
+| D. Schedule | high | Linux entrypoint → #93 → #116 (#92 closed 2026-10-30) | the TOTP secret stored; B and C merged |
 
 A ticket's own `Tier:` line says what it needs if dispatched alone. In
 a stage run the stage's tier applies, and it is never lower than the
@@ -379,7 +379,9 @@ Notes per stage:
   backfill of the real project runs only after the golden round-trip
   passes. #111 ends with options for the owner, not a decision.
 - **D.** The crons merge switched off (workflow `if:` on a repo variable).
-  The stage ends with the spike workflow ready for the owner to fire.
+  The stage ends with the crons ready for the owner to enable. The spike
+  is finished: its workflow is disabled by the owner, and its schedule
+  comes off by its own PR.
 
 ## Goal texts
 
@@ -404,14 +406,14 @@ Notes per stage:
 **D**
 
 ```
-/goal Work stage D of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: the #93 build is merged with every cron switched off; gh issue view state CLOSED for #116, or it is listed in .claude/memory/NEEDS-OWNER.md with a reason; the Fantrax login spike workflow is on main and NEEDS-OWNER.md tells the owner how to fire it; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. No workflow is run and no cron is enabled by the agent. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
+/goal Work stage D of .claude/memory/GOAL-RUN.md under its delegation rules. Met when the last message shows, from commands run in that turn: the #93 build is merged with every cron switched off; gh issue view state CLOSED for #116, or it is listed in .claude/memory/NEEDS-OWNER.md with a reason; gh pr list shows no open PR; git status shows main in sync with origin with only .claude/memory files, PLAN.md, .agents/ and GEMINI.md outside the index; pytest tests/ passes. No workflow is run and no cron is enabled by the agent. Do not weaken a test, a Gate or a rule to get there. Or stop after 200 turns.
 ```
 
 ## After the goals (owner-led, calendar time)
 
-The owner fires the spike. If the runner login is blocked, ADR-0015's
-fallback applies: authed captures stay on the home-PC task, everything else
-runs on Actions. Then the owner enables the crons, the parallel week runs,
+The spike is finished: the runner login passed on 15 of 15 runs (#92 and
+#230, closed 2026-10-30), so ADR-0015's fallback is not in play. The owner
+enables the crons, the parallel week runs,
 the owner gives the cutover go, the agent closes #93 and posts the map
 Resolutions, and the owner closes maps #69, #70, #71 and #66.
 
