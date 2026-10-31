@@ -165,7 +165,7 @@ current data breaks a candidate primary key.
 
 | Hazard | Where | Handling |
 |---|---|---|
-| **Nullable ints stored as float64 + NaN** | `dim_nfl_players.draft_year/round/number/height/weight`, `fact_fantrax_adp.overall_rank/games_played/age`, `fact_roster_transactions.contract_*/cap_hit/draft_round/pick_*`, `fact_fantasy_teams.contract_*`, combine `draft_*`/`bench_press`/`broad_jump`, `dim_contract.min_salary` | Phase 1: DDL mirrors the pandas dtype (`double precision`) so the round-trip is the identity. Tightening to `integer` is a later schema decision, not a seam concern. |
+| **Nullable ints stored as float64 + NaN** | `dim_nfl_players.draft_year/round/number/height/weight`, `fact_fantrax_adp.overall_rank/games_played/age`, `fact_roster_transactions.contract_*/draft_round/pick_*`, `fact_fantasy_teams.contract_*`, combine `draft_*`/`bench_press`/`broad_jump`, `dim_contract.min_salary` | Phase 1: DDL mirrors the pandas dtype (`double precision`) so the round-trip is the identity. Tightening to `integer` is a later schema decision, not a seam concern. |
 | **Arrow int64 read back as float64** | `fact_trade_log.draft_round/pick_in_round/draft_year` (the pandas metadata says object) | The registry dtype is authoritative, so the read coerces to it. |
 | **pandas `Int64` (nullable ext.)** | `fact_rookie_rankings.draft_year/global_rank/positional_rank` | Postgres `bigint`. The read must restore `Int64` from the registry (a plain read gives float64/object). |
 | **int32 vs int64** | `dim_nfl_players.years_of_experience/entry_year/last_season`, combine `season` | `integer`, but the read returns int64. Coerce from the registry, or `check_data_model` drift fires. |

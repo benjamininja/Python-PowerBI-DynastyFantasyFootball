@@ -51,6 +51,10 @@ and make `fact_fantasy_teams` a **derived** current-state projection.
   `cap_hit` is DERIVED by contract type (`dim_contract.cap_hit_pct` × value, by
   `contract_year`) and never stored twice; `dead_money` = guaranteed residual;
   Yo-Yo cap-exempt while `ml_games_left > 0`.
+  *Built 2026-10-31 (#251 Brief B, #287): the ledger stores no `cap_hit`
+  column. The cap hit is derived where it is read, from `dim_contract` and
+  `contract_value`. `02d` writes `LEDGER_COLS` only, so a ledger that still
+  carries the column loses it on the next run.*
 - **Source**: 04a-style Playwright + Fantrax `fxpa/req` (`getDraftResults`-type
   method), persistent `.pw_profile`; full snapshot each run → replace-by-
   `(season, event_type)`; idempotent so it is safe to re-run between picks.
@@ -100,8 +104,9 @@ Built S1–S4 and merged to `main` (PR #15) against the live Riddell capture
 - **`contract_value` = the Fantrax `salary` field** (already captured in
   `fact_fantrax_adp.salary`, projection-based), joined by `scorer_id` from the
   latest snapshot (as-of the pick). Each made pick → an **Initial** contract, yr 1
-  (`dim_contract` `"1st"`: `cap_hit_pct = 0.50`, guaranteed, 3-yr term); `cap_hit` =
-  `0.50 × value`; `dead_money = 0` at acquisition. `getDraftResults` carries **no**
+  (`dim_contract` `"1st"`: `cap_hit_pct = 0.50`, guaranteed, 3-yr term); the cap hit
+  is `0.50 × value` (derived, not stored: see the built note under Decision);
+  `dead_money = 0` at acquisition. `getDraftResults` carries **no**
   salary on the pick, so the snapshot join is the source.
   *Amended 2026-10-03 (#125): the latest capture is no longer read first.
   Fantrax re-priced the pool after the draft and still charges a roster the
