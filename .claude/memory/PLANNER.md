@@ -21,7 +21,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `data-model.md`'s stale cap text for its state-back after Brief 3: a builder cannot write
    under `.claude/`. Queue entry to remove `b97-team-cap` is with the manager. Proofs moved
    off #97 are on #93 and #211. Skills-repo item 4 is held by the owner's later word, no new
-   tooling. The live skills clone is `C:SERSBENHAAUDE-LIVESKILLS-PLUGINS-HOOKS-AGENTS`
+   tooling. The live skills clone is `C:\Users\benha\claude-live\skills-plugins-hooks-agents`
    at `d193886`; the OneDrive clone is older and is not what builders load.
    This file's branch is `docs/planner-state-11`, in this session's scratchpad worktree `w218`,
    which also has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the
