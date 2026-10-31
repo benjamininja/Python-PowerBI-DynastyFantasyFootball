@@ -531,6 +531,9 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
 
     def _disambig(cands, pos):
         df = cands
+        live = df[df["status"] != DROPPED_STATUS]
+        if len(live):
+            df = live
         if pos:
             m = (df["position"].str.upper() == pos) | (df["position_group"].str.upper() == pos)
             if m.any():
@@ -827,6 +830,26 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
                          grain); other rows untouched.
     """
     return len(_write_parquet(_table_path(name), df, mode, keys, partition, _table_entry(name)))
+
+
+DROPPED_STATUS = "DROPPED"
+
+
+def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd.DataFrame:
+    """`fresh` plus every stored row of table `name` whose `key` is not in `fresh`.
+
+    A person nflverse stops returning keeps the id other tables point at. Kept
+    rows follow the fresh rows, keep their stored values and take status
+    DROPPED; a fresh row always wins on a shared id. Reads the stored table
+    through the seam; no stored table keeps nothing."""
+    if not table_exists(name):
+        return fresh
+    stored = read_table(name)
+    kept = stored[~stored[key].isin(fresh[key])].reindex(columns=fresh.columns).copy()
+    if kept.empty:
+        return fresh
+    kept["status"] = DROPPED_STATUS
+    return pd.concat([fresh, kept], ignore_index=True)
 
 
 def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
