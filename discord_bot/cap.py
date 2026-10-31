@@ -43,7 +43,8 @@ def _team_line(row: pd.Series) -> str:
     spent = render.fmt_money(row["active_roster_salary"])
     rem_cur = render.fmt_money(row["remaining_cap_current_yr"])
     rem_next = render.fmt_money(row["remaining_cap_next_yr"])
-    return f"{name:<18} {spent:>8} {rem_cur:>9} {rem_next:>9}"
+    ir = render.fmt_money(row["ir_salary"])
+    return f"{name:<18} {spent:>8} {rem_cur:>9} {rem_next:>9} {ir:>8}"
 
 
 def build_cap_embeds(cfg: Config) -> list[discord.Embed]:
@@ -52,7 +53,7 @@ def build_cap_embeds(cfg: Config) -> list[discord.Embed]:
         raise CommandError("No team cap data available.")
     labels = _division_labels(cfg)
 
-    header = f"{'Team':<18} {'Spent':>8} {'Rem(cur)':>9} {'Rem(nxt)':>9}"
+    header = f"{'Team':<18} {'Spent':>8} {'Rem(cur)':>9} {'Rem(nxt)':>9} {'IR':>8}"
     fields: list[tuple[str, str]] = []
     for conf in sorted(teams["conference"].dropna().unique()):
         block = (
@@ -66,7 +67,7 @@ def build_cap_embeds(cfg: Config) -> list[discord.Embed]:
     embeds = render.paginate_fields(
         title="League Cap Standings",
         fields=fields,
-        footer="Spent = active roster salary · sorted by spend",
+        footer="Spent = charged salary · IR and Minors exempt · sorted by spend",
     )
     if not embeds:
         raise CommandError("No cap standings to show.")

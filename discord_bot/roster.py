@@ -88,10 +88,11 @@ def build_roster_embeds(cfg: Config, team: str) -> list[discord.Embed]:
 
     spent = render.fmt_money(t.get("active_roster_salary"))
     rem = render.fmt_money(t.get("remaining_cap_current_yr"))
+    ir = render.fmt_money(t.get("ir_salary"))
     embeds = render.paginate_fields(
         title=f"{tname} — Roster ({len(board)})",
         fields=fields,
-        footer=f"Spent {spent} · Remaining {rem}",
+        footer=f"Spent {spent} · Remaining {rem}\nIR-exempt salary {ir}",
     )
     return embeds
 

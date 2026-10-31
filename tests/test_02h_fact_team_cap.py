@@ -105,6 +105,12 @@ class TestTeamCap:
         assert t.loc[(THIS, "B01"), "cap_room"] == 300.0
         assert t.loc[(NEXT, "B01"), "cap_room"] == 296.0
 
+    def test_no_dead_money_charged_yet_means_nobody_owes(self):
+        t = table(dead=pd.DataFrame(columns=["team_key", "season_id", "dead_money"]))
+        assert t["dead_money"].tolist() == [0.0, 0.0, 0.0, 0.0]
+        assert t.loc[(THIS, "A01"), "cap_room"] == 300.0 - 70.0 - 7.0
+        assert t.loc[(NEXT, "A01"), "cap_room"] == 300.0 - 85.0
+
 
 class TestSeasonAnchor:
     def test_this_season_is_the_rosters_not_the_calendar(self):

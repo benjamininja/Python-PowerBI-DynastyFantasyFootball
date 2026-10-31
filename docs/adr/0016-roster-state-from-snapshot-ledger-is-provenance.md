@@ -240,6 +240,7 @@
    - *Built (#97 PR 2): Review check `salary_remaining`, from the newest standings reply `04s` saved for the roster's season. The two sides are the roster read and Fantrax's capture; the ledger's capture is not a third, so a Dead Money charge newer than the ledger can file a finding until `04t` runs, and the finding states the ledger's day. A run that cannot compare files nothing and clears nothing. A standings reply `02h` cannot read leaves the number null with a warning and does not hold the Chain.*
 6. **Replay check** (`roster_membership`, Review, membership only, zero grace per [ADR-0008](0008-regression-testing-standard.md) decision 9): one finding per roster copy with no open stint on the ledger and per open stint with no roster row. While the transaction capture is older than the roster read, one "ledger is stale" finding files and the per-row findings are held back.
 7. **Consumers.** The bot shows the league's cap room plus a line with the team's IR-exempt salary. trade-bud's what-if sheds the giver's charge today and charges the receiver the full salary.
+   - *Built 2026-10-30 (#97 Brief 2, the bot): `/cap` and `/roster` read `fact_team_cap` and the stored `cap_hit` through `capmath.py`, which holds no arithmetic. The IR-exempt salary (`ir_salary`) is a column on `/cap` and a line in `/roster`'s footer, not a second line per team: 14 teams with two lines each pass Discord's 1024-character field limit and the block would be cut, while a column stays near 860 characters. The figure and the rule are the decision's. `/cap` Rem(nxt) moves by design, because it now counts only contracts with a following year (decision 4), not the whole roster. trade-bud's what-if is #97's next PR.*
 8. **Not here:** the Power BI changes (#140), the Minor contract rules (#130), the `roster_slot` rename (#110).
 
 ### Alternatives considered
@@ -254,5 +255,7 @@
 
 - `02e` no longer writes outside the storage seam; its entry leaves the static guard's exceptions.
 - Until the consumer PR, the bot and trade-bud still compute with the old rule (IR charged) from the same table.
+  - *Built 2026-10-30 (#97 Brief 2): the bot no longer computes; it reads the new rule from the published tables. trade-bud still reaches `capmath` through its monkeypatch, so its numbers follow the table too; its what-if change (decision 7) is #97's next PR.*
 - Until that PR the bot disagrees with itself: its player card (`discord_bot/player.py`, `_league_lines`) prints the stored `cap_hit`, new rule, IR 0, while `/roster` and `/cap` use the old rule. PR 3 fixes both.
+  - *Built 2026-10-30 (#97 Brief 2): `/roster` and `/cap` read the stored `cap_hit` and `fact_team_cap`, so the player card and both commands agree.*
 - Power BI already exempts `Inj Res` in its measures; modelling `fact_team_cap` there is #140.
