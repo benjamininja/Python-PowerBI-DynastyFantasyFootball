@@ -28,8 +28,7 @@
 #   player, else the contract the preseason capture shows, else `1st`.
 #   `contract_source` says which. `contract_value` = the salary Fantrax charges the pick
 #   -- read off the preseason capture or Roster State, else the salary pool at
-#   draft time (see "Salary sourcing" below); `cap_hit` = that contract's
-#   `dim_contract.cap_hit_pct` × value.
+#   draft time (see "Salary sourcing" below).
 #   PLUS the free-agency/trade events parsed from 04t's captured transaction
 #   history — `trade_away` (TERMINAL) + `trade` for a traded player, and
 #   `claim` / `drop` (TERMINAL) for FA churn. All four share one chronological
@@ -127,7 +126,7 @@ ASSET_COLS  = ["asset_id", "asset_type", "scorer_id", "gsis_id", "player_key", "
 LEDGER_KEY  = ["transaction_id", "scorer_id", "team_key", "event_type"]
 LEDGER_COLS = ["transaction_id", "season_id", "event_type", "team_key", "asset_id",
                "event_seq", "event_date", "period",
-               "contract_id", "contract_year", "contract_value", "cap_hit", "contract_source",
+               "contract_id", "contract_year", "contract_value", "contract_source",
                "status", "scorer_id", "gsis_id", "draft_round", "pick_in_round",
                "pick_overall", "source", "claim_method", "claim_bid"]
 
@@ -178,7 +177,7 @@ SALARY_MINIMUM    = "league minimum (no salary capture)"
 # Same-timestamp tiebreak: a drop frees the roster spot the paired claim
 # fills, and a trade_away precedes the claim of anyone it displaced.
 _KIND_ORDER = {DROP_EVENT: 0, TRADE_IN: 1, CLAIM_EVENT: 2}
-_TERM_COLS  = ["contract_id", "contract_year", "contract_value", "cap_hit", "status",
+_TERM_COLS  = ["contract_id", "contract_year", "contract_value", "status",
                "contract_source"]
 
 _HTML_TAG   = re.compile(r"<[^>]+>")
@@ -589,7 +588,6 @@ class ContractSource(NamedTuple):
     snaps: dict     # (team_key, scorer_id) -> [Seen], by Scoring Period
     elig: list      # [(capture day, {minors-eligible scorer_ids})], oldest first
     years: dict     # contract_id -> dim_contract.contract_year
-    pcts: dict      # contract_id -> dim_contract.cap_hit_pct
     preseason: dict # (team_key, scorer_id) -> Preseason
     season: object  # the season_id whose Roster State `snaps` and `preseason` hold
 
@@ -659,7 +657,6 @@ def contract_source(state, preseason, eligibility, contracts,
         snaps=index_state(state, season_id),
         elig=index_eligibility(eligibility, season),
         years=dict(zip(contracts["contract_id"], contracts["contract_year"])),
-        pcts=dict(zip(contracts["contract_id"], contracts["cap_hit_pct"])),
         preseason=index_preseason(preseason, season_id),
         season=season_id)
 
@@ -913,16 +910,11 @@ def draft_time_salary(index: dict, scorer_id, event_dt, minimum: float):
 
 
 def repriced(terms: dict, salary: float) -> dict:
-    """Contract terms at a new salary. `cap_hit` keeps the share of the salary
-    it had: all of it on the league-minimum fallback, the draft row's share on
-    inherited terms. Unknown when the old share is. (Nothing reads the ledger's
-    `cap_hit`; #97 settles what it means.)"""
-    old, hit = terms["contract_value"], terms["cap_hit"]
+    """Contract terms at a new salary."""
+    old = terms["contract_value"]
     if pd.notna(old) and old == salary:
         return terms
-    share = hit / old if pd.notna(old) and pd.notna(hit) and old else pd.NA
-    return {**terms, "contract_value": salary,
-            "cap_hit": salary * share if pd.notna(share) else pd.NA}
+    return {**terms, "contract_value": salary}
 
 
 # %%
@@ -967,7 +959,6 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
             src, EVENT_TYPE, sid, event_date, seen=seen,
             preseason=pre.contract_id if pre is not None else None))
         contract_id = sourced[-1].contract_id
-        pct = src.pcts.get(contract_id)
         fact_rows.append({
             "transaction_id": p["pick_ref"],
             "season_id":      SEASON_ID,
@@ -980,7 +971,6 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
             "contract_id":    contract_id,
             "contract_year":  contract_year_of(src, contract_id),
             "contract_value": val,
-            "cap_hit":        (val * pct) if pct is not None and pd.notna(pct) else pd.NA,
             "contract_source": sourced[-1].source,
             "status":         STATUS,
             "scorer_id":      sid,
@@ -1318,8 +1308,6 @@ def parse_txn_rows(raw_rows, team_lut, gsis_lut):
 # ---- Resolve every transaction leg chronologically -> ledger rows ----------
 def fa_terms(contracts: pd.DataFrame) -> dict:
     """League-minimum FA fallback, straight off dim_contract's own "FA" row.
-    cap_hit mirrors contract_value: dim_contract.cap_hit_pct prices a CUT
-    (dead money), it is NOT a discount on a kept player's charge.
 
     A claim of a player with no contract history this season lands here.
     resolve_legs then re-prices it off the first roster that shows it on the
@@ -1331,7 +1319,7 @@ def fa_terms(contracts: pd.DataFrame) -> dict:
     fa    = contracts.loc[contracts["contract_id"] == FA_CONTRACT_ID].iloc[0]
     value = float(fa["min_salary"])
     return dict(contract_id=FA_CONTRACT_ID, contract_year=1,
-                contract_value=value, cap_hit=value, status="active")
+                contract_value=value, status="active")
 
 
 def sort_legs(legs: list[dict]) -> list[dict]:
@@ -1400,7 +1388,7 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
                 missing_source.append((holder, sid))
                 inherited = (repriced(fa, seen.salary) if seen is not None else
                              dict(contract_id=pd.NA, contract_year=pd.NA, contract_value=pd.NA,
-                                  cap_hit=pd.NA, status="active"))
+                                  status="active"))
         else:
             # Only a contract held THIS season carries over ("retain salary and
             # contract for the season"); anything older resets to league minimum.
@@ -1765,12 +1753,12 @@ def main():
     print("\n=== ledger summary ===")
     print(f"made picks: {len(fact)}  |  missing salary: {int(fact['contract_value'].isna().sum())}")
     by_team = (fact.groupby("team_key")
-               .agg(picks=("asset_id", "size"), cap_committed=("cap_hit", "sum"))
+               .agg(picks=("asset_id", "size"), contract_committed=("contract_value", "sum"))
                .sort_values("team_key"))
     print(by_team.to_string())
     print("\nsample rows:")
     show = ["team_key", "draft_round", "pick_in_round", "pick_overall", "scorer_id",
-            "asset_id", "contract_value", "cap_hit", "event_date"]
+            "asset_id", "contract_value", "event_date"]
     print(fact.sort_values("pick_overall").head(8)[show].to_string(index=False))
 
 
