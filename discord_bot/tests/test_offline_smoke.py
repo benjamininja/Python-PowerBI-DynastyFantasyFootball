@@ -94,6 +94,8 @@ def test_cap():
     for e in embeds:
         for f in e.fields:
             assert f.value.split("\n")[1].rstrip().endswith("IR"), "cap board lacks the IR column"
+            # mono_block cuts an over-long block to exactly 1024 characters
+            assert len(f.value) < 1024, f"cap board '{f.name}' was cut by mono_block"
         assert "IR and Minors exempt" in e.footer.text
 
 

@@ -72,6 +72,14 @@ class TestRosterWithCapHit:
         assert got["cap_hit"].tolist() == [7.0, 99.0, 3.0]          # none equals contract_value
         assert got["cap_exempt"].tolist() == [False, False, True]   # not derived from the slot
 
+    def test_editing_the_result_leaves_the_cached_frame_alone(self, monkeypatch):
+        cached = ROSTER.copy()
+        monkeypatch.setattr(capmath, "fetch_parquet", lambda path, _cfg: cached)
+        got = capmath.roster_with_cap_hit(CFG)
+        assert got is not cached
+        got.loc[0, "cap_hit"] = -1.0
+        assert cached["cap_hit"].tolist() == [7.0, 99.0, 3.0]
+
     def test_an_empty_roster_comes_back_empty(self, tables):
         tables(fact_fantasy_teams=ROSTER.iloc[0:0])
         assert capmath.roster_with_cap_hit(CFG).empty

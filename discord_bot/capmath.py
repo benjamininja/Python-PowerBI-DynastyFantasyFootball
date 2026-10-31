@@ -36,8 +36,9 @@ _NEXT_SEASON = {
 
 def roster_with_cap_hit(cfg: Config) -> pd.DataFrame:
     """fact_fantasy_teams as published. `cap_hit` and `cap_exempt` are stored
-    columns, stamped by 02e with the ETL's slot rule; nothing is recomputed."""
-    return fetch_parquet(_ROSTER_PATH, cfg)
+    columns, stamped by 02e with the ETL's slot rule; nothing is recomputed.
+    A copy, because fetch_parquet hands back the cached frame itself."""
+    return fetch_parquet(_ROSTER_PATH, cfg).copy()
 
 
 def _season_rows(cap: pd.DataFrame, current: bool, columns: dict[str, str]) -> pd.DataFrame:
