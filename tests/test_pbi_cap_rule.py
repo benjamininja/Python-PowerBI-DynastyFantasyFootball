@@ -1,13 +1,17 @@
 import ast
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "notebooks"))
+
+import etl_cap
+
 TABLES = ROOT / "pbi/mouserat2/Mouserat2.SemanticModel/definition/tables"
 MEASURES = (TABLES / "_Measures.tmdl").read_text(encoding="utf-8")
 FANTASY_TEAMS = (TABLES / "Fact_FantasyTeams.tmdl").read_text(encoding="utf-8")
 DERIVE_02E = (ROOT / "notebooks/02e_fact_fantasy_teams_derive.py").read_text(encoding="utf-8")
-ETL_CAP = (ROOT / "notebooks/etl_cap.py").read_text(encoding="utf-8")
 
 ACTIVE_DEAD_MONEY = (
     "Dead Money - Active - Current Year",
@@ -26,11 +30,7 @@ def _body(name: str) -> str:
 
 
 def _exempt_slots() -> set:
-    for node in ast.parse(ETL_CAP).body:
-        if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "EXEMPT_SLOTS" for t in node.targets):
-            return set(ast.literal_eval(node.value.args[0]))
-    raise AssertionError("EXEMPT_SLOTS not found in etl_cap.py")
+    return set(etl_cap.EXEMPT_SLOTS)
 
 
 def test_exempt_slot_literals_are_the_slots_the_cap_module_exempts():
@@ -52,6 +52,17 @@ def test_active_dead_money_measures_read_fact_dead_money():
 def test_status_column_is_retired():
     assert "sourceColumn: status" not in FANTASY_TEAMS
     assert '"status":' not in DERIVE_02E
+
+
+def test_exempt_slots_are_words_the_roster_parser_writes():
+    tree = ast.parse((ROOT / "notebooks/04r_fantrax_roster_state.py").read_text(encoding="utf-8"))
+    written = None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "ROSTER_SLOT" for t in node.targets):
+            written = set(ast.literal_eval(node.value).values())
+    assert written is not None, "ROSTER_SLOT not found in 04r"
+    assert _exempt_slots() <= written
 
 
 def test_roster_slot_replaces_roster_status():

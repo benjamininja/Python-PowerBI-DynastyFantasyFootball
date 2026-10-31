@@ -13,7 +13,9 @@ import pandas as pd
 # against this season's cap, whatever the contract (owner's ruling
 # 2026-10-12, #97; reverses ADR-0011's "IR charges full salary"). Dropping an
 # IR player still makes Dead Money: that is fact_dead_money's, not a slot rule.
-EXEMPT_SLOTS = frozenset({"Minors", "IR"})
+IR_SLOT = "IR"
+MINORS_SLOT = "Minors"
+EXEMPT_SLOTS = frozenset({MINORS_SLOT, IR_SLOT})
 
 # The contract that carries into next season with no term on dim_contract
 # (ADR-0019: Minor is the stage before 1st; its years are null).
@@ -21,9 +23,6 @@ MINOR = "Minor"
 
 INBOUND = frozenset({"startup_draft", "claim", "trade"})
 OUTBOUND = frozenset({"drop", "trade_away"})
-
-IR_SLOT = "IR"
-MINORS_SLOT = "Minors"
 
 # The league's clock: a league day is a day on it.
 LEAGUE_TZ = "America/New_York"
