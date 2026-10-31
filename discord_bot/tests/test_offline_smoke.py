@@ -88,6 +88,48 @@ def test_player():
     _expect_error(lambda: player.build_player_embeds(CFG, "zzzznotaplayer"), "player not found")
 
 
+def _league_fetch(owned: pd.DataFrame, teams: pd.DataFrame):
+    def fetch(path: str, _cfg: Config) -> pd.DataFrame:
+        return owned if "fantasy_teams" in path and "dim_" not in path else teams
+    return fetch
+
+
+_TEAMS = pd.DataFrame({"team_key": ["A01", "B01"], "team_name": ["Alpha", "Bravo"]})
+
+
+def test_player_card_names_every_team_holding_the_player(monkeypatch):
+    owned = pd.DataFrame({
+        "team_key": ["A01", "B01", "A01"], "gsis_id": ["g1", "g1", "g2"],
+        "contract_value": [5_000_000.0, 2_000_000.0, 1.0], "cap_hit": [5_000_000.0, 0.0, 1.0],
+    })
+    monkeypatch.setattr(player, "fetch_parquet", _league_fetch(owned, _TEAMS))
+    lines = player._league_lines(CFG, "g1")
+    assert [ln for ln in lines if ln.startswith("Owner")] == ["Owner    Alpha", "Owner    Bravo"]
+    assert len(lines) == 4
+
+
+def test_player_card_contract_line_prints_the_stored_cap_hit(monkeypatch):
+    owned = pd.DataFrame({
+        "team_key": ["A01"], "gsis_id": ["g1"],
+        "contract_value": [5_000_000.0], "cap_hit": [1_000_000.0],
+    })
+    monkeypatch.setattr(player, "fetch_parquet", _league_fetch(owned, _TEAMS))
+    assert player._league_lines(CFG, "g1")[1] == "Contract $5.0M · cap $1.0M"
+
+
+def test_fmt_money_abbreviates_a_negative_like_a_positive():
+    from render import fmt_money
+    assert fmt_money(-5_000_000) == "-$5.0M"
+    assert fmt_money(-5_000) == "-$5K"
+    assert fmt_money(-12) == "-$12"
+    assert fmt_money(5_000_000) == "$5.0M"
+    assert fmt_money(float("nan")) == "—"
+    assert fmt_money(None) == "—"
+    assert fmt_money(-0.4) == "$0"
+    assert fmt_money(float("-inf")) == "—"
+    assert fmt_money(pd.NA) == "—"
+
+
 def test_cap():
     embeds = cap.build_cap_embeds(CFG)
     _check(embeds, "cap standings")

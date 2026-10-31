@@ -104,6 +104,26 @@ class TestTeamCap:
         assert t.loc[(THIS, "B01"), "cap_room"] == 300.0
         assert t.loc[(NEXT, "B01"), "cap_room"] == 296.0
 
+    def test_a_team_with_no_roster_rows_still_owes_this_seasons_dead_money(self):
+        only_a = ROSTER[ROSTER["team_key"] == "A01"]
+        owes = pd.concat([DEAD, pd.DataFrame({"team_key": ["B01"], "season_id": [THIS],
+                                              "dead_money": [6.0]})])
+        t = table(only_a, owes)
+        assert t.loc[(THIS, "B01"), "charged_salary"] == 0.0
+        assert t.loc[(THIS, "B01"), "dead_money"] == 6.0
+        assert t.loc[(THIS, "B01"), "cap_room"] == 300.0 - 6.0
+        assert t.loc[(NEXT, "B01"), "dead_money"] == 4.0
+        assert t.loc[(NEXT, "B01"), "cap_room"] == 300.0 - 4.0
+
+    def test_a_minor_contract_in_an_active_slot_charges_in_full(self):
+        r = roster(("A01", "Active", "Minor", 5.0), ("A01", "Minors", "Minor", 3.0))
+        assert r["cap_hit"].tolist() == [5.0, 0.0]
+        assert r["cap_exempt"].tolist() == [False, True]
+        row = table(r, DEAD.iloc[0:0]).loc[(THIS, "A01")]
+        assert row["charged_salary"] == 5.0
+        assert row["minors_salary"] == 3.0
+        assert table(r, DEAD.iloc[0:0]).loc[(NEXT, "A01"), "charged_salary"] == 8.0
+
     def test_no_dead_money_charged_yet_means_nobody_owes(self):
         t = table(dead=pd.DataFrame(columns=["team_key", "season_id", "dead_money"]))
         assert t["dead_money"].tolist() == [0.0, 0.0, 0.0, 0.0]

@@ -542,7 +542,7 @@ async function loadProfile(mode) {
   if (mode === 'my') setStance('my', profile.stance);
 }
 
-const fmtSalary = v => v == null ? '-' : '$' + Math.round(v).toLocaleString();
+const fmtSalary = v => v == null ? '-' : (Math.round(v) < 0 ? '-$' : '$') + Math.abs(Math.round(v)).toLocaleString();
 
 function assetName(a) {
   return a.asset_type === 'player' ? a.name : `${a.draft_season} R${a.round}${a.is_slotted ? '' : ' (future)'}`;
@@ -641,9 +641,10 @@ function removeAsset(basketKey, assetId) {
 // decision 7). A pick has neither figure and counts 0.
 function capCardHtml(team, trueCap, resultCap) {
   if (!team) return '';
-  const delta = resultCap - trueCap;
+  const rawDelta = resultCap - trueCap;
+  const delta = Math.abs(rawDelta) < 0.5 ? 0 : rawDelta;
   const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
-  const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
+  const deltaText = delta === 0 ? '' :` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
   return `
     <div class="signal-line"><b>${team.team_name}</b></div>
     <div class="cap-line">Cap Room: <b>${fmtSalary(trueCap)}</b></div>
