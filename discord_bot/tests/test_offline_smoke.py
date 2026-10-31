@@ -106,6 +106,8 @@ def test_player_card_names_every_team_holding_the_player(monkeypatch):
     lines = player._league_lines(CFG, "g1")
     assert [ln for ln in lines if ln.startswith("Owner")] == ["Owner    Alpha", "Owner    Bravo"]
     assert len(lines) == 4
+    assert lines[1] == "Contract $5.0M · cap $5.0M"
+    assert lines[3] == "Contract $2.0M · cap $0"
 
 
 def test_player_card_contract_line_prints_the_stored_cap_hit(monkeypatch):
