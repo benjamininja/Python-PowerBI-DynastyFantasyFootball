@@ -23,8 +23,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Open tickets for the manager:** #289 (#273) in re-proof, may close #273; #291 low, leftovers
    from #278; #292 low, stale notebook text, after #289. #292's route is NotebookEdit accepting
    one-string source, an exception for that ticket only.
-   **Open question to the owner, asked three times, not answered:** should planner and manager
-   state saves go in one batched PR a day? I recommend yes. Evidence from the last 40 merged PRs:
+   **State saves are batched (owner, pane, 2026-10-31 08:42):** one PR a day for planner and
+   manager; the rule is in both role files. Evidence from the last 40 merged PRs:
    11 product, 14 state saves, 15 other chores or docs; no PR above one comment; median open about
    10 minutes; six waited 10 hours or more. So review is not the drag; bookkeeping is. Builder
    start-to-PR time was not measured. The batch must merge before any worktree cleanup.

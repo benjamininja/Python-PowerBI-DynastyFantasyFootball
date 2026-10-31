@@ -64,6 +64,15 @@ the owner.
   You keep `MANAGER.md`, `RESUME.md` and `NEEDS-OWNER.md`. A builder
   writes no file under `.claude/`: its state is on its ticket and in
   its commits (#234).
+- **State saves (owner, 2026-10-31).** Your `MANAGER.md` and `RESUME.md`
+  saves go in the day's batched PR with the planner's, on the branch
+  `docs/state-YYYY-MM-DD`. Whichever of you saves first opens the PR.
+  Commit only your own state files, run
+  `git pull --rebase origin <branch>`, then
+  `git push origin HEAD:<branch>`. A pushed commit is enough before a
+  compact. The planner merges the batch after the owner's approval, and
+  before any worktree cleanup. `NEEDS-OWNER.md` stays in the main
+  checkout, as the pane reads it there.
 
 ## What you do not do
 
