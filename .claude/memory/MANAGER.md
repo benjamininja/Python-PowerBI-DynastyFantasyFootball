@@ -19,6 +19,129 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
+**Newest, 2026-10-31, end of day. This overrides everything below. A clear follows: nothing
+from the old chat carries over except this block.**
+- **Next action: #299.** `b299-build`, session `34a0471d`, medium, branch
+  `feat/299-keep-dropped-ids`, prompt `b299-prompt.txt`. It may still be running, or have
+  reported while nobody was here: run `claude agents --json`, `claude logs 34a0471d`, and list
+  open PRs. Owner's answers: `01e` keeps dropped ids then publishes, one PR (pane 09:33:05);
+  the builder repeats the `04z` edit, accepted loss is that cell's saved output, execution count
+  and the file's trailing newline, anything more parks (pane 09:41:42). The brief is #299's body.
+- **#299 re-proof:** Green, then `<scratchpad>\measure108.py <worktree>` run with that
+  worktree's python (expect 0 ids removed, 0 orphans on every table); kept rows say `DROPPED`;
+  compare `01e` and `04z` cell by cell against main. Merge under standing approval.
+  If the pick-price test is red, the builder parks.
+- **Then Brief 2** (below). #300 (re-key, high) and #301 (rookie gsis_id, medium) wait on #299,
+  do not block #108, and need the owner's word to dispatch.
+- **Kernel fixed:** #298 merged (`4930494`, `Refs #108`); builders `b108k-build`, `b108r2-build`
+  removed. #297 merged (`6107341`, closes #292); session `198a43c2` removed.
+- **Left for the owner to name:** `b108r3-build`, session `66d7d958`, stopped; its worktree holds
+  only the unwanted plain-refresh parquet change, and this state commit was made from it. Also
+  the scratch venv `cleanv298`, scratchpad `m292` worktree, local branches
+  `fix/292-notebook-text-m`, `data/108-refresh-dim-nfl-players`, `-2`, `-3`.
+- **Not done, next state PR:** memory lines to re-grep first: `data-model.md` 295-296, 20-column
+  row, near 64, 67, 68, 395-422, 428; `powerbi-semantic-model.md` ~142, 145, 249;
+  `mouserat-trade-bud.md` ~1349-1502; `GOAL-RUN.md` Stage table.
+- **After the state PR merges:** the main checkout's `MANAGER.md` is the same text, uncommitted;
+  restore it, then pull. `NEEDS-OWNER.md` stays uncommitted.
+- **Merged and closed out:** #290 (`651e576`, closes #110), #293 (`d365b95`, #108 Brief 1,
+  `Refs`), #296 (closes #291), #295 (`ddd5e42`, closes #273, replaces #289, which is closed
+  with its branch deleted). Builders b108a, b273, b291 removed.
+- **#292:** done. #297 merged on the owner's "merge 297"; session `198a43c2` removed.
+  Left over: scratchpad `m292` worktree and local branch `fix/292-notebook-text-m`, because
+  `git branch -D` is blocked by the guardrail; not retried.
+- **Then Brief 2:** decide how `b108b-build` takes main into its branch (ff-merge was
+  refused; ask the owner in one line if refused again), then its remaining proofs and PR.
+- **Waiting on that:** `b108b-build`, session `d274edd9`, branch `feat/108-registry-types-keys`
+  at `c38fd7a`, no PR, 190 snap and 84 injury orphans until #299. Told to hold. Its ff-merge of main was
+  refused and not retried, so a plain merge route must be settled. Unproved: full tests,
+  pipeline check, sources, CI. Brief 3 approved after Brief 2 merges;
+  Brief 4 still needs the owner's word and the secret.
+- **State saves:** owner chose one batched PR a day; rule in the role file, "State saves".
+
+**Older, 2026-10-31, second compact.**
+- **Merged and closed out:** #286 (`671b42f`, closes #251), #288 (`000d6ca`, closes #287),
+  both by the Bash tool, one call, no refusal. #108 scoping session removed; its comment
+  is issuecomment-6543783313, the planner's check is the comment after it.
+- **Running, each messages me when green:**
+  - `b273-build`, session `db1036c4`, #289, sent back: drop `01c` from the PR and push
+    the `index.html` space fix; head will move past `e94c20d`. Green and auditor ran at
+    `e94c20d` (bot 8 passed). Re-prove at the new head. Planner's read: `fmtSalary` stays
+    whole-dollar, non-finite prints the dash (builder told); audit's low findings are
+    all declined; out-of-list items are #291, Tier low (not dispatched, needs the owner's
+    word). #289 may say Closes #273. `01c` and `01b` moved to #292, Tier low, after #289
+    merges, needs the owner's word: NotebookEdit on the named cells only, one-string
+    `source` accepted for this ticket only, builder parks if anything else changes, and I
+    compare the notebooks cell by cell at re-proof. Brief 2 now also carries the ADR-0018
+    decision 8 note (text in the newest comment on #108). `fmtSalary`: check it in a browser if I can (`node` absent),
+    otherwise say so in the merge comment. Whichever of #289 and #290 merges second
+    rebases and uses Starter for Active in #289's Minor test.
+  - #290 merged at `651e576`, closes #110, builder removed. #289 was told to rebase on
+    it and use Starter and Bench; re-prove after the rebase.
+  - `b108a-build`, session `2c229a2e`, #108 Brief 1, tier medium, `Refs #108`, not Closes;
+    new generator and test only. Owner approved the start in chat.
+- **Dispatch needs the owner's word in this chat.** The planner clearing a job is not
+  that. Asked and given today: #108 scoping, #110, #273, #287, #108 Brief 1. **Not given:**
+  #108 Briefs 2, 3, 4. Brief 2 waits on #290; Brief 3 on Briefs 1 and 2; Brief 4 on Brief 3
+  and the owner storing `SUPABASE_MIGRATE_DB_URL`.
+- **Owner's pane answers, 08:17, on #108 (issuecomment-6543971742), entries removed:**
+  timestamptz (planner writes the decision 8 note); generator line, already in
+  `builders.settings.json:59`; secret `SUPABASE_MIGRATE_DB_URL` in `etl`, now named in the
+  queue entry.
+- **Asked of the planner:** a ticket and a route for the notebook text (`01c` from #273,
+  `01b` line 340 from #110). Edit is refused on a notebook, NotebookEdit collapses `source`
+  to one string, a one-off script is refused.
+- **`.claude/memory/` lines I owe, next state PR:** `data-model.md` 295-296 and the 20-column
+  row (#287); near 67 and 395-422 (#273); `~64, 68, 428`, `powerbi-semantic-model.md`
+  `~142, 145, 249`, `mouserat-trade-bud.md` `~1349-1502`, and `GOAL-RUN.md` Stage table
+  (#290, once merged; the list is the auditor's, re-grep first).
+- **Merge block:** unsolved, per the planner's count. The owner added an autoMode allow rule
+  for re-proved merges and `PowerShell(gh pr merge *)` to user settings (planner's report,
+  not checked). Keep merges to one unchained call; on a refusal, tell the planner the mode as
+  far as known and the exact command, and ask the owner here. `compare_tables.py` takes
+  only `HEAD` or two folders; check a renamed or dropped column with pandas as well, since
+  it may not report cells when columns differ.
+
+**Older, 2026-10-31, before the first compact.**
+- **Builder running: `b251b-build`**, session `325c0e0e`, tier medium, #251 Brief B,
+  branch `feat/251-drop-ledger-cap-hit`, `Closes #251`. It rewrites only
+  `data/fact_roster_transactions.parquet`. It messages when green. Then re-prove:
+  Green list, bot suite (`botvenv`), `compare_tables.py` shows only the missing column,
+  and run `cap-ledger-auditor` myself at the final commit (the builder's has Bash
+  denied). Post the output, merge, pull, stop it, compare head to merged head, check
+  status, `claude rm`.
+- **After that: the #108 scoping session.** Ask the planner for its brief and tier.
+- **Merged and closed out today:** #280 (`1ae90a5`), #282 (`d7a45ed`, #251 Brief A),
+  #283 (`b4ee5fc`, closes #201), #284 (`ee0721c`, closes #206; check total now 189).
+  `b251a`, `b201`, `b206` builders stopped and removed. The planner merged #281, so the
+  owner's relay rule is on `main` and their denied-call rule is in `session-rules`.
+- **Merge refusals, from the transcript:** #275 and #276, PowerShell tool, auto mode,
+  refused [Merge Without Review]. #278, Bash tool, auto, passed. #280, #282, #283, #284,
+  PowerShell, outside auto, passed. The allow rules (`.claude/settings.json:14`,
+  `~/.claude/settings.json:48`) are `Bash(gh pr merge *)` and cannot match a PowerShell
+  call. Docs say a matching allow rule resolves before the classifier. Not proven: one
+  Bash case only, and #260-#268 passed through PowerShell in a mode not established.
+- **So: run `gh pr merge` through the Bash tool, one call, nothing chained, with `--repo`
+  and `--match-head-commit`.** Brief B's merge is the test if the owner is back in auto.
+  If refused, ask in chat under the denied-call rule. I told the owner it was safe to
+  return to auto.
+- **Evidence against the tool being the cause (planner, all transcripts, in auto; not
+  checked by me):** 1 plain Bash merge refused, 12 plain PowerShell merges passed. So
+  the tool is likely not the whole cause. Report Brief B's merge to the planner as one
+  data point, with the mode and the last owner message. If refused, the planner sends
+  the entry with settings text, path and steps.
+- **Planner's queue entry "Let re-proved merges pass in auto mode" is held, not written.**
+  It sends the owner to the planner's chat for the text. I asked for a new entry with
+  the exact text and steps only if the Bash merge is refused, and for a one-line rule
+  on the Bash merge in its next rules PR.
+- **`b97-team-cap`:** the approved retry failed partway with Permission denied. Git no
+  longer lists it; the folder remains. In the queue as an owner Action. Do not retry.
+- **Builders' Python:** `.venv/Scripts/python.exe`, relative, Bash tool, from the
+  worktree's top. An absolute path is refused. Say so in every prompt. `gh api` is denied
+  to builders; briefs say `gh issue view <n> --comments`.
+- **Re-proof without `cd`:** `cmd /c "cd /d <worktree> && ..."` keeps this session's
+  directory out of the worktree; `claude rm` then worked for all three.
+
 **Latest, 2026-10-31. This overrides what follows.**
 - **#97 is closed.** Merged: #275 and #274 (owner), #276 (`37c723c`, the planner on
   the owner's word in its chat), #277 (`d150f57`), #278 (`46f9a1e`, this session).
