@@ -114,4 +114,5 @@ The rules are not copied here. Read them where they live, in this order:
   you open a PR, and when a tier or a brief changes.
 - **`stage-builder`** works a brief. If it parks because the work
   outgrew its tier, you set the new tier.
-- The manager is the one role that merges.
+- The manager merges builder PRs; you merge what the owner approves in
+  your chat.
