@@ -422,6 +422,18 @@ def default_contract_drop_findings(ledger: pd.DataFrame,
     return out
 
 
+def dead_money_no_player_findings(dead: pd.DataFrame) -> list[tuple[str, str]]:
+    """One finding per Dead Money row with no gsis_id (#206): the charge is on
+    the books but no player in dim_nfl_players carries it. The row key is the
+    table's grain."""
+    out = []
+    for r in dead[dead["gsis_id"].isna()].itertuples():
+        out.append((f"{r.transaction_id}|{r.scorer_id}|{r.team_key}|{r.season_id}",
+                    f"Dead Money row for scorer {r.scorer_id} in {r.season_id} "
+                    f"({r.dead_money:,.2f}) has no gsis_id"))
+    return out
+
+
 def roster_membership_findings(roster: pd.DataFrame,
                                ledger: pd.DataFrame) -> list[tuple[str, str]]:
     """The ledger replay against the current roster, membership only (#97;
@@ -564,6 +576,8 @@ DOMAIN_CHECKS = [
     DomainCheck("default_contract_drop", "review", "fact_roster_transactions",
                 lambda load: default_contract_drop_findings(load("fact_roster_transactions"),
                                                             load("dim_scoring_period"))),
+    DomainCheck("dead_money_no_player", "review", "fact_dead_money",
+                lambda load: dead_money_no_player_findings(load("fact_dead_money"))),
     DomainCheck("roster_membership", "review", "fact_fantasy_teams",
                 lambda load: roster_membership_findings(load("fact_fantasy_teams"),
                                                         load("fact_roster_transactions"))),
