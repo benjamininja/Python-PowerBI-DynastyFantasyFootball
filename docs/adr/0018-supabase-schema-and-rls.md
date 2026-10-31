@@ -49,7 +49,7 @@
    - Nullable integers become `integer`, ISO date strings become `date`, and every all-null column gets a declared type.
    - The parquet export carries those types (`Int64`/`pd.NA`, `date32`). The Power BI M type steps, the bot's formatting and the trade-bud export are adjusted in the same cutover.
    - `divisionId` is renamed `division_id`, across the `02d`/`04u` writers, the registry and the PBI `sourceColumn` cascade.
-   - Data tables stay tz-naive (the seam rejects tz-aware input). `ops` tables use `timestamptz`, because they are never exported.
+   - Data tables stay tz-naive (the seam rejects tz-aware input). `ops` tables use `timestamptz`, because they are never exported. *Amended 2026-10-31 by the owner (#108): a data-table column the registry declares zone-aware is `timestamptz`, and the seam accepts it. Every other data-table timestamp stays tz-naive.*
 9. **RLS on every table, two logins.**
    - `etl_writer`: no BYPASSRLS. It gets DML grants and an explicit `TO etl_writer USING (true)` policy per table, emitted by the generator. It never uses `service_role` (ADR-0015).
    - A **read-only login is created now**, with SELECT policies on `football` and `ops`, and never on `shared`.

@@ -1,8 +1,9 @@
-"""`sql_type` on the registry's untyped columns (#110; ADR-0018 decision 8).
+"""`sql_type` on every registry column (#110, #108; ADR-0018 decision 8).
 
-A column that holds no value yet reads back from parquet as `object`, which
-names no SQL type. The registry declares the type its values will have, and
-`check_data_model.py` fails an `object` column that declares none.
+Every column declares the Postgres type of its table. A column that holds no
+value yet reads back from parquet as `object`, which names no SQL type, so its
+`sql_type` is the only record of what its values will be. `check_data_model.py`
+fails a column that declares none, or one that does not fit its dtype.
 """
 import sys
 from pathlib import Path
@@ -26,11 +27,33 @@ def table(*columns):
 class TestTheRule:
     def test_an_object_column_needs_a_sql_type(self):
         assert cdm.sql_type_errors(table({"name": "a", "dtype": "object"})) == [
-            "[t] a: dtype object needs a sql_type"]
+            "[t] a: needs a sql_type"]
 
-    def test_a_typed_column_needs_none(self):
+    def test_a_typed_column_needs_one_too(self):
         assert cdm.sql_type_errors(table({"name": "a", "dtype": "str"},
-                                         {"name": "b", "dtype": "float64"})) == []
+                                         {"name": "b", "dtype": "float64"})) == [
+            "[t] a: needs a sql_type", "[t] b: needs a sql_type"]
+
+    @pytest.mark.parametrize("dtype, sql_type", [
+        ("str", "text"), ("str", "date"), ("string", "text"),
+        ("int32", "integer"), ("int64", "integer"), ("Int64", "integer"),
+        ("float64", "double precision"), ("float64", "integer"),
+        ("bool", "boolean"),
+        ("datetime64[us]", "timestamp"), ("datetime64[ms]", "timestamp"),
+        ("datetime64[us, UTC]", "timestamptz"),
+    ])
+    def test_a_sql_type_that_fits_its_dtype_passes(self, dtype, sql_type):
+        assert cdm.sql_type_errors(table({"name": "a", "dtype": dtype, "sql_type": sql_type})) == []
+
+    @pytest.mark.parametrize("dtype, sql_type", [
+        ("str", "integer"), ("int64", "double precision"), ("int64", "text"),
+        ("float64", "text"), ("bool", "integer"),
+        ("datetime64[us]", "timestamptz"), ("datetime64[us, UTC]", "timestamp"),
+        ("datetime64[us]", "date"),
+    ])
+    def test_a_sql_type_that_does_not_fit_its_dtype_fails(self, dtype, sql_type):
+        errs = cdm.sql_type_errors(table({"name": "a", "dtype": dtype, "sql_type": sql_type}))
+        assert len(errs) == 1 and "does not fit" in errs[0]
 
     @pytest.mark.parametrize("sql_type", sorted(cdm.SQL_TYPES))
     def test_a_known_sql_type_passes(self, sql_type):

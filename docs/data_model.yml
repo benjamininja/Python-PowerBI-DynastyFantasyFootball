@@ -11,6 +11,10 @@
 #                                       data/{name}.parquet schema (name+dtype)
 #   - edge-target check               : every edge.to / edge.via must resolve
 #                                       to a table declared in this file
+#   - key and type check              : every column has a known sql_type that
+#                                       fits its dtype; pk equals grain; every
+#                                       fk resolves to a key of the same type;
+#                                       other_tables are well formed
 #
 # Field notes:
 #   name    : table name, PK (== data/{name}.parquet stem)
@@ -22,14 +26,28 @@
 #             "generalizes the crosswalks one level up".
 #   grain   : the natural key (informational — matches the memory doc's
 #             documented key, not re-derived from the parquet)
-#   columns : list of {name, dtype} — dtype is pandas' dtype string, checked
-#             against the real parquet schema by `validate`
-#             A column with no value yet reads back as `object`, which
-#             names no SQL type. Such a column also carries `sql_type`
-#             (text | integer | double precision), the type its values
-#             will have (ADR-0018 decision 8; #110). `validate` fails an
-#             `object` column without one. #108 adds `sql_type` to the
-#             other columns, with `pk` and `fk`.
+#   columns : list of {name, dtype, sql_type} — dtype is pandas' dtype string,
+#             checked against the real parquet schema by `validate`.
+#             Every column carries `sql_type`, the Postgres type of the
+#             table the migration generator makes (ADR-0018 decision 8;
+#             #108). It follows dtype: str -> text (date for an ISO date
+#             string), int32 / int64 / Int64 -> integer, float64 -> double
+#             precision (integer for a whole-number column), bool ->
+#             boolean, datetime64 -> timestamp, and a zone-aware datetime64
+#             -> timestamptz (the owner's amendment of decision 8,
+#             2026-10-31). A column with no value yet reads back as
+#             `object`, which names no SQL type, so its `sql_type` is the
+#             only record of what its values will be (#110). There is no
+#             bigint: a value past the integer range is a finding.
+#   pk      : the primary key, a list of columns equal to `grain`. The seam
+#             and the publish gate read `pk` first.
+#   fk      : foreign keys, each {columns, to, ref}: a column list, the table
+#             it points at, and that table's key columns. Only the clean
+#             edges of ADR-0018 decision 6; a dirty edge (player_key,
+#             position_raw, scorer_id, a multi-column edge) has none.
+#   checks  : SQL boolean expressions, one CHECK constraint each.
+#   other_tables : tables with no parquet file (the `ops` and `shared`
+#             tables), read only by the migration generator.
 #   edges   : outbound relationships: {to: <table>, via: direct|<resolver
 #             table name>, on: <join column(s)>}. `via: direct` = joins
 #             straight to the target's key. `via: <resolver>` = the real
@@ -56,63 +74,67 @@ tables:
   - name: dim_nfl_players
     type: dim
     grain: gsis_id
+    pk: [gsis_id]
     chain: nflverse
     columns:
-      - { name: gsis_id, dtype: str }
-      - { name: display_name, dtype: str }
-      - { name: first_name, dtype: str }
-      - { name: last_name, dtype: str }
-      - { name: birth_date, dtype: str }
-      - { name: status, dtype: str }
-      - { name: team_abbr, dtype: str }
-      - { name: position, dtype: str }
-      - { name: position_group, dtype: str }
-      - { name: jersey_number, dtype: str }
-      - { name: years_of_experience, dtype: int32 }
-      - { name: college_name, dtype: str }
-      - { name: college_conference, dtype: str }
-      - { name: entry_year, dtype: int32 }
-      - { name: last_season, dtype: int32 }
-      - { name: draft_year, dtype: float64 }
-      - { name: draft_club, dtype: str }
-      - { name: draft_round, dtype: float64 }
-      - { name: draft_number, dtype: float64 }
-      - { name: height, dtype: float64 }
-      - { name: weight, dtype: float64 }
-      - { name: pfr_id, dtype: str }
-      - { name: pff_id, dtype: str }
-      - { name: espn_id, dtype: str }
-      - { name: esb_id, dtype: str }
-      - { name: nfl_id, dtype: str }
-      - { name: otc_id, dtype: str }
-      - { name: smart_id, dtype: str }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: display_name, dtype: str, sql_type: text }
+      - { name: first_name, dtype: str, sql_type: text }
+      - { name: last_name, dtype: str, sql_type: text }
+      - { name: birth_date, dtype: str, sql_type: date }
+      - { name: status, dtype: str, sql_type: text }
+      - { name: team_abbr, dtype: str, sql_type: text }
+      - { name: position, dtype: str, sql_type: text }
+      - { name: position_group, dtype: str, sql_type: text }
+      - { name: jersey_number, dtype: str, sql_type: text }
+      - { name: years_of_experience, dtype: int32, sql_type: integer }
+      - { name: college_name, dtype: str, sql_type: text }
+      - { name: college_conference, dtype: str, sql_type: text }
+      - { name: entry_year, dtype: int32, sql_type: integer }
+      - { name: last_season, dtype: int32, sql_type: integer }
+      - { name: draft_year, dtype: float64, sql_type: integer }
+      - { name: draft_club, dtype: str, sql_type: text }
+      - { name: draft_round, dtype: float64, sql_type: integer }
+      - { name: draft_number, dtype: float64, sql_type: integer }
+      - { name: height, dtype: float64, sql_type: "double precision" }
+      - { name: weight, dtype: float64, sql_type: integer }
+      - { name: pfr_id, dtype: str, sql_type: text }
+      - { name: pff_id, dtype: str, sql_type: text }
+      - { name: espn_id, dtype: str, sql_type: text }
+      - { name: esb_id, dtype: str, sql_type: text }
+      - { name: nfl_id, dtype: str, sql_type: text }
+      - { name: otc_id, dtype: str, sql_type: text }
+      - { name: smart_id, dtype: str, sql_type: text }
     edges:
       - { to: dim_nfl_teams, via: direct, on: team_abbr }
 
   - name: dim_rookie_prospect
     type: dim
     grain: player_key
+    pk: [player_key]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: rookie
     columns:
-      - { name: player_key, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: player_name_clean, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: position_detail, dtype: str }
-      - { name: position_group, dtype: str }
-      - { name: side_of_ball, dtype: str }
-      - { name: fantasy_relevant, dtype: bool }
-      - { name: school_raw, dtype: str }
-      - { name: school_canonical, dtype: str }
-      - { name: conference, dtype: str }
-      - { name: height_inches, dtype: float64 }
-      - { name: weight, dtype: float64 }
-      - { name: pfr_id, dtype: str }
-      - { name: cfb_id, dtype: str }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: player_name_clean, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: position_detail, dtype: str, sql_type: text }
+      - { name: position_group, dtype: str, sql_type: text }
+      - { name: side_of_ball, dtype: str, sql_type: text }
+      - { name: fantasy_relevant, dtype: bool, sql_type: boolean }
+      - { name: school_raw, dtype: str, sql_type: text }
+      - { name: school_canonical, dtype: str, sql_type: text }
+      - { name: conference, dtype: str, sql_type: text }
+      - { name: height_inches, dtype: float64, sql_type: "double precision" }
+      - { name: weight, dtype: float64, sql_type: integer }
+      - { name: pfr_id, dtype: str, sql_type: text }
+      - { name: cfb_id, dtype: str, sql_type: text }
       - { name: gsis_id, dtype: object, sql_type: text }
-      - { name: draft_year, dtype: int64 }
-      - { name: source, dtype: str }
-      - { name: added_date, dtype: str }
+      - { name: draft_year, dtype: int64, sql_type: integer }
+      - { name: source, dtype: str, sql_type: text }
+      - { name: added_date, dtype: str, sql_type: date }
     edges:
       - { to: dim_school, via: direct, on: school_raw }
       - { to: dim_position, via: direct, on: position_raw }
@@ -120,41 +142,44 @@ tables:
   - name: dim_position
     type: dim
     grain: position_raw
+    pk: [position_raw]
     columns:
-      - { name: position_raw, dtype: str }
-      - { name: position_detail, dtype: str }
-      - { name: position_group, dtype: str }
-      - { name: position_sort_order, dtype: int64 }
-      - { name: side_of_ball, dtype: str }
-      - { name: side_of_ball_sort_order, dtype: int64 }
-      - { name: fantasy_relevant, dtype: bool }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: position_detail, dtype: str, sql_type: text }
+      - { name: position_group, dtype: str, sql_type: text }
+      - { name: position_sort_order, dtype: int64, sql_type: integer }
+      - { name: side_of_ball, dtype: str, sql_type: text }
+      - { name: side_of_ball_sort_order, dtype: int64, sql_type: integer }
+      - { name: fantasy_relevant, dtype: bool, sql_type: boolean }
     edges: []
 
   - name: dim_school
     type: dim
     grain: school_raw
+    pk: [school_raw]
     columns:
-      - { name: school_raw, dtype: str }
-      - { name: school_canonical, dtype: str }
-      - { name: school_abbr, dtype: str }
-      - { name: conference, dtype: str }
+      - { name: school_raw, dtype: str, sql_type: text }
+      - { name: school_canonical, dtype: str, sql_type: text }
+      - { name: school_abbr, dtype: str, sql_type: text }
+      - { name: conference, dtype: str, sql_type: text }
     edges: []
 
   - name: dim_contract
     type: dim
     grain: contract_id
+    pk: [contract_id]
     columns:
-      - { name: contract_id, dtype: str }
-      - { name: contract_type, dtype: str }
-      - { name: contract_label, dtype: str }
-      - { name: salary_type, dtype: str }
-      - { name: contract_year, dtype: Int64 }
-      - { name: total_years, dtype: Int64 }
-      - { name: cap_hit_pct, dtype: float64 }
-      - { name: guaranteed, dtype: bool }
-      - { name: cap_exempt, dtype: bool }
-      - { name: min_salary, dtype: float64 }
-      - { name: notes, dtype: str }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: contract_type, dtype: str, sql_type: text }
+      - { name: contract_label, dtype: str, sql_type: text }
+      - { name: salary_type, dtype: str, sql_type: text }
+      - { name: contract_year, dtype: Int64, sql_type: integer }
+      - { name: total_years, dtype: Int64, sql_type: integer }
+      - { name: cap_hit_pct, dtype: float64, sql_type: "double precision" }
+      - { name: guaranteed, dtype: bool, sql_type: boolean }
+      - { name: cap_exempt, dtype: bool, sql_type: boolean }
+      - { name: min_salary, dtype: float64, sql_type: "double precision" }
+      - { name: notes, dtype: str, sql_type: text }
     edges: []
     notes: >
       11 rows, seeded by 01b. `Minor` is the stage before `1st` (ADR-0019):
@@ -168,79 +193,84 @@ tables:
   - name: dim_fantasy_teams
     type: dim
     grain: team_key
+    pk: [team_key]
     required_keys: [team_key]
     columns:
-      - { name: team_key, dtype: str }
-      - { name: team_name, dtype: str }
-      - { name: team_abbr, dtype: str }
-      - { name: fantrax_team_id, dtype: str }
-      - { name: conference, dtype: str }
-      - { name: division, dtype: str }
-      - { name: original_cap, dtype: int64 }
-      - { name: reinvestment_cap, dtype: int64 }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: team_name, dtype: str, sql_type: text }
+      - { name: team_abbr, dtype: str, sql_type: text }
+      - { name: fantrax_team_id, dtype: str, sql_type: text }
+      - { name: conference, dtype: str, sql_type: text }
+      - { name: division, dtype: str, sql_type: text }
+      - { name: original_cap, dtype: int64, sql_type: integer }
+      - { name: reinvestment_cap, dtype: int64, sql_type: integer }
     edges:
       - { to: dim_division, via: direct, on: conference }
 
   - name: dim_nfl_teams
     type: dim
     grain: team_abbr
+    pk: [team_abbr]
     columns:
-      - { name: team_abbr, dtype: str }
-      - { name: team_name, dtype: str }
+      - { name: team_abbr, dtype: str, sql_type: text }
+      - { name: team_name, dtype: str, sql_type: text }
       - { name: team_id_pfr, dtype: object, sql_type: text }
-      - { name: team_conf, dtype: str }
-      - { name: team_division, dtype: str }
-      - { name: team_color, dtype: str }
-      - { name: team_color2, dtype: str }
-      - { name: team_logo_wikipedia, dtype: str }
-      - { name: team_logo_espn, dtype: str }
-      - { name: team_wordmark, dtype: str }
+      - { name: team_conf, dtype: str, sql_type: text }
+      - { name: team_division, dtype: str, sql_type: text }
+      - { name: team_color, dtype: str, sql_type: text }
+      - { name: team_color2, dtype: str, sql_type: text }
+      - { name: team_logo_wikipedia, dtype: str, sql_type: text }
+      - { name: team_logo_espn, dtype: str, sql_type: text }
+      - { name: team_wordmark, dtype: str, sql_type: text }
       - { name: team_stadium, dtype: object, sql_type: text }
     edges: []
 
   - name: dim_dynasty_metric
     type: dim
     grain: metric_key
+    pk: [metric_key]
     chain: dynasty_profile
     columns:
-      - { name: metric_key, dtype: str }
-      - { name: metric_label, dtype: str }
-      - { name: metric_group, dtype: str }
-      - { name: metric_order, dtype: int64 }
-      - { name: value_type, dtype: str }
-      - { name: direction, dtype: str }
-      - { name: source_name, dtype: str }
+      - { name: metric_key, dtype: str, sql_type: text }
+      - { name: metric_label, dtype: str, sql_type: text }
+      - { name: metric_group, dtype: str, sql_type: text }
+      - { name: metric_order, dtype: int64, sql_type: integer }
+      - { name: value_type, dtype: str, sql_type: text }
+      - { name: direction, dtype: str, sql_type: text }
+      - { name: source_name, dtype: str, sql_type: text }
     edges: []
 
   - name: dim_pick_value_curve
     type: dim
     grain: "(snapshot_date, source_name, draft_year, round, tier)"
+    pk: [snapshot_date, source_name, draft_year, round, tier]
     columns:
-      - { name: snapshot_date, dtype: "datetime64[us]" }
-      - { name: source_name, dtype: str }
-      - { name: draft_year, dtype: int64 }
-      - { name: round, dtype: int64 }
-      - { name: tier, dtype: str }
-      - { name: value, dtype: float64 }
+      - { name: snapshot_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: source_name, dtype: str, sql_type: text }
+      - { name: draft_year, dtype: int64, sql_type: integer }
+      - { name: round, dtype: int64, sql_type: integer }
+      - { name: tier, dtype: str, sql_type: text }
+      - { name: value, dtype: float64, sql_type: "double precision" }
     edges: []
 
   - name: dim_position_ceiling
     type: dim
     grain: "(snapshot_date, conference, position_group)"
+    pk: [snapshot_date, conference, position_group]
     columns:
-      - { name: snapshot_date, dtype: "datetime64[us]" }
-      - { name: conference, dtype: str }
-      - { name: position_group, dtype: str }
-      - { name: pool_size, dtype: int64 }
-      - { name: n_rostered, dtype: float64 }
-      - { name: n_free_agents, dtype: float64 }
-      - { name: max_fpts, dtype: float64 }
-      - { name: replacement_fpts, dtype: float64 }
-      - { name: best_free_agent, dtype: str }
-      - { name: vor, dtype: float64 }
-      - { name: ceiling, dtype: float64 }
-      - { name: source_season, dtype: int64 }
-      - { name: source_week, dtype: str }
+      - { name: snapshot_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: conference, dtype: str, sql_type: text }
+      - { name: position_group, dtype: str, sql_type: text }
+      - { name: pool_size, dtype: int64, sql_type: integer }
+      - { name: n_rostered, dtype: float64, sql_type: "double precision" }
+      - { name: n_free_agents, dtype: float64, sql_type: "double precision" }
+      - { name: max_fpts, dtype: float64, sql_type: "double precision" }
+      - { name: replacement_fpts, dtype: float64, sql_type: "double precision" }
+      - { name: best_free_agent, dtype: str, sql_type: text }
+      - { name: vor, dtype: float64, sql_type: "double precision" }
+      - { name: ceiling, dtype: float64, sql_type: "double precision" }
+      - { name: source_season, dtype: int64, sql_type: integer }
+      - { name: source_week, dtype: str, sql_type: text }
     edges: []
     notes: >
       Cross-position scarcity multiplier for mouserat_trade-bud. VOR =
@@ -254,18 +284,22 @@ tables:
   - name: fact_draft_pick
     type: fact
     grain: pick_ref
+    pk: [pick_ref]
+    fk:
+      - { columns: [current_owner], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [draft_season], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     columns:
-      - { name: pick_ref, dtype: str }
-      - { name: draft_season, dtype: str }
-      - { name: round, dtype: int64 }
-      - { name: pick_in_round, dtype: int64 }
-      - { name: overall_slot, dtype: int64 }
-      - { name: original_owner, dtype: str }
-      - { name: division_id, dtype: str }
-      - { name: current_owner, dtype: str }
-      - { name: is_made, dtype: bool }
-      - { name: draft_type, dtype: str }
+      - { name: pick_ref, dtype: str, sql_type: text }
+      - { name: draft_season, dtype: str, sql_type: text }
+      - { name: round, dtype: int64, sql_type: integer }
+      - { name: pick_in_round, dtype: int64, sql_type: integer }
+      - { name: overall_slot, dtype: int64, sql_type: integer }
+      - { name: original_owner, dtype: str, sql_type: text }
+      - { name: division_id, dtype: str, sql_type: text }
+      - { name: current_owner, dtype: str, sql_type: text }
+      - { name: is_made, dtype: bool, sql_type: boolean }
+      - { name: draft_type, dtype: str, sql_type: text }
     edges:
       - { to: dim_season, via: direct, on: "draft_season -> season_id" }
       - { to: dim_fantasy_teams, via: direct, on: "current_owner -> team_key" }
@@ -277,18 +311,22 @@ tables:
   - name: fact_draft_pick_future
     type: fact
     grain: pick_ref
+    pk: [pick_ref]
+    fk:
+      - { columns: [current_owner], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [draft_season], to: dim_season, ref: [season_id] }
     columns:
-      - { name: pick_ref, dtype: str }
-      - { name: draft_season, dtype: str }
-      - { name: round, dtype: int64 }
+      - { name: pick_ref, dtype: str, sql_type: text }
+      - { name: draft_season, dtype: str, sql_type: text }
+      - { name: round, dtype: int64, sql_type: integer }
       - { name: pick_in_round, dtype: object, sql_type: integer }
       - { name: overall_slot, dtype: object, sql_type: integer }
-      - { name: original_owner, dtype: str }
-      - { name: division_id, dtype: str }
-      - { name: current_owner, dtype: str }
-      - { name: is_made, dtype: bool }
-      - { name: is_slotted, dtype: bool }
-      - { name: draft_type, dtype: str }
+      - { name: original_owner, dtype: str, sql_type: text }
+      - { name: division_id, dtype: str, sql_type: text }
+      - { name: current_owner, dtype: str, sql_type: text }
+      - { name: is_made, dtype: bool, sql_type: boolean }
+      - { name: is_slotted, dtype: bool, sql_type: boolean }
+      - { name: draft_type, dtype: str, sql_type: text }
     edges:
       - { to: dim_season, via: direct, on: "draft_season -> season_id" }
       - { to: dim_fantasy_teams, via: direct, on: "current_owner -> team_key" }
@@ -296,28 +334,32 @@ tables:
   - name: dim_season
     type: dim
     grain: season_id
+    pk: [season_id]
     chain: fantrax_core
     columns:
-      - { name: season_id, dtype: str }
-      - { name: season_start_year, dtype: int64 }
-      - { name: season_end_year, dtype: int64 }
-      - { name: season_fantasy_start_date, dtype: "datetime64[ms]" }
-      - { name: season_fantasy_end_date, dtype: "datetime64[ms]" }
-      - { name: season_nfl_start_date, dtype: "datetime64[ms]" }
-      - { name: season_nfl_end_date, dtype: "datetime64[ms]" }
-      - { name: theme, dtype: str }
-      - { name: relative_nfl_season_number, dtype: int64 }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: season_start_year, dtype: int64, sql_type: integer }
+      - { name: season_end_year, dtype: int64, sql_type: integer }
+      - { name: season_fantasy_start_date, dtype: "datetime64[ms]", sql_type: timestamp }
+      - { name: season_fantasy_end_date, dtype: "datetime64[ms]", sql_type: timestamp }
+      - { name: season_nfl_start_date, dtype: "datetime64[ms]", sql_type: timestamp }
+      - { name: season_nfl_end_date, dtype: "datetime64[ms]", sql_type: timestamp }
+      - { name: theme, dtype: str, sql_type: text }
+      - { name: relative_nfl_season_number, dtype: int64, sql_type: integer }
     edges: []
 
   - name: dim_division
     type: dim
     grain: "(season_id, conference)"
+    pk: [season_id, conference]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, conference, division_name]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: conference, dtype: str }
-      - { name: division_name, dtype: str }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: conference, dtype: str, sql_type: text }
+      - { name: division_name, dtype: str, sql_type: text }
     edges:
       - { to: dim_season, via: direct, on: season_id }
     notes: >
@@ -331,18 +373,21 @@ tables:
   - name: dim_scoring_period
     type: dim
     grain: "(season_id, period)"
+    pk: [season_id, period]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, period, start_date, end_date, start_at, end_at, is_playoff]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: period, dtype: int64 }
-      - { name: start_date, dtype: "datetime64[us]" }
-      - { name: end_date, dtype: "datetime64[us]" }
-      - { name: start_at, dtype: "datetime64[us, UTC]" }
-      - { name: end_at, dtype: "datetime64[us, UTC]" }
-      - { name: is_playoff, dtype: bool }
-      - { name: update_set_state, dtype: str }
-      - { name: closed_at, dtype: "datetime64[us, UTC]" }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: period, dtype: int64, sql_type: integer }
+      - { name: start_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: end_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: start_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: end_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: is_playoff, dtype: bool, sql_type: boolean }
+      - { name: update_set_state, dtype: str, sql_type: text }
+      - { name: closed_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
     edges:
       - { to: dim_season, via: direct, on: season_id }
     notes: >
@@ -367,19 +412,22 @@ tables:
   - name: dim_fantrax_crosswalk
     type: resolver
     grain: scorer_id
+    pk: [scorer_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: fantrax_core
     required_keys: [scorer_id]
     columns:
-      - { name: scorer_id, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: nfl_team, dtype: str }
-      - { name: is_rookie, dtype: bool }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: match_method, dtype: str }
-      - { name: match_score, dtype: int64 }
-      - { name: resolved_date, dtype: str }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: nfl_team, dtype: str, sql_type: text }
+      - { name: is_rookie, dtype: bool, sql_type: boolean }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: match_method, dtype: str, sql_type: text }
+      - { name: match_score, dtype: int64, sql_type: integer }
+      - { name: resolved_date, dtype: str, sql_type: date }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
@@ -387,19 +435,22 @@ tables:
   - name: dim_dynasty_crosswalk
     type: resolver
     grain: source_uid
+    pk: [source_uid]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: dynasty_profile
     columns:
-      - { name: source, dtype: str }
-      - { name: source_player_id, dtype: str }
-      - { name: source_player_name, dtype: str }
-      - { name: source_position, dtype: str }
-      - { name: source_team, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: match_method, dtype: str }
-      - { name: match_score, dtype: int64 }
-      - { name: resolved_date, dtype: str }
-      - { name: source_uid, dtype: str }
+      - { name: source, dtype: str, sql_type: text }
+      - { name: source_player_id, dtype: str, sql_type: text }
+      - { name: source_player_name, dtype: str, sql_type: text }
+      - { name: source_position, dtype: str, sql_type: text }
+      - { name: source_team, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: match_method, dtype: str, sql_type: text }
+      - { name: match_score, dtype: int64, sql_type: integer }
+      - { name: resolved_date, dtype: str, sql_type: date }
+      - { name: source_uid, dtype: str, sql_type: text }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
@@ -407,28 +458,32 @@ tables:
   - name: dim_player_alias
     type: resolver
     grain: "(name_clean, position_raw)"
+    pk: [name_clean, position_raw]
     chain: rookie
     columns:
-      - { name: name_clean, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: decision, dtype: str }
-      - { name: source_example, dtype: str }
-      - { name: decided_date, dtype: str }
+      - { name: name_clean, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: decision, dtype: str, sql_type: text }
+      - { name: source_example, dtype: str, sql_type: text }
+      - { name: decided_date, dtype: str, sql_type: date }
     edges:
       - { to: dim_rookie_prospect, via: direct, on: player_key }
 
   - name: dim_roster_asset
     type: resolver
     grain: asset_id
+    pk: [asset_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: fantrax_core
     columns:
-      - { name: asset_id, dtype: int64 }
-      - { name: asset_type, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: pick_ref, dtype: str }
+      - { name: asset_id, dtype: int64, sql_type: integer }
+      - { name: asset_type, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: pick_ref, dtype: str, sql_type: text }
     edges:
       - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
@@ -446,30 +501,33 @@ tables:
   - name: fact_nfl_combine_pro_day_metrics
     type: fact
     grain: "(pfr_id, season)"
+    pk: [pfr_id, season]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: nflverse
     columns:
-      - { name: pfr_id, dtype: str }
-      - { name: season, dtype: int32 }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: is_current_season, dtype: bool }
-      - { name: cfb_id, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: pos, dtype: str }
-      - { name: school, dtype: str }
-      - { name: draft_team, dtype: str }
-      - { name: draft_round, dtype: float64 }
-      - { name: draft_ovr, dtype: float64 }
-      - { name: metric_source, dtype: str }
-      - { name: height_inches, dtype: float64 }
-      - { name: weight, dtype: float64 }
-      - { name: forty_yard, dtype: float64 }
+      - { name: pfr_id, dtype: str, sql_type: text }
+      - { name: season, dtype: int32, sql_type: integer }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: is_current_season, dtype: bool, sql_type: boolean }
+      - { name: cfb_id, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: pos, dtype: str, sql_type: text }
+      - { name: school, dtype: str, sql_type: text }
+      - { name: draft_team, dtype: str, sql_type: text }
+      - { name: draft_round, dtype: float64, sql_type: integer }
+      - { name: draft_ovr, dtype: float64, sql_type: integer }
+      - { name: metric_source, dtype: str, sql_type: text }
+      - { name: height_inches, dtype: float64, sql_type: "double precision" }
+      - { name: weight, dtype: float64, sql_type: integer }
+      - { name: forty_yard, dtype: float64, sql_type: "double precision" }
       - { name: ten_split, dtype: object, sql_type: "double precision" }
-      - { name: bench_press, dtype: float64 }
-      - { name: vertical_jump, dtype: float64 }
-      - { name: broad_jump, dtype: float64 }
-      - { name: three_cone, dtype: float64 }
-      - { name: shuttle, dtype: float64 }
+      - { name: bench_press, dtype: float64, sql_type: integer }
+      - { name: vertical_jump, dtype: float64, sql_type: "double precision" }
+      - { name: broad_jump, dtype: float64, sql_type: "double precision" }
+      - { name: three_cone, dtype: float64, sql_type: "double precision" }
+      - { name: shuttle, dtype: float64, sql_type: "double precision" }
       - { name: hand_size, dtype: object, sql_type: "double precision" }
       - { name: arm_length, dtype: object, sql_type: "double precision" }
       - { name: wingspan, dtype: object, sql_type: "double precision" }
@@ -480,24 +538,29 @@ tables:
   - name: fact_fantasy_teams
     type: fact
     grain: "(team_key, scorer_id)"
+    pk: [team_key, scorer_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
     chain: fantrax_core
     required_keys: [team_key, scorer_id]
     columns:
-      - { name: team_key, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
-      - { name: contract_id, dtype: str }
-      - { name: contract_value, dtype: float64 }
-      - { name: contract_year, dtype: float64 }
-      - { name: cap_hit, dtype: float64 }
-      - { name: cap_exempt, dtype: bool }
-      - { name: acquired_method, dtype: str }
-      - { name: acquired_date, dtype: "datetime64[us]" }
-      - { name: roster_slot, dtype: str }
-      - { name: season, dtype: str }
-      - { name: roster_captured_at, dtype: "datetime64[us, UTC]" }
-      - { name: ledger_captured_at, dtype: "datetime64[us, UTC]" }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: contract_value, dtype: float64, sql_type: "double precision" }
+      - { name: contract_year, dtype: float64, sql_type: integer }
+      - { name: cap_hit, dtype: float64, sql_type: "double precision" }
+      - { name: cap_exempt, dtype: bool, sql_type: boolean }
+      - { name: acquired_method, dtype: str, sql_type: text }
+      - { name: acquired_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: roster_slot, dtype: str, sql_type: text }
+      - { name: season, dtype: str, sql_type: text }
+      - { name: roster_captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: ledger_captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
     edges:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
@@ -522,23 +585,27 @@ tables:
   - name: fact_team_cap
     type: fact
     grain: "(season_id, team_key)"
+    pk: [season_id, team_key]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, team_key, is_current_season, original_cap, reinvestment_cap, charged_salary, ir_salary, minors_salary, dead_money, cap_room]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: team_key, dtype: str }
-      - { name: is_current_season, dtype: bool }
-      - { name: original_cap, dtype: float64 }
-      - { name: reinvestment_cap, dtype: float64 }
-      - { name: charged_salary, dtype: float64 }
-      - { name: ir_salary, dtype: float64 }
-      - { name: minors_salary, dtype: float64 }
-      - { name: dead_money, dtype: float64 }
-      - { name: cap_room, dtype: float64 }
-      - { name: roster_captured_at, dtype: "datetime64[us, UTC]" }
-      - { name: fantrax_salary_remaining, dtype: float64 }
-      - { name: fantrax_captured_at, dtype: "datetime64[us, UTC]" }
-      - { name: fantrax_period, dtype: Int64 }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: is_current_season, dtype: bool, sql_type: boolean }
+      - { name: original_cap, dtype: float64, sql_type: "double precision" }
+      - { name: reinvestment_cap, dtype: float64, sql_type: "double precision" }
+      - { name: charged_salary, dtype: float64, sql_type: "double precision" }
+      - { name: ir_salary, dtype: float64, sql_type: "double precision" }
+      - { name: minors_salary, dtype: float64, sql_type: "double precision" }
+      - { name: dead_money, dtype: float64, sql_type: "double precision" }
+      - { name: cap_room, dtype: float64, sql_type: "double precision" }
+      - { name: roster_captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: fantrax_salary_remaining, dtype: float64, sql_type: "double precision" }
+      - { name: fantrax_captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: fantrax_period, dtype: Int64, sql_type: integer }
     edges:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_season, via: direct, on: season_id }
@@ -574,30 +641,37 @@ tables:
   - name: fact_roster_transactions
     type: fact
     grain: "(transaction_id, scorer_id, team_key, event_type)"
+    pk: [transaction_id, scorer_id, team_key, event_type]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
+      - { columns: [asset_id], to: dim_roster_asset, ref: [asset_id] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [transaction_id, scorer_id, team_key, event_type]
     columns:
-      - { name: transaction_id, dtype: str }
-      - { name: season_id, dtype: str }
-      - { name: event_type, dtype: str }
-      - { name: team_key, dtype: str }
-      - { name: asset_id, dtype: int64 }
-      - { name: event_seq, dtype: int64 }
-      - { name: event_date, dtype: "datetime64[us]" }
-      - { name: period, dtype: Int64 }
-      - { name: contract_id, dtype: str }
-      - { name: contract_year, dtype: float64 }
-      - { name: contract_value, dtype: float64 }
-      - { name: contract_source, dtype: str }
-      - { name: status, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: draft_round, dtype: float64 }
-      - { name: pick_in_round, dtype: float64 }
-      - { name: pick_overall, dtype: float64 }
-      - { name: source, dtype: str }
-      - { name: claim_method, dtype: str }
-      - { name: claim_bid, dtype: float64 }
+      - { name: transaction_id, dtype: str, sql_type: text }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: event_type, dtype: str, sql_type: text }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: asset_id, dtype: int64, sql_type: integer }
+      - { name: event_seq, dtype: int64, sql_type: integer }
+      - { name: event_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: period, dtype: Int64, sql_type: integer }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: contract_year, dtype: float64, sql_type: integer }
+      - { name: contract_value, dtype: float64, sql_type: "double precision" }
+      - { name: contract_source, dtype: str, sql_type: text }
+      - { name: status, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: draft_round, dtype: float64, sql_type: integer }
+      - { name: pick_in_round, dtype: float64, sql_type: integer }
+      - { name: pick_overall, dtype: float64, sql_type: integer }
+      - { name: source, dtype: str, sql_type: text }
+      - { name: claim_method, dtype: str, sql_type: text }
+      - { name: claim_bid, dtype: float64, sql_type: "double precision" }
     edges:
       - { to: dim_fantasy_teams, via: direct, on: team_key }
       - { to: dim_roster_asset, via: direct, on: asset_id }
@@ -653,22 +727,29 @@ tables:
   - name: fact_dead_money
     type: fact
     grain: "(transaction_id, scorer_id, team_key, season_id)"
+    pk: [transaction_id, scorer_id, team_key, season_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
+      - { columns: [charge_contract_id], to: dim_contract, ref: [contract_id] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [transaction_id, scorer_id, team_key, season_id, drop_date, contract_id, contract_value, charge_contract_id, cap_hit_pct, dead_money, contract_source]
     columns:
-      - { name: transaction_id, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: team_key, dtype: str }
-      - { name: season_id, dtype: str }
-      - { name: drop_date, dtype: "datetime64[us]" }
-      - { name: drop_period, dtype: Int64 }
-      - { name: gsis_id, dtype: str }
-      - { name: contract_id, dtype: str }
-      - { name: contract_value, dtype: float64 }
-      - { name: charge_contract_id, dtype: str }
-      - { name: cap_hit_pct, dtype: float64 }
-      - { name: dead_money, dtype: float64 }
-      - { name: contract_source, dtype: str }
+      - { name: transaction_id, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: drop_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: drop_period, dtype: Int64, sql_type: integer }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: contract_value, dtype: float64, sql_type: "double precision" }
+      - { name: charge_contract_id, dtype: str, sql_type: text }
+      - { name: cap_hit_pct, dtype: float64, sql_type: "double precision" }
+      - { name: dead_money, dtype: float64, sql_type: "double precision" }
+      - { name: contract_source, dtype: str, sql_type: text }
     edges:
       - { to: fact_roster_transactions, via: direct, on: "transaction_id, scorer_id, team_key" }
       - { to: dim_fantasy_teams, via: direct, on: team_key }
@@ -704,23 +785,29 @@ tables:
   - name: fact_trade_log
     type: fact
     grain: "(transaction_id, asset_id)"
+    pk: [transaction_id, asset_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+      - { columns: [team_key_from], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [team_key_to], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [asset_id], to: dim_roster_asset, ref: [asset_id] }
     chain: fantrax_core
     required_keys: [transaction_id, asset_id, team_key_from, team_key_to, week]
     columns:
-      - { name: transaction_id, dtype: str }
-      - { name: asset_id, dtype: int64 }
-      - { name: asset_kind, dtype: str }
-      - { name: team_key_from, dtype: str }
-      - { name: team_key_to, dtype: str }
-      - { name: event_date, dtype: "datetime64[us]" }
-      - { name: week, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: pick_ref, dtype: str }
-      - { name: draft_year, dtype: Int64 }
-      - { name: draft_round, dtype: Int64 }
-      - { name: pick_in_round, dtype: Int64 }
-      - { name: source, dtype: str }
+      - { name: transaction_id, dtype: str, sql_type: text }
+      - { name: asset_id, dtype: int64, sql_type: integer }
+      - { name: asset_kind, dtype: str, sql_type: text }
+      - { name: team_key_from, dtype: str, sql_type: text }
+      - { name: team_key_to, dtype: str, sql_type: text }
+      - { name: event_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: week, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: pick_ref, dtype: str, sql_type: text }
+      - { name: draft_year, dtype: Int64, sql_type: integer }
+      - { name: draft_round, dtype: Int64, sql_type: integer }
+      - { name: pick_in_round, dtype: Int64, sql_type: integer }
+      - { name: source, dtype: str, sql_type: text }
     edges:
       - { to: dim_roster_asset, via: direct, on: asset_id }
       - { to: dim_fantasy_teams, via: direct, on: "team_key_from, team_key_to -> team_key" }
@@ -741,17 +828,22 @@ tables:
   - name: fact_roster_state
     type: fact
     grain: "(season_id, period, team_key, scorer_id)"
+    pk: [season_id, period, team_key, scorer_id]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, period, team_key, scorer_id, roster_slot, salary, contract_id, capture_date]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: period, dtype: int64 }
-      - { name: team_key, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: roster_slot, dtype: str }
-      - { name: salary, dtype: float64 }
-      - { name: contract_id, dtype: str }
-      - { name: capture_date, dtype: "datetime64[us]" }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: period, dtype: int64, sql_type: integer }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: roster_slot, dtype: str, sql_type: text }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: capture_date, dtype: "datetime64[us]", sql_type: timestamp }
     edges:
       - { to: dim_season, via: direct, on: season_id }
       - { to: dim_scoring_period, via: direct, on: "season_id, period" }
@@ -784,19 +876,23 @@ tables:
   - name: fact_period_scoring
     type: fact
     grain: "(season_id, period, team_key, scorer_id)"
+    pk: [season_id, period, team_key, scorer_id]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, period, team_key, scorer_id, is_starter, fpts, fpts_offense, fpts_defense, fpts_special_teams, capture_date]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: period, dtype: int64 }
-      - { name: team_key, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: is_starter, dtype: bool }
-      - { name: fpts, dtype: float64 }
-      - { name: fpts_offense, dtype: float64 }
-      - { name: fpts_defense, dtype: float64 }
-      - { name: fpts_special_teams, dtype: float64 }
-      - { name: capture_date, dtype: "datetime64[us]" }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: period, dtype: int64, sql_type: integer }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: is_starter, dtype: bool, sql_type: boolean }
+      - { name: fpts, dtype: float64, sql_type: "double precision" }
+      - { name: fpts_offense, dtype: float64, sql_type: "double precision" }
+      - { name: fpts_defense, dtype: float64, sql_type: "double precision" }
+      - { name: fpts_special_teams, dtype: float64, sql_type: "double precision" }
+      - { name: capture_date, dtype: "datetime64[us]", sql_type: timestamp }
     edges:
       - { to: dim_season, via: direct, on: season_id }
       - { to: dim_scoring_period, via: direct, on: "season_id, period" }
@@ -828,17 +924,22 @@ tables:
   - name: fact_matchup
     type: fact
     grain: "(season_id, period, team_key)"
+    pk: [season_id, period, team_key]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [opponent_team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     chain: fantrax_core
     required_keys: [season_id, period, team_key, opponent_team_key, is_home, fpts_for, fpts_against, capture_date]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: period, dtype: int64 }
-      - { name: team_key, dtype: str }
-      - { name: opponent_team_key, dtype: str }
-      - { name: is_home, dtype: bool }
-      - { name: fpts_for, dtype: float64 }
-      - { name: fpts_against, dtype: float64 }
-      - { name: capture_date, dtype: "datetime64[us]" }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: period, dtype: int64, sql_type: integer }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: opponent_team_key, dtype: str, sql_type: text }
+      - { name: is_home, dtype: bool, sql_type: boolean }
+      - { name: fpts_for, dtype: float64, sql_type: "double precision" }
+      - { name: fpts_against, dtype: float64, sql_type: "double precision" }
+      - { name: capture_date, dtype: "datetime64[us]", sql_type: timestamp }
     edges:
       - { to: dim_season, via: direct, on: season_id }
       - { to: dim_scoring_period, via: direct, on: "season_id, period" }
@@ -861,14 +962,19 @@ tables:
   - name: fact_preseason_salary
     type: fact
     grain: "(season_id, team_key, scorer_id)"
+    pk: [season_id, team_key, scorer_id]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
     required_keys: [season_id, team_key, scorer_id, salary, contract_id, capture_date]
     columns:
-      - { name: season_id, dtype: str }
-      - { name: team_key, dtype: str }
-      - { name: scorer_id, dtype: str }
-      - { name: salary, dtype: float64 }
-      - { name: contract_id, dtype: str }
-      - { name: capture_date, dtype: "datetime64[us]" }
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: contract_id, dtype: str, sql_type: text }
+      - { name: capture_date, dtype: "datetime64[us]", sql_type: timestamp }
     edges:
       - { to: dim_season, via: direct, on: season_id }
       - { to: dim_fantasy_teams, via: direct, on: team_key }
@@ -891,41 +997,45 @@ tables:
   - name: fact_minor_eligibility
     type: fact
     grain: "(scorer_id, season, week)"
+    pk: [scorer_id, season, week]
     chain: fantrax_core
     required_keys: [scorer_id, week]
     columns:
-      - { name: scorer_id, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: nfl_team, dtype: str }
-      - { name: fa_status, dtype: str }
-      - { name: salary, dtype: float64 }
-      - { name: contract, dtype: str }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: nfl_team, dtype: str, sql_type: text }
+      - { name: fa_status, dtype: str, sql_type: text }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: contract, dtype: str, sql_type: text }
       - { name: games_played, dtype: object, sql_type: integer }
-      - { name: season, dtype: int64 }
-      - { name: week, dtype: str }
-      - { name: capture_date, dtype: str }
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: week, dtype: str, sql_type: text }
+      - { name: capture_date, dtype: str, sql_type: date }
     edges:
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
 
   - name: fact_nfl_snap_counts
     type: fact
     grain: "(gsis_id, game_id)"
+    pk: [gsis_id, game_id]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: nflverse
     required_keys: [gsis_id, game_id, season, week, team]
     columns:
-      - { name: gsis_id, dtype: str }
-      - { name: game_id, dtype: str }
-      - { name: season, dtype: int64 }
-      - { name: week, dtype: int64 }
-      - { name: team, dtype: str }
-      - { name: offense_snaps, dtype: float64 }
-      - { name: offense_pct, dtype: float64 }
-      - { name: defense_snaps, dtype: float64 }
-      - { name: defense_pct, dtype: float64 }
-      - { name: st_snaps, dtype: float64 }
-      - { name: st_pct, dtype: float64 }
-      - { name: period, dtype: Int64 }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: game_id, dtype: str, sql_type: text }
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: week, dtype: int64, sql_type: integer }
+      - { name: team, dtype: str, sql_type: text }
+      - { name: offense_snaps, dtype: float64, sql_type: integer }
+      - { name: offense_pct, dtype: float64, sql_type: "double precision" }
+      - { name: defense_snaps, dtype: float64, sql_type: integer }
+      - { name: defense_pct, dtype: float64, sql_type: "double precision" }
+      - { name: st_snaps, dtype: float64, sql_type: integer }
+      - { name: st_pct, dtype: float64, sql_type: "double precision" }
+      - { name: period, dtype: Int64, sql_type: integer }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
     notes: >
@@ -943,18 +1053,21 @@ tables:
   - name: fact_nfl_injuries
     type: fact
     grain: "(gsis_id, season, week)"
+    pk: [gsis_id, season, week]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: nflverse
     required_keys: [gsis_id, season, week, team]
     columns:
-      - { name: gsis_id, dtype: str }
-      - { name: season, dtype: int64 }
-      - { name: week, dtype: int64 }
-      - { name: game_type, dtype: str }
-      - { name: team, dtype: str }
-      - { name: report_status, dtype: str }
-      - { name: report_primary_injury, dtype: str }
-      - { name: practice_status, dtype: str }
-      - { name: period, dtype: Int64 }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: week, dtype: int64, sql_type: integer }
+      - { name: game_type, dtype: str, sql_type: text }
+      - { name: team, dtype: str, sql_type: text }
+      - { name: report_status, dtype: str, sql_type: text }
+      - { name: report_primary_injury, dtype: str, sql_type: text }
+      - { name: practice_status, dtype: str, sql_type: text }
+      - { name: period, dtype: Int64, sql_type: integer }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
     notes: >
@@ -970,19 +1083,22 @@ tables:
   - name: fact_rookie_rankings
     type: fact
     grain: "(player_key, source_name, phase, draft_year)"
+    pk: [player_key, source_name, phase, draft_year]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: rookie
     columns:
-      - { name: player_key, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: source_name, dtype: str }
-      - { name: source_site, dtype: str }
-      - { name: phase, dtype: str }
-      - { name: draft_year, dtype: Int64 }
-      - { name: global_rank, dtype: Int64 }
-      - { name: positional_rank, dtype: Int64 }
-      - { name: grade, dtype: float64 }
-      - { name: capture_date, dtype: str }
-      - { name: rank_date, dtype: str }
+      - { name: player_key, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: source_name, dtype: str, sql_type: text }
+      - { name: source_site, dtype: str, sql_type: text }
+      - { name: phase, dtype: str, sql_type: text }
+      - { name: draft_year, dtype: Int64, sql_type: integer }
+      - { name: global_rank, dtype: Int64, sql_type: integer }
+      - { name: positional_rank, dtype: Int64, sql_type: integer }
+      - { name: grade, dtype: float64, sql_type: "double precision" }
+      - { name: capture_date, dtype: str, sql_type: date }
+      - { name: rank_date, dtype: str, sql_type: text }
     edges:
       - { to: dim_rookie_prospect, via: direct, on: player_key }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
@@ -990,27 +1106,30 @@ tables:
   - name: fact_fantrax_adp
     type: fact
     grain: "(scorer_id, season, week)"
+    pk: [scorer_id, season, week]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
     chain: fantrax_core
     required_keys: [scorer_id, week]
     columns:
-      - { name: scorer_id, dtype: str }
-      - { name: season, dtype: int64 }
-      - { name: week, dtype: str }
-      - { name: capture_date, dtype: str }
-      - { name: player_name, dtype: str }
-      - { name: position_raw, dtype: str }
-      - { name: nfl_team, dtype: str }
-      - { name: is_rookie, dtype: bool }
-      - { name: overall_rank, dtype: float64 }
-      - { name: adp, dtype: float64 }
-      - { name: salary, dtype: float64 }
-      - { name: percent_drafted, dtype: float64 }
-      - { name: fpts, dtype: float64 }
-      - { name: fpts_per_game, dtype: float64 }
-      - { name: games_played, dtype: float64 }
-      - { name: age, dtype: float64 }
-      - { name: gsis_id, dtype: str }
-      - { name: player_key, dtype: str }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: week, dtype: str, sql_type: text }
+      - { name: capture_date, dtype: str, sql_type: date }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: nfl_team, dtype: str, sql_type: text }
+      - { name: is_rookie, dtype: bool, sql_type: boolean }
+      - { name: overall_rank, dtype: float64, sql_type: "double precision" }
+      - { name: adp, dtype: float64, sql_type: "double precision" }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: percent_drafted, dtype: float64, sql_type: "double precision" }
+      - { name: fpts, dtype: float64, sql_type: "double precision" }
+      - { name: fpts_per_game, dtype: float64, sql_type: "double precision" }
+      - { name: games_played, dtype: float64, sql_type: integer }
+      - { name: age, dtype: float64, sql_type: "double precision" }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_key, dtype: str, sql_type: text }
     edges:
       - { to: dim_fantrax_crosswalk, via: direct, on: scorer_id }
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
@@ -1019,18 +1138,145 @@ tables:
   - name: fact_dynasty_ranking_metrics
     type: fact
     grain: "(snapshot_date, source_name, source_player_id, format, metric_key)"
+    pk: [snapshot_date, source_name, source_player_id, format, metric_key]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+      - { columns: [metric_key], to: dim_dynasty_metric, ref: [metric_key] }
+    checks:
+      - "metric_num IS NOT NULL OR metric_text IS NOT NULL"
     chain: dynasty_profile
     columns:
-      - { name: snapshot_date, dtype: "datetime64[us]" }
-      - { name: source_name, dtype: str }
-      - { name: source_player_id, dtype: str }
-      - { name: format, dtype: str }
-      - { name: source_uid, dtype: str }
-      - { name: gsis_id, dtype: str }
-      - { name: metric_key, dtype: str }
-      - { name: metric_num, dtype: float64 }
-      - { name: metric_text, dtype: str }
+      - { name: snapshot_date, dtype: "datetime64[us]", sql_type: timestamp }
+      - { name: source_name, dtype: str, sql_type: text }
+      - { name: source_player_id, dtype: str, sql_type: text }
+      - { name: format, dtype: str, sql_type: text }
+      - { name: source_uid, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: metric_key, dtype: str, sql_type: text }
+      - { name: metric_num, dtype: float64, sql_type: "double precision" }
+      - { name: metric_text, dtype: str, sql_type: text }
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: dim_dynasty_crosswalk, on: source_uid }
       - { to: dim_dynasty_metric, via: direct, on: metric_key }
+
+# Tables with no parquet file (ADR-0018 decisions 10 and 11, #108). Only the
+# migration generator reads this section: the seam, the publish gate and the
+# drift check read `tables` alone, so nothing here is writable through the
+# seam or checked against a snapshot. An entry has name, schema, columns
+# (name + sql_type, no dtype), pk, and optionally required_keys, fk, checks
+# and indexes. A column is nullable unless it is in the pk or required_keys.
+other_tables:
+  - name: etl_run_log
+    schema: ops
+    pk: [run_id]
+    required_keys: [trigger, started_at, status]
+    checks:
+      - "trigger IN ('daily', 'poll', 'weekly', 'manual')"
+      - "status IN ('running', 'failed', 'committed', 'published')"
+    columns:
+      - { name: run_id, sql_type: uuid }
+      - { name: trigger, sql_type: text }
+      - { name: started_at, sql_type: timestamptz }
+      - { name: finished_at, sql_type: timestamptz }
+      - { name: status, sql_type: text }
+      - { name: git_sha, sql_type: text }
+      - { name: snapshot_commit_sha, sql_type: text }
+      - { name: rows_written, sql_type: jsonb }
+      - { name: error, sql_type: text }
+
+  - name: change_poll_state
+    schema: ops
+    pk: [team_key]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+    columns:
+      - { name: team_key, sql_type: text }
+      - { name: period, sql_type: integer }
+      - { name: roster_hash, sql_type: text }
+      - { name: last_polled_at, sql_type: timestamptz }
+      - { name: hash_changed_at, sql_type: timestamptz }
+      - { name: pending_since, sql_type: timestamptz }
+
+  - name: review_fantrax_crosswalk
+    schema: ops
+    pk: [scorer_id, created_at]
+    columns:
+      - { name: scorer_id, sql_type: text }
+      - { name: player_name, sql_type: text }
+      - { name: position_raw, sql_type: text }
+      - { name: nfl_team, sql_type: text }
+      - { name: is_rookie, sql_type: boolean }
+      - { name: gsis_id, sql_type: text }
+      - { name: player_key, sql_type: text }
+      - { name: match_method, sql_type: text }
+      - { name: match_score, sql_type: integer }
+      - { name: resolved_date, sql_type: date }
+      - { name: action, sql_type: text }
+      - { name: created_at, sql_type: timestamptz }
+      - { name: resolved_at, sql_type: timestamptz }
+      - { name: resolution, sql_type: text }
+
+  - name: review_dynasty_crosswalk
+    schema: ops
+    pk: [source_uid, created_at]
+    columns:
+      - { name: source, sql_type: text }
+      - { name: source_player_id, sql_type: text }
+      - { name: source_player_name, sql_type: text }
+      - { name: source_position, sql_type: text }
+      - { name: source_team, sql_type: text }
+      - { name: gsis_id, sql_type: text }
+      - { name: player_key, sql_type: text }
+      - { name: match_method, sql_type: text }
+      - { name: match_score, sql_type: integer }
+      - { name: resolved_date, sql_type: date }
+      - { name: source_uid, sql_type: text }
+      - { name: action, sql_type: text }
+      - { name: created_at, sql_type: timestamptz }
+      - { name: resolved_at, sql_type: timestamptz }
+      - { name: resolution, sql_type: text }
+
+  - name: review_fuzzy_matches
+    schema: ops
+    pk: [new_name, source, created_at]
+    columns:
+      - { name: new_name, sql_type: text }
+      - { name: new_name_clean, sql_type: text }
+      - { name: new_position, sql_type: text }
+      - { name: new_school, sql_type: text }
+      - { name: best_match_name, sql_type: text }
+      - { name: best_match_key, sql_type: text }
+      - { name: fuzzy_score, sql_type: integer }
+      - { name: action, sql_type: text }
+      - { name: source, sql_type: text }
+      - { name: created_at, sql_type: timestamptz }
+      - { name: resolved_at, sql_type: timestamptz }
+      - { name: resolution, sql_type: text }
+
+  - name: review_check
+    schema: ops
+    pk: [check_name, table_name, row_key, created_at]
+    indexes:
+      - { name: review_check_one_open_idx, columns: [check_name, table_name, row_key], unique: true, where: "resolved_at IS NULL" }
+    columns:
+      - { name: check_name, sql_type: text }
+      - { name: table_name, sql_type: text }
+      - { name: row_key, sql_type: jsonb }
+      - { name: detail, sql_type: jsonb }
+      - { name: run_id, sql_type: text }
+      - { name: created_at, sql_type: timestamptz }
+      - { name: last_seen_at, sql_type: timestamptz }
+      - { name: pending, sql_type: boolean }
+      - { name: resolved_at, sql_type: timestamptz }
+      - { name: resolution, sql_type: text }
+
+  - name: owner
+    schema: shared
+    pk: [owner_id]
+    columns:
+      - { name: owner_id, sql_type: text }
+      - { name: team_key, sql_type: text }
+      - { name: human_name, sql_type: text }
+      - { name: email, sql_type: text }
+      - { name: fantrax_username, sql_type: text }
