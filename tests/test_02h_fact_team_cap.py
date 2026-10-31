@@ -116,13 +116,14 @@ class TestTeamCap:
         assert t.loc[(NEXT, "B01"), "cap_room"] == 300.0 - 4.0
 
     def test_a_minor_contract_in_an_active_slot_charges_in_full(self):
-        r = roster(("A01", "Active", "Minor", 5.0), ("A01", "Minors", "Minor", 3.0))
-        assert r["cap_hit"].tolist() == [5.0, 0.0]
-        assert r["cap_exempt"].tolist() == [False, True]
+        r = roster(("A01", "Starter", "Minor", 5.0), ("A01", "Bench", "Minor", 4.0),
+                   ("A01", "Minors", "Minor", 3.0))
+        assert r["cap_hit"].tolist() == [5.0, 4.0, 0.0]
+        assert r["cap_exempt"].tolist() == [False, False, True]
         row = table(r, DEAD.iloc[0:0]).loc[(THIS, "A01")]
-        assert row["charged_salary"] == 5.0
+        assert row["charged_salary"] == 9.0
         assert row["minors_salary"] == 3.0
-        assert table(r, DEAD.iloc[0:0]).loc[(NEXT, "A01"), "charged_salary"] == 8.0
+        assert table(r, DEAD.iloc[0:0]).loc[(NEXT, "A01"), "charged_salary"] == 12.0
 
     def test_no_dead_money_charged_yet_means_nobody_owes(self):
         t = table(dead=pd.DataFrame(columns=["team_key", "season_id", "dead_money"]))
