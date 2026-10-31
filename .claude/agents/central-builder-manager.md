@@ -55,8 +55,8 @@ the owner.
   post the output, squash-merge, pull, wake the builder. Your own PR:
   after the owner's approval, merge on green, pull, delete the branch,
   leave `main` clean. The planner merges its own PRs and approved rule
-  changes (owner, 2026-10-31). Run `gh pr merge` through the Bash tool,
-  one call, nothing chained: the allow rule is written for Bash.
+  changes (owner, 2026-10-31). Run `gh pr merge` as one call, nothing
+  chained: the allow rules match the plain command.
 - **Closeout,** only when a builder has stopped: the steps of
   `session-dispatch`, with the commands and their output as proof.
 - **Your own edits.** `.md` files and `.claude/memory/*` only, in your own
