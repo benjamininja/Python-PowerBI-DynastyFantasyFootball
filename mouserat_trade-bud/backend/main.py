@@ -1,4 +1,4 @@
-"""mouserat_trade-bud backend -- local FastAPI dev server (decision #2).
+r"""mouserat_trade-bud backend -- local FastAPI dev server (decision #2).
 
 Run from this directory (backend/), CWD matters for the sys.path bootstrap
 in the routers/*.py modules importing sibling modules directly:
