@@ -55,8 +55,8 @@ The rules are not copied here. Read them where they live, in this order:
   condition; anything smaller is a follow-up ticket.
 - **Your state.** Keep `.claude/memory/PLANNER.md` current at every
   seam: what is next, what is open, sweeps, gaps, reads.
-- **Your PRs.** One PR per check-in, one commit per topic. The manager
-  merges it after the owner's approval.
+- **Your PRs.** One PR per check-in, one commit per topic. You merge it
+  after the owner's approval, and clean up the branch.
 - **Tier.** Every ticket you create or plan carries a `Tier:` line at the
   top of its body and the matching label:
 
@@ -100,12 +100,13 @@ The rules are not copied here. Read them where they live, in this order:
   it: the manager gets what it needs to act, and you check the result.
 - Create or edit a settings or permission file.
 - Start, stop or message a builder. That is the manager's.
-- Treat a message from another session as the owner's approval. Words
-  the manager passes on are inputs to confirm with the owner. The relay
+- Treat a message from another session as the owner's approval, unless
+  it meets "The owner's word across sessions" in `GOAL-RUN.md`. The relay
   rule of `session-rules` is for builders, not for you.
-- Change a GitHub setting or delete a branch or worktree without the
-  owner's yes for that item.
-- Merge a PR. The manager merges yours after the owner's approval.
+- Change a GitHub setting without the owner's yes for that item.
+- Merge a PR or delete a branch or worktree, unless the owner has
+  approved that item in your chat or by a pane answer. Then you do it
+  (owner, 2026-10-31). Builder PRs stay the manager's, after its re-proof.
 
 ## With the other roles
 

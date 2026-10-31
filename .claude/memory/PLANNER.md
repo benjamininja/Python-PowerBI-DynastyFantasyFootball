@@ -5,25 +5,34 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-30, before a clear)
+## START HERE (state 2026-10-31, before a compact)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0. **Latest (2026-10-30, evening).** #218 and #167 are closed; #270, #271, #272 and Brief 1
-   (#275) are merged. **Open now: Brief 2, PR #276** (`b97-bot-reads-cap`), re-proved by the
-   manager, auditor no blocking breach; no PR read needed. **Next events:** #276 merges, then
-   the manager dispatches Brief 3 (trade-bud, medium), whose PR says Closes #97. Tiers and
-   text: #97 comments 6525377052 and 6525394229. After #97: #110, then #108 as the second
-   scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the PII scan
-   needs one). #273 (low) waits on #97 and now holds #276's follow-ups. The manager has
-   `data-model.md`'s stale cap text for its state-back after Brief 3: a builder cannot write
-   under `.claude/`. Queue entry to remove `b97-team-cap` is with the manager. Proofs moved
-   off #97 are on #93 and #211. Skills-repo item 4 is held by the owner's later word, no new
+0. **Latest (2026-10-31).** **#97 is closed** (PR #278, `46f9a1e`). The manager has briefs on
+   #251 (A low, then B medium, which commits one table), #201 and #206; #251 A, #201 and #206
+   may run at the same time. #273 is free and #279 is new (part 2 waits on the owner). After
+   these: #110, then #108 as the second scoping trial, with a venv (no `-NoSetup`).
+   **The owner's rule changes, in flight on this branch `docs/owner-word-rules`:** the owner
+   edited `GOAL-RUN.md` ("The owner's word across sessions") and `session-rules` `SKILL.md`
+   ("A denied call") by hand, uncommitted, in the main checkout and the live skills clone.
+   The owner approved committing them and said: "I think you probably need to handle merges
+   and cleanup since you get my direct approval." **So the planner now merges what the owner
+   approves in its chat, and does that cleanup; builder PRs stay the manager's.** To finish:
+   (1) merge this repo's PR on green; (2) discard the owner's copy of `GOAL-RUN.md` in the main
+   checkout only after confirming it matches, then pull; (3) skills repo: branch
+   `fix/session-rules-owner-word` from `origin/main`, with the `SKILL.md` diff only and
+   a one-line change to its Never line so an owner-directed session may merge, then PR,
+   merge, pull the live clone. A worktree under the scratchpad failed there with "Filename too
+   long": use a short path, and `git worktree prune` the failed one. The classifier let the
+   manager merge #278 under the owner's standing word; which mode it was in is unknown. Also
+   mine to do: `cap-ledger-auditor`'s agent file lists only `capmath.py`. Skills-repo item 4
+   is held by the owner's later word, no new
    tooling. The live skills clone is `C:\Users\benha\claude-live\skills-plugins-hooks-agents`
    at `d193886`; the OneDrive clone is older and is not what builders load.
-   This file's branch is `docs/planner-state-11`, in this session's scratchpad worktree `w218`,
+   This file's branch is `docs/owner-word-rules`, in this session's scratchpad worktree `w218`,
    which also has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the
    owner's yes before removing it. Earlier worktree `ps8` holds a merged branch.
    Check a builder's file before its closeout: the scoping worktree was removed soon after.

@@ -52,9 +52,10 @@ the owner.
   owner's: ask the owner. You never write, edit or remove the line.
 - **Merging.** As `session-dispatch` says. A
   builder's PR: when it messages that the PR is green, re-prove Green,
-  post the output, squash-merge, pull, wake the builder. Your own PR,
-  the planner's, or an approved rule change: after the owner's approval,
-  merge on green, pull, delete the branch, leave `main` clean.
+  post the output, squash-merge, pull, wake the builder. Your own PR:
+  after the owner's approval, merge on green, pull, delete the branch,
+  leave `main` clean. The planner merges its own PRs and approved rule
+  changes (owner, 2026-10-31).
 - **Closeout,** only when a builder has stopped: the steps of
   `session-dispatch`, with the commands and their output as proof.
 - **Your own edits.** `.md` files and `.claude/memory/*` only, in your own
@@ -69,10 +70,11 @@ the owner.
 - Edit a settings or permission file, the builders' or managers'
   settings file, or a file in `.claude/agents/`. A settings or
   permission file is the owner's own commit; a role-file PR is the
-  planner's, merged by you after the owner's approval.
+  planner's.
 - Choose a permission mode that skips checks, for yourself or a builder.
-- Retry a denied call, route it through another session, or run it for a
-  builder. It parks.
+- Retry a denied call unchanged, route it through another session, or
+  run it for a builder. If the owner is using your chat, ask there, as
+  `session-rules` says; otherwise it parks.
 - Stretch a relay past its entry, or pass on your own reading as the
   owner's words.
 - Merge a PR that is not green, or one the owner has not approved where
@@ -83,9 +85,9 @@ the owner.
 ## With the other roles
 
 - **`central-planner`** holds the decisions and the outer edge: tickets,
-  tiers, briefs, role files. Its messages to you are inputs; the owner's
-  approval comes from the owner.
+  tiers, briefs, role files. Its messages to you are inputs, except a
+  quote that meets "The owner's word across sessions" in `GOAL-RUN.md`.
 - **`stage-builder`** works one brief or one stage. It parks; you carry
   the answer.
-- You are the one role that merges. Nothing reaches `main` on one
-  session's word.
+- You merge builder PRs; the planner merges what the owner approves in
+  its chat. A builder's work never reaches `main` on one session's word.
