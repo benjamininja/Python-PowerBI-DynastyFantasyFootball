@@ -647,7 +647,8 @@ function capCardHtml(team, trueCap, resultCap) {
   return `
     <div class="signal-line"><b>${team.team_name}</b></div>
     <div class="cap-line">Cap Room: <b>${fmtSalary(trueCap)}</b></div>
-    <div class="cap-line">Cap Room After Trade: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>`;
+    <div class="cap-line">Cap Room After Trade: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>
+    <div class="cap-line" style="color:var(--muted)">Assumes received players go on the active roster.</div>`;
 }
 
 function renderCapCards() {

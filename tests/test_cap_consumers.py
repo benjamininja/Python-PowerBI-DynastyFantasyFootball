@@ -174,14 +174,77 @@ class TestTextGuards:
         # Imports, not mentions: capmath.py's docstring names notebooks/etl_cap.py
         # as the place the figures are computed, which is not an import (decision 1).
         for path in (REPO / folder).rglob("*.py"):
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-                if isinstance(node, ast.Import):
-                    modules = [a.name for a in node.names]
-                elif isinstance(node, ast.ImportFrom):
-                    modules = [node.module or ""]
-                else:
-                    continue
-                assert not [m for m in modules if m.split(".")[0] == "etl_cap"], path
+            assert "etl_cap" not in imported_names(path.read_text(encoding="utf-8")), path
+
+    def test_no_trade_bud_file_imports_the_bot(self):
+        # CLAUDE.md: the backend imports nothing from discord_bot/. Every file,
+        # not only data_access.py.
+        files = list((REPO / "mouserat_trade-bud").rglob("*.py"))
+        assert (BACKEND / "data_access.py") in files
+        for path in files:
+            reached = imported_names(path.read_text(encoding="utf-8")) & {
+                "discord_bot", "capmath", "github_fetch"}
+            assert not reached, (path, reached)
+
+
+def imported_names(source: str) -> set[str]:
+    """Every name an import statement in `source` could be reaching: each dotted
+    component of the module, and each alias name of a from-import (which may
+    itself be dotted). Relative imports count: `from . import x` gives x."""
+    names: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                names.update(alias.name.split("."))
+        elif isinstance(node, ast.ImportFrom):
+            names.update((node.module or "").split("."))
+            for alias in node.names:
+                names.update(alias.name.split("."))
+    names.discard("")
+    return names
+
+
+class TestImportedNames:
+    @pytest.mark.parametrize("source", [
+        "import etl_cap",
+        "import etl_cap as cap",
+        "from etl_cap import team_cap",
+        "from notebooks import etl_cap",
+        "from notebooks import etl_cap as cap",
+        "import notebooks.etl_cap",
+        "import os, notebooks.etl_cap",
+        "from notebooks.etl_cap import team_cap",
+        "from . import etl_cap",
+        "from .etl_cap import team_cap",
+        "from .. import etl_cap",
+        "def f():\n    import etl_cap",
+    ])
+    def test_every_import_form_of_etl_cap_is_caught(self, source):
+        assert "etl_cap" in imported_names(source)
+
+    @pytest.mark.parametrize("source, name", [
+        ("import capmath", "capmath"),
+        ("from capmath import teams_with_cap", "capmath"),
+        ("from discord_bot import capmath", "capmath"),
+        ("from discord_bot import capmath", "discord_bot"),
+        ("import discord_bot.capmath", "discord_bot"),
+        ("import discord_bot.capmath", "capmath"),
+        ("from discord_bot.github_fetch import fetch_parquet", "discord_bot"),
+        ("from discord_bot.github_fetch import fetch_parquet", "github_fetch"),
+        ("import github_fetch as gf", "github_fetch"),
+        ("from . import github_fetch", "github_fetch"),
+        ("from .capmath import teams_with_cap", "capmath"),
+    ])
+    def test_every_import_form_of_the_bot_modules_is_caught(self, source, name):
+        assert name in imported_names(source)
+
+    def test_a_mention_is_not_an_import(self):
+        source = '"""computed in notebooks/etl_cap.py"""\nx = "etl_cap"  # etl_cap\n'
+        assert imported_names(source) == set()
+
+    def test_unrelated_imports_are_not_flagged(self):
+        assert not imported_names("import pandas as pd\nfrom pathlib import Path") & {
+            "etl_cap", "discord_bot", "capmath", "github_fetch"}
 
 
 def _function(text: str, name: str) -> str:
@@ -208,3 +271,9 @@ class TestWhatIfText:
         card = _function(self.text, "capCardHtml")
         assert "Cap Room:" in card and "Cap Room After Trade:" in card
         assert "Team Salary" not in card
+
+    def test_the_card_states_its_assumption_on_both_teams(self):
+        card = _function(self.text, "capCardHtml")
+        assert "Assumes received players go on the active roster." in card
+        render = _function(self.text, "renderCapCards")
+        assert render.count("capCardHtml(") == 2
