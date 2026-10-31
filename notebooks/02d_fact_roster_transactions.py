@@ -1259,6 +1259,37 @@ def _parse_claim_drops(cd_rows, team_lut):
     return legs, n_no_player, n_no_team
 
 
+KNOWN_SKIPPED_CODES = frozenset({"LINEUP_CHANGE"})
+
+
+def count_skipped_codes(raw_rows):
+    """Rows no parser reads -> (counts, unknown): a count per `transactionCode`
+    that is not a trade leg (null), CLAIM or DROP, and the codes among them
+    outside KNOWN_SKIPPED_CODES, sorted."""
+    counts = {}
+    for r in raw_rows:
+        code = r.get("transactionCode")
+        if code is None or code in ("CLAIM", "DROP"):
+            continue
+        counts[code] = counts.get(code, 0) + 1
+    unknown = sorted(c for c in counts if c not in KNOWN_SKIPPED_CODES)
+    return counts, unknown
+
+
+def skipped_code_lines(raw_rows):
+    """The `[info]` / `[warn]` lines main() prints for the skipped codes."""
+    counts, unknown = count_skipped_codes(raw_rows)
+    lines = []
+    known = {c: n for c, n in sorted(counts.items()) if c not in unknown}
+    if known:
+        lines.append("[info] skipped transaction code(s): "
+                     + ", ".join(f"{c} x{n}" for c, n in known.items()))
+    if unknown:
+        lines.append("[warn] transaction code(s) in no known list, skipped: "
+                     + ", ".join(f"{c} x{counts[c]}" for c in unknown))
+    return lines
+
+
 def parse_txn_rows(raw_rows, team_lut, gsis_lut):
     """Captured transaction-history rows -> (trade_log, legs, stats).
 
@@ -1646,6 +1677,9 @@ def main():
                   f"{PICK_OWNER_REVIEW_PATH.name}: {gaps[:5]}{'...' if len(gaps) > 5 else ''}")
         elif PICK_OWNER_REVIEW_PATH.exists():
             PICK_OWNER_REVIEW_PATH.unlink()
+
+    for line in skipped_code_lines(raw_txn_rows):
+        print(line)
 
     if stats["no_player"] or stats["no_team"]:
         print(f"[warn] skipped {stats['no_player']} claim/drop row(s) with no scorer and "
