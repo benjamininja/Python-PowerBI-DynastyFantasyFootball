@@ -91,7 +91,7 @@
 ## Consequences
 
 - **The cap path is unchanged.** Only the Minors slot is exempt, in the same four places ADR-0011 lists: `capmath.py`, `02e`, and the `Active Roster Salary` and `Remaining Salary Cap` measures. *Amended 2026-10-14 (#97): the Minors and IR slots are exempt, and the ETL's rule lives in one place, `notebooks/etl_cap.py`, which stamps `fact_fantasy_teams.cap_exempt`. The contract still exempts nobody.*
-- **Dead money (#96) needs no special case.** `capmath` prices only Cut players on Guaranteed contracts, and `Minor` is not guaranteed. *The ledger's own `cap_hit` column, which nothing reads and #97 replaces, shows 0 on a `Minor` draft row.*
+- **Dead money (#96) needs no special case.** `capmath` prices only Cut players on Guaranteed contracts, and `Minor` is not guaranteed. *The ledger's own `cap_hit` column, which nothing reads and #97 replaces, shows 0 on a `Minor` draft row.* *Built 2026-10-31 (#251): the ledger's `cap_hit` column is dropped; a player's charge is `fact_fantasy_teams.cap_hit`.*
 - **Build work, in one issue under #70** *(#113, built 2026-10-03)*:
   - the `01b` seed row;
   - `02d` contract sourcing with the eligibility-aware fallback, where `Minor` writes a NULL `contract_year`;

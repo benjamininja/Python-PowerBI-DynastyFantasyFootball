@@ -97,8 +97,8 @@ def base(*rows, read=rt.FROM_DEFAULT):
     """Startup ledger rows: (team_key, asset_id, contract_id, contract_value).
     `read` is the `contract_source` they carry."""
     cols = ["team_key", "asset_id", "event_seq", "event_date", "season_id", "contract_id",
-            "contract_year", "contract_value", "cap_hit", "status", "contract_source"]
-    return pd.DataFrame([(t, a, i, DRAFTED, SEASON, c, 1.0, v, v * 0.5, "active", read)
+            "contract_year", "contract_value", "status", "contract_source"]
+    return pd.DataFrame([(t, a, i, DRAFTED, SEASON, c, 1.0, v, "active", read)
                          for i, (t, a, c, v) in enumerate(rows, 1)], columns=cols)
 
 
@@ -575,13 +575,11 @@ class TestStartupRows:
         assert fact.loc["p1", "contract_id"] == "Minor"
         assert pd.isna(fact.loc["p1", "contract_year"])
         assert fact.loc["p1", "contract_value"] == 4_000_000     # salary untouched
-        assert fact.loc["p1", "cap_hit"] == 0
         assert sourcing == NO_FLAGS
 
     def test_ineligible_pick_is_1st_year_1(self):
         fact, _ = self._rows(source(elig=eligibility({"2026-07-18": ["p1"]})))
         assert (fact.loc["p2", "contract_id"], fact.loc["p2", "contract_year"]) == ("1st", 1.0)
-        assert fact.loc["p2", "cap_hit"] == 3_000_000
 
     def test_a_pick_takes_contract_and_salary_off_its_first_roster_state(self):
         later = ("A01", "p2", 2, "1st", 9_900_000)
@@ -589,7 +587,6 @@ class TestStartupRows:
         row = fact.loc["p2"]
         assert (row["contract_id"], row["contract_year"], row["contract_value"]) == (
             "2nd", 2.0, 7_200_000)
-        assert row["cap_hit"] == pytest.approx(2_880_000)
         assert sourcing["observed"] == 1
         assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_STATE: 1}
 
@@ -618,7 +615,6 @@ class TestStartupRows:
     def test_preseason_salary_beats_the_pool(self):
         fact, sourcing, priced = self._priced(source(pre=self.PRE))
         assert fact.loc["p2", "contract_value"] == 7_500_000
-        assert fact.loc["p2", "cap_hit"] == 3_750_000
         assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_PRESEASON: 1}
         # no Roster State shows the pick, so the capture gives its contract too
         assert fact.loc["p2", "contract_id"] == "1st" and sourcing["observed"] == 0
@@ -630,7 +626,6 @@ class TestStartupRows:
         pre = preseason(("A01", "p2", 7_500_000), contract="2nd")
         fact, _ = self._rows(source(pre=pre))
         assert (fact.loc["p2", "contract_id"], fact.loc["p2", "contract_year"]) == ("2nd", 2.0)
-        assert fact.loc["p2", "cap_hit"] == 3_000_000
 
     def test_an_eligible_pick_on_the_preseason_capture_is_minor(self):
         # The capture predates the Minor label, so eligibility wins over it.
@@ -711,7 +706,6 @@ class TestStartupRows:
     def test_a_pick_with_no_capture_is_priced_at_the_league_minimum(self):
         fact, _, priced = self._priced(source(), pool=self.ADP[self.ADP["scorer_id"] == "p1"])
         assert fact.loc["p2", "contract_value"] == MINIMUM
-        assert fact.loc["p2", "cap_hit"] == MINIMUM * 0.5
         assert priced == {rt.SALARY_AT_PICK: 1, rt.SALARY_MINIMUM: 1}
 
 
@@ -833,7 +827,7 @@ class TestClaimSalary:
 
     def test_preseason_capture_beats_the_league_minimum(self):
         rows, _, fa_fallback, sourcing, priced = resolve_all([self._claim()], self._src())
-        assert (rows[0]["contract_value"], rows[0]["cap_hit"]) == (8_200_000, 8_200_000)
+        assert rows[0]["contract_value"] == 8_200_000
         assert fa_fallback == [] and priced == ["p2"]
         # no Roster State shows the claim, so the capture gives its contract too
         assert (rows[0]["contract_id"], rows[0]["contract_year"]) == ("1st", 1.0)
@@ -845,14 +839,13 @@ class TestClaimSalary:
         assert (row["contract_id"], row["contract_value"]) == ("Minor", 8_200_000)
 
     def test_capture_beats_the_inherited_salary(self):
-        # Dropped by A02 at 9.0M, claimed by A01; cap_hit keeps the draft row's share.
+        # Dropped by A02 at 9.0M, claimed by A01.
         startup = base(("A02", 2, "1st", 9_000_000))
         legs = [leg(rt.DROP_EVENT, "p2", "A02", when=pd.Timestamp("2026-07-05"), period=1),
                 self._claim()]
         out = resolve(legs, self._src(salary=9_500_000), startup)
         assert out["contract_id"].tolist() == ["1st", "1st"]
         assert out["contract_value"].tolist() == [9_000_000, 9_500_000]
-        assert out["cap_hit"].tolist() == [4_500_000, 4_750_000]
 
     def test_a_capture_at_the_inherited_salary_changes_nothing(self):
         startup = base(("A02", 2, "1st", 9_000_000))
@@ -860,7 +853,6 @@ class TestClaimSalary:
                 self._claim()]
         out = resolve(legs, self._src(salary=9_000_000), startup)
         assert out["contract_value"].tolist() == [9_000_000, 9_000_000]
-        assert out["cap_hit"].tolist() == [4_500_000, 4_500_000]
 
     def test_a_later_trade_carries_the_new_salary(self):
         legs = [self._claim(), leg(rt.TRADE_IN, "p2", "A02", team_from="A01")]
@@ -1281,7 +1273,6 @@ class TestTransactionLegs:
         assert missing == [("A01", "p2")] and sourcing["observed"] == 1
         assert [r["contract_id"] for r in rows] == ["2nd", "2nd"]
         assert [r["contract_value"] for r in rows] == [9_000_000, 9_000_000]
-        assert [r["cap_hit"] for r in rows] == [9_000_000, 9_000_000]
 
     def test_drop_with_no_stint_on_record_reads_the_roster_state(self):
         # The ledger never saw p2 join A01 (claimed before the capture window):
@@ -1365,7 +1356,7 @@ class TestClaimMethod:
         assert rows["claim_method"].isna().all() and rows["claim_bid"].isna().all()
 
     def test_the_method_changes_no_contract_or_salary(self):
-        terms = ["contract_id", "contract_year", "contract_value", "cap_hit", "contract_source"]
+        terms = ["contract_id", "contract_year", "contract_value", "contract_source"]
         plain = resolve([leg(rt.CLAIM_EVENT, "p2", "A01")], source())
         bid = resolve([self._claim(claim_method=rt.CLAIM_WAIVER, claim_bid=99.0)], source())
         pd.testing.assert_frame_equal(plain[terms], bid[terms])
@@ -1386,21 +1377,30 @@ class TestClaimMethod:
 
 class TestRepriced:
     TERMS = dict(contract_id="1st", contract_year=1.0, contract_value=9_000_000,
-                 cap_hit=4_500_000, status="active")
+                 status="active")
 
-    def test_cap_hit_keeps_its_share_of_the_salary(self):
+    def test_a_new_salary_replaces_the_old_and_keeps_the_rest(self):
         out = rt.repriced(self.TERMS, 9_500_000)
-        assert (out["contract_value"], out["cap_hit"]) == (9_500_000, 4_750_000)
+        assert out["contract_value"] == 9_500_000
         assert out["contract_id"] == "1st"
         assert self.TERMS["contract_value"] == 9_000_000        # the input is not mutated
 
     def test_the_same_salary_returns_the_terms_untouched(self):
         assert rt.repriced(self.TERMS, 9_000_000) is self.TERMS
 
-    def test_an_unknown_share_leaves_cap_hit_unknown(self):
-        for old, hit in ((pd.NA, pd.NA), (9_000_000, pd.NA), (0, 0)):
-            out = rt.repriced({**self.TERMS, "contract_value": old, "cap_hit": hit}, 8_200_000)
-            assert out["contract_value"] == 8_200_000 and pd.isna(out["cap_hit"])
+    def test_an_unknown_old_salary_takes_the_new_one(self):
+        out = rt.repriced({**self.TERMS, "contract_value": pd.NA}, 8_200_000)
+        assert out["contract_value"] == 8_200_000
+
+
+class TestNoLedgerCapHit:
+    def test_the_ledger_has_no_cap_hit_column(self):
+        assert "cap_hit" not in rt.LEDGER_COLS
+        assert "cap_hit" not in rt._TERM_COLS
+
+    def test_a_resolved_row_carries_no_cap_hit(self):
+        rows = resolve([leg(rt.CLAIM_EVENT, "p2", "A01")], source())
+        assert "cap_hit" not in rows.columns
 
 
 @pytest.fixture(scope="module")
