@@ -36,7 +36,7 @@ the browser (the same don't-copy-paste rule `etl_helpers.py` follows).
 
 ```
 backend/            FastAPI app - local dev server + the exporter's source of truth
-  data_access.py      parquet readers; imports discord_bot/capmath.py for cap logic
+  data_access.py      parquet readers; reads the published cap tables (fact_team_cap, fact_fantasy_teams)
   positional_strength.py  per-team, per-position rank/gap vs the league
   profiles.py         stance / risk / trade-activity inference + confidence tiers
   pick_value.py       draft-pick valuation off dim_pick_value_curve

@@ -555,9 +555,10 @@ const ASSET_COLS = [
   { key: 'Name', get: a => assetName(a), sort: (a, b) => assetName(a).localeCompare(assetName(b)) },
   { key: 'Pos', get: a => assetPosition(a), sort: (a, b) => a.side_of_ball_sort_order - b.side_of_ball_sort_order || a.position_sort_order - b.position_sort_order },
   { key: 'Age', get: a => a.age != null ? a.age.toFixed(1) : '-', sort: (a, b) => (a.age ?? Infinity) - (b.age ?? Infinity) },
-  // Shows contract_value (the true salary) not cap_hit -- cap_hit is
-  // suppressed to 0 for minors-placed players (ADR-0011 cap exemption), which
-  // is correct for cap math but would misrepresent what the player is paid.
+  // Shows contract_value (the true salary) not cap_hit -- cap_hit is 0 for a
+  // player in the Minors or IR slot (the exemption, ADR-0016's #97 amendment),
+  // which is right for today's cap but would misrepresent what he is paid. The
+  // what-if sheds cap_hit and charges contract_value (see renderCapCards).
   { key: 'Salary', get: a => fmtSalary(a.contract_value), sort: (a, b) => (a.contract_value ?? 0) - (b.contract_value ?? 0) },
   { key: 'Value', get: a => assetValue(a).toFixed(1), sort: (a, b) => assetValue(a) - assetValue(b) },
 ];
@@ -633,10 +634,11 @@ function removeAsset(basketKey, assetId) {
   evaluateTrade();
 }
 
-// True Cap = today's remaining_cap_current_yr, unaffected by the in-progress
-// basket. Trade Result Cap = True Cap adjusted by the cap_hit swap: a team
-// sheds the cap_hit of everything it gives away and absorbs the cap_hit of
-// everything it receives.
+// Cap Room = today's remaining_cap_current_yr, unaffected by the in-progress
+// basket. Cap Room After Trade adjusts it by the swap: a team sheds the
+// cap_hit (today's charge) of everything it gives away and takes on the full
+// contract_value of everything it receives (ADR-0016's #97 amendment,
+// decision 7). A pick has neither figure and counts 0.
 function capCardHtml(team, trueCap, resultCap) {
   if (!team) return '';
   const delta = resultCap - trueCap;
@@ -644,22 +646,26 @@ function capCardHtml(team, trueCap, resultCap) {
   const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
   return `
     <div class="signal-line"><b>${team.team_name}</b></div>
-    <div class="cap-line">Team Salary: <b>${fmtSalary(trueCap)}</b></div>
-    <div class="cap-line">Team Salary After Trade: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>`;
+    <div class="cap-line">Cap Room: <b>${fmtSalary(trueCap)}</b></div>
+    <div class="cap-line">Cap Room After Trade: <b>${fmtSalary(resultCap)}</b><span class="${deltaClass}">${deltaText}</span></div>
+    <div class="cap-line" style="color:var(--muted)">Assumes received players go on the active roster.</div>`;
 }
 
 function renderCapCards() {
   const myTeam = state.teams.find(t => t.team_key === state.myTeam);
   const cpTeam = state.teams.find(t => t.team_key === state.cpTeam);
-  const sumCap = list => list.reduce((s, a) => s + (a.cap_hit ?? 0), 0);
-  const giveSum = sumCap(state.give);
-  const receiveSum = sumCap(state.receive);
+  const sumCharges = list => list.reduce((s, a) => s + (a.cap_hit ?? 0), 0);
+  const sumSalaries = list => list.reduce((s, a) => s + (a.contract_value ?? 0), 0);
+  const giveCharges = sumCharges(state.give);
+  const receiveCharges = sumCharges(state.receive);
+  const giveSalaries = sumSalaries(state.give);
+  const receiveSalaries = sumSalaries(state.receive);
 
   document.getElementById('capCard-my').innerHTML = myTeam
-    ? capCardHtml(myTeam, myTeam.remaining_cap_current_yr, myTeam.remaining_cap_current_yr + giveSum - receiveSum)
+    ? capCardHtml(myTeam, myTeam.remaining_cap_current_yr, myTeam.remaining_cap_current_yr + giveCharges - receiveSalaries)
     : '';
   document.getElementById('capCard-cp').innerHTML = cpTeam
-    ? capCardHtml(cpTeam, cpTeam.remaining_cap_current_yr, cpTeam.remaining_cap_current_yr - giveSum + receiveSum)
+    ? capCardHtml(cpTeam, cpTeam.remaining_cap_current_yr, cpTeam.remaining_cap_current_yr + receiveCharges - giveSalaries)
     : '';
 }
 

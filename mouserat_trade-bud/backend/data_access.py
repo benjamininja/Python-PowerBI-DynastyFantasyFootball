@@ -1,18 +1,14 @@
-"""Parquet + cap-math access layer for the trade-diagnostic backend.
+"""Parquet access layer for the trade-diagnostic backend.
 
-Reads this repo's data/ parquet directly (no network) and reuses
-discord_bot/capmath.py's cap-hit/dead-money formulas instead of
-reimplementing them (decision #2). discord_bot's own fetch_parquet hits the
-GitHub Contents API -- that's necessary for the deployed bot, which has no
-local repo checkout, but doesn't apply here since this backend runs inside
-the repo. We monkeypatch capmath's module-level fetch_parquet to a local
-reader so the cap formulas stay the single source of truth while I/O reads
-local files directly.
+Reads this repo's published data/ parquet directly (no network). The cap
+figures are not computed here: the ETL computes every one once and publishes
+it (ADR-0016's #97 amendment), `cap_hit` and `cap_exempt` on fact_fantasy_teams
+and one row per team per season on fact_team_cap. The two cap readers below
+join those tables under the column names the routers and the front end use.
 """
 
 from __future__ import annotations
 
-import sys
 from datetime import date
 from pathlib import Path
 
@@ -21,45 +17,55 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = REPO_ROOT / "data"
 
-_discord_bot_dir = REPO_ROOT / "discord_bot"
-if str(_discord_bot_dir) not in sys.path:
-    sys.path.insert(0, str(_discord_bot_dir))
-
-import capmath  # noqa: E402 -- needs discord_bot on sys.path first
-import github_fetch  # noqa: E402
-
-
-def _local_fetch_parquet(path: str, cfg=None) -> pd.DataFrame:
-    return pd.read_parquet(REPO_ROOT / path)
-
-
-# capmath.py did `from github_fetch import fetch_parquet`, binding the name
-# into its own module namespace -- patching capmath.fetch_parquet (not just
-# github_fetch.fetch_parquet) is what actually redirects its calls.
-github_fetch.fetch_parquet = _local_fetch_parquet
-capmath.fetch_parquet = _local_fetch_parquet
-
-
-class _LocalConfig:
-    """Placeholder passed to capmath's functions -- they only touch cfg for
-    fetch_parquet's cache key/URL building, which we've replaced above."""
-
-    github_ref = "local"
-
-
-CFG = _LocalConfig()
-
 
 def read_parquet(name: str) -> pd.DataFrame:
     return pd.read_parquet(DATA_DIR / f"{name}.parquet")
 
 
+_THIS_SEASON = {
+    "charged_salary": "active_roster_salary",
+    "cap_room": "remaining_cap_current_yr",
+    "dead_money": "dead_money",
+    "ir_salary": "ir_salary",
+    "minors_salary": "minors_salary",
+}
+_NEXT_SEASON = {
+    "cap_room": "remaining_cap_next_yr",
+    "dead_money": "dead_money_next_yr",
+}
+
+
+def _season_rows(cap: pd.DataFrame, current: bool, columns: dict[str, str]) -> pd.DataFrame:
+    rows = cap[cap["is_current_season"] == current]
+    return rows[["team_key", *columns]].rename(columns=columns)
+
+
 def teams_with_cap() -> pd.DataFrame:
-    return capmath.teams_with_cap(CFG)
+    """dim_fantasy_teams with its two fact_team_cap rows per team beside it.
+
+    The current-season row gives `active_roster_salary` (charged_salary),
+    `remaining_cap_current_yr` (cap_room), `dead_money`, `ir_salary` and
+    `minors_salary`; the other row gives `remaining_cap_next_yr` and
+    `dead_money_next_yr`. Each merge is one-to-one and fills nothing, and the
+    dimension's own `original_cap` and `reinvestment_cap` stay. Builds new
+    frames, so a memoized read_parquet is never changed in place."""
+    teams = read_parquet("dim_fantasy_teams")
+    if teams.empty:
+        return teams
+    cap = read_parquet("fact_team_cap")
+    return (
+        teams
+        .merge(_season_rows(cap, True, _THIS_SEASON), on="team_key",
+               how="left", validate="one_to_one")
+        .merge(_season_rows(cap, False, _NEXT_SEASON), on="team_key",
+               how="left", validate="one_to_one")
+    )
 
 
 def roster_with_cap_hit() -> pd.DataFrame:
-    return capmath.roster_with_cap_hit(CFG)
+    """fact_fantasy_teams as published, with its stored `cap_hit` and
+    `cap_exempt`. A copy, so a caller cannot change a memoized frame."""
+    return read_parquet("fact_fantasy_teams").copy()
 
 
 STANCES = ("contending", "balanced", "future")

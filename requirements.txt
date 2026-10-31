@@ -14,7 +14,7 @@ pyotp>=2.9           # 04a _login answers the Fantrax second-factor code prompt 
 nflreadpy>=0.1
 openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
 pyyaml>=6            # docs/*.yml registries (check_data_model.py, etl_checks.py)
-httpx>=0.27          # discord_bot/github_fetch.py, imported by trade-bud's data_access in tests/
+httpx>=0.27          # discord_bot/github_fetch.py, imported by tests/ through capmath
 
 # Headless/agent notebook execution (jupyter nbconvert --execute --inplace).
 # Not needed for interactive VS Code notebook editing -- only when running
