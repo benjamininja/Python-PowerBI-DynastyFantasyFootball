@@ -483,7 +483,8 @@ def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFram
             errs.append(f"{season_id}: Dead Money on a team outside dim_fantasy_teams")
     both = m[~unmatched]
     for col in cap.TEAM_CAP_FIGURES:
-        off = (both[col] - both[f"{col}_got"]).abs() > POINTS_TOLERANCE
+        over = (both[col] - both[f"{col}_got"]).abs() > POINTS_TOLERANCE
+        off = over | both[col].isna() | both[f"{col}_got"].isna()
         if off.any():
             errs.append(f"{int(off.sum())} rows whose {col} is not a recompute from the "
                         "published tables (run 02h after 02f and 02e)")
