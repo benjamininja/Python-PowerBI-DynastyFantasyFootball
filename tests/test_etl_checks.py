@@ -578,6 +578,21 @@ class TestDeadMoneyChecks:
     def test_a_drop_with_no_period_is_not_listed(self):
         assert self.defaults(None) == []
 
+    # ---- Review: dead_money_no_player -----------------------------------------
+    @staticmethod
+    def dead_rows(*gsis):
+        return pd.DataFrame({"transaction_id": [f"t{i}" for i in range(len(gsis))],
+                             "scorer_id": "s1", "team_key": "A01", "season_id": "2026-2027",
+                             "dead_money": 1.5e6, "gsis_id": list(gsis)})
+
+    def test_a_row_with_no_gsis_id_is_filed(self):
+        found = ec.dead_money_no_player_findings(self.dead_rows("00-1", None))
+        assert [k for k, _ in found] == ["t1|s1|A01|2026-2027"]
+        assert "has no gsis_id" in found[0][1] and "A01" not in found[0][1]
+
+    def test_a_row_with_a_gsis_id_is_not_filed(self):
+        assert ec.dead_money_no_player_findings(self.dead_rows("00-1")) == []
+
 
 class TestReviewDomainChecks:
     """A Review-tier DomainCheck files its findings; run_suite used to drop
@@ -631,7 +646,8 @@ class TestReviewDomainChecks:
         got = {(c.name, c.tier, c.table) for c in ec.DOMAIN_CHECKS}
         assert {("schedule", "gate", "fact_dead_money"),
                 ("stintless_drop", "review", "fact_roster_transactions"),
-                ("default_contract_drop", "review", "fact_roster_transactions")} <= got
+                ("default_contract_drop", "review", "fact_roster_transactions"),
+                ("dead_money_no_player", "review", "fact_dead_money")} <= got
 
 
 class TestFiling:
