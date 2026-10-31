@@ -192,3 +192,25 @@ class TestMain:
         assert df["transaction_id"].tolist() == ["t1", "t1"]
         assert "2 rows from 1 of 2 drops" in capsys.readouterr().out
         assert dm.main() == 0 and out.read_bytes() == first
+
+    def test_a_reversed_drop_gives_no_row_on_the_next_rebuild(self, tmp_path, monkeypatch):
+        # ADR-0016: the full-season pull omits a reversed drop, so the next
+        # ledger lacks it and the rebuild must not keep the prior run's rows.
+        CONTRACTS.to_parquet(tmp_path / "dim_contract.parquet", index=False)
+        SEASONS.to_parquet(tmp_path / "dim_season.parquet", index=False)
+        monkeypatch.setattr(dm, "OUT_PATH", tmp_path / dm.OUT_PATH.name)
+        monkeypatch.setattr(sys.modules["etl_helpers"].CFG, "data_dir", str(tmp_path))
+        kept = drop("1st", tx="t1", scorer="s1")
+        reversed_drop = drop("1st", tx="t2", scorer="s2")
+
+        ledger(kept, reversed_drop).to_parquet(
+            tmp_path / "fact_roster_transactions.parquet", index=False)
+        assert dm.main() == 0
+        assert set(pd.read_parquet(dm.OUT_PATH)["transaction_id"]) == {"t1", "t2"}
+
+        ledger(kept).to_parquet(tmp_path / "fact_roster_transactions.parquet", index=False)
+        assert dm.main() == 0
+        after = pd.read_parquet(dm.OUT_PATH)
+        assert set(after["transaction_id"]) == {"t1"}
+        assert "s2" not in set(after["scorer_id"])
+        assert len(after) == 2
