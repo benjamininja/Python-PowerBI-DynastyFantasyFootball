@@ -129,7 +129,15 @@ until that data is ETL'd (another future gap, not blocking).
 *(2026-10-04, #118: `fact_standings` will not be built. Wins and points
 now come from `fact_matchup`, so the standings half can be derived there.)*
 
-`data_access.py` imports `discord_bot/capmath.py` for cap math per decision
+**Replaced 2026-10-31 (#97, PR #278):** `data_access.py` imports nothing from
+`discord_bot/`. It reads `dim_fantasy_teams`, `fact_team_cap` and
+`fact_fantasy_teams` directly and holds no cap arithmetic, so decision #2's
+import and the monkeypatch below are gone, and `backend/requirements.txt` no
+longer lists `httpx` or `python-dotenv`. The what-if sheds the giver's `cap_hit`
+and charges the receiver's full `contract_value`; the card states that
+assumption. Its behaviour has not been run in a browser.
+
+Before that, `data_access.py` imported `discord_bot/capmath.py` for cap math per decision
 #2, but had to monkeypatch its module-level `fetch_parquet` (which normally
 hits the GitHub Contents API — the bot's deploy target has no local repo
 checkout) to a local parquet reader, since this backend runs inside the
