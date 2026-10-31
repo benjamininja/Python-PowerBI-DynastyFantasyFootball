@@ -108,12 +108,12 @@ table Fact_FantasyTeams
 
 		annotation SynonymCollection = ["season","year","league year"]
 
-	/// Observed squad slot from the latest roster snapshot: Active, Reserve, Inj Res or Minors. Minors and Inj Res salary is cap-exempt. Blank = not in the snapshot, charged normally.
-	column RosterStatus
+	/// Roster slot from the latest roster snapshot: Starter, Bench, IR or Minors. Minors and IR salary is cap-exempt. Blank = not in the snapshot, charged normally.
+	column RosterSlot
 		dataType: string
 		lineageTag: a3fc80c9-b244-4ac9-99c5-e17adcc8ea30
 		summarizeBy: none
-		sourceColumn: roster_status
+		sourceColumn: roster_slot
 
 		annotation SummarizationSetBy = User
 

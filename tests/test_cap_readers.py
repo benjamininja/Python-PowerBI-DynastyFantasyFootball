@@ -44,7 +44,7 @@ ROSTER = pd.DataFrame({
     "team_key":       ["A01", "A01", "A01"],
     "contract_id":    ["1st", "Minor", "1st"],
     "contract_value": [10.0, 2.0, 6.0],
-    "roster_status":  ["Active", "Minors", "Inj Res"],
+    "roster_slot":    ["Starter", "Minors", "IR"],
     "cap_hit":        [7.0, 99.0, 3.0],
     "cap_exempt":     [False, False, True],
 })

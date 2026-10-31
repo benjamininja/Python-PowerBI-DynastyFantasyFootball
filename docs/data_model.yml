@@ -494,7 +494,7 @@ tables:
       - { name: cap_exempt, dtype: bool }
       - { name: acquired_method, dtype: str }
       - { name: acquired_date, dtype: "datetime64[us]" }
-      - { name: roster_status, dtype: str }
+      - { name: roster_slot, dtype: str }
       - { name: season, dtype: str }
       - { name: roster_captured_at, dtype: "datetime64[us, UTC]" }
       - { name: ledger_captured_at, dtype: "datetime64[us, UTC]" }
@@ -514,10 +514,10 @@ tables:
       etl_cap.EXEMPT_SLOTS). dim_contract.cap_exempt is a different,
       descriptive flag that nothing reads. roster_captured_at is the reply's
       read instant (null when built from the ledger replay out of season,
-      with roster_status blank); ledger_captured_at is the newest transaction
+      with roster_slot blank); ledger_captured_at is the newest transaction
       capture's. The Review check roster_membership compares the two
-      streams. roster_status keeps Active / Reserve / Inj Res / Minors until
-      #110 renames it roster_slot.
+      streams. roster_slot is Starter / Bench / IR / Minors, the vocabulary of
+      fact_roster_state (ADR-0016 decision 16, #110).
 
   - name: fact_team_cap
     type: fact
@@ -778,7 +778,7 @@ tables:
       whole-dollar salaries a float hair off). A period's roster is the
       roster at that period's lineup lock: it shows every move Fantrax stamps
       for that period or earlier. Read by 02d (each move's contract and
-      salary), 02e (roster_status, from the newest period) and 04e (who is
+      salary), 02e (roster_slot, from the newest period) and 04e (who is
       rostered).
 
   - name: fact_period_scoring

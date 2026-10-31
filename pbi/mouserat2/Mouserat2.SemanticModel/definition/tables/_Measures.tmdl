@@ -621,14 +621,14 @@ table _Measures
 		displayFolder: Salary & Cap
 		lineageTag: 1b7b8790-b0fd-4943-b181-4311669cf879
 
-	/// This season's cap charge for rostered players: full ContractValue. Salary in the Minors and IR slots (RosterStatus Minors or Inj Res) is cap-exempt; a blank slot charges normally.
+	/// This season's cap charge for rostered players: full ContractValue. Salary in the Minors and IR slots (RosterSlot Minors or IR) is cap-exempt; a blank slot charges normally.
 	measure 'Active Roster Salary' =
-			
+
 			CALCULATE(
 			    SUM(Fact_FantasyTeams[ContractValue]),
 			    Dim_Season[relative_nfl_season_number] = 0,
-			    Fact_FantasyTeams[RosterStatus] <> "Minors",
-			    Fact_FantasyTeams[RosterStatus] <> "Inj Res"
+			    Fact_FantasyTeams[RosterSlot] <> "Minors",
+			    Fact_FantasyTeams[RosterSlot] <> "IR"
 			)
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
@@ -643,8 +643,8 @@ table _Measures
 
 		annotation PBI_FormatHint = {"currencyCulture":"en-US"}
 
-	/// Starting cap minus rostered salary, this season's dead money (Fact_DeadMoney) and reinvestment cap. Minors and IR slot salary (RosterStatus Minors, Inj Res) is cap-exempt.
-	measure 'Remaining Salary Cap' = [Starting Salary Cap] - CALCULATE ( [Contract Value], Fact_FantasyTeams[RosterStatus] <> "Minors", Fact_FantasyTeams[RosterStatus] <> "Inj Res" ) - [Dead Money - Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
+	/// Starting cap minus rostered salary, this season's dead money (Fact_DeadMoney) and reinvestment cap. Minors and IR slot salary (RosterSlot Minors, IR) is cap-exempt.
+	measure 'Remaining Salary Cap' = [Starting Salary Cap] - CALCULATE ( [Contract Value], Fact_FantasyTeams[RosterSlot] <> "Minors", Fact_FantasyTeams[RosterSlot] <> "IR" ) - [Dead Money - Active - Current Year] - SUM('Dim_FantasyTeams'[ReinvestmentCap])
 		formatString: \$#,0;(\$#,0);\$#,0
 		displayFolder: Salary & Cap
 		lineageTag: bfbe96fa-03d3-490f-a572-6dfb91da9c92

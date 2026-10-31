@@ -72,7 +72,7 @@
 ## Amendment 2026-10-03: in-season fact model (#81)
 
 - Amends decisions 1 (the Period Scoring grain), 4 (where current and per-period Roster State live) and 8 (`fact_fantasy_teams`).
-- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3 is built and `fact_roster_placement` is retired (#117's last PR); decisions 1, 5, 9, 10 and 15 are built and periods close (#118); decision 11 was not built (its note says why); decision 16 waits for #110.
+- Designed through HITL grilling on 2026-10-03 ([#81](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/81)). Being built in stages: decisions 2, 12 and 14 are built (#117's first PR); decision 3 is built and `fact_roster_placement` is retired (#117's last PR); decisions 1, 5, 9, 10 and 15 are built and periods close (#118); decision 11 was not built (its note says why); decision 16 is built (#110).
 - Scope:
   - new tables `dim_scoring_period`, `fact_roster_state`, `fact_period_scoring`, `fact_matchup`, `fact_standings` *(the last was not built: decision 11)*
   - `dim_division` (its source moves to Fantrax) and `fact_fantasy_teams.roster_status`
@@ -121,7 +121,7 @@
      - *A move of the rosters' season with no readable period fails the step, and the Chain holds (owner's decision, 2026-10-04). It cannot be placed in a stint, and its neighbours would read another stint's row.*
      - *A trade or a drop of a copy the ledger never saw join the team has no terms to inherit. It takes its salary, as well as its contract, off the Roster State row it reads (owner's decision, 2026-10-04).*
      - *`fact_preseason_salary` belongs to no period and stays day-based: move day < capture day < the day the copy next left the team.*
-   - *`02e` stamps `roster_status` from the newest period, mapped back to the values the column has always carried (Starter → `Active`, Bench → `Reserve`, IR → `Inj Res`, Minors → `Minors`) until #110 renames it (owner's decision, 2026-10-03). `04r` reads regular-season periods only, so the stamp stops moving after the last one.*
+   - *`02e` stamped `roster_status` from the newest period, mapped back to the values the column had always carried (Starter → `Active`, Bench → `Reserve`, IR → `Inj Res`, Minors → `Minors`) until #110 renamed it (owner's decision, 2026-10-03). `04r` reads regular-season periods only, so the stamp stops moving after the last one.*
    - *`salary` is rounded to the cent: the public API serves some whole-dollar salaries a float hair off.*
 4. **The current Roster State is `fact_fantasy_teams`, all year** (decision 8).
    - The Change Poll and the daily run refresh it through the playoffs and the off-season.
@@ -176,6 +176,7 @@
 16. **`fact_fantasy_teams.roster_status` becomes `roster_slot`**, with Starter / Bench / IR / Minors, the same vocabulary as `fact_roster_state`.
     - It lands in [ADR-0018](0018-supabase-schema-and-rls.md)'s cutover pass (#110), with the capmath, `02e`, PBI `sourceColumn` and DAX cascade.
     - `Minors` is unchanged, so the cap exemption still holds.
+    - *Built in #110: `02e` writes the slot as `fact_roster_state` holds it, with no mapping. `etl_cap` exempts `IR` and `Minors`; Power BI reads `Fact_FantasyTeams[RosterSlot]` and the two measures compare it with `"Minors"` and `"IR"`.*
 17. **Built in two issues under #70.**
     - [#117](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/117) Roster State: decisions 2–4, 12, 14 and the `fact_roster_placement` retirement, with a `cap-ledger-auditor` review.
     - [#118](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/118) Scoring: decisions 1, 5, 9–11, 15, and `04s` sending `playerViewType:'2'`.
@@ -261,4 +262,4 @@
 - Until that PR the bot disagrees with itself: its player card (`discord_bot/player.py`, `_league_lines`) prints the stored `cap_hit`, new rule, IR 0, while `/roster` and `/cap` use the old rule. PR 3 fixes both.
   - *Built 2026-10-30 (#97 Brief 2): `/roster` and `/cap` read the stored `cap_hit` and `fact_team_cap`, so the player card and both commands agree.*
   - *Built 2026-10-31 (#97 Brief 3): trade-bud no longer reaches `capmath`; it reads the same tables itself, and its what-if follows decision 7. The bot and trade-bud now show the cap room in the published table, and a test compares the two readers and the table for all 28 teams.*
-- Power BI already exempts `Inj Res` in its measures; modelling `fact_team_cap` there is #140.
+- Power BI already exempts the `IR` slot in its measures; modelling `fact_team_cap` there is #140.
