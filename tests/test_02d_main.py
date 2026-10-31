@@ -273,6 +273,19 @@ class TestMain:
         assert list(ledger.columns) == rt.LEDGER_COLS
         assert keys(ledger) == keys(draft)
 
+    def test_a_ledger_carrying_cap_hit_loses_it_on_rebuild(self, data, monkeypatch):
+        # A cached or older published ledger still has the dropped column.
+        rt.main()
+        first = pd.read_parquet(rt.FACT_PATH)
+        first.assign(cap_hit=1.0).to_parquet(rt.FACT_PATH, index=False)
+        rt.main()
+        assert list(pd.read_parquet(rt.FACT_PATH).columns) == rt.LEDGER_COLS
+        draft = first[first["event_type"] == rt.EVENT_TYPE]
+        draft.assign(cap_hit=1.0).to_parquet(rt.FACT_PATH, index=False)
+        monkeypatch.setattr(rt, "load_txn_rows", lambda: [])
+        rt.main()
+        assert list(pd.read_parquet(rt.FACT_PATH).columns) == rt.LEDGER_COLS
+
     def test_moves_from_before_the_key_stop_a_run_that_cannot_rebuild_them(self, data,
                                                                          monkeypatch):
         rt.main()
