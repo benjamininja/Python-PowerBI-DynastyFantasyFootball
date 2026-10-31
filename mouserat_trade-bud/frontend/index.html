@@ -644,7 +644,7 @@ function capCardHtml(team, trueCap, resultCap) {
   const rawDelta = resultCap - trueCap;
   const delta = Math.abs(rawDelta) < 0.5 ? 0 : rawDelta;
   const deltaClass = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
-  const deltaText = delta === 0 ? '' :` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
+  const deltaText = delta === 0 ? '' : ` (${delta > 0 ? '+' : ''}${fmtSalary(delta)})`;
   return `
     <div class="signal-line"><b>${team.team_name}</b></div>
     <div class="cap-line">Cap Room: <b>${fmtSalary(trueCap)}</b></div>
