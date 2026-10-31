@@ -173,7 +173,9 @@ class TestTextGuards:
     def test_no_consumer_imports_the_etl_cap_module(self, folder):
         # Imports, not mentions: capmath.py's docstring names notebooks/etl_cap.py
         # as the place the figures are computed, which is not an import (decision 1).
-        for path in (REPO / folder).rglob("*.py"):
+        files = list((REPO / folder).rglob("*.py"))
+        assert files
+        for path in files:
             assert "etl_cap" not in imported_names(path.read_text(encoding="utf-8")), path
 
     def test_no_trade_bud_file_imports_the_bot(self):
