@@ -19,7 +19,35 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Latest, 2026-10-30, fifth compact. This overrides what follows.**
+**Latest, 2026-10-31. This overrides what follows.**
+- **#97 is closed.** Merged: #275 and #274 (owner), #276 (`37c723c`, the planner on
+  the owner's word in its chat), #277 (`d150f57`), #278 (`46f9a1e`, this session).
+  No builder runs. `b97-trade-bud-cap` (`8907ed56`) is stopped and off the agents
+  list; only a `.git` file is left in its folder, and its branches stay local.
+- **Owner's standing approval, verbatim:** "You are approved to merge any builder
+  PR for a dispatched ticket once you have re-proved Green and the audit has no
+  unresolved finding, with no further word from me. This does not cover state-file
+  PRs or anything GOAL-RUN.md says parks." After it, `gh pr merge` of #278 was not
+  refused. One case: whether the stated approval is the reason is not proven.
+  I count a finding as resolved when it is fixed, measured as not live, or on a
+  named ticket; the owner has seen that reading.
+- **Next:** #251, #201, #206, in order. The planner was asked (2026-10-31) for
+  briefs and whether any may run together: #251's drop-or-recompute is two answers
+  and rewrites a published table, #251 and #201 both touch `02d`, and #206's body is
+  part done. No dispatch before those briefs. #108 goes as a scoping session first.
+- **Refused, parked:** `git worktree remove --force .claude/worktrees/b97-team-cap`
+  ("Irreversible Local Destruction"), though the owner approved it. In the queue. Do
+  not send a queue edit in the same message as a command that may be refused.
+- **Owner's view of the classifier:** a waste of time and money. They have the
+  feedback text and a proposed `gh pr merge` allow rule; not added as far as I know.
+- **`GOAL-RUN.md` has an uncommitted relay rule in the main checkout, not mine.**
+  The planner says the owner has not ruled on the relay rule. Leave it out of commits.
+- **`NEEDS-OWNER.md` stays uncommitted on purpose** so the pane shows it.
+- **Re-proof note:** `tbvenv` in this session's scratchpad holds the clean-venv
+  export's install. `Set-Location` or `cd` into a builder's worktree can hold its
+  folder open and block `claude rm` (EBUSY); use `git -C`.
+
+**Earlier, 2026-10-30, fifth compact.**
 - **Merged:** #268 (`dc2f904`); #269 (`5d5284e`, #97 PR 2, merged by the owner by
   hand before the Gate bug was fixed).
 - **Builder running: `b97-null-gate`**, session `374154ca`, pid 10984, tier low
