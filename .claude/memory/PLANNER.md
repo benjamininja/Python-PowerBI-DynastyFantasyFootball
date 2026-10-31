@@ -11,24 +11,21 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0. **Latest (2026-10-30, after the proof).** The proof passed; #167 is closed. The scoping
-   result is on #97 (comment 6525377052); the planner's read, no breach, is comment 6525394229.
-   Tiers: Brief 1 (Gate fix) low, Brief 2 (bot) medium, Brief 3 (trade-bud) medium; one at a
-   time, each after the last merges. The manager has them; Brief 1 is free. **Next events:**
-   each brief's PR; the owner's answers in the queue. Open with the owner: Brief 3's closing
-   keyword (planner's entry, answer comes here); the #218 shrink pair, PRs #271 and #272, and
-   this file's PR #270 (those answers go to the manager). After #97: #110, then #108 as the
-   second scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the
-   PII scan needs one). #273 (low) waits on #97. `b97-team-cap`'s worktree goes to the owner
-   after Brief 1 merges. Skills-repo item 4 is held by the owner's later word, no new tooling.
-   Answered by the owner's pane, 09:40:06 (read in the manager's transcript): #97 closes with
-   Brief 3, its proofs moved; the lines are on #211 and #93. Brief 3 is no longer held. The
-   owner also approved #270 and the #218 pair by pane, but the merges were refused by the
-   permission classifier: all three are still open, parked with the owner. Brief 1 is running
-   (`b97-null-gate`, low). Rules have not moved until those merge.
-   When #272 and #271 merge: the next script-dispatched builder and a grep sweep close #218.
-   Worktrees: this file's branch is checked out in the earlier session's scratchpad `ps8`;
-   `docs/shrink-roles-218` in this session's `w218` (remove once merged, with the owner's yes).
+0. **Latest (2026-10-30, evening).** #218 and #167 are closed; #270, #271, #272 and Brief 1
+   (#275) are merged. **Open now: Brief 2, PR #276** (`b97-bot-reads-cap`), re-proved by the
+   manager, auditor no blocking breach; no PR read needed. **Next events:** #276 merges, then
+   the manager dispatches Brief 3 (trade-bud, medium), whose PR says Closes #97. Tiers and
+   text: #97 comments 6525377052 and 6525394229. After #97: #110, then #108 as the second
+   scoping trial, with a venv (no `-NoSetup`: a scoping session posts text, and the PII scan
+   needs one). #273 (low) waits on #97 and now holds #276's follow-ups. The manager has
+   `data-model.md`'s stale cap text for its state-back after Brief 3: a builder cannot write
+   under `.claude/`. Queue entry to remove `b97-team-cap` is with the manager. Proofs moved
+   off #97 are on #93 and #211. Skills-repo item 4 is held by the owner's later word, no new
+   tooling. The live skills clone is `C:SERSBENHAAUDE-LIVESKILLS-PLUGINS-HOOKS-AGENTS`
+   at `d193886`; the OneDrive clone is older and is not what builders load.
+   This file's branch is `docs/planner-state-11`, in this session's scratchpad worktree `w218`,
+   which also has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the
+   owner's yes before removing it. Earlier worktree `ps8` holds a merged branch.
    Check a builder's file before its closeout: the scoping worktree was removed soon after.
 1. **Earlier: the scoping session for #97 PR 3.** PR #269
    (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
