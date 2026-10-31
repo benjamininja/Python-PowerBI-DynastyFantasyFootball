@@ -56,13 +56,20 @@ class TestTwentyEightTeams:
             pd.testing.assert_series_equal(bud[column], table, check_exact=True)
             pd.testing.assert_series_equal(bot[column], table, check_exact=True)
 
+    def test_the_whole_team_frame_matches_the_bot_column_for_column(self, bot_reads_local):
+        bot = capmath.teams_with_cap(CFG).reset_index(drop=True)
+        bud = da.teams_with_cap().reset_index(drop=True)
+        pd.testing.assert_frame_equal(bud, bot, check_exact=True)
+
+    def test_the_roster_matches_the_bots_and_the_published_table(self, bot_reads_local):
+        bud = da.roster_with_cap_hit()
+        pd.testing.assert_frame_equal(bud, capmath.roster_with_cap_hit(CFG), check_exact=True)
+        pd.testing.assert_frame_equal(
+            bud, pd.read_parquet(REPO / "data" / "fact_fantasy_teams.parquet"), check_exact=True)
+
     def test_every_team_has_both_figures(self):
         bud = da.teams_with_cap()
         assert bud[["remaining_cap_current_yr", "remaining_cap_next_yr"]].notna().all().all()
-
-    def test_the_roster_comes_back_as_published(self):
-        pd.testing.assert_frame_equal(da.roster_with_cap_hit(),
-                                      da.read_parquet("fact_fantasy_teams"))
 
     def test_editing_a_result_leaves_a_memoized_read_alone(self, monkeypatch):
         memo = {}
@@ -84,6 +91,58 @@ class TestTwentyEightTeams:
         teams["original_cap"] = -1.0
         for name, frame in before.items():
             pd.testing.assert_frame_equal(memo[name], frame)
+
+
+TEAMS = pd.DataFrame({"team_key": ["A01", "B01"], "original_cap": [300.0, 310.0],
+                      "reinvestment_cap": [7.0, 0.0]})
+CAP = pd.DataFrame({
+    "season_id": ["S1", "S1", "S2", "S2"],
+    "team_key": ["A01", "B01", "A01", "B01"],
+    "is_current_season": [True, True, False, False],
+    "charged_salary": [111.0, 222.0, 333.0, 444.0],
+    "ir_salary": [11.0, 22.0, 0.0, 0.0],
+    "minors_salary": [5.0, 6.0, 0.0, 0.0],
+    "dead_money": [10.0, 20.0, 8.0, 4.0],
+    "cap_room": [1001.0, 1002.0, 1003.0, 1004.0],
+})
+
+
+class TestReaderOnSyntheticFrames:
+    @pytest.fixture
+    def serve(self, monkeypatch):
+        frames = {"dim_fantasy_teams": TEAMS, "fact_team_cap": CAP}
+
+        def put(**swap):
+            frames.update(swap)
+            monkeypatch.setattr(da, "read_parquet", lambda name: frames[name].copy())
+        put()
+        return put
+
+    def test_each_season_row_maps_to_its_names(self, serve):
+        a = da.teams_with_cap().set_index("team_key").loc["A01"]
+        assert (a["active_roster_salary"], a["remaining_cap_current_yr"]) == (111.0, 1001.0)
+        assert (a["dead_money"], a["ir_salary"], a["minors_salary"]) == (10.0, 11.0, 5.0)
+        assert (a["remaining_cap_next_yr"], a["dead_money_next_yr"]) == (1003.0, 8.0)
+        assert (a["original_cap"], a["reinvestment_cap"]) == (300.0, 7.0)
+
+    def test_the_season_comes_from_the_flag_not_the_row_order_or_the_label(self, serve):
+        serve(fact_team_cap=CAP.iloc[::-1].assign(season_id=lambda d: d["season_id"].str[::-1]))
+        a = da.teams_with_cap().set_index("team_key").loc["A01"]
+        assert (a["remaining_cap_current_yr"], a["remaining_cap_next_yr"]) == (1001.0, 1003.0)
+
+    def test_nothing_is_filled_in_for_a_missing_row(self, serve):
+        serve(fact_team_cap=CAP[~((CAP["team_key"] == "B01") & ~CAP["is_current_season"])])
+        b = da.teams_with_cap().set_index("team_key").loc["B01"]
+        assert pd.isna(b["remaining_cap_next_yr"]) and b["remaining_cap_current_yr"] == 1002.0
+
+    def test_a_team_twice_on_one_season_fails(self, serve):
+        serve(fact_team_cap=pd.concat([CAP, CAP.iloc[[0]]]))
+        with pytest.raises(pd.errors.MergeError):
+            da.teams_with_cap()
+
+    def test_no_teams_come_back_empty(self, serve):
+        serve(dim_fantasy_teams=TEAMS.iloc[0:0])
+        assert da.teams_with_cap().empty
 
 
 class TestRiskThreshold:

@@ -260,4 +260,5 @@
   - *Built 2026-10-30 (#97 Brief 2): the bot no longer computes; it reads the new rule from the published tables. trade-bud still reaches `capmath` through its monkeypatch, so its numbers follow the table too; its what-if change (decision 7) is #97's next PR.*
 - Until that PR the bot disagrees with itself: its player card (`discord_bot/player.py`, `_league_lines`) prints the stored `cap_hit`, new rule, IR 0, while `/roster` and `/cap` use the old rule. PR 3 fixes both.
   - *Built 2026-10-30 (#97 Brief 2): `/roster` and `/cap` read the stored `cap_hit` and `fact_team_cap`, so the player card and both commands agree.*
+  - *Built 2026-10-31 (#97 Brief 3): trade-bud no longer reaches `capmath`; it reads the same tables itself, and its what-if follows decision 7. The bot and trade-bud now show the cap room in the published table, and a test compares the two readers and the table for all 28 teams.*
 - Power BI already exempts `Inj Res` in its measures; modelling `fact_team_cap` there is #140.
