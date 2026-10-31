@@ -110,7 +110,7 @@ table Dim_Contract
 
 		annotation SynonymCollection = ["guaranteed","guarantee","is guaranteed"]
 
-	/// Descriptive flag, true on FA and Pick rows. No measure reads it: cap exemption follows the Minors roster slot (Fact_FantasyTeams[RosterStatus]), not this column.
+	/// Descriptive flag, true on FA and Pick rows. No measure reads it: cap exemption follows the Minors roster slot (Fact_FantasyTeams[RosterSlot]), not this column.
 	column CapExempt
 		dataType: boolean
 		formatString: """TRUE"";""TRUE"";""FALSE"""

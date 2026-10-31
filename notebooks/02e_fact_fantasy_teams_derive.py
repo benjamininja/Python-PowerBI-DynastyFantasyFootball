@@ -40,16 +40,12 @@ import etl_helpers as etl
 
 rs = importlib.import_module("04r_fantrax_roster_state")
 
-# fact_roster_state.roster_slot -> the roster_status values this fact has always
-# carried. They stay until #110 renames the column to roster_slot.
-SLOT_TO_STATUS = {"Starter": "Active", "Bench": "Reserve", "IR": "Inj Res", "Minors": "Minors"}
-
 TXN_FILES = "fantrax_txn_history_*.json"
 UNKNOWN = "unknown"
 
 COLUMNS = ["team_key", "scorer_id", "gsis_id", "player_key", "contract_id",
            "contract_value", "contract_year", "cap_hit", "cap_exempt",
-           "acquired_method", "acquired_date", "roster_status", "season",
+           "acquired_method", "acquired_date", "roster_slot", "season",
            "roster_captured_at", "ledger_captured_at"]
 
 
@@ -106,7 +102,7 @@ def finish(rows: pd.DataFrame, stints: pd.DataFrame, contracts: pd.DataFrame,
         "cap_exempt": charge["cap_exempt"],
         "acquired_method": method.fillna(UNKNOWN).astype("str"),
         "acquired_date": pd.to_datetime(when).astype("datetime64[us]"),
-        "roster_status": rows["roster_slot"].map(SLOT_TO_STATUS),
+        "roster_slot": rows["roster_slot"].astype("object"),
         "season": season_id,
         "roster_captured_at": pd.Series(roster_at, index=rows.index,
                                         dtype="datetime64[us, UTC]"),
@@ -190,7 +186,7 @@ def main(argv=None) -> int:
 
     total = etl.write_table("fact_fantasy_teams", fact)
     by_method = fact["acquired_method"].value_counts().to_dict()
-    exempt = fact[fact["cap_exempt"]].groupby("roster_status").size().to_dict()
+    exempt = fact[fact["cap_exempt"]].groupby("roster_slot").size().to_dict()
     print(f"[ok] fact_fantasy_teams: {total} rows; acquired {by_method}; "
           f"cap-exempt by slot {exempt}; ledger captured {ledger_at}")
 

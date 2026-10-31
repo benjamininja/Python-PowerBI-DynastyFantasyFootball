@@ -36,21 +36,20 @@ DEAD = pd.DataFrame({"team_key": ["A01", "A01", "B01"], "season_id": [THIS, NEXT
 
 
 def roster(*rows, season=THIS):
-    """(team_key, status, contract_id, value). cap_hit follows etl_cap's rule."""
-    df = pd.DataFrame(rows, columns=["team_key", "roster_status", "contract_id", "contract_value"])
-    slots = df["roster_status"].map({"Inj Res": "IR", "Minors": "Minors"})
-    charge = cap.stamp_cap(slots, df["contract_value"])
+    """(team_key, slot, contract_id, value). cap_hit follows etl_cap's rule."""
+    df = pd.DataFrame(rows, columns=["team_key", "roster_slot", "contract_id", "contract_value"])
+    charge = cap.stamp_cap(df["roster_slot"], df["contract_value"])
     return df.assign(cap_hit=charge["cap_hit"], cap_exempt=charge["cap_exempt"], season=season,
                      scorer_id=[f"p{i}" for i in range(len(df))],
                      roster_captured_at=pd.Timestamp(READ), ledger_captured_at=LEDGER_AT)
 
 
-ROSTER = roster(("A01", "Active", "1st", 50.0),     # carries
-                ("A01", "Reserve", "3rd", 20.0),    # last year: does not carry
-                ("A01", "Inj Res", "1st", 30.0),    # exempt now, carries in full
+ROSTER = roster(("A01", "Starter", "1st", 50.0),    # carries
+                ("A01", "Bench", "3rd", 20.0),      # last year: does not carry
+                ("A01", "IR", "1st", 30.0),         # exempt now, carries in full
                 ("A01", "Minors", "Minor", 5.0),    # exempt now, carries in full
-                ("A01", "Inj Res", "FA", 2.0),      # exempt, does not carry
-                ("B01", "Active", "X", 40.0))       # expiring
+                ("A01", "IR", "FA", 2.0),           # exempt, does not carry
+                ("B01", "Starter", "X", 40.0))      # expiring
 
 
 def table(r=ROSTER, dead=DEAD):

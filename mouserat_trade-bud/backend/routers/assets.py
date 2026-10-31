@@ -75,7 +75,7 @@ def team_assets(team_key: str) -> dict:
                 "contract_value": r.get("contract_value"),
                 "cap_hit": float(r["cap_hit"]) if pd.notna(r.get("cap_hit")) else 0.0,
                 "cap_exempt": bool(r.get("cap_exempt")),
-                "roster_status": r.get("roster_status"),
+                "roster_slot": r.get("roster_slot"),
                 "age": da.player_age(r["gsis_id"], players=players_dim),
                 # One value per stance -- the static export ships all three so
                 # the stance chips switch instantly with no refetch.

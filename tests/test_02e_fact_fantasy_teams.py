@@ -103,8 +103,8 @@ class TestFromReply:
         run(raw)
         df = published(data)
         assert sorted(df.index) == [("A01", "p1"), ("A01", "p3"), ("A01", "p4"), ("B01", "p1")]
-        assert df.loc[("A01", "p3"), "roster_status"] == "Inj Res"
-        assert df.loc[("B01", "p1"), "roster_status"] == "Reserve"
+        assert df.loc[("A01", "p3"), "roster_slot"] == "IR"
+        assert df.loc[("B01", "p1"), "roster_slot"] == "Bench"
         assert df.loc[("A01", "p3"), "contract_value"] == 2.0
         assert (df["season"] == SEASON).all()
 
@@ -192,7 +192,7 @@ class TestNoReply:
         run(raw)
         df = published(data)
         assert sorted(df.index) == [("A01", "p1"), ("A01", "p3"), ("B01", "p1")]
-        assert df["roster_status"].isna().all() and not df["cap_exempt"].any()
+        assert df["roster_slot"].isna().all() and not df["cap_exempt"].any()
         assert df["cap_hit"].tolist() == df["contract_value"].tolist()
         assert df["roster_captured_at"].isna().all()
 

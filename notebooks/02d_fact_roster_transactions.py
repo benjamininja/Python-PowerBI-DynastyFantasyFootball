@@ -1613,7 +1613,7 @@ def main():
     # has since made `Minor` a contract stage, but a stage change is still not a
     # ledger event: each Roster Move reads its contract off Roster State (see
     # "Contract sourcing"), and the Minors Roster Slot reaches the cap through
-    # 02e's `roster_status` stamp.
+    # 02e's `roster_slot` stamp.
     rostered = sorted({sid for frame in (state, preseason) if frame is not None
                        for sid in frame["scorer_id"].dropna().unique()})
     if rostered:

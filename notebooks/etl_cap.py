@@ -13,7 +13,9 @@ import pandas as pd
 # against this season's cap, whatever the contract (owner's ruling
 # 2026-10-12, #97; reverses ADR-0011's "IR charges full salary"). Dropping an
 # IR player still makes Dead Money: that is fact_dead_money's, not a slot rule.
-EXEMPT_SLOTS = frozenset({"Minors", "IR"})
+IR_SLOT = "IR"
+MINORS_SLOT = "Minors"
+EXEMPT_SLOTS = frozenset({MINORS_SLOT, IR_SLOT})
 
 # The contract that carries into next season with no term on dim_contract
 # (ADR-0019: Minor is the stage before 1st; its years are null).
@@ -21,11 +23,6 @@ MINOR = "Minor"
 
 INBOUND = frozenset({"startup_draft", "claim", "trade"})
 OUTBOUND = frozenset({"drop", "trade_away"})
-
-# fact_fantasy_teams.roster_status values of the two exempt slots, until #110
-# renames the column to roster_slot.
-IR_STATUS = "Inj Res"
-MINORS_STATUS = "Minors"
 
 # The league's clock: a league day is a day on it.
 LEAGUE_TZ = "America/New_York"
@@ -97,7 +94,7 @@ def team_cap(roster: pd.DataFrame, dead: pd.DataFrame, teams: pd.DataFrame,
     this = roster_season(roster)
     following = season_after(seasons, this)
     base = teams.set_index("team_key")[["original_cap", "reinvestment_cap"]].astype("float64")
-    status = roster["roster_status"]
+    slot = roster["roster_slot"]
 
     def by_team(rows: pd.DataFrame, col: str) -> pd.Series:
         return rows.groupby("team_key")[col].sum().reindex(base.index, fill_value=0.0)
@@ -105,8 +102,8 @@ def team_cap(roster: pd.DataFrame, dead: pd.DataFrame, teams: pd.DataFrame,
     current = base.assign(
         season_id=this, is_current_season=True,
         charged_salary=by_team(roster, "cap_hit"),
-        ir_salary=by_team(roster[status.eq(IR_STATUS).fillna(False)], "contract_value"),
-        minors_salary=by_team(roster[status.eq(MINORS_STATUS).fillna(False)], "contract_value"),
+        ir_salary=by_team(roster[slot.eq(IR_SLOT).fillna(False)], "contract_value"),
+        minors_salary=by_team(roster[slot.eq(MINORS_SLOT).fillna(False)], "contract_value"),
         dead_money=dead_money_by_team(dead, this).reindex(base.index, fill_value=0.0))
     carried = roster[carries_next_season(roster["contract_id"], contracts)]
     upcoming = base.assign(
