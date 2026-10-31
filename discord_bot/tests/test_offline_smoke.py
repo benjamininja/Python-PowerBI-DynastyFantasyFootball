@@ -8,7 +8,8 @@ This is the fast iteration loop the skill calls for — run it from the bot venv
     discord_bot\.botvenv\Scripts\python.exe -m pytest discord_bot\tests\test_offline_smoke.py
 
 It exercises the real data, so it also catches schema drift (a renamed column
-surfaces here, not in production).
+surfaces here, not in production). The cap readers' own tests are
+tests/test_cap_readers.py.
 """
 
 from __future__ import annotations
@@ -43,8 +44,8 @@ def _local_fetch(path: str, _cfg: Config) -> pd.DataFrame:
 
 
 # Each module did `from github_fetch import fetch_parquet`, so patch the name in
-# each module's own namespace. capmath (cap.py/roster.py's shared cap-math helper)
-# imports fetch_parquet itself — omitting it here means teams_with_cap/
+# each module's own namespace. capmath (cap.py/roster.py's shared cap-table
+# reader) imports fetch_parquet itself — omitting it here means teams_with_cap/
 # roster_with_cap_hit silently hit real GitHub instead of local parquet.
 for mod in (rankings, adp, player, cap, roster, capmath):
     mod.fetch_parquet = _local_fetch
@@ -88,7 +89,14 @@ def test_player():
 
 
 def test_cap():
-    _check(cap.build_cap_embeds(CFG), "cap standings")
+    embeds = cap.build_cap_embeds(CFG)
+    _check(embeds, "cap standings")
+    for e in embeds:
+        for f in e.fields:
+            assert f.value.split("\n")[1].rstrip().endswith("IR"), "cap board lacks the IR column"
+            # mono_block cuts an over-long block to exactly 1024 characters
+            assert len(f.value) < 1024, f"cap board '{f.name}' was cut by mono_block"
+        assert "IR and Minors exempt" in e.footer.text
 
 
 def test_roster():
@@ -96,7 +104,9 @@ def test_roster():
     owned = pd.read_parquet(_DATA / "fact_fantasy_teams.parquet")
     drafted_key = owned["team_key"].iloc[0]
     drafted_abbr = teams.loc[teams["team_key"] == drafted_key, "team_abbr"].iloc[0]
-    _check(roster.build_roster_embeds(CFG, drafted_abbr), f"roster {drafted_abbr} (drafted)")
+    embeds = roster.build_roster_embeds(CFG, drafted_abbr)
+    _check(embeds, f"roster {drafted_abbr} (drafted)")
+    assert all("IR-exempt salary" in e.footer.text for e in embeds)
     # A team with no roster rows should hit the friendly empty-state.
     undrafted = teams[~teams["team_key"].isin(owned["team_key"].unique())]
     if not undrafted.empty:
@@ -105,105 +115,3 @@ def test_roster():
             "roster undrafted (empty-state)",
         )
     _expect_error(lambda: roster.build_roster_embeds(CFG, "zzzznoteam"), "roster not found")
-
-
-def test_capmath_minors_exempt():
-    """Cap rules (2026-07-13 audit): a kept player charges the FULL
-    contract_value (CapHitPct is dead-money-only, never applied); Minors
-    PLACEMENT (roster_status) is the only exemption — a Minor-CONTRACT player
-    kept Active is charged in full; null roster_status charges (safe default);
-    IR placement ("Inj Res") charges in full (ADR-0011, decided 2026-07-26)."""
-    frames = {
-        "fact_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":       ["A01", "A01", "A01", "A01", "A01"],
-            "contract_id":    ["1st", "1st", "Minor", "Minor", "1st"],
-            "contract_value": [10_000_000.0, 6_000_000.0, 2_000_000.0, 2_000_000.0,
-                               3_000_000.0],
-            "roster_status":  ["Active", None, "Minors", "Active", "Inj Res"],
-        }),
-    }
-    orig = capmath.fetch_parquet
-    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
-    try:
-        r = capmath.roster_with_cap_hit(CFG)
-    finally:
-        capmath.fetch_parquet = orig
-    hits = r["cap_hit"].tolist()
-    assert hits[0] == 10_000_000.0   # kept player: FULL contract value, no pct
-    assert hits[1] == 6_000_000.0    # null roster_status charges (safe default)
-    assert hits[2] == 0.0            # Minors PLACEMENT: exempt
-    assert hits[3] == 2_000_000.0    # Minor CONTRACT kept Active: charged in full
-    assert hits[4] == 3_000_000.0    # IR placement: charged in full, not exempt
-    assert r["cap_exempt"].tolist() == [False, False, True, False, False]
-    # contract_value untouched by the exemption
-    assert r["contract_value"].tolist()[2] == 2_000_000.0
-
-
-def _teams_with(frames):
-    orig = capmath.fetch_parquet
-    capmath.fetch_parquet = lambda path, _cfg: frames[Path(path).name]
-    try:
-        return capmath.teams_with_cap(CFG)
-    finally:
-        capmath.fetch_parquet = orig
-
-
-def _cap_frames(dead_rows):
-    return {
-        "dim_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":         ["A01", "A02"],
-            "original_cap":     [300_000_000.0, 300_000_000.0],
-            "reinvestment_cap": [0.0, 0.0],
-        }),
-        "fact_fantasy_teams.parquet": pd.DataFrame({
-            "team_key":       ["A01", "A01", "A02"],
-            "contract_id":    ["1st", "1st", "1st"],
-            "contract_value": [10_000_000.0, 8_000_000.0, 5_000_000.0],
-            "roster_status":  ["Active", None, "Active"],
-            "season":         ["2026-2027"] * 3,
-        }),
-        "fact_dead_money.parquet": pd.DataFrame(
-            dead_rows, columns=["team_key", "season_id", "dead_money"]),
-    }
-
-
-def test_capmath_reads_fact_dead_money():
-    """teams_with_cap takes Dead Money from fact_dead_money (#96): this
-    season's rows come off current cap room, next season's off next-year room,
-    and a later season's off neither. A team with no row owes nothing."""
-    t = _teams_with(_cap_frames([
-        ("A01", "2026-2027", 4_000_000.0),
-        ("A01", "2026-2027", 1_000_000.0),
-        ("A01", "2027-2028", 3_200_000.0),
-        ("A01", "2028-2029", 9_999_999.0),
-    ])).set_index("team_key")
-    a01, a02 = t.loc["A01"], t.loc["A02"]
-    assert a01["dead_money"] == 5_000_000.0
-    assert a01["active_roster_salary"] == 18_000_000.0
-    assert a01["remaining_cap_current_yr"] == 300_000_000.0 - 18_000_000.0 - 5_000_000.0
-    assert a01["remaining_cap_next_yr"] == 300_000_000.0 - 18_000_000.0 - 3_200_000.0
-    assert a02["dead_money"] == 0.0
-    assert a02["remaining_cap_current_yr"] == a02["remaining_cap_next_yr"] == 295_000_000.0
-
-
-def test_capmath_dead_money_outlives_the_roster_row():
-    """A dropped player is off fact_fantasy_teams, so the charge can belong to
-    a team with no roster row at all."""
-    frames = _cap_frames([("A03", "2026-2027", 2_000_000.0)])
-    frames["dim_fantasy_teams.parquet"] = pd.DataFrame({
-        "team_key":         ["A01", "A03"],
-        "original_cap":     [300_000_000.0, 300_000_000.0],
-        "reinvestment_cap": [0.0, 0.0],
-    })
-    t = _teams_with(frames).set_index("team_key")
-    assert t.loc["A01", "dead_money"] == 0.0
-    assert t.loc["A03", "dead_money"] == 2_000_000.0
-    assert t.loc["A03", "active_roster_salary"] == 0.0
-    assert t.loc["A03", "remaining_cap_current_yr"] == 298_000_000.0
-
-
-def test_capmath_empty_dead_money():
-    """No drop has been charged yet: the table is empty and nobody owes."""
-    t = _teams_with(_cap_frames([]))
-    assert t["dead_money"].tolist() == [0.0, 0.0]
-    assert t["remaining_cap_next_yr"].tolist() == [282_000_000.0, 295_000_000.0]

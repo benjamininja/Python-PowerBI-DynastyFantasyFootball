@@ -695,9 +695,9 @@ tables:
       charged, as Fantrax does. Gate `schedule`: dead_money is cap_hit_pct x
       contract_value; the charging contract is a guaranteed dim_contract row
       at that rate; every row is a drop on the ledger that ends a stint; every
-      such drop of a guaranteed contract has a row. Read by
-      discord_bot/capmath.py (the bot and trade-bud): this season's rows come
-      off current cap room, next season's off next-year room. Power BI loads
+      such drop of a guaranteed contract has a row. Read by 02h, which sums
+      each season's rows into fact_team_cap (ADR-0016's #97 amendment); the
+      bot and trade-bud read fact_team_cap, not this table. Power BI loads
       it as Fact_DeadMoney (#140): the three Dead Money - Active measures
       sum it by Dim_Season.relative_nfl_season_number.
 
