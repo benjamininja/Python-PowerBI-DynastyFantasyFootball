@@ -61,6 +61,7 @@
 - `02e` becomes "snapshot + provenance + reconciliation", no longer a replay projection.
 - `capmath.py`'s `remaining_cap_next_yr` must include next-season Dead Money. The trade-bud monkeypatch goes away.
   - *Built 2026-10-11 (#96): `capmath.teams_with_cap` reads `fact_dead_money` (this season's rows off current cap room, next season's off next-year room) and its `"Cut"` branch is gone. The monkeypatch and the move of the sum into the shared cap module stay with #97.*
+  - *Built 2026-10-31 (#97 Brief 3): the monkeypatch is gone. trade-bud's `data_access.py` no longer puts `discord_bot/` on `sys.path` or imports `capmath` or `github_fetch`; it reads `dim_fantasy_teams`, `fact_team_cap` and `fact_fantasy_teams` itself, with the same merges and column names as the bot.*
 - `04t` joins `run_pipeline.py` (build #93). The Change Poll now writes Roster State as well as triggering.
 - #79 must confirm the public roster fields, including Roster Slot. #81 attributes Period Scoring from the period roster.
 - **Build acceptance:**
@@ -241,6 +242,7 @@
 6. **Replay check** (`roster_membership`, Review, membership only, zero grace per [ADR-0008](0008-regression-testing-standard.md) decision 9): one finding per roster copy with no open stint on the ledger and per open stint with no roster row. While the transaction capture is older than the roster read, one "ledger is stale" finding files and the per-row findings are held back.
 7. **Consumers.** The bot shows the league's cap room plus a line with the team's IR-exempt salary. trade-bud's what-if sheds the giver's charge today and charges the receiver the full salary.
    - *Built 2026-10-30 (#97 Brief 2, the bot): `/cap` and `/roster` read `fact_team_cap` and the stored `cap_hit` through `capmath.py`, which holds no arithmetic. The IR-exempt salary (`ir_salary`) is a column on `/cap` and a line in `/roster`'s footer, not a second line per team: 14 teams with two lines each pass Discord's 1024-character field limit and the block would be cut, while a column stays near 860 characters. The figure and the rule are the decision's. `/cap` Rem(nxt) moves by design, because it now counts only contracts with a following year (decision 4), not the whole roster. trade-bud's what-if is #97's next PR.*
+   - *Built 2026-10-31 (#97 Brief 3, trade-bud): the cap cards in `index.html` (`renderCapCards`) shed the giver's `cap_hit` and charge the receiver's `contract_value`; a pick has neither and counts 0. The two lines read Cap Room and Cap Room After Trade (they were mislabelled Team Salary). The what-if is JavaScript with no test runner here: a text guard in `tests/test_cap_consumers.py` checks that `renderCapCards` reads both fields, and its behaviour was not run in a browser.*
 8. **Not here:** the Power BI changes (#140), the Minor contract rules (#130), the `roster_slot` rename (#110).
 
 ### Alternatives considered
