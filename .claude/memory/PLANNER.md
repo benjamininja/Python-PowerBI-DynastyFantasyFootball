@@ -11,31 +11,33 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0. **Latest (2026-10-31).** **#97 is closed** (PR #278, `46f9a1e`). The manager has briefs on
-   #251 (A low, then B medium, which commits one table), #201 and #206; #251 A, #201 and #206
-   may run at the same time. #273 is free and #279 is new (part 2 waits on the owner). After
-   these: #110, then #108 as the second scoping trial, with a venv (no `-NoSetup`).
-   **The owner's rule changes, in flight on this branch `docs/owner-word-rules`:** the owner
-   edited `GOAL-RUN.md` ("The owner's word across sessions") and `session-rules` `SKILL.md`
-   ("A denied call") by hand, uncommitted, in the main checkout and the live skills clone.
-   The owner approved committing them and said: "I think you probably need to handle merges
-   and cleanup since you get my direct approval." **So the planner now merges what the owner
-   approves in its chat, and does that cleanup; builder PRs stay the manager's.** To finish:
-   (1) merge this repo's PR on green; (2) discard the owner's copy of `GOAL-RUN.md` in the main
-   checkout only after confirming it matches, then pull; (3) skills repo: branch
-   `fix/session-rules-owner-word` from `origin/main`, with the `SKILL.md` diff only and
-   a one-line change to its Never line so an owner-directed session may merge, then PR,
-   merge, pull the live clone. A worktree under the scratchpad failed there with "Filename too
-   long": use a short path, and `git worktree prune` the failed one. The classifier let the
-   manager merge #278 under the owner's standing word; which mode it was in is unknown. Also
-   mine to do: `cap-ledger-auditor`'s agent file lists only `capmath.py`. Skills-repo item 4
-   is held by the owner's later word, no new
-   tooling. The live skills clone is `C:\Users\benha\claude-live\skills-plugins-hooks-agents`
-   at `d193886`; the OneDrive clone is older and is not what builders load.
-   This file's branch is `docs/owner-word-rules`, in this session's scratchpad worktree `w218`,
-   which also has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the
-   owner's yes before removing it. Earlier worktree `ps8` holds a merged branch.
-   Check a builder's file before its closeout: the scoping worktree was removed soon after.
+0. **Latest (2026-10-31).** #97, #201 and #206 are closed. #251 Brief A merged (#282); Brief B
+   is running as `b251b-build`. #273 is free; #279 part 2 waits on the owner. After these: #110,
+   then #108 as the second scoping trial, with a venv (no `-NoSetup`). **Rules merged:** #281
+   (`d31493e`, the owner's word across sessions; the planner merges what the owner approves in
+   its chat, builder PRs stay the manager's) and skills PR #67 (`d09dcbd`, a denied call; a
+   session the owner directly tells may merge a named item). The live skills clone
+   `C:\Users\benha\claude-live\skills-plugins-hooks-agents` is clean at `d09dcbd`.
+   **Open: why the classifier refuses merges, and what stops it.** The rule is Merge Without
+   Review: it clears on a person's message naming the merge, and an agent's message never meets
+   it. Peer messages preceded every refused manager merge (#270-272, #275, #276). A second
+   explanation came from the manager: its allow rules are `Bash(gh pr merge *)` and it merged
+   through PowerShell, so those calls reached the classifier, while #278 went through Bash in
+   auto and passed. Neither is proven, and they may both hold: other transcripts show 1 plain
+   Bash merge refused in auto and 12 plain PowerShell merges passing. Outside auto the owner
+   approves each call, which is unsustainable. **The test:** the manager merges #251 Brief B
+   with the Bash tool, one unchained call, if the owner has it back in auto. If that is refused,
+   send a new queue entry with this text, the file `C:\Users\benha\.claude\settings.json`
+   (the classifier ignores `autoMode` in project settings) and ordered steps, so the owner need
+   not open this chat:
+   `"autoMode": {"allow": ["$defaults", "Re-proved builder merge: in benjamininja/Python-PowerBI-DynastyFantasyFootball, the central-builder-manager session may run gh pr merge with --squash and --match-head-commit, without --admin or --force, after posting its re-proof on that PR. The owner has approved this standing process."]}`
+   The manager is holding my earlier entry on this, so nothing on it is in the owner's pane.
+   Markdown cannot grant this: the classifier's Self-Modification rule treats written-in consent
+   as manufactured. Also mine: `cap-ledger-auditor`'s agent file lists only `capmath.py`.
+   Skills-repo item 4 is held by the owner's later word, no new tooling. Worktree `w218` in this
+   session's scratchpad has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask
+   the owner's yes before removing it. Earlier worktree `ps8` holds a merged branch. Check a
+   builder's file before its closeout: the scoping worktree was removed soon after.
 1. **Earlier: the scoping session for #97 PR 3.** PR #269
    (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
    `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
