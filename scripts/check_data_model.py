@@ -6,7 +6,11 @@ docs/data_model.yml is the SSOT for the star-schema graph. This script:
   validate (default)  schema-check all tables; assert each table's declared
                       columns match the real data/{name}.parquet schema
                       (name + dtype); assert every edge target/via resolves
-                      to a declared table. Exit 1 on any failure.
+                      to a declared table; assert every column has a
+                      sql_type that fits its dtype, every pk equals its
+                      grain, every fk resolves to a key of the same type,
+                      and the other_tables (no parquet file) are well
+                      formed. Exit 1 on any failure.
   --render            regenerate the Mermaid flowchart region in
                       docs/DATA_MODEL.md from the yaml (between the
                       BEGIN/END GENERATED markers).
@@ -40,11 +44,23 @@ MODEL_YML = REPO / "docs" / "data_model.yml"
 MODEL_MD = REPO / "docs" / "DATA_MODEL.md"
 
 VALID_TYPES = {"dim", "fact", "resolver"}
-# A column with no value yet has pandas dtype `object`, which names no SQL
-# type, so it must declare one (ADR-0018 decision 8). #108 widens this set
-# when every column gets a `sql_type`.
-SQL_TYPES = {"text", "integer", "double precision"}
+# Every column declares one of these (ADR-0018 decision 8). There is no
+# bigint: a value past the integer range is a finding, not a wider type.
+SQL_TYPES = {"text", "integer", "double precision", "boolean", "date",
+             "timestamp", "timestamptz", "jsonb", "uuid"}
+SCHEMAS = ("football", "shared", "ops")
+# The types a pandas dtype may be declared as. `object` holds no value yet,
+# so it may be any. A string column of ISO dates is `date`; a whole-number
+# float column is `integer`. A zone-aware datetime is `timestamptz`
+# (decision 8, amended 2026-10-31); a naive one is `timestamp`.
+DTYPE_SQL_TYPES = {
+    "str": {"text", "date"}, "string": {"text", "date"},
+    "int32": {"integer"}, "int64": {"integer"}, "Int64": {"integer"},
+    "float64": {"double precision", "integer"},
+    "bool": {"boolean"},
+}
 REQUIRED_FIELDS = ("name", "type", "grain", "columns")
+OTHER_REQUIRED_FIELDS = ("name", "schema", "columns", "pk")
 MARKER_GROUP = "data-model-graph"
 
 
@@ -62,17 +78,108 @@ def load_yaml() -> dict:
 
 
 # --- validation ------------------------------------------------------------
+def _fits(dtype: str, sql_type: str) -> bool:
+    if dtype.startswith("datetime64"):
+        return sql_type == ("timestamptz" if "," in dtype else "timestamp")
+    allowed = DTYPE_SQL_TYPES.get(dtype)
+    return allowed is None or sql_type in allowed
+
+
 def sql_type_errors(table: dict) -> list[str]:
-    """An `object` column must declare a `sql_type`; any declared one must be known."""
+    """Every column declares a known `sql_type` that fits its dtype."""
     errs = []
     for col in table.get("columns") or []:
         sql_type = col.get("sql_type")
+        dtype = str(col.get("dtype"))
         where = f"[{table.get('name')}] {col.get('name')}"
         if sql_type is None:
-            if str(col.get("dtype")) == "object":
-                errs.append(f"{where}: dtype object needs a sql_type")
+            errs.append(f"{where}: needs a sql_type")
         elif sql_type not in SQL_TYPES:
             errs.append(f"{where}: sql_type {sql_type!r} is not one of {sorted(SQL_TYPES)}")
+        elif not _fits(dtype, sql_type):
+            errs.append(f"{where}: sql_type {sql_type!r} does not fit dtype {dtype}")
+    return errs
+
+
+def _names(value) -> list[str] | None:
+    if isinstance(value, list) and value and all(isinstance(v, str) for v in value):
+        return value
+    return None
+
+
+def key_errors(table: dict, by_name: dict[str, dict]) -> list[str]:
+    """`pk`, `required_keys`, `fk`, `checks` and `indexes` of one table.
+
+    `by_name` holds every declared table (`tables` and `other_tables`), for the
+    foreign-key targets."""
+    name = table.get("name")
+    errs: list[str] = []
+    types = {c.get("name"): c.get("sql_type") for c in table.get("columns") or []}
+
+    def known(cols, what):
+        errs.extend(f"[{name}] {what} column {c!r} is not a column of the table"
+                    for c in cols if c not in types)
+
+    pk = _names(table.get("pk"))
+    if pk is None:
+        errs.append(f"[{name}] pk must be a list of columns")
+    else:
+        known(pk, "pk")
+        if "grain" in table:
+            grain = etl_helpers.table_grain({"grain": table["grain"]})
+            if pk != grain:
+                errs.append(f"[{name}] pk {pk} differs from grain {grain}")
+    if table.get("required_keys") is not None:
+        required = _names(table["required_keys"])
+        if required is None:
+            errs.append(f"[{name}] required_keys must be a list of columns")
+        else:
+            known(required, "required_keys")
+
+    for fk in table.get("fk") or []:
+        cols, ref, to = _names(fk.get("columns")), _names(fk.get("ref")), fk.get("to")
+        where = f"[{name}] fk {fk.get('columns')} -> {to}"
+        target = by_name.get(to)
+        if cols is None or ref is None:
+            errs.append(f"{where}: columns and ref must be lists of columns")
+        elif target is None:
+            errs.append(f"{where}: target is not a declared table")
+        else:
+            known(cols, "fk")
+            target_types = {c.get("name"): c.get("sql_type") for c in target.get("columns") or []}
+            if len(cols) != len(ref):
+                errs.append(f"{where}: columns and ref differ in length")
+            elif any(r not in target_types for r in ref):
+                errs.append(f"{where}: ref {ref} is not a column of {to}")
+            else:
+                if sorted(ref) != sorted(target.get("pk") or []):
+                    errs.append(f"{where}: ref {ref} is not the primary key of {to}")
+                for c, r in zip(cols, ref):
+                    if c in types and types[c] != target_types[r]:
+                        errs.append(f"{where}: {c} is {types[c]}, {to}.{r} is {target_types[r]}")
+
+    for expr in table.get("checks") or []:
+        if not isinstance(expr, str) or not expr.strip():
+            errs.append(f"[{name}] a check must be a SQL expression")
+    for idx in table.get("indexes") or []:
+        cols = _names(idx.get("columns")) if isinstance(idx, dict) else None
+        if cols is None:
+            errs.append(f"[{name}] an index needs a list of columns")
+        else:
+            known(cols, "index")
+    return errs
+
+
+def other_table_errors(table: dict, seen: set[str]) -> list[str]:
+    """A table with no parquet file: its fields, schema and name."""
+    name = table.get("name")
+    errs = [f"[{name}] missing required field '{f}'" for f in OTHER_REQUIRED_FIELDS if f not in table]
+    if table.get("schema") not in SCHEMAS:
+        errs.append(f"[{name}] schema must be one of {list(SCHEMAS)}, got {table.get('schema')!r}")
+    if not isinstance(table.get("columns", []), list):
+        errs.append(f"[{name}] columns must be a list")
+    if name in seen:
+        errs.append(f"[{name}] duplicate name")
     return errs
 
 
@@ -95,8 +202,16 @@ def validate(data: dict) -> int:
         if not isinstance(t.get("columns", []), list):
             errors.append(f"[{tag}] columns must be a list")
 
+    others = data.get("other_tables", []) or []
+    by_name = {t.get("name"): t for t in tables + others}
     for t in tables:
         errors += sql_type_errors(t)
+        errors += key_errors(t, by_name)
+    for t in others:
+        errors += other_table_errors(t, seen_names)
+        seen_names.add(t.get("name"))
+        errors += sql_type_errors(t)
+        errors += key_errors(t, by_name)
 
     # column-drift check: declared columns vs real parquet schema
     for t in tables:
