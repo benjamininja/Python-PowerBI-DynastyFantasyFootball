@@ -25,6 +25,7 @@ def _tables(fact_gsis):
         "dim_nfl_players": pd.DataFrame({
             "pfr_id": [None, "PfrAnn", "PfrBob", None],
             "gsis_id": ["00-0000000", "00-0000001", "00-0000002", "00-0000003"],
+            "status": ["ACT", "ACT", "ACT", "ACT"],
         }),
         "fact_rookie_rankings": pd.DataFrame({
             "player_key": ["k_bob", "k_ann", "k_cy", "k_di", "k_ann"],
@@ -76,6 +77,17 @@ class TestRecompute:
         t = _tables([float("nan")] * 5)
         out = rg.recompute(t["fact_rookie_rankings"], t["dim_rookie_prospect"], t["dim_nfl_players"])
         assert out["gsis_id"].iloc[0] == "00-0000002"
+
+
+class TestDroppedTwin:
+    def test_counts_rows_on_a_dropped_id_whose_pfr_id_has_a_live_row(self):
+        nfl = pd.DataFrame({
+            "pfr_id": ["PfrAnn", "PfrAnn", "PfrBob", None],
+            "gsis_id": ["g_live", "g_drop", "g_bob_drop", "g_none_drop"],
+            "status": ["ACT", etl.DROPPED_STATUS, etl.DROPPED_STATUS, etl.DROPPED_STATUS],
+        })
+        fixed = pd.DataFrame({"gsis_id": ["g_drop", "g_drop", "g_live", "g_bob_drop", "g_none_drop", None]})
+        assert rg.on_dropped_with_live_twin(fixed, nfl) == 2
 
 
 class TestMain:

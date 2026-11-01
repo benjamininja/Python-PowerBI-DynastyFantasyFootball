@@ -38,15 +38,24 @@ def changed_rows(before: pd.DataFrame, after: pd.DataFrame) -> int:
     return int((~same).sum())
 
 
+def on_dropped_with_live_twin(fixed: pd.DataFrame, nfl: pd.DataFrame) -> int:
+    dropped = nfl["status"] == etl.DROPPED_STATUS
+    live_pfr = set(nfl.loc[~dropped & nfl["pfr_id"].notna(), "pfr_id"])
+    twin = nfl.loc[dropped & nfl["pfr_id"].isin(live_pfr), "gsis_id"]
+    return int(fixed["gsis_id"].isin(twin).sum())
+
+
 def main() -> int:
     fact = etl.read_table(TABLE)
-    fixed = recompute(fact, etl.read_table("dim_rookie_prospect"), etl.read_table("dim_nfl_players"))
+    nfl = etl.read_table("dim_nfl_players")
+    fixed = recompute(fact, etl.read_table("dim_rookie_prospect"), nfl)
     assert list(fixed.columns) == list(fact.columns) and len(fixed) == len(fact)
     others = [c for c in fact.columns if c != "gsis_id"]
     assert fixed[others].equals(fact[others])
     changed = changed_rows(fact, fixed)
     print(f"{TABLE}: rows {len(fact)}, gsis_id changed {changed}, "
           f"gsis_id null before {int(fact['gsis_id'].isna().sum())}, after {int(fixed['gsis_id'].isna().sum())}")
+    print(f"{TABLE}: rows on a DROPPED id whose pfr_id also has a live row {on_dropped_with_live_twin(fixed, nfl)}")
     if changed:
         etl.write_table(TABLE, fixed)
         print(f"{TABLE}: written")
