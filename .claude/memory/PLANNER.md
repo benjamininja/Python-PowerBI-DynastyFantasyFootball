@@ -20,7 +20,17 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    the owner's cleanup word; a PII scan of tracker text needs a new venv. `.git\worktrees\w218` is
    left, Permission denied, and the owner's queued prune covers it. Today's scratch worktree is
    `ps1101` in this session's scratchpad, detached. Remove it only on the owner's word, after this
-   batch merges. Today's batch branch is `docs/state-2026-11-01`.
+   batch merges. It has a `.venv` junction to the main checkout's venv, for the PII hook: remove the
+   junction first. Today's batch branch is `docs/state-2026-11-01`.
+   **Later on 2026-11-01, overrides the above where they differ.** The owner approved the stop, and
+   by pane 08:09 #301 now and #300 scoping after Brief 2 merges; `b301-build` was running per the
+   manager. **#305 (Brief 2) merged**, `dcc1055`; my read is issuecomment-6559511150, no breach.
+   **#306 (medium, Stage C)** is the owner's pane answer of 08:50: FantasyPros `rank_date` values to
+   ISO, then `date`. It should merge before Brief 3 merges, because the generator refuses a type
+   change; if Brief 3 goes first it comes back to me. **#304 is the open batch PR: the owner chose
+   to merge it at the end of the day (pane 08:50).** Merge it then, on that answer, and only while
+   its entry is still in the queue; otherwise ask. Still to do: when #301 and #306 merge, re-run their
+   evidence; #108 token comparison and judgement; Brief 4 needs the owner's word and the secret.
 0. **Latest (2026-10-31).** Closed or merged: #97, #201, #206, #251 (#282, #286), #287 (#288),
    #110 (#290), #273 (#295), #291 (#296), #292 (#297). **#108, the second scoping trial:** the
    result is comment 6543783313, my check 6543813162, the update after the owner's answers
