@@ -30,6 +30,8 @@ REGISTRY = {"tables": [
                  {"name": "entry_year", "dtype": "int32"}, {"name": "weight", "dtype": "float64"}]},
     {"name": "dim_rookie_prospect", "type": "dim", "grain": "player_key",
      "columns": [{"name": "player_key", "dtype": "str"}, {"name": "player_name", "dtype": "str"}]},
+    {"name": etl.GSIS_LINK_TABLE, "type": "resolver", "grain": "old_gsis_id",
+     "columns": [{"name": c, "dtype": "str"} for c in etl.GSIS_LINK_COLUMNS]},
 ]}
 
 
