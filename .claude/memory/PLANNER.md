@@ -41,7 +41,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Reader search for #301 is done: no Power BI measure or relationship reads the column; `02c` not read.
    **Briefs 2 to 5 (pane 09:20):** (a), in order, Brief 2 after #108 Brief 3 merges; sent to the manager.
    **#301 merged** (`053322b`); evidence re-run holds, issuecomment-6559900172. `b300a-build` is running
-   Brief 1. **#308** is #306's open PR; re-run its evidence when it merges.
+   Brief 1. **#304 merged** (`284e5a2`) on the owner's word in chat, ahead of end of day. **#308 merged**
+   (`2b4039c`), closing #306; evidence holds, issuecomment-6559946514; Brief 3's hold is over, manager told.
+   New saves go on `docs/state-2026-11-01b`, PR when the day's batch is ready.
    **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
    read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
    `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
