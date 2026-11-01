@@ -21,6 +21,26 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-01 ~09:00: this bullet overrides everything else in this block.**
+  - **Brief 2 done:** #305 merged `dcc1055`, `Refs #108`; re-proof issuecomment-6559501405; planner: no
+    breach. Session `d274edd9` removed. Left: local and remote `feat/108-registry-types-keys`.
+  - **#301:** `b301-build`, `192c36bd`, held, pushed `122e3c7` on `fix/301-pfr-map`, no PR. Waits on
+    the owner's allow rule (queue Action). Then **stop and resume it** (a running session does not
+    reread the list; restart worked for the merge rule): it runs the script, checks with
+    `compare_tables.py`, commits the table, opens the PR. At re-proof, measure the published match:
+    every `gsis_id` equals the dim's for that `pfr_id`, or null; only that column changed.
+  - **#306:** queue Decision, dispatch before Brief 3 continues. Brief is the ticket body; medium.
+    Same parquet as #301: second to merge takes the first in.
+  - **Brief 3:** `b108c-build`, `ee3753e1`, low, branch `feat/108-first-migration`, told to hold at
+    the start. Prompt `b108c-prompt.txt` in this session's scratchpad. On (a), continue only after
+    #306 merges; on (b), continue now and tell the planner.
+  - **#300 scoping:** `b300-scope`, `fde3dc66`, high, cap 40, running. dispatch.ps1 printed `dispatch
+    refused`, yet it runs in its worktree: its check raced. Told to read with `gh issue view`, as
+    `gh api` is denied. Result: one comment on #300; run any measures it names; then owner decisions.
+  - **State saves:** owner's pane answer 08:50:26: #304 stays open, the planner merges it at the end
+    of the day. Tell the planner then, after adding saves to `docs/state-2026-11-01` (worktree `st`).
+  - **Queue:** the rank_date and #304 answers are removed. The owner's `.git\worktrees` steps remain.
+    Allow-list edits so far: `git merge origin/main` added; two older owner lines uncommitted.
 - **Next action: Brief 2 restart, waiting on the owner.** `claude stop d274edd9` was refused
   ([Interfere With Workloads], run alone, not retried). Asked in chat: reply
   `approved stop d274edd9`. No answer yet at this write: look in the chat first. Then stop it,
