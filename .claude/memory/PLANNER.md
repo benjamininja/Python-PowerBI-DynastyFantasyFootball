@@ -44,6 +44,12 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Brief 1. **#304 merged** (`284e5a2`) on the owner's word in chat, ahead of end of day. **#308 merged**
    (`2b4039c`), closing #306; evidence holds, issuecomment-6559946514; Brief 3's hold is over, manager told.
    New saves go on `docs/state-2026-11-01b`, PR when the day's batch is ready.
+   **#108 closed.** #310, #312 merged (`15ef428`); first push succeeded, 36 tables. Rulings at
+   issuecomment-6560651713: `shared.owner` INFO accepted; Q6 holds by grants, Exposed schemas setting
+   unread. Owner stored the secret and restored the project. **#300:** Brief 1 #309, Brief 2 merged
+   (`9fbe927`), Brief 3 `b300c-build` running. Queued via the manager: Brief 4's script rule (recommended
+   (a), answer comes to me; Brief 4 holds for it) and the #135 passwords Action. #108 token comparison
+   and judgement still mine.
    **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
    read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
    `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
