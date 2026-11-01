@@ -31,7 +31,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    to merge it at the end of the day (pane 08:50).** Merge it then, on that answer, and only while
    its entry is still in the queue; otherwise ask. Still to do: when #301 and #306 merge, re-run their
    evidence; #108 token comparison and judgement; Brief 4 needs the owner's word and the secret.
-   **#306 dispatch** waits on the owner's queue Decision; Brief 3 (`b108c-build`) is told to hold.
+   **#306** dispatched as `b306-build` on the owner's (a); Brief 3 (`b108c-build`) holds for it.
+   **#300 scoped** (five briefs). My read is issuecomment-6559686610: D1 reworded, no birth-date
+   condition; D1 to D7 and Brief 1's dispatch sent to the manager as queue entries. **#301 changed**
+   (issuecomment-6559686376): live row wins on a shared `pfr_id`; re-proof expects 25 rows on `DROPPED`.
    **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
    read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
    `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
