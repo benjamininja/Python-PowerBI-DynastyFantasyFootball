@@ -1098,7 +1098,7 @@ tables:
       - { name: positional_rank, dtype: Int64, sql_type: integer }
       - { name: grade, dtype: float64, sql_type: "double precision" }
       - { name: capture_date, dtype: str, sql_type: date }
-      - { name: rank_date, dtype: str, sql_type: text }
+      - { name: rank_date, dtype: str, sql_type: date }
     edges:
       - { to: dim_rookie_prospect, via: direct, on: player_key }
       - { to: dim_nfl_players, via: direct, on: gsis_id }
