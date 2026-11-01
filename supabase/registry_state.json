@@ -1,0 +1,3410 @@
+{
+  "functions": {
+    "shared.pii_token_hashes": "CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')\n    FROM (\n        SELECT regexp_split_to_table(lower(o.human_name), '\\s+') AS token FROM shared.owner o\n        UNION\n        SELECT lower(o.fantrax_username) FROM shared.owner o\n    ) s\n    WHERE s.token IS NOT NULL AND s.token <> ''\n$fn$;"
+  },
+  "roles": [
+    "etl_writer",
+    "etl_reader"
+  ],
+  "schemas": [
+    "football",
+    "shared",
+    "ops"
+  ],
+  "tables": {
+    "football.dim_contract": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "contract_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_type",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_label",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary_type",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "total_years",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "cap_hit_pct",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "guaranteed",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "cap_exempt",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "min_salary",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "notes",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_contract",
+      "pk": [
+        "contract_id"
+      ],
+      "schema": "football"
+    },
+    "football.dim_division": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "conference",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "division_name",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "dim_division_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_division",
+      "pk": [
+        "season_id",
+        "conference"
+      ],
+      "schema": "football"
+    },
+    "football.dim_dynasty_crosswalk": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_player_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_position",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "resolved_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "source_uid",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "dim_dynasty_crosswalk_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_dynasty_crosswalk",
+      "pk": [
+        "source_uid"
+      ],
+      "schema": "football"
+    },
+    "football.dim_dynasty_metric": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "metric_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "metric_label",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "metric_group",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "metric_order",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "value_type",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "direction",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_name",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_dynasty_metric",
+      "pk": [
+        "metric_key"
+      ],
+      "schema": "football"
+    },
+    "football.dim_fantasy_teams": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_abbr",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantrax_team_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "conference",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "division",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "original_cap",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "reinvestment_cap",
+          "not_null": false,
+          "sql_type": "integer"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_fantasy_teams",
+      "pk": [
+        "team_key"
+      ],
+      "schema": "football"
+    },
+    "football.dim_fantrax_crosswalk": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_rookie",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "resolved_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "dim_fantrax_crosswalk_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_fantrax_crosswalk",
+      "pk": [
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
+    "football.dim_nfl_players": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "display_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "first_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "last_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "birth_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "status",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_abbr",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_group",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "jersey_number",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "years_of_experience",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "college_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "college_conference",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "entry_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "last_season",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "draft_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "draft_club",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "draft_number",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "height",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "weight",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pfr_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "pff_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "espn_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "esb_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "otc_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "smart_id",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_nfl_players",
+      "pk": [
+        "gsis_id"
+      ],
+      "schema": "football"
+    },
+    "football.dim_nfl_teams": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "team_abbr",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_id_pfr",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_conf",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_division",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_color",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_color2",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_logo_wikipedia",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_logo_espn",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_wordmark",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_stadium",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_nfl_teams",
+      "pk": [
+        "team_abbr"
+      ],
+      "schema": "football"
+    },
+    "football.dim_pick_value_curve": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "snapshot_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "source_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_year",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "round",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "tier",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "value",
+          "not_null": false,
+          "sql_type": "double precision"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_pick_value_curve",
+      "pk": [
+        "snapshot_date",
+        "source_name",
+        "draft_year",
+        "round",
+        "tier"
+      ],
+      "schema": "football"
+    },
+    "football.dim_player_alias": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "name_clean",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "decision",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_example",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "decided_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_player_alias",
+      "pk": [
+        "name_clean",
+        "position_raw"
+      ],
+      "schema": "football"
+    },
+    "football.dim_position": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "position_raw",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_detail",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_group",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_sort_order",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "side_of_ball",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "side_of_ball_sort_order",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "fantasy_relevant",
+          "not_null": false,
+          "sql_type": "boolean"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_position",
+      "pk": [
+        "position_raw"
+      ],
+      "schema": "football"
+    },
+    "football.dim_position_ceiling": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "snapshot_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "conference",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_group",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "pool_size",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "n_rostered",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "n_free_agents",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "max_fpts",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "replacement_fpts",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "best_free_agent",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "vor",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "ceiling",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "source_season",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "source_week",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_position_ceiling",
+      "pk": [
+        "snapshot_date",
+        "conference",
+        "position_group"
+      ],
+      "schema": "football"
+    },
+    "football.dim_rookie_prospect": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "player_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name_clean",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_detail",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_group",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "side_of_ball",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantasy_relevant",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "school_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "school_canonical",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "conference",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "height_inches",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "weight",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pfr_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "cfb_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "added_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "dim_rookie_prospect_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_rookie_prospect",
+      "pk": [
+        "player_key"
+      ],
+      "schema": "football"
+    },
+    "football.dim_roster_asset": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "asset_id",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "asset_type",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "pick_ref",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "dim_roster_asset_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_roster_asset",
+      "pk": [
+        "asset_id"
+      ],
+      "schema": "football"
+    },
+    "football.dim_school": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "school_raw",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "school_canonical",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "school_abbr",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "conference",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_school",
+      "pk": [
+        "school_raw"
+      ],
+      "schema": "football"
+    },
+    "football.dim_scoring_period": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "start_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "end_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "start_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "end_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "is_playoff",
+          "not_null": true,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "update_set_state",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "closed_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "dim_scoring_period_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_scoring_period",
+      "pk": [
+        "season_id",
+        "period"
+      ],
+      "schema": "football"
+    },
+    "football.dim_season": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season_start_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "season_end_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "season_fantasy_start_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "season_fantasy_end_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "season_nfl_start_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "season_nfl_end_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "theme",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "relative_nfl_season_number",
+          "not_null": false,
+          "sql_type": "integer"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_season",
+      "pk": [
+        "season_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_dead_money": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "transaction_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "drop_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "drop_period",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_value",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "charge_contract_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "cap_hit_pct",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "dead_money",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract_source",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_dead_money_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_dead_money_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "contract_id"
+          ],
+          "name": "fact_dead_money_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        },
+        {
+          "columns": [
+            "charge_contract_id"
+          ],
+          "name": "fact_dead_money_charge_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_dead_money_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_dead_money",
+      "pk": [
+        "transaction_id",
+        "scorer_id",
+        "team_key",
+        "season_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_draft_pick": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "pick_ref",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_season",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_in_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "overall_slot",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "original_owner",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "division_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "current_owner",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_made",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "draft_type",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "current_owner"
+          ],
+          "name": "fact_draft_pick_current_owner_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "draft_season"
+          ],
+          "name": "fact_draft_pick_draft_season_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_draft_pick",
+      "pk": [
+        "pick_ref"
+      ],
+      "schema": "football"
+    },
+    "football.fact_draft_pick_future": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "pick_ref",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_season",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_in_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "overall_slot",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "original_owner",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "division_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "current_owner",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_made",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "is_slotted",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "draft_type",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "current_owner"
+          ],
+          "name": "fact_draft_pick_future_current_owner_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "draft_season"
+          ],
+          "name": "fact_draft_pick_future_draft_season_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_draft_pick_future",
+      "pk": [
+        "pick_ref"
+      ],
+      "schema": "football"
+    },
+    "football.fact_dynasty_ranking_metrics": {
+      "checks": [
+        "metric_num IS NOT NULL OR metric_text IS NOT NULL"
+      ],
+      "columns": [
+        {
+          "name": "snapshot_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "source_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_player_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "format",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_uid",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "metric_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "metric_num",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "metric_text",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_dynasty_ranking_metrics_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        },
+        {
+          "columns": [
+            "metric_key"
+          ],
+          "name": "fact_dynasty_ranking_metrics_metric_key_fkey",
+          "ref": [
+            "metric_key"
+          ],
+          "to": "football.dim_dynasty_metric"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_dynasty_ranking_metrics",
+      "pk": [
+        "snapshot_date",
+        "source_name",
+        "source_player_id",
+        "format",
+        "metric_key"
+      ],
+      "schema": "football"
+    },
+    "football.fact_fantasy_teams": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_value",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "cap_hit",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "cap_exempt",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "acquired_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "acquired_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "roster_slot",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "roster_captured_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "ledger_captured_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_fantasy_teams_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_fantasy_teams_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "contract_id"
+          ],
+          "name": "fact_fantasy_teams_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_fantasy_teams",
+      "pk": [
+        "team_key",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_fantrax_adp": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "capture_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_rookie",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "overall_rank",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "adp",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "salary",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "percent_drafted",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts_per_game",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "games_played",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "age",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_fantrax_adp_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_fantrax_adp",
+      "pk": [
+        "scorer_id",
+        "season",
+        "week"
+      ],
+      "schema": "football"
+    },
+    "football.fact_matchup": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "opponent_team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_home",
+          "not_null": true,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "fpts_for",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts_against",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "capture_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_matchup_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "opponent_team_key"
+          ],
+          "name": "fact_matchup_opponent_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_matchup_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_matchup",
+      "pk": [
+        "season_id",
+        "period",
+        "team_key"
+      ],
+      "schema": "football"
+    },
+    "football.fact_minor_eligibility": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fa_status",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "games_played",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "capture_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "fact_minor_eligibility",
+      "pk": [
+        "scorer_id",
+        "season",
+        "week"
+      ],
+      "schema": "football"
+    },
+    "football.fact_nfl_combine_pro_day_metrics": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "pfr_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_current_season",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "cfb_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "pos",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "school",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "draft_ovr",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "metric_source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "height_inches",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "weight",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "forty_yard",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "ten_split",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "bench_press",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "vertical_jump",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "broad_jump",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "three_cone",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "shuttle",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "hand_size",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "arm_length",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "wingspan",
+          "not_null": false,
+          "sql_type": "double precision"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_nfl_combine_pro_day_metrics_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_nfl_combine_pro_day_metrics",
+      "pk": [
+        "pfr_id",
+        "season"
+      ],
+      "schema": "football"
+    },
+    "football.fact_nfl_injuries": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "game_type",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "report_status",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "report_primary_injury",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "practice_status",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": false,
+          "sql_type": "integer"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_nfl_injuries_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_nfl_injuries",
+      "pk": [
+        "gsis_id",
+        "season",
+        "week"
+      ],
+      "schema": "football"
+    },
+    "football.fact_nfl_snap_counts": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "game_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "team",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "offense_snaps",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "offense_pct",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "defense_snaps",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "defense_pct",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "st_snaps",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "st_pct",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "period",
+          "not_null": false,
+          "sql_type": "integer"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_nfl_snap_counts_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_nfl_snap_counts",
+      "pk": [
+        "gsis_id",
+        "game_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_period_scoring": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_starter",
+          "not_null": true,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "fpts",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts_offense",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts_defense",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fpts_special_teams",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "capture_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_period_scoring_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_period_scoring_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_period_scoring",
+      "pk": [
+        "season_id",
+        "period",
+        "team_key",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_preseason_salary": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "capture_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_preseason_salary_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "contract_id"
+          ],
+          "name": "fact_preseason_salary_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_preseason_salary_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_preseason_salary",
+      "pk": [
+        "season_id",
+        "team_key",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_rookie_rankings": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "player_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_site",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "phase",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_year",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "global_rank",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "positional_rank",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "grade",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "capture_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "rank_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_rookie_rankings_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_rookie_rankings",
+      "pk": [
+        "player_key",
+        "source_name",
+        "phase",
+        "draft_year"
+      ],
+      "schema": "football"
+    },
+    "football.fact_roster_state": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "roster_slot",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "capture_date",
+          "not_null": true,
+          "sql_type": "timestamp"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_roster_state_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "contract_id"
+          ],
+          "name": "fact_roster_state_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_roster_state_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_roster_state",
+      "pk": [
+        "season_id",
+        "period",
+        "team_key",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
+    "football.fact_roster_transactions": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "transaction_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "event_type",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "asset_id",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "event_seq",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "event_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "period",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "contract_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "contract_value",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "contract_source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "status",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_in_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_overall",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "claim_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "claim_bid",
+          "not_null": false,
+          "sql_type": "double precision"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_roster_transactions_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_roster_transactions_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "contract_id"
+          ],
+          "name": "fact_roster_transactions_contract_id_fkey",
+          "ref": [
+            "contract_id"
+          ],
+          "to": "football.dim_contract"
+        },
+        {
+          "columns": [
+            "asset_id"
+          ],
+          "name": "fact_roster_transactions_asset_id_fkey",
+          "ref": [
+            "asset_id"
+          ],
+          "to": "football.dim_roster_asset"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_roster_transactions_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_roster_transactions",
+      "pk": [
+        "transaction_id",
+        "scorer_id",
+        "team_key",
+        "event_type"
+      ],
+      "schema": "football"
+    },
+    "football.fact_team_cap": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_current_season",
+          "not_null": true,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "original_cap",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "reinvestment_cap",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "charged_salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "ir_salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "minors_salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "dead_money",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "cap_room",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "roster_captured_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "fantrax_salary_remaining",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "fantrax_captured_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "fantrax_period",
+          "not_null": false,
+          "sql_type": "integer"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_team_cap_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "fact_team_cap_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_team_cap",
+      "pk": [
+        "season_id",
+        "team_key"
+      ],
+      "schema": "football"
+    },
+    "football.fact_trade_log": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "transaction_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "asset_id",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "asset_kind",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key_from",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key_to",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "event_date",
+          "not_null": false,
+          "sql_type": "timestamp"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "pick_ref",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "draft_year",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "draft_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_in_round",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_trade_log_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        },
+        {
+          "columns": [
+            "team_key_from"
+          ],
+          "name": "fact_trade_log_team_key_from_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "team_key_to"
+          ],
+          "name": "fact_trade_log_team_key_to_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "asset_id"
+          ],
+          "name": "fact_trade_log_asset_id_fkey",
+          "ref": [
+            "asset_id"
+          ],
+          "to": "football.dim_roster_asset"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_trade_log",
+      "pk": [
+        "transaction_id",
+        "asset_id"
+      ],
+      "schema": "football"
+    },
+    "ops.change_poll_state": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "period",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "roster_hash",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "last_polled_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "hash_changed_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "pending_since",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "change_poll_state_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        }
+      ],
+      "indexes": [],
+      "name": "change_poll_state",
+      "pk": [
+        "team_key"
+      ],
+      "schema": "ops"
+    },
+    "ops.etl_run_log": {
+      "checks": [
+        "trigger IN ('daily', 'poll', 'weekly', 'manual')",
+        "status IN ('running', 'failed', 'committed', 'published')"
+      ],
+      "columns": [
+        {
+          "name": "run_id",
+          "not_null": true,
+          "sql_type": "uuid"
+        },
+        {
+          "name": "trigger",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "started_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "finished_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "status",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "git_sha",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "snapshot_commit_sha",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "rows_written",
+          "not_null": false,
+          "sql_type": "jsonb"
+        },
+        {
+          "name": "error",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "etl_run_log",
+      "pk": [
+        "run_id"
+      ],
+      "schema": "ops"
+    },
+    "ops.review_check": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "check_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "table_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "row_key",
+          "not_null": true,
+          "sql_type": "jsonb"
+        },
+        {
+          "name": "detail",
+          "not_null": false,
+          "sql_type": "jsonb"
+        },
+        {
+          "name": "run_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "created_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "last_seen_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "pending",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "resolved_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolution",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [
+        {
+          "columns": [
+            "check_name",
+            "table_name",
+            "row_key"
+          ],
+          "name": "review_check_one_open_idx",
+          "unique": true,
+          "where": "resolved_at IS NULL"
+        }
+      ],
+      "name": "review_check",
+      "pk": [
+        "check_name",
+        "table_name",
+        "row_key",
+        "created_at"
+      ],
+      "schema": "ops"
+    },
+    "ops.review_dynasty_crosswalk": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_player_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_position",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "resolved_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "source_uid",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "action",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "created_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolved_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolution",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "review_dynasty_crosswalk",
+      "pk": [
+        "source_uid",
+        "created_at"
+      ],
+      "schema": "ops"
+    },
+    "ops.review_fantrax_crosswalk": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_rookie",
+          "not_null": false,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "match_score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "resolved_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "action",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "created_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolved_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolution",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "review_fantrax_crosswalk",
+      "pk": [
+        "scorer_id",
+        "created_at"
+      ],
+      "schema": "ops"
+    },
+    "ops.review_fuzzy_matches": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "new_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "new_name_clean",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "new_position",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "new_school",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "best_match_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "best_match_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fuzzy_score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "action",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "source",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "created_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolved_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "resolution",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "review_fuzzy_matches",
+      "pk": [
+        "new_name",
+        "source",
+        "created_at"
+      ],
+      "schema": "ops"
+    },
+    "shared.owner": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "owner_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "human_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "email",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantrax_username",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "owner",
+      "pk": [
+        "owner_id"
+      ],
+      "schema": "shared"
+    }
+  }
+}
