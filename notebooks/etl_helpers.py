@@ -239,10 +239,15 @@ def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
         raise RuntimeError(f"Fantrax public {method}: body has no {missing}")
     return body
 
-def _parse_rank_date(raw: str | None) -> str | None:
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+def _parse_rank_date(raw: str | None, capture_date: str | None = None) -> str | None:
     # Parse the source-published "last updated" date into ISO format.
-    # Returns None if raw is empty or unparseable (caller stores NULL).
-    if not raw:
+    # FantasyPros publishes month/day with no year ("5/16"); that form needs
+    # capture_date, and takes its year, or the year before when the date would
+    # fall after capture_date. Returns None if raw is empty. A value no format
+    # matches comes back as-is, and ingest_ranking_source refuses it.
+    if raw is None or pd.isna(raw) or not str(raw).strip():
         return None
     raw = str(raw).strip()
     for fmt in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d", "%m/%d/%Y"):
@@ -250,7 +255,17 @@ def _parse_rank_date(raw: str | None) -> str | None:
             return datetime.strptime(raw, fmt).date().isoformat()
         except ValueError:
             continue
-    return raw  # store as-is if no format matched
+    m = re.fullmatch(r"(\d{1,2})/(\d{1,2})", raw)
+    if m and capture_date and _ISO_DATE.match(str(capture_date)):
+        cap = date.fromisoformat(str(capture_date))
+        for year in (cap.year, cap.year - 1):
+            try:
+                d = date(year, int(m.group(1)), int(m.group(2)))
+            except ValueError:
+                continue
+            if d <= cap:
+                return d.isoformat()
+    return raw
 
 # ── Rookie-ranking matcher + ingester (canonical, alias-aware) ───────
 def add_players_from_source(
@@ -399,6 +414,10 @@ def ingest_ranking_source(
     if phase not in valid_phases:
         raise ValueError(f"phase must be one of {valid_phases}")
 
+    rank_date = _parse_rank_date(rank_date, capture_date)
+    if rank_date is not None and not _ISO_DATE.match(rank_date):
+        raise ValueError(f"{source_name}: rank_date {rank_date!r} is not YYYY-MM-DD")
+
     dim_rp = read_table("dim_rookie_prospect")
     name_to_key = dict(zip(dim_rp["player_name_clean"], dim_rp["player_key"]))
     key_to_pfr  = dict(zip(dim_rp["player_key"],        dim_rp["pfr_id"]))
@@ -458,6 +477,10 @@ def ingest_ranking_source(
     new_df["rank_date"]       = new_df["rank_date"].where(new_df["rank_date"].notna(), other=None)
 
     existing = read_table("fact_rookie_rankings")
+    existing["rank_date"] = [_parse_rank_date(rd, cd) for rd, cd in zip(existing["rank_date"], existing["capture_date"])]
+    _bad = sorted({v for v in existing["rank_date"].dropna() if not _ISO_DATE.match(v)})
+    if _bad:
+        raise ValueError(f"fact_rookie_rankings holds rank_date values that are not YYYY-MM-DD: {_bad[:5]}")
     combined = pd.concat([existing, new_df], ignore_index=True)
     _DEDUP   = ["player_key", "source_name", "phase", "draft_year"]
     # rank_date: preserve the first non-null value ever captured — never overwrite with a later scrape.
