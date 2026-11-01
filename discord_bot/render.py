@@ -78,11 +78,15 @@ def fmt_money(value: object) -> str:
         v = float(value)
     except (TypeError, ValueError):
         return "—"
+    if v != v or v in (float("inf"), float("-inf")):
+        return "—"
+    sign = "-" if round(v) < 0 else ""
+    v = abs(v)
     if v >= 1_000_000:
-        return f"${v / 1_000_000:.1f}M"
+        return f"{sign}${v / 1_000_000:.1f}M"
     if v >= 1_000:
-        return f"${v / 1_000:.0f}K"
-    return f"${v:.0f}"
+        return f"{sign}${v / 1_000:.0f}K"
+    return f"{sign}${v:.0f}"
 
 
 def safe_str(value: object, width: int | None = None) -> str:

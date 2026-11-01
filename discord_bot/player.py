@@ -169,14 +169,16 @@ def _league_lines(cfg: Config, gsis: str) -> list[str]:
     row = owned[owned["gsis_id"] == gsis]
     if row.empty:
         return ["Not rostered in your league."]
-    r = row.iloc[0]
-    tname = teams.loc[teams["team_key"] == r["team_key"], "team_name"]
-    owner = tname.iloc[0] if not tname.empty else r["team_key"]
-    return [
-        f"Owner    {render.safe_str(owner, 24)}",
-        f"Contract {render.fmt_money(r.get('contract_value'))}"
-        f" · cap {render.fmt_money(r.get('cap_hit'))}",
-    ]
+    lines: list[str] = []
+    for _, r in row.iterrows():
+        tname = teams.loc[teams["team_key"] == r["team_key"], "team_name"]
+        owner = tname.iloc[0] if not tname.empty else r["team_key"]
+        lines += [
+            f"Owner    {render.safe_str(owner, 24)}",
+            f"Contract {render.fmt_money(r.get('contract_value'))}"
+            f" · cap {render.fmt_money(r.get('cap_hit'))}",
+        ]
+    return lines
 
 
 class Player(commands.Cog):

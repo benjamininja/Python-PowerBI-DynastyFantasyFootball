@@ -57,6 +57,13 @@ The rules are not copied here. Read them where they live, in this order:
   seam: what is next, what is open, sweeps, gaps, reads.
 - **Your PRs.** One PR per check-in, one commit per topic. You merge it
   after the owner's approval, and clean up the branch.
+- **State saves (owner, 2026-10-31).** Planner and manager state saves
+  go in one batched PR a day, on the branch `docs/state-YYYY-MM-DD`.
+  Whichever of you saves first opens the PR. Each of you commits only
+  your own state files, runs `git pull --rebase origin <branch>`, then
+  `git push origin HEAD:<branch>`. A pushed commit is enough before a
+  compact. You merge the batch after the owner's approval, and before
+  any worktree cleanup. Rule or role-file changes keep their own PR.
 - **Tier.** Every ticket you create or plan carries a `Tier:` line at the
   top of its body and the matching label:
 

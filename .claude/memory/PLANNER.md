@@ -11,33 +11,50 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0. **Latest (2026-10-31).** #97, #201 and #206 are closed. #251 Brief A merged (#282); Brief B
-   is running as `b251b-build`. #273 is free; #279 part 2 waits on the owner. After these: #110,
-   then #108 as the second scoping trial, with a venv (no `-NoSetup`). **Rules merged:** #281
-   (`d31493e`, the owner's word across sessions; the planner merges what the owner approves in
-   its chat, builder PRs stay the manager's) and skills PR #67 (`d09dcbd`, a denied call; a
-   session the owner directly tells may merge a named item). The live skills clone
-   `C:\Users\benha\claude-live\skills-plugins-hooks-agents` is clean at `d09dcbd`.
-   **Open: why the classifier refuses merges, and what stops it.** The rule is Merge Without
-   Review: it clears on a person's message naming the merge, and an agent's message never meets
-   it. Peer messages preceded every refused manager merge (#270-272, #275, #276). A second
-   explanation came from the manager: its allow rules are `Bash(gh pr merge *)` and it merged
-   through PowerShell, so those calls reached the classifier, while #278 went through Bash in
-   auto and passed. Neither is proven, and they may both hold: other transcripts show 1 plain
-   Bash merge refused in auto and 12 plain PowerShell merges passing. Outside auto the owner
-   approves each call, which is unsustainable. **The test:** the manager merges #251 Brief B
-   with the Bash tool, one unchained call, if the owner has it back in auto. If that is refused,
-   send a new queue entry with this text, the file `C:\Users\benha\.claude\settings.json`
-   (the classifier ignores `autoMode` in project settings) and ordered steps, so the owner need
-   not open this chat:
-   `"autoMode": {"allow": ["$defaults", "Re-proved builder merge: in benjamininja/Python-PowerBI-DynastyFantasyFootball, the central-builder-manager session may run gh pr merge with --squash and --match-head-commit, without --admin or --force, after posting its re-proof on that PR. The owner has approved this standing process."]}`
-   The manager is holding my earlier entry on this, so nothing on it is in the owner's pane.
-   Markdown cannot grant this: the classifier's Self-Modification rule treats written-in consent
-   as manufactured. Also mine: `cap-ledger-auditor`'s agent file lists only `capmath.py`.
-   Skills-repo item 4 is held by the owner's later word, no new tooling. Worktree `w218` in this
-   session's scratchpad has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask
-   the owner's yes before removing it. Earlier worktree `ps8` holds a merged branch. Check a
-   builder's file before its closeout: the scoping worktree was removed soon after.
+0. **Latest (2026-10-31).** Closed or merged: #97, #201, #206, #251 (#282, #286), #287 (#288),
+   #110 (#290), #273 (#295), #291 (#296), #292 (#297). **#108, the second scoping trial:** the
+   result is comment 6543783313, my check 6543813162, the update after the owner's answers
+   6543985668. Brief 1 merged (#293); #298 added `ipykernel`. Briefs 2, 3 and 4 are blocked by #299.
+   Brief 2 carries the ADR-0018 decision 8 note. Brief 3 follows Briefs 1 and 2. Brief 4 is last,
+   and its PR waits for the owner to store `SUPABASE_MIGRATE_DB_URL`. Owner's answers: `timestamptz`;
+   the generator line is in `builders.settings.json`; the new secret. Docs did not settle `db push`
+   and `config.toml` or file names, so Brief 3's `validate` job tests both on the service container.
+   CLI pin: `setup-cli` v3.0.1 by SHA, CLI 2.122.0. Still to do on the trial: token comparison and
+   judgement.
+   **Tickets I wrote this stretch, all with the manager:** #299 medium, `01e` keeps any id nflverse
+   drops, marked `DROPPED`, then publishes (owner's pane answer 09:33, #108 comment 6544757011);
+   one PR; NotebookEdit exception for this ticket only. If the NaN pick price survives, the builder
+   parks. #300 high, the re-key the owner named, waits on #299, scope first. #301 medium, gap:
+   `etl_helpers.py:415` zips two separately dropna'd columns, so 0 of 614 `fact_rookie_rankings`
+   ids match the true id. Waits on #299; Power BI measures and notebooks not yet searched for readers.
+   **Declined, no ticket:** a -0.5 delta in `capCardHtml` prints `($0)` in the down colour.
+   **Daily ETL status given to the owner:** not running; no scheduled workflow in the repo; no
+   Windows task matched by name; left are #108, #135, #136, #137, #138, #111, then #93, #116, then
+   the owner's crons and parallel week. The owner asked how to check the Supabase secret; answered
+   with names, branch policy and a `psql` test of the URL. TOTP secret not verified; ask the
+   manager to queue it before Stage D if missing.
+   **State saves are batched (owner, pane, 2026-10-31 08:42):** one PR a day for planner and
+   manager; the rule is in both role files. Today's branch is `docs/state-2026-10-31`. Evidence from
+   the last 40 merged PRs:
+   11 product, 14 state saves, 15 other chores or docs; no PR above one comment; median open about
+   10 minutes; six waited 10 hours or more. So review is not the drag; bookkeeping is. Builder
+   start-to-PR time was not measured. The batch must merge before any worktree cleanup.
+   **Merge refusals, cause not proven.** Owner's user settings now hold an `autoMode` allow rule for
+   the manager's re-proved merges, `PowerShell(gh pr merge *)`, and PowerShell denies for `--admin`
+   and `--auto`. #286 and #288 merged through Bash with no refusal, mode unknown. If one is refused,
+   get the mode and exact command from the manager before changing anything. Markdown cannot grant
+   this: the classifier's Self-Modification rule treats written-in consent as manufactured.
+   **Mine:** `cap-ledger-auditor`'s agent file lists only `capmath.py`. Builders have no clean
+   notebook edit; rule-text item, no new tooling (owner). #279 part 2 waits on the owner.
+   Skills-repo item 4 is held by the owner's later word. Worktree `w218` in this session's
+   scratchpad has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the owner's
+   yes before removing it. Earlier worktree `ps8` holds a merged branch.
+   **Session ended here at the owner's word (2026-10-31), with a clear to follow.** A new planner
+   starts from this block. `w218` is at `C:\Users\benha\AppData\Local\Temp\claude\C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac\scratchpad\w218`,
+   on `docs/state-2026-10-31`. This session's id is `b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac`; a queue
+   entry it raised answers back to it, so a new session re-raises any it needs. If today's state
+   PR has not merged, this block is on its branch, not on main. The local branch
+   `docs/planner-state-1031b` is merged and stays, as the guardrail blocks `git branch -D`.
 1. **Earlier: the scoping session for #97 PR 3.** PR #269
    (#97 PR 2) merged as `5d5284e`, by the owner, before the auditor's bug was fixed: the
    `team_cap` Gate passes a null figure. The owner's word: the fix goes in the next PR. It is
