@@ -11,6 +11,16 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+00. **Newest (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
+   #302 merged (`55d9d6b`) on the owner's word. #303 merged (`0bd80d5`), closing #299; re-proof is
+   issuecomment-6558667160. **Next on #108:** Brief 2, whose restart waits on the owner's word for
+   `claude stop d274edd9`; the manager holds that. **#300 and #301** are unblocked and need the
+   owner's word to dispatch. Still to do on #301: search Power BI measures and notebooks for readers.
+   **Worktrees:** `w218`, its branch and its `workspace/_tracker/` drafts and venv are removed, on
+   the owner's cleanup word; a PII scan of tracker text needs a new venv. `.git\worktrees\w218` is
+   left, Permission denied, and the owner's queued prune covers it. Today's scratch worktree is
+   `ps1101` in this session's scratchpad, detached. Remove it only on the owner's word, after this
+   batch merges. Today's batch branch is `docs/state-2026-11-01`.
 0. **Latest (2026-10-31).** Closed or merged: #97, #201, #206, #251 (#282, #286), #287 (#288),
    #110 (#290), #273 (#295), #291 (#296), #292 (#297). **#108, the second scoping trial:** the
    result is comment 6543783313, my check 6543813162, the update after the owner's answers
