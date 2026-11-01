@@ -11,6 +11,40 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+00. **Newest (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
+   #302 merged (`55d9d6b`) on the owner's word. #303 merged (`0bd80d5`), closing #299; re-proof is
+   issuecomment-6558667160. **Next on #108:** Brief 2, whose restart waits on the owner's word for
+   `claude stop d274edd9`; the manager holds that. **#300 and #301** are unblocked and need the
+   owner's word to dispatch. Still to do on #301: search Power BI measures and notebooks for readers.
+   **Worktrees:** `w218`, its branch and its `workspace/_tracker/` drafts and venv are removed, on
+   the owner's cleanup word; a PII scan of tracker text needs a new venv. `.git\worktrees\w218` is
+   left, Permission denied, and the owner's queued prune covers it. Today's scratch worktree is
+   `ps1101` in this session's scratchpad, detached. Remove it only on the owner's word, after this
+   batch merges. It has a `.venv` junction to the main checkout's venv, for the PII hook: remove the
+   junction first. Today's batch branch is `docs/state-2026-11-01`.
+   **Later on 2026-11-01, overrides the above where they differ.** The owner approved the stop, and
+   by pane 08:09 #301 now and #300 scoping after Brief 2 merges; `b301-build` was running per the
+   manager. **#305 (Brief 2) merged**, `dcc1055`; my read is issuecomment-6559511150, no breach.
+   **#306 (medium, Stage C)** is the owner's pane answer of 08:50: FantasyPros `rank_date` values to
+   ISO, then `date`. It should merge before Brief 3 merges, because the generator refuses a type
+   change; if Brief 3 goes first it comes back to me. **#304 is the open batch PR: the owner chose
+   to merge it at the end of the day (pane 08:50).** Merge it then, on that answer, and only while
+   its entry is still in the queue; otherwise ask. Still to do: when #301 and #306 merge, re-run their
+   evidence; #108 token comparison and judgement; Brief 4 needs the owner's word and the secret.
+   **#306** dispatched as `b306-build` on the owner's (a); Brief 3 (`b108c-build`) holds for it.
+   **#300 scoped** (five briefs). My read is issuecomment-6559686610: D1 reworded, no birth-date
+   condition; D1 to D7 and Brief 1's dispatch sent to the manager as queue entries. **#301 changed**
+   (issuecomment-6559686376): live row wins on a shared `pfr_id`; re-proof expects 25 rows on `DROPPED`.
+   **#300 answers (pane 09:17):** all eight (a), sent to the manager to record. Brief 1, now only the
+   bot's name search, goes once #301 merges. I sent one more entry, Briefs 2 to 5 in order with Brief 2
+   after #108 Brief 3; its answer comes to me. Brief 4's allow rule gets its own entry when next.
+   Reader search for #301 is done: no Power BI measure or relationship reads the column; `02c` not read.
+   **Briefs 2 to 5 (pane 09:20):** (a), in order, Brief 2 after #108 Brief 3 merges; sent to the manager.
+   **#301 merged** (`053322b`); evidence re-run holds, issuecomment-6559900172. `b300a-build` is running
+   Brief 1. **#308** is #306's open PR; re-run its evidence when it merges.
+   **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
+   read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
+   `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
 0. **Latest (2026-10-31).** Closed or merged: #97, #201, #206, #251 (#282, #286), #287 (#288),
    #110 (#290), #273 (#295), #291 (#296), #292 (#297). **#108, the second scoping trial:** the
    result is comment 6543783313, my check 6543813162, the update after the owner's answers

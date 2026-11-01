@@ -19,8 +19,82 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Newest, 2026-10-31, end of day. This overrides everything below. A clear follows: nothing
-from the old chat carries over except this block.**
+**Newest, 2026-11-01, before a compact. This overrides everything below. Session
+`da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-01 ~09:30: this bullet overrides everything else in this block, including the ~09:00 one.**
+  - **#301 done:** #307 merged `053322b`, closed; re-proof issuecomment-6559772527; 25 rows on 9 `DROPPED` ids. Session
+    removed. Planner set the rule (live row wins) as ticket owner, issuecomment-6559686376. Left: `fix/301-pfr-map`.
+  - **NEXT ACTION, #306:** PR #308 open at `fa4f0f9`, builder says green, `b306-build`, `60c21344`, holding. Re-prove
+    with `reproof307.cmd` copied (WT `b306-build`; measure: only `rank_date` changed against main, all ISO, 301 cells,
+    registry `date`). The builder reports 2 review findings as new because its worktree csv is empty; they are the same
+    2 repeats as on main: settle by the main run. It also guarded a stored-value check in `etl_helpers.py` after #301's
+    test failed; read that. Then post, merge under the standing approval, `claude rm 60c21344`, pull, tell Brief 3.
+  - **Brief 3 after #306 merges:** `b108c-build`, `ee3753e1`, holds uncommitted files in its worktree with `rank_date`
+    `text`. Tell it to merge main, regenerate the migration and `registry_state.json`, finish the proofs (`check_pii`,
+    `--check-only`, CI) and open the PR. Brief 4 needs the owner's word and the secret.
+  - **#300:** scoping issuecomment-6559641078, measures issuecomment-6559658539. Owner answered D1 to D7 and Brief 1,
+    all (a), pane 09:17:19; recorded issuecomment-6559870099, entries removed. **Brief 1:** `b300a-build`, low, branch
+    `fix/300-bot-live-row`, dispatched, `discord_bot` files only; re-proof includes the bot suite. **Briefs 2 to 5:** queue
+    Decision raised by the planner, unanswered, answers go to the planner. Brief 4's allow-rule Action not queued until
+    Brief 4 is next. `b300-scope`, `fde3dc66`, idle, worktree kept for `builder-state/measure300.py`; remove when done.
+  - **b97 and rules:** b97 entry done (planner pruned on the owner's word; recorded on #97). `m7.py`, `m301.py`,
+    `reproof307.cmd` in scratchpad. In PowerShell, no `Set-Location`, and no `2>&1` on dispatch.ps1 (it aborts on git stderr).
+  - **State saves unchanged:** at end of day add saves to `docs/state-2026-11-01`, then tell the planner to merge #304.
+- **Update, 2026-11-01 ~09:00: partly stale, see above.**
+  - **Brief 2 done:** #305 merged `dcc1055`, `Refs #108`; re-proof issuecomment-6559501405; planner: no
+    breach. Session `d274edd9` removed. Left: local and remote `feat/108-registry-types-keys`.
+  - **#301:** `b301-build`, `192c36bd`, held, pushed `122e3c7` on `fix/301-pfr-map`, no PR. Waits on
+    the owner's allow rule (queue Action). Then **stop and resume it** (a running session does not
+    reread the list; restart worked for the merge rule): it runs the script, checks with
+    `compare_tables.py`, commits the table, opens the PR. At re-proof, measure the published match:
+    every `gsis_id` equals the dim's for that `pfr_id`, or null; only that column changed.
+  - **#306:** queue Decision, dispatch before Brief 3 continues. Brief is the ticket body; medium.
+    Same parquet as #301: second to merge takes the first in.
+  - **Brief 3:** `b108c-build`, `ee3753e1`, low, branch `feat/108-first-migration`, told to hold at
+    the start. Prompt `b108c-prompt.txt` in this session's scratchpad. On (a), continue only after
+    #306 merges; on (b), continue now and tell the planner.
+  - **#300 scoping:** `b300-scope`, `fde3dc66`, high, cap 40, running. dispatch.ps1 printed `dispatch
+    refused`, yet it runs in its worktree: its check raced. Told to read with `gh issue view`, as
+    `gh api` is denied. Result: one comment on #300; run any measures it names; then owner decisions.
+  - **State saves:** owner's pane answer 08:50:26: #304 stays open, the planner merges it at the end
+    of the day. Tell the planner then, after adding saves to `docs/state-2026-11-01` (worktree `st`).
+  - **Queue:** the rank_date and #304 answers are removed. The owner's `.git\worktrees` steps remain.
+    Allow-list edits so far: `git merge origin/main` added; two older owner lines uncommitted.
+- **Next action: Brief 2 restart, waiting on the owner.** `claude stop d274edd9` was refused
+  ([Interfere With Workloads], run alone, not retried). Asked in chat: reply
+  `approved stop d274edd9`. No answer yet at this write: look in the chat first. Then stop it,
+  and from `.claude\worktrees\b108b-build` run
+  `claude --resume d274edd9-106f-4fab-a12c-d2fd34b125f4 --bg <message>` with **no flags**:
+  with flags Claude starts a copy under a new id, and a message becomes its name. The message: the
+  refresh is on main at `0bd80d5`; take main in with a plain `git merge origin/main`; if refused,
+  report without retrying; rerun the orphan tests and proofs; open the PR as `Refs #108`.
+  It holds `feat/108-registry-types-keys` at `c38fd7a`, pushed, about 46 of 80 turns used.
+  The builder holds strictly to the relay rule, so give facts and instructions, no claimed owner word.
+- **Re-proof of Brief 2:** Green, plus the 47 FKs at 0 orphans; Green list unproved by it: full tests,
+  pipeline check, sources, CI. Then Brief 3 (approved after Brief 2 merges). Brief 4 needs the
+  owner's word and the secret. #300 (high) and #301 (medium) are unblocked by #299 and need the
+  owner's word to dispatch.
+- **#299 done:** #303 merged `0bd80d5`, closed; re-proof is issuecomment-6558667160. Sessions
+  `34a0471d` and its copy `9e5d18ef` removed, worktree gone. Left, because `git cherry` shows `+`
+  after a squash: local `feat/299-keep-dropped-ids`, `worktree-b299-build`, and the remote
+  `feat/299-keep-dropped-ids`. Tell the owner they remain; no deletion without the word.
+- **Why b299 stalled:** service down since 2026-10-31 14:45 UTC; cause not established; PC
+  rebooted 2026-11-01 07:18 local. `claude logs` fails with ENOENT; read the transcript under
+  `~/.claude/projects/<slug>--claude-worktrees-<name>/<sessionId>.jsonl`. The `--resume` restarted the
+  service. The stale `claude stop` works once approved.
+- **Merges:** #302 merged `55d9d6b` by the planner on the owner's word. #303 by the Bash tool, one
+  call, `--match-head-commit`, no refusal, session in the owner's current mode.
+- **Tools:** `measure108.py` and `botvenv` in scratchpad `4bf1835b-...`; this session's scratchpad
+  `da76bd45-...` has `reproof303.cmd` and `cmp303.py`, reusable templates.
+- **Queue:** `b97-team-cap` entry updated by the planner's line, seven other stale records. The planner
+  ran the owner-approved worktree cleanup in part (w218); each further removal needs the owner's word.
+- **State saves:** this block is pushed on `docs/state-2026-11-01`, PR not opened; the planner opens
+  or adds to it. The main checkout's `MANAGER.md` holds the same text uncommitted: after the batch
+  merges, compare it with main, restore, then pull. `NEEDS-OWNER.md` stays uncommitted.
+- **Still owed:** the memory lines under "Not done" below, plus `dim_nfl_players` keeping `DROPPED`
+  rows (`data-model.md`).
+
+**Older, 2026-10-31, end of day. Superseded where the block above differs.**
 - **Next action: #299.** `b299-build`, session `34a0471d`, medium, branch
   `feat/299-keep-dropped-ids`, prompt `b299-prompt.txt`. It may still be running, or have
   reported while nobody was here: run `claude agents --json`, `claude logs 34a0471d`, and list
