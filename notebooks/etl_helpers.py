@@ -412,7 +412,8 @@ def ingest_ranking_source(
             name_to_key.setdefault(_nc, _pk)
 
     dim_nfl = read_table("dim_nfl_players")
-    pfr_to_gsis = dict(zip(dim_nfl["pfr_id"].dropna(), dim_nfl["gsis_id"].dropna()))
+    _pairs = dim_nfl[["pfr_id", "gsis_id"]].dropna()
+    pfr_to_gsis = dict(zip(_pairs["pfr_id"], _pairs["gsis_id"]))
 
     rows, unmatched = [], []
     for _, row in rankings_df.iterrows():
