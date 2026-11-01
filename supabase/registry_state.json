@@ -368,6 +368,49 @@
       ],
       "schema": "football"
     },
+    "football.dim_gsis_link": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "old_gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "new_gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "method",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "decided_date",
+          "not_null": false,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "new_gsis_id"
+          ],
+          "name": "dim_gsis_link_new_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_gsis_link",
+      "pk": [
+        "old_gsis_id"
+      ],
+      "schema": "football"
+    },
     "football.dim_nfl_players": {
       "checks": [],
       "columns": [

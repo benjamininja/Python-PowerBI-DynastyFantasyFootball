@@ -11,6 +11,7 @@
 ```mermaid
 graph LR
     dim_nfl_players[dim_nfl_players]
+    dim_gsis_link{{dim_gsis_link}}
     dim_rookie_prospect[dim_rookie_prospect]
     dim_position[dim_position]
     dim_school[dim_school]
@@ -46,6 +47,7 @@ graph LR
     fact_fantrax_adp[(fact_fantrax_adp)]
     fact_dynasty_ranking_metrics[(fact_dynasty_ranking_metrics)]
     dim_nfl_players --> dim_nfl_teams
+    dim_gsis_link --> dim_nfl_players
     dim_rookie_prospect --> dim_school
     dim_rookie_prospect --> dim_position
     dim_fantasy_teams --> dim_division
@@ -127,6 +129,7 @@ graph LR
     classDef fact fill:#1e3a5f,stroke:#60a5fa,stroke-width:1px;
     classDef dim fill:#1f2937,stroke:#9ca3af,stroke-width:1px;
     class dim_nfl_players dim;
+    class dim_gsis_link resolver;
     class dim_rookie_prospect dim;
     class dim_position dim;
     class dim_school dim;

@@ -145,7 +145,7 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(TABLES) == 35
+        assert len(TABLES) == 36
         for t in TABLES:
             assert t["pk"] == [c.strip() for c in t["grain"].strip("()").split(",")], t["name"]
 
@@ -184,7 +184,7 @@ class TestTheRegistry:
         for dirty in ("player_key", "position_raw", "scorer_id", "school_raw", "team_abbr"):
             assert not any(dirty in cols for _, cols, _ in edges), dirty
         assert not any(len(cols) > 1 for _, cols, _ in edges)
-        assert len(edges) == 47
+        assert len(edges) == 48
 
     def test_the_zone_aware_columns_are_timestamptz(self):
         aware = {(t["name"], c["name"]) for t in TABLES for c in t["columns"]
