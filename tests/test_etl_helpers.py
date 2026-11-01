@@ -178,3 +178,51 @@ class TestFantraxPublicGet:
         reply(requests.ConnectionError("down"))
         with pytest.raises(RuntimeError, match="request failed"):
             etl.fantrax_public_get("getLeagueInfo", "LG")
+
+
+class TestPfrToGsisMap:
+    @pytest.mark.parametrize("live_last", [True, False])
+    def test_a_live_row_wins_whichever_comes_last(self, live_last):
+        rows = [("PfrAnn", "g_live", "ACT"), ("PfrAnn", "g_drop", etl.DROPPED_STATUS)]
+        rows = rows if live_last else rows[::-1]
+        dim = pd.DataFrame(rows, columns=["pfr_id", "gsis_id", "status"])
+        assert etl.pfr_to_gsis_map(dim) == {"PfrAnn": "g_live"}
+
+    def test_a_dropped_only_pfr_id_keeps_its_id_and_nulls_are_skipped(self):
+        dim = pd.DataFrame({
+            "pfr_id": ["PfrBob", None, "PfrCy"],
+            "gsis_id": ["g_bob", "g_none", None],
+            "status": [etl.DROPPED_STATUS, "ACT", "ACT"],
+        })
+        assert etl.pfr_to_gsis_map(dim) == {"PfrBob": "g_bob"}
+
+
+class TestIngestRankingSourceGsis:
+    """No disk: the three table calls are swapped for in-memory frames."""
+
+    def test_gsis_pairs_with_its_own_pfr_row_past_a_null_pfr_id(self, monkeypatch):
+        tables = {
+            "dim_rookie_prospect": pd.DataFrame({
+                "player_name_clean": ["ann one", "bob two"],
+                "player_key": ["k_ann", "k_bob"],
+                "pfr_id": ["PfrAnn", "PfrBob"],
+            }),
+            "dim_nfl_players": pd.DataFrame({
+                "pfr_id": [None, "PfrAnn", "PfrBob"],
+                "gsis_id": ["00-0000000", "00-0000001", "00-0000002"],
+                "status": ["ACT", "ACT", "ACT"],
+            }),
+            "fact_rookie_rankings": pd.DataFrame(),
+        }
+        written = {}
+        monkeypatch.setattr(etl, "read_table", lambda name, columns=None: tables[name].copy())
+        monkeypatch.setattr(etl, "table_exists", lambda name: False)
+        monkeypatch.setattr(etl, "write_table", lambda name, df, **kw: written.update({name: df}))
+
+        rankings = pd.DataFrame({"player_name": ["Ann One", "Bob Two"], "global_rank": [1, 2]})
+        out = etl.ingest_ranking_source(rankings, "src", "site", "pre_combine", draft_year=2026,
+                                        capture_date="2026-01-01")
+
+        assert dict(zip(out["player_key"], out["gsis_id"])) == {
+            "k_ann": "00-0000001", "k_bob": "00-0000002"}
+        assert "fact_rookie_rankings" in written
