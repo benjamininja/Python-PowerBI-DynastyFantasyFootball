@@ -1,11 +1,20 @@
-# Schema migrations (#108, ADR-0018). This file holds the PR job only: it
+# Schema migrations (#108, ADR-0018). Two jobs. validate (pull request)
 # applies supabase/migrations to a throwaway Postgres and tests the result.
-# No push job, no environment and no secret yet; nothing here reaches a real
-# database.
+# push (merge to main) applies them to the real project with the secret
+# SUPABASE_MIGRATE_DB_URL from the etl environment, which is limited to main.
 name: migrate
 
 on:
   pull_request:
+    paths:
+      - 'supabase/**'
+      - 'docs/data_model.yml'
+      - 'scripts/generate_migrations.py'
+      - 'tests/test_migrations_*.py'
+      - '.github/workflows/migrate.yml'
+  push:
+    branches:
+      - main
     paths:
       - 'supabase/**'
       - 'docs/data_model.yml'
@@ -18,6 +27,7 @@ permissions:
 
 jobs:
   validate:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -77,3 +87,24 @@ jobs:
           echo "migration files: $expected, applied by the CLI: $applied"
           test "$applied" -ge 1
           test "$applied" -eq "$expected"
+
+  push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: etl
+    concurrency:
+      group: migrate-push
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.122.0
+
+      - name: Push the migrations to the real project
+        env:
+          SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
+        run: supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"

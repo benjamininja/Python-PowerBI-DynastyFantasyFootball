@@ -100,6 +100,18 @@ Commits use the GitHub noreply author email, already set as this repo's
 `pbi/Mouserat2.pbix` is the legacy report. It is tracked but no longer
 edited; the PBIP project is the source.
 
+## How a schema change reaches the project
+
+The registry (`docs/data_model.yml`) is the source; nothing edits the
+database by hand. Run `scripts/generate_migrations.py` to write the new file
+in `supabase/migrations/` and commit it with the registry change. On the PR,
+the `validate` job in `.github/workflows/migrate.yml` applies every migration
+to a throwaway Postgres and tests it. When the PR merges to `main`, the `push`
+job runs `supabase db push` against the real project, using the Actions secret
+`SUPABASE_MIGRATE_DB_URL` in the `etl` environment (limited to `main`). A
+failed push run is not re-run: it goes to the planner with the log, because it
+may have applied part of a migration.
+
 ## Security rule
 
 `data/.pw_profile` is gitignored. It holds the Playwright browser session for
