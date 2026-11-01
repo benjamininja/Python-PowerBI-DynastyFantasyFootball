@@ -53,6 +53,11 @@ def _resolve_player(players: pd.DataFrame, query: str) -> pd.Series:
     if not q:
         raise CommandError("Give me a player name, e.g. `/player Bijan Robinson`.")
     norm = players["display_name"].fillna("").map(_norm)
+    if "status" in players.columns:
+        dropped = players["status"].eq("DROPPED")
+        has_live = norm[~dropped].unique()
+        keep = ~(dropped & norm.isin(has_live))
+        players, norm = players[keep], norm[keep]
     exact = players[norm == q]
     hits = exact if not exact.empty else players[norm.str.contains(re.escape(q))]
     if hits.empty:
