@@ -886,6 +886,79 @@ def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd
     return pd.concat([fresh, kept], ignore_index=True)
 
 
+GSIS_LINK_TABLE = "dim_gsis_link"
+GSIS_LINK_COLUMNS = ["old_gsis_id", "new_gsis_id", "method", "decided_date"]
+GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id")
+
+
+def _gsis_link_map(links: pd.DataFrame) -> dict:
+    """old_gsis_id -> the newest id at the end of its chain. A loop raises."""
+    step = dict(zip(links["old_gsis_id"], links["new_gsis_id"]))
+    newest = {}
+    for old in step:
+        seen, cur = {old}, step[old]
+        while cur in step:
+            if cur in seen:
+                raise ValueError(f"{GSIS_LINK_TABLE}: the links starting at {old!r} loop")
+            seen.add(cur)
+            cur = step[cur]
+        newest[old] = cur
+    return newest
+
+
+def derive_gsis_links(players: pd.DataFrame, stored: pd.DataFrame | None = None,
+                      decided: str | None = None) -> pd.DataFrame:
+    """The stored links plus one row for each DROPPED id of `players` that
+    meets the rule (#300 D1): it shares a smart_id with exactly one live row
+    and no other DROPPED id without a link does, both have the same non-null
+    entry_year, no id both rows hold disagrees, and the live id is not already
+    the target of a stored link. Birth date and name are not conditions.
+
+    A stored link is kept as it is: never re-derived, never removed. A loop in
+    the result raises."""
+    stored = (pd.DataFrame(columns=GSIS_LINK_COLUMNS) if stored is None
+              else stored[GSIS_LINK_COLUMNS])
+    decided = decided or TODAY
+    dropped = players["status"] == DROPPED_STATUS
+    has_smart = players["smart_id"].notna()
+    live = players[~dropped & has_smart].drop_duplicates("smart_id", keep=False)
+    live = live.set_index("smart_id")
+    todo = players[dropped & has_smart & ~players["gsis_id"].isin(stored["old_gsis_id"])]
+    todo = todo.drop_duplicates("smart_id", keep=False)
+    taken = set(stored["new_gsis_id"])
+    agree = [c for c in GSIS_LINK_AGREE_IDS if c in players.columns]
+    rows = []
+    for old in todo.itertuples(index=False):
+        if old.smart_id not in live.index:
+            continue
+        new = live.loc[old.smart_id]
+        if new["gsis_id"] in taken:
+            continue
+        if pd.isna(old.entry_year) or pd.isna(new["entry_year"]) or old.entry_year != new["entry_year"]:
+            continue
+        if any(pd.notna(getattr(old, c)) and pd.notna(new[c]) and getattr(old, c) != new[c]
+               for c in agree):
+            continue
+        taken.add(new["gsis_id"])
+        rows.append((old.gsis_id, new["gsis_id"], "smart_id", decided))
+    added = pd.DataFrame(rows, columns=GSIS_LINK_COLUMNS).sort_values("old_gsis_id")
+    links = pd.concat([stored, added], ignore_index=True) if len(added) else stored.reset_index(drop=True)
+    _gsis_link_map(links)
+    return links
+
+
+def current_gsis(ids: pd.Series, links: pd.DataFrame | None = None) -> pd.Series:
+    """`ids` with each linked old id replaced by its newest id. An id with no
+    link, and a null, stay as they are. `links` defaults to the stored
+    dim_gsis_link; with none stored nothing changes."""
+    if links is None:
+        links = read_table(GSIS_LINK_TABLE) if table_exists(GSIS_LINK_TABLE) else None
+    if links is None or links.empty:
+        return ids.copy()
+    newest = _gsis_link_map(links)
+    return ids.where(~ids.isin(list(newest)), ids.map(newest))
+
+
 def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
     """Per write-batch draft_type ("Startup" vs "Rookie"): a startup draft runs
     many more rounds than an annual rookie draft (this league: 35 vs 5), so the

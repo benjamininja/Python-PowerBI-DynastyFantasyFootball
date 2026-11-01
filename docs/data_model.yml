@@ -108,6 +108,30 @@ tables:
     edges:
       - { to: dim_nfl_teams, via: direct, on: team_abbr }
 
+  - name: dim_gsis_link
+    type: resolver
+    grain: old_gsis_id
+    pk: [old_gsis_id]
+    fk:
+      - { columns: [new_gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+    chain: nflverse
+    required_keys: [old_gsis_id, new_gsis_id]
+    columns:
+      - { name: old_gsis_id, dtype: str, sql_type: text }
+      - { name: new_gsis_id, dtype: str, sql_type: text }
+      - { name: method, dtype: str, sql_type: text }
+      - { name: decided_date, dtype: str, sql_type: date }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: new_gsis_id }
+    notes: >
+      Which gsis_id replaced which (#300). 01e adds a row when nflverse stops
+      returning an id and a live row shares its smart_id, one to one, with the
+      same entry_year and no id they both hold disagreeing; birth date is not
+      a condition. A stored row is never re-derived or removed. old_gsis_id
+      takes no FK: its dim_nfl_players row is DROPPED and goes once nothing
+      references it. new_gsis_id may itself be an old_gsis_id of a later
+      link; etl.current_gsis follows the chain to the newest id.
+
   - name: dim_rookie_prospect
     type: dim
     grain: player_key
