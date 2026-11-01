@@ -88,6 +88,24 @@ def test_player():
     _expect_error(lambda: player.build_player_embeds(CFG, "zzzznotaplayer"), "player not found")
 
 
+def _people(rows: list[tuple[str, str]]) -> pd.DataFrame:
+    return pd.DataFrame({
+        "gsis_id": [g for g, _ in rows], "display_name": ["Sam Person"] * len(rows),
+        "status": [s for _, s in rows], "position_group": ["WR"] * len(rows),
+        "team_abbr": ["AAA"] * len(rows),
+    })
+
+
+def test_name_search_prefers_the_live_row_whichever_comes_first():
+    for rows in ([("old", "DROPPED"), ("new", "ACT")], [("new", "ACT"), ("old", "DROPPED")]):
+        assert player._resolve_player(_people(rows), "Sam Person")["gsis_id"] == "new"
+        assert player._resolve_player(_people(rows), "sam")["gsis_id"] == "new"
+
+
+def test_name_search_still_resolves_a_person_with_only_a_dropped_row():
+    assert player._resolve_player(_people([("old", "DROPPED")]), "Sam Person")["gsis_id"] == "old"
+
+
 def _league_fetch(owned: pd.DataFrame, teams: pd.DataFrame):
     def fetch(path: str, _cfg: Config) -> pd.DataFrame:
         return owned if "fantasy_teams" in path and "dim_" not in path else teams
