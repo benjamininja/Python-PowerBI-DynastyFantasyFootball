@@ -24,8 +24,7 @@ TABLE = "fact_rookie_rankings"
 
 
 def recompute(fact: pd.DataFrame, prospect: pd.DataFrame, nfl: pd.DataFrame) -> pd.DataFrame:
-    pairs = nfl[["pfr_id", "gsis_id"]].dropna()
-    pfr_to_gsis = dict(zip(pairs["pfr_id"], pairs["gsis_id"]))
+    pfr_to_gsis = etl.pfr_to_gsis_map(nfl)
     key_to_pfr = dict(zip(prospect["player_key"], prospect["pfr_id"]))
     dtype = object if pd.api.types.is_numeric_dtype(fact["gsis_id"]) else fact["gsis_id"].dtype
     out = fact.copy()
@@ -45,6 +44,11 @@ def on_dropped_with_live_twin(fixed: pd.DataFrame, nfl: pd.DataFrame) -> int:
     return int(fixed["gsis_id"].isin(twin).sum())
 
 
+def on_dropped_ids(fixed: pd.DataFrame, nfl: pd.DataFrame) -> tuple[int, int]:
+    on_dropped = fixed["gsis_id"].isin(nfl.loc[nfl["status"] == etl.DROPPED_STATUS, "gsis_id"])
+    return int(on_dropped.sum()), int(fixed.loc[on_dropped, "gsis_id"].nunique())
+
+
 def main() -> int:
     fact = etl.read_table(TABLE)
     nfl = etl.read_table("dim_nfl_players")
@@ -55,7 +59,9 @@ def main() -> int:
     changed = changed_rows(fact, fixed)
     print(f"{TABLE}: rows {len(fact)}, gsis_id changed {changed}, "
           f"gsis_id null before {int(fact['gsis_id'].isna().sum())}, after {int(fixed['gsis_id'].isna().sum())}")
-    print(f"{TABLE}: rows on a DROPPED id whose pfr_id also has a live row {on_dropped_with_live_twin(fixed, nfl)}")
+    rows_dropped, ids_dropped = on_dropped_ids(fixed, nfl)
+    print(f"{TABLE}: rows on a DROPPED id {rows_dropped} on {ids_dropped} ids; "
+          f"of those, rows whose pfr_id also has a live row {on_dropped_with_live_twin(fixed, nfl)}")
     if changed:
         etl.write_table(TABLE, fixed)
         print(f"{TABLE}: written")

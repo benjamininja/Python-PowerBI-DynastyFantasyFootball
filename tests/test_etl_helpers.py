@@ -180,6 +180,23 @@ class TestFantraxPublicGet:
             etl.fantrax_public_get("getLeagueInfo", "LG")
 
 
+class TestPfrToGsisMap:
+    @pytest.mark.parametrize("live_last", [True, False])
+    def test_a_live_row_wins_whichever_comes_last(self, live_last):
+        rows = [("PfrAnn", "g_live", "ACT"), ("PfrAnn", "g_drop", etl.DROPPED_STATUS)]
+        rows = rows if live_last else rows[::-1]
+        dim = pd.DataFrame(rows, columns=["pfr_id", "gsis_id", "status"])
+        assert etl.pfr_to_gsis_map(dim) == {"PfrAnn": "g_live"}
+
+    def test_a_dropped_only_pfr_id_keeps_its_id_and_nulls_are_skipped(self):
+        dim = pd.DataFrame({
+            "pfr_id": ["PfrBob", None, "PfrCy"],
+            "gsis_id": ["g_bob", "g_none", None],
+            "status": [etl.DROPPED_STATUS, "ACT", "ACT"],
+        })
+        assert etl.pfr_to_gsis_map(dim) == {"PfrBob": "g_bob"}
+
+
 class TestIngestRankingSourceGsis:
     """No disk: the three table calls are swapped for in-memory frames."""
 
@@ -193,6 +210,7 @@ class TestIngestRankingSourceGsis:
             "dim_nfl_players": pd.DataFrame({
                 "pfr_id": [None, "PfrAnn", "PfrBob"],
                 "gsis_id": ["00-0000000", "00-0000001", "00-0000002"],
+                "status": ["ACT", "ACT", "ACT"],
             }),
             "fact_rookie_rankings": pd.DataFrame(),
         }

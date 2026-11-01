@@ -89,6 +89,23 @@ class TestDroppedTwin:
         fixed = pd.DataFrame({"gsis_id": ["g_drop", "g_drop", "g_live", "g_bob_drop", "g_none_drop", None]})
         assert rg.on_dropped_with_live_twin(fixed, nfl) == 2
 
+    def test_counts_rows_and_ids_on_dropped_ids(self):
+        nfl = pd.DataFrame({
+            "pfr_id": ["PfrAnn", "PfrBob"],
+            "gsis_id": ["g_live", "g_drop"],
+            "status": ["ACT", etl.DROPPED_STATUS],
+        })
+        fixed = pd.DataFrame({"gsis_id": ["g_drop", "g_drop", "g_live", None]})
+        assert rg.on_dropped_ids(fixed, nfl) == (2, 1)
+
+    def test_recompute_prefers_the_live_row_of_a_shared_pfr_id(self):
+        t = _tables(WRONG)
+        t["dim_nfl_players"] = pd.concat([t["dim_nfl_players"], pd.DataFrame({
+            "pfr_id": ["PfrAnn"], "gsis_id": ["00-0000099"], "status": [etl.DROPPED_STATUS]})],
+            ignore_index=True)
+        out = rg.recompute(t["fact_rookie_rankings"], t["dim_rookie_prospect"], t["dim_nfl_players"])
+        assert out["gsis_id"].iloc[1] == "00-0000001"
+
 
 class TestMain:
     def test_writes_the_fixed_table_and_prints_counts_only(self, seam, capsys):
