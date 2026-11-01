@@ -19,8 +19,43 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 `NEEDS-OWNER.md`, and the role file
 `.claude/agents/central-builder-manager.md`.
 
-**Newest, 2026-10-31, end of day. This overrides everything below. A clear follows: nothing
-from the old chat carries over except this block.**
+**Newest, 2026-11-01, before a compact. This overrides everything below. Session
+`da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Next action: Brief 2 restart, waiting on the owner.** `claude stop d274edd9` was refused
+  ([Interfere With Workloads], run alone, not retried). Asked in chat: reply
+  `approved stop d274edd9`. No answer yet at this write: look in the chat first. Then stop it,
+  and from `.claude\worktrees\b108b-build` run
+  `claude --resume d274edd9-106f-4fab-a12c-d2fd34b125f4 --bg <message>` with **no flags**:
+  with flags Claude starts a copy under a new id, and a message becomes its name. The message: the
+  refresh is on main at `0bd80d5`; take main in with a plain `git merge origin/main`; if refused,
+  report without retrying; rerun the orphan tests and proofs; open the PR as `Refs #108`.
+  It holds `feat/108-registry-types-keys` at `c38fd7a`, pushed, about 46 of 80 turns used.
+  The builder holds strictly to the relay rule, so give facts and instructions, no claimed owner word.
+- **Re-proof of Brief 2:** Green, plus the 47 FKs at 0 orphans; Green list unproved by it: full tests,
+  pipeline check, sources, CI. Then Brief 3 (approved after Brief 2 merges). Brief 4 needs the
+  owner's word and the secret. #300 (high) and #301 (medium) are unblocked by #299 and need the
+  owner's word to dispatch.
+- **#299 done:** #303 merged `0bd80d5`, closed; re-proof is issuecomment-6558667160. Sessions
+  `34a0471d` and its copy `9e5d18ef` removed, worktree gone. Left, because `git cherry` shows `+`
+  after a squash: local `feat/299-keep-dropped-ids`, `worktree-b299-build`, and the remote
+  `feat/299-keep-dropped-ids`. Tell the owner they remain; no deletion without the word.
+- **Why b299 stalled:** service down since 2026-10-31 14:45 UTC; cause not established; PC
+  rebooted 2026-11-01 07:18 local. `claude logs` fails with ENOENT; read the transcript under
+  `~/.claude/projects/<slug>--claude-worktrees-<name>/<sessionId>.jsonl`. The `--resume` restarted the
+  service. The stale `claude stop` works once approved.
+- **Merges:** #302 merged `55d9d6b` by the planner on the owner's word. #303 by the Bash tool, one
+  call, `--match-head-commit`, no refusal, session in the owner's current mode.
+- **Tools:** `measure108.py` and `botvenv` in scratchpad `4bf1835b-...`; this session's scratchpad
+  `da76bd45-...` has `reproof303.cmd` and `cmp303.py`, reusable templates.
+- **Queue:** `b97-team-cap` entry updated by the planner's line, seven other stale records. The planner
+  ran the owner-approved worktree cleanup in part (w218); each further removal needs the owner's word.
+- **State saves:** this block is pushed on `docs/state-2026-11-01`, PR not opened; the planner opens
+  or adds to it. The main checkout's `MANAGER.md` holds the same text uncommitted: after the batch
+  merges, compare it with main, restore, then pull. `NEEDS-OWNER.md` stays uncommitted.
+- **Still owed:** the memory lines under "Not done" below, plus `dim_nfl_players` keeping `DROPPED`
+  rows (`data-model.md`).
+
+**Older, 2026-10-31, end of day. Superseded where the block above differs.**
 - **Next action: #299.** `b299-build`, session `34a0471d`, medium, branch
   `feat/299-keep-dropped-ids`, prompt `b299-prompt.txt`. It may still be running, or have
   reported while nobody was here: run `claude agents --json`, `claude logs 34a0471d`, and list
