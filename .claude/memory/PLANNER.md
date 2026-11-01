@@ -32,11 +32,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    its entry is still in the queue; otherwise ask. Still to do: when #301 and #306 merge, re-run their
    evidence; #108 token comparison and judgement; Brief 4 needs the owner's word and the secret.
    **#306 dispatch** waits on the owner's queue Decision; Brief 3 (`b108c-build`) is told to hold.
-   **Prune failure:** the 8 stale `.git\worktrees` records are read-only, and Git cannot delete a
-   read-only folder on Windows. Reproduced in a throwaway repo, not yet on the real one. The manager
-   has replacement steps (`attrib -R`, then prune). If the owner reports Permission denied again,
-   the OneDrive placeholder state is the next suspect. The owner asked to check this again by
-   2026-11-08 if it is still open.
+   **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
+   read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
+   `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
 0. **Latest (2026-10-31).** Closed or merged: #97, #201, #206, #251 (#282, #286), #287 (#288),
    #110 (#290), #273 (#295), #291 (#296), #292 (#297). **#108, the second scoping trial:** the
    result is comment 6543783313, my check 6543813162, the update after the owner's answers
