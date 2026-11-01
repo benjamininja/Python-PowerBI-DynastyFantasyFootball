@@ -1,0 +1,79 @@
+# Schema migrations (#108, ADR-0018). This file holds the PR job only: it
+# applies supabase/migrations to a throwaway Postgres and tests the result.
+# No push job, no environment and no secret yet; nothing here reaches a real
+# database.
+name: migrate
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - 'docs/data_model.yml'
+      - 'scripts/generate_migrations.py'
+      - 'tests/test_migrations_*.py'
+      - '.github/workflows/migrate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: throwaway-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: throwaway-ci-password
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply each migration with psql
+        run: |
+          createdb apply_check
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            psql -v ON_ERROR_STOP=1 -d apply_check -f "$f"
+          done
+
+      - name: Test the applied schema (a skip fails the job)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:throwaway-ci-password@localhost:5432/apply_check
+          REQUIRE_TEST_DATABASE: '1'
+        run: python -m pytest tests/test_migrations_apply.py -rs
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.122.0
+
+      - name: Push with the Supabase CLI to a second throwaway database
+        run: |
+          createdb cli_check
+          supabase db push --yes --db-url "postgresql://postgres:throwaway-ci-password@localhost:5432/cli_check"
+          expected=$(ls supabase/migrations/*.sql | wc -l)
+          applied=$(psql -At -d cli_check -c "SELECT count(*) FROM supabase_migrations.schema_migrations")
+          echo "migration files: $expected, applied by the CLI: $applied"
+          test "$applied" -ge 1
+          test "$applied" -eq "$expected"
