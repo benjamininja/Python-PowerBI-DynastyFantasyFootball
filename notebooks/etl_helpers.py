@@ -477,10 +477,11 @@ def ingest_ranking_source(
     new_df["rank_date"]       = new_df["rank_date"].where(new_df["rank_date"].notna(), other=None)
 
     existing = read_table("fact_rookie_rankings")
-    existing["rank_date"] = [_parse_rank_date(rd, cd) for rd, cd in zip(existing["rank_date"], existing["capture_date"])]
-    _bad = sorted({v for v in existing["rank_date"].dropna() if not _ISO_DATE.match(v)})
-    if _bad:
-        raise ValueError(f"fact_rookie_rankings holds rank_date values that are not YYYY-MM-DD: {_bad[:5]}")
+    if {"rank_date", "capture_date"} <= set(existing.columns):
+        existing["rank_date"] = [_parse_rank_date(rd, cd) for rd, cd in zip(existing["rank_date"], existing["capture_date"])]
+        _bad = sorted({v for v in existing["rank_date"].dropna() if not _ISO_DATE.match(v)})
+        if _bad:
+            raise ValueError(f"fact_rookie_rankings holds rank_date values that are not YYYY-MM-DD: {_bad[:5]}")
     combined = pd.concat([existing, new_df], ignore_index=True)
     _DEDUP   = ["player_key", "source_name", "phase", "draft_year"]
     # rank_date: preserve the first non-null value ever captured — never overwrite with a later scrape.
