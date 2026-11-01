@@ -431,7 +431,7 @@ def ingest_ranking_source(
             name_to_key.setdefault(_nc, _pk)
 
     dim_nfl = read_table("dim_nfl_players")
-    pfr_to_gsis = dict(zip(dim_nfl["pfr_id"].dropna(), dim_nfl["gsis_id"].dropna()))
+    pfr_to_gsis = pfr_to_gsis_map(dim_nfl)
 
     rows, unmatched = [], []
     for _, row in rankings_df.iterrows():
@@ -856,6 +856,16 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
 
 
 DROPPED_STATUS = "DROPPED"
+
+
+def pfr_to_gsis_map(dim_nfl: pd.DataFrame) -> dict:
+    """pfr_id -> gsis_id from dim_nfl_players, each pfr_id paired with its own
+    row's gsis_id. A pfr_id on a live row and a DROPPED row gives the live id,
+    whichever comes last; with no live row it gives the DROPPED row's id."""
+    pairs = dim_nfl.dropna(subset=["pfr_id", "gsis_id"])
+    dropped = pairs["status"] == DROPPED_STATUS
+    ordered = pd.concat([pairs[dropped], pairs[~dropped]])
+    return dict(zip(ordered["pfr_id"], ordered["gsis_id"]))
 
 
 def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd.DataFrame:
