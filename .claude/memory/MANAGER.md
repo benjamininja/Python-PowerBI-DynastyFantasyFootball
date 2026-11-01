@@ -24,17 +24,19 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 - **Update, 2026-11-01 ~09:30: this bullet overrides everything else in this block, including the ~09:00 one.**
   - **#301 done:** #307 merged `053322b`, closed; re-proof issuecomment-6559772527; 25 rows on 9 `DROPPED` ids. Session
     removed. Planner set the rule (live row wins) as ticket owner, issuecomment-6559686376. Left: `fix/301-pfr-map`.
-  - **#306 next:** owner chose (a) 08:56:38, recorded. `b306-build`, `60c21344`, medium, branch `fix/306-rank-date`,
-    restarted with the `fix_rank_date.py --write` rule; it merges main, writes, opens the PR, messages me. Its --check,
-    which I ran: 301 of 301, 0 problems. Re-proof: Green, only `rank_date` changed against main, all ISO, registry `date`.
-    Planner's read if the PR goes outside the ticket's file list. Prompt `b306-prompt.txt`, scratchpad.
+  - **NEXT ACTION, #306:** PR #308 open at `fa4f0f9`, builder says green, `b306-build`, `60c21344`, holding. Re-prove
+    with `reproof307.cmd` copied (WT `b306-build`; measure: only `rank_date` changed against main, all ISO, 301 cells,
+    registry `date`). The builder reports 2 review findings as new because its worktree csv is empty; they are the same
+    2 repeats as on main: settle by the main run. It also guarded a stored-value check in `etl_helpers.py` after #301's
+    test failed; read that. Then post, merge under the standing approval, `claude rm 60c21344`, pull, tell Brief 3.
   - **Brief 3 after #306 merges:** `b108c-build`, `ee3753e1`, holds uncommitted files in its worktree with `rank_date`
     `text`. Tell it to merge main, regenerate the migration and `registry_state.json`, finish the proofs (`check_pii`,
     `--check-only`, CI) and open the PR. Brief 4 needs the owner's word and the secret.
-  - **#300:** scoping issuecomment-6559641078, measures issuecomment-6559658539. Eight planner entries in the queue
-    (D1 to D7, Brief 1 dispatch), Session = planner; planner tells me each answer, I record and remove. Brief 1 is now
-    `discord_bot` only. Brief 4's allow-rule Action not queued until Brief 4 is next. `b300-scope`, `fde3dc66`, idle,
-    worktree kept for `builder-state/measure300.py`; remove when the planner has no follow-up.
+  - **#300:** scoping issuecomment-6559641078, measures issuecomment-6559658539. Owner answered D1 to D7 and Brief 1,
+    all (a), pane 09:17:19; recorded issuecomment-6559870099, entries removed. **Brief 1:** `b300a-build`, low, branch
+    `fix/300-bot-live-row`, dispatched, `discord_bot` files only; re-proof includes the bot suite. **Briefs 2 to 5:** queue
+    Decision raised by the planner, unanswered, answers go to the planner. Brief 4's allow-rule Action not queued until
+    Brief 4 is next. `b300-scope`, `fde3dc66`, idle, worktree kept for `builder-state/measure300.py`; remove when done.
   - **b97 and rules:** b97 entry done (planner pruned on the owner's word; recorded on #97). `m7.py`, `m301.py`,
     `reproof307.cmd` in scratchpad. In PowerShell, no `Set-Location`, and no `2>&1` on dispatch.ps1 (it aborts on git stderr).
   - **State saves unchanged:** at end of day add saves to `docs/state-2026-11-01`, then tell the planner to merge #304.
