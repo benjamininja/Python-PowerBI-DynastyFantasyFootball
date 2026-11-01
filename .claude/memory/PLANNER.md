@@ -35,6 +35,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **#300 scoped** (five briefs). My read is issuecomment-6559686610: D1 reworded, no birth-date
    condition; D1 to D7 and Brief 1's dispatch sent to the manager as queue entries. **#301 changed**
    (issuecomment-6559686376): live row wins on a shared `pfr_id`; re-proof expects 25 rows on `DROPPED`.
+   **#300 answers (pane 09:17):** all eight (a), sent to the manager to record. Brief 1, now only the
+   bot's name search, goes once #301 merges. I sent one more entry, Briefs 2 to 5 in order with Brief 2
+   after #108 Brief 3; its answer comes to me. Brief 4's allow rule gets its own entry when next.
+   Reader search for #301 is done: no Power BI measure or relationship reads the column; `02c` not read.
    **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
    read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
    `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
