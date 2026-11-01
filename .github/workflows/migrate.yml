@@ -71,7 +71,7 @@ jobs:
       - name: Push with the Supabase CLI to a second throwaway database
         run: |
           createdb cli_check
-          supabase db push --yes --db-url "postgresql://postgres:throwaway-ci-password@localhost:5432/cli_check"
+          supabase db push --yes --db-url "postgresql://postgres:throwaway-ci-password@localhost:5432/cli_check?sslmode=disable"
           expected=$(ls supabase/migrations/*.sql | wc -l)
           applied=$(psql -At -d cli_check -c "SELECT count(*) FROM supabase_migrations.schema_migrations")
           echo "migration files: $expected, applied by the CLI: $applied"
