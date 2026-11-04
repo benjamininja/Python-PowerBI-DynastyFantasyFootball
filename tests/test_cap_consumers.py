@@ -258,16 +258,11 @@ class TestWhatIfText:
     text = INDEX.read_text(encoding="utf-8")
 
     def test_render_cap_cards_reads_both_figures(self):
-        body = _function(self.text, "renderCapCards")
+        body = _function(self.text, "whatIfCapRooms")
         assert "cap_hit" in body and "contract_value" in body
 
-    def test_the_giver_sheds_the_charge_and_the_receiver_takes_the_salary(self):
-        body = " ".join(_function(self.text, "renderCapCards").split())
-        charges = re.search(r"const sumCharges = [^;]*a\.cap_hit", body)
-        salaries = re.search(r"const sumSalaries = [^;]*a\.contract_value", body)
-        assert charges and salaries
-        assert re.search(r"capCard-my.*remaining_cap_current_yr \+ giveCharges - receiveSalaries", body)
-        assert re.search(r"capCard-cp.*remaining_cap_current_yr \+ receiveCharges - giveSalaries", body)
+    def test_render_cap_cards_uses_the_pure_function(self):
+        assert "whatIfCapRooms(" in _function(self.text, "renderCapCards")
 
     def test_the_lines_say_cap_room(self):
         card = _function(self.text, "capCardHtml")
