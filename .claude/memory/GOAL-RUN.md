@@ -44,13 +44,15 @@ line under that skill's "Never".
 A finding that needs a design choice parks the ticket with its PR left open.
 
 **After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
-- runs the connector's `get_advisors` for `security` and for `performance`;
-- reads the live roles, grants, policies and RLS flags with `SELECT` only (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
+- runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
+- reads the live roles, grants, policies and RLS flags with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
   - every table in `football`, `ops` and `shared` has RLS on;
   - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, and has EXECUTE on `shared.pii_token_hashes()`;
   - the read-only login has SELECT on `football` and `ops` only;
   - `anon` and `authenticated` have no grants and no policies;
 - posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
+
+A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
 
 A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
 
@@ -75,12 +77,12 @@ A push job that fails, a new advisor finding beyond the accepted INFO on `shared
   login run (Always parks);
 - a `data/raw/` payload in the conversation; owner PII or team names in a
   committed file or a public post;
-- the Supabase connector for anything but looking: no `apply_migration`,
-  no writing SQL through `execute_sql`, no create, delete, pause,
-  restore, branch, deploy or cost tool (rule and allowed list in
+- any Supabase MCP server but `supabase-dynasty`, and any write
+  attempted through it: no writing SQL through `execute_sql`, even though
+  the server refuses it (rule and tool list in
   `project-fantasy-football.md`, Supabase access).
-- a connection to the live database by any client or script except the
-  read-only connector; reading `.env` or any other file that holds a
+- a connection to the live database by any client or script except
+  `supabase-dynasty`; reading `.env` or any other file that holds a
   secret. A test of a login is the owner's own hand. A throwaway Postgres
   in CI (`tests/test_migrations_apply.py`) is not the live database.
 

@@ -68,7 +68,7 @@ Planned for #116: a `DISCORD_WEBHOOK_TARGET` setting (`dev`, `admin`,
 `main`) that picks the destination, in `.env` and as a repository variable.
 Until then `run_pipeline.py` reads the plain name only.
 
-## Supabase access (as of 2026-10-11)
+## Supabase access (as of 2026-11-03)
 
 Project `DynastyFantasyFootball`, ref `vulbdywraotfodcmlawy`, AWS
 `us-east-1`, Postgres 17.11, Free plan, status healthy, `public` schema
@@ -78,25 +78,25 @@ empty. Two ways in:
    pooler, default `postgres` role until #108 creates the least-privilege
    writer. This is the only path pipeline code uses, and only through the
    `etl_helpers` storage seam (ADR-0014).
-2. **The Supabase connector in Claude** (connected by the owner 2026-10-11;
-   tools named `mcp__<id>__list_projects`, `list_tables`, `get_advisors`,
-   `execute_sql`, `apply_migration` and others). It acts with the owner's
-   account, so it can change or pause the project.
+2. **`supabase-dynasty`**, a user-level MCP server added by the owner on
+   2026-11-03. It is scoped to project `vulbdywraotfodcmlawy` with
+   `read_only=true`, and the server enforces it: any write fails with
+   SQLSTATE 25006. It has 10 tools: `execute_sql`,
+   `generate_typescript_types`, `get_advisors`, `get_project_url`,
+   `get_publishable_keys`, `list_extensions`, `list_migrations`,
+   `list_tables`, `query_logs`, `search_docs`. The account-wide claude.ai
+   connector is removed, and the plugin's server is signed out.
 
-**Rule for agents:** the connector is for looking, not changing. Allowed:
-`list_projects`, `get_project`, `list_tables`, `list_migrations`,
-`list_extensions`, `get_advisors`, `query_logs`, `search_docs`, and
-`execute_sql` with a `SELECT` only. Not allowed without the owner's word in
-chat: `apply_migration`, any writing SQL, and every create, delete, pause,
-restore, branch, deploy or cost tool. Schema changes go through the
-registry-generated migrations (ADR-0018); data goes through the seam. Run
-`get_advisors` (security) after each migration lands, to catch a table
-exposed without row-level security.
+**Rule for agents:** `supabase-dynasty` is the one look-only path. Use
+`execute_sql` with a `SELECT` only. Schema changes go through the
+registry-generated migrations (ADR-0018), and data goes through the seam.
+After each migration lands, run `get_advisors` (security and performance),
+as in GOAL-RUN's "After a schema change lands".
 
 **Skills:** the `supabase/agent-skills` repository has
 `supabase-postgres-best-practices` (load before #108 and #135) and
 `supabase`. As of 2026-10-11 neither shows as an installed skill or CLI
-plugin in a session; only the connector is confirmed.
+plugin in a session; the look-only path is `supabase-dynasty`.
 
 ## Overview
 
