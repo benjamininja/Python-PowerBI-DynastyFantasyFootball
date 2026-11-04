@@ -57,6 +57,21 @@ def test_exempt_player_received_sheds_nothing_for_them_but_charges_me_full_salar
     assert r == {"my": 88, "cp": 50}
 
 
+def test_partial_charge_player_sheds_charge_and_costs_full_salary():
+    r = what_if(100, 50, [player(5, 12)], [player(5, 12)])
+    assert r == {"my": 93, "cp": 43}
+
+
+def test_null_cap_hit_counts_zero():
+    r = what_if(100, 50, [player(None, 12)], [player(None, 7)])
+    assert r == {"my": 93, "cp": 38}
+
+
+def test_null_contract_value_counts_zero():
+    r = what_if(100, 50, [player(5, None)], [player(6, None)])
+    assert r == {"my": 105, "cp": 56}
+
+
 def test_pick_counts_zero_both_ways():
     assert what_if(100, 50, [PICK], [PICK]) == {"my": 100, "cp": 50}
 

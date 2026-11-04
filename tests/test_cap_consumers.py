@@ -261,8 +261,19 @@ class TestWhatIfText:
         body = _function(self.text, "whatIfCapRooms")
         assert "cap_hit" in body and "contract_value" in body
 
-    def test_render_cap_cards_uses_the_pure_function(self):
-        assert "whatIfCapRooms(" in _function(self.text, "renderCapCards")
+    def test_render_cap_cards_wires_the_pure_function_in_order(self):
+        body = " ".join(_function(self.text, "renderCapCards").split())
+        assert re.search(
+            r"whatIfCapRooms\( myTeam \? myTeam\.remaining_cap_current_yr : 0, "
+            r"cpTeam \? cpTeam\.remaining_cap_current_yr : 0, "
+            r"state\.give, state\.receive\)", body)
+
+    def test_each_card_renders_its_own_result(self):
+        body = " ".join(_function(self.text, "renderCapCards").split())
+        assert re.search(
+            r"capCard-my.*capCardHtml\(myTeam, myTeam\.remaining_cap_current_yr, after\.my\)", body)
+        assert re.search(
+            r"capCard-cp.*capCardHtml\(cpTeam, cpTeam\.remaining_cap_current_yr, after\.cp\)", body)
 
     def test_the_lines_say_cap_room(self):
         card = _function(self.text, "capCardHtml")
