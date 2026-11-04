@@ -27,6 +27,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    on #218 issuecomment-6618835679 (manager's PR), Haiku tier ticket skills#68 (low). Manager told.
    A `Supabase-consultant` session offered help; told it ADR-0014/0018 and migrate.yml settle schema and access, work
    reaches it only by ticket on the owner's word; no task given.
+   **Later:** #313 merged `91a0ad3`. Brief 4 is `b300d-build` (session `a2bc1cc7`, medium, `feat/300-rekey-history`).
+   When it merges, re-run its evidence: id columns only, row counts unchanged, 0 orphans. Queued: merging #314 (mine)
+   and the manager's `GOAL-RUN.md` PR from the #218 text. skills#68 waits for the owner's dispatch word.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
