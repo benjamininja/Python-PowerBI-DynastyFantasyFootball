@@ -31,6 +31,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    (3) #316 (#300 Brief 4) is held until the ordinary pipeline run. Then follow the order on #300 (issuecomment-6619150797): rebase, re-run the script,
        re-prove with the roster-to-rankings measure, then Brief 5 (low, Closes #300).
    (4) The batch PR for `docs/state-2026-11-01b`: merge it on the owner's approval.
+   **Added after the clear prep (~21:00):** skills#68 merged via skills#72 (`0d8ee1e`). My skills PR #73 adds `builder-state/` to .gitignore, a miss in #71;
+   the worktree is `skbs` in the NEW scratchpad `C:/Users/benha/AppData/Local/Temp/claude/91da30c6664f42e7/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/skbs`
+   (no junction). Remove it and delete its branch once #73 merges. The haiku GOAL-RUN text is on #218 issuecomment-6621169662, queued with the manager, (a) recommended.
+   Dispatch runs the plugin from a separate clone, `C:/Users/benha/claude-live/skills-plugins-hooks-agents` (at `d09dcbd`). Plugin changes go live only when
+   the owner updates that clone; the manager raised it with them.
    **Small carry-overs:** at the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding". Two stale ref locks from
    2026-10-12 sit in the dynasty `.git` (`worktree-b92-runner-spike`, `feat/225-runner-spike-workflow`); they are not approved for removal.
    Migration A–D progress: 20 of 27 work tickets closed; the heavy ones are left (#135, #136–#138, #93, #116).
