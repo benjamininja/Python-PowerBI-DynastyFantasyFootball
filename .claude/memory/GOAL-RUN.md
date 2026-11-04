@@ -43,6 +43,17 @@ line under that skill's "Never".
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
+**After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
+- runs the connector's `get_advisors` for `security` and for `performance`;
+- reads the live roles, grants, policies and RLS flags with `SELECT` only (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
+  - every table in `football`, `ops` and `shared` has RLS on;
+  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, and has EXECUTE on `shared.pii_token_hashes()`;
+  - the read-only login has SELECT on `football` and `ops` only;
+  - `anon` and `authenticated` have no grants and no policies;
+- posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
+
+A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+
 **Always parks, past the skill's list:**
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
 - a verify step that fails on real data (restore the tables from HEAD first);
@@ -136,8 +147,8 @@ Notes per stage:
   #109. The four middle items are tickets #135 to #138. Before #108,
   load the `supabase-postgres-best-practices` skill if it is installed
   and decide how tables stay off Supabase's Data API (row-level security
-  on, or a schema that is not exposed); run the connector's security
-  advisors after each migration.
+  on, or a schema that is not exposed); after each migration, run the
+  check under 'After a schema change lands'.
   `migrate.yml` is live from the day #108 merges (owner's ruling
   2026-10-12): it is the only way the schema reaches the real project
   without an agent writing to it. #108's PR names the secret it reads
