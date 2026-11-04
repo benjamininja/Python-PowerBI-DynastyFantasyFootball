@@ -39,6 +39,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `GOAL-RUN.md` PR from the #218 text, and skills#68's dispatch. (3) Open the batch PR for `docs/state-2026-11-01b`
    when the day's saves are done; merge it on the owner's approval, before any worktree cleanup. (4) Unverified:
    `SUPABASE_DB_URL` in `etl`; nobody may list secrets, so only the owner can check.
+   **After the compact (2026-11-03):** the manager's `GOAL-RUN.md` PR merged as #315 (`e8f8fa6`), so NEXT (2) is
+   only skills#68's dispatch. Brief 4 is open as PR #316 (`feat/300-rekey-history`); `b300d-build` still busy.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
