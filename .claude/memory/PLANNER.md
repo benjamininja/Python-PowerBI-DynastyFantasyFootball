@@ -51,7 +51,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    the consultant kept for the owner. The agent file would be my PR on a ticket, on the owner's word. A project-scoped read-only MCP is fine, set up by the owner's hand.
    **Fantrax rule amended (owner, planner chat 2026-11-03, pane "Per run, runner exempt"):** an agent's Fantrax login, a live 04a/t/v/w/s run,
    or a login-step run_pipeline moves from Never to Always parks, on the owner's word per run. The scheduled runner after checkpoint 1 is exempt.
-   Text is on #218 issuecomment-6619365378, for the manager's GOAL-RUN.md PR. Until that merges, the standing rule from the owner's resume message still applies.
+   Text is on #218 issuecomment-6619365378, for the manager's GOAL-RUN.md PR. **#317 merged** (`90c71ff`) on the owner's pane (a), 18:52, so the rule is in force on main.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
