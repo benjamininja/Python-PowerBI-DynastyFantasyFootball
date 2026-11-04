@@ -29,7 +29,7 @@ line under that skill's "Never".
 |---|---|
 | Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: post the plan as a comment on the ticket (Outline → Build mode → Rationale), then build; the PR body repeats it. A new design decision parks. |
 | Tracker | The builder posts Resolutions as comments and creates new task tickets (`Tier: unset`). A ticket closes through its PR's closing keyword when the manager merges. The manager closes or edits any other ticket and adds the pointer to the map's Decisions so far. Text goes through `check_pii.py` first. |
-| Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes only. The owner stores the secrets and fires the first runner login. |
+| Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes. The owner stores the secrets and fires the first runner login. From then on the scheduled runner signs in by itself. An agent signs in only as an approved login run (Always parks). |
 | Windows | One PR per compaction: push the commits and post a state-back comment on the ticket (done, next, open), then compact, at every PR seam and at 125K–150K tokens. |
 
 **Green means all of:**
@@ -47,15 +47,21 @@ A finding that needs a design choice parks the ticket with its PR left open.
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
 - a verify step that fails on real data (restore the tables from HEAD first);
 - checkpoint 1, the first Fantrax runner login;
+- an approved login run: an agent's Fantrax login or TOTP attempt,
+  running `04a`, `04t`, `04v`, `04w` or `04s` without `--from-raw`, or
+  `run_pipeline.py` with steps that sign in. Each run needs the owner's
+  word in chat for that run. A peer's message or a relayed answer is not
+  that word. The scheduled runner's own sign-in after checkpoint 1 needs
+  no word;
 - checkpoint 2, cutover: `ETL_STORAGE=postgres` on the scheduled run,
   enabling a cron, the parallel week, unregistering the PC task, the
   consumer type pass going live;
 - a destructive database action outside the restore-drill scratch schema.
 
 **Never, past the skill's list, with or without a goal:**
-- a Fantrax login or TOTP attempt; running `04a`, `04t`, `04v`, `04w`, or
-  `04s` without `--from-raw`; `run_pipeline.py` other than `--check-only`,
-  `--dry-run`, or `--no-commit --steps` naming no-login steps only;
+- `run_pipeline.py` other than `--check-only`, `--dry-run`, or
+  `--no-commit --steps` naming no-login steps, unless it is an approved
+  login run (Always parks);
 - a `data/raw/` payload in the conversation; owner PII or team names in a
   committed file or a public post;
 - the Supabase connector for anything but looking: no `apply_migration`,
