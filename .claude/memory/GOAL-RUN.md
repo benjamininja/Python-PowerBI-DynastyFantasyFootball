@@ -85,9 +85,11 @@ changed or not, because the judge reads only the transcript.
 | D. Schedule | high | Linux entrypoint → #93 → #116 (#92 closed 2026-10-30) | the TOTP secret stored; B and C merged |
 
 A ticket's own `Tier:` line says what it needs if dispatched alone. In
-a stage run the stage's tier applies, and it is never lower than the
-highest ticket in the stage. A ticket a builder creates says `Tier:
+a stage run the stage's tier applies to its scoping session; each build
+brief then runs at its own tier. A ticket a builder creates says `Tier:
 unset` and is not dispatched alone until the planner has set it.
+
+**A high ticket or stage is scoped before it is built (owner, 2026-11-03).** The first dispatch is a scoping session: `dispatch.ps1` at high, `-TurnCap 40`, agent `stage-builder`. It writes no code, opens no PR, and leaves one comment on the ticket: one brief per PR, in order, each with a low or medium tier, files, settled design, done condition and proof, then open design questions. It questions the planner, never the owner. A brief that adds a constraint carries the count of published rows that break it. The planner checks the briefs, takes the open questions to the owner and sets each brief's tier. Then each brief dispatches at its own tier, and the stage's high tier does not lift it. The manager sends back a low brief with no files or proof, and any build brief at high. Once the skills repo's haiku tier lands (benjamininja/skills-plugins-hooks-agents#68), a brief may be haiku. Haiku never takes cap, ledger, pipeline or schema work.
 
 #97 goes before the #110 rename: #97 rewrites `02e` and declares the
 `fact_fantasy_teams` grain `(team_key, scorer_id)`. Both moved to stage C
