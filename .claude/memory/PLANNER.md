@@ -43,6 +43,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    only skills#68's dispatch. Brief 4 is open as PR #316 (`feat/300-rekey-history`); `b300d-build` still busy.
    **#316 held (2026-11-03):** the audit found that the ledger tables stay on the old id, so 173 rostered rows lose rankings.
    Ruling issuecomment-6619090050: (c) is out; recommended (b) narrowed, adding the 4 ledger tables to the script. That went to the manager as a queue entry, waiting on the owner.
+   **Owner answered (a), pane 2026-11-03 18:30:01: hold #316 until the ordinary run, with no date.** The order is on #300: the run lands,
+   then #316 is brought up to date and the script re-runs, then the manager re-proves with the roster-to-rankings measure, then Brief 5. NEXT (1) waits on that run.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
