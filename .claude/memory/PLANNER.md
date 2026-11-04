@@ -41,6 +41,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `SUPABASE_DB_URL` in `etl`; nobody may list secrets, so only the owner can check.
    **After the compact (2026-11-03):** the manager's `GOAL-RUN.md` PR merged as #315 (`e8f8fa6`), so NEXT (2) is
    only skills#68's dispatch. Brief 4 is open as PR #316 (`feat/300-rekey-history`); `b300d-build` still busy.
+   **#316 held (2026-11-03):** the audit found that the ledger tables stay on the old id, so 173 rostered rows lose rankings.
+   Ruling issuecomment-6619090050: (c) is out; recommended (b) narrowed, adding the 4 ledger tables to the script. That went to the manager as a queue entry, waiting on the owner.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
