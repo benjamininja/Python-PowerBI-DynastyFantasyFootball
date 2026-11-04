@@ -132,6 +132,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    (3) This branch's batch PR is open; its merge is a queue Decision (recommended (a)). Merge it on the owner's answer, then branch a new state branch for later saves.
    (4) At the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding".
 
+   **2026-11-04 17:05, same session: #328 merged `96170e2`** on the owner's pane (a) at 17:02:26, recorded on the PR. The state branch is now `docs/state-2026-11-04`,
+   cut from main and checked out in `ps1103`; push with `HEAD:docs/state-2026-11-04`. The manager pushes there too. `docs/state-2026-11-01b` is deleted, local and remote.
+   Open item (3) above is done; (1), (2) and (4) stand.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
