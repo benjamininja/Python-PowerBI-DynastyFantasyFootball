@@ -82,6 +82,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    rotate etl_writer (recommended (b), not needed per the facts). **NEXT for a resumed planner:** (1) #316 waits on the ordinary run, then the order on #300
    (issuecomment-6619150797); (2) skills#68's dispatch waits on the owner's word; (3) at the next edit of `supabase-auditor.md`, fold in "needs: on validate is no finding";
    (4) open the batch PR for `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. Only `ps1101` remains in this scratchpad (junction first).
+   **Owner answers, 2026-11-03 19:24 (relayed by the manager, recorded on the tickets):** #324 merged as `a4bd47c` (GOAL-RUN Never line on the live database). Rotation of etl_writer: (b), no rotation, since the value never appeared (#135). #323 dispatched at low as b323-build; the manager merges it. Open in my lane: #316 waits on the ordinary run; skills#68 waits on the owner; batch PR for this branch at end of day.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
