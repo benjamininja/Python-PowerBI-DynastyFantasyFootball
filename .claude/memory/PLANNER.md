@@ -140,6 +140,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    The #135 scoping brief must settle the test DB and its installs, and how the real-project backfill runs under the Never line (no live agent connection). Each option is a queue Decision.
    Not free: #136/#137/#138 wait on #135; #111 runs after cutover; #116/#93 are blocked. Sent to the manager to dispatch. When the scoping plan posts on #135, I review it.
 
+   **2026-11-04 later: #135 scoped** (s135-scope, issuecomment-6645074641). My ruling is the next comment: B1 medium, B2 medium, B3 medium (raised), B4 low. Q1 sort by pk; Q3 no sources.yml change;
+   Q2 deferred to #136 (needs a ruling before its brief), Q4 noted on #138. Owner (planner chat): dispatch B1 (with the tests.yml storage-pg job) and B4 now, in parallel. Sent to the manager.
+   D1 (how the backfill runs; (a) a dispatch workflow is recommended) is the manager's queue entry. Next: after B1 merges, B2 and #137 in parallel. Q2's ruling is mine to grill before #136.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
