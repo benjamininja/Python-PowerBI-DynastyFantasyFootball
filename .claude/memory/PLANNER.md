@@ -136,6 +136,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    cut from main and checked out in `ps1103`; push with `HEAD:docs/state-2026-11-04`. The manager pushes there too. `docs/state-2026-11-01b` is deleted, local and remote.
    Open item (3) above is done; (1), (2) and (4) stand.
 
+   **2026-11-04 ~17:20: parallel dispatch.** The owner (planner chat) chose "Both now": #279 part 1 (low) and #135 scoping (high, TurnCap 40), in parallel. Recorded, with briefs, on both tickets.
+   The #135 scoping brief must settle the test DB and its installs, and how the real-project backfill runs under the Never line (no live agent connection). Each option is a queue Decision.
+   Not free: #136/#137/#138 wait on #135; #111 runs after cutover; #116/#93 are blocked. Sent to the manager to dispatch. When the scoping plan posts on #135, I review it.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
