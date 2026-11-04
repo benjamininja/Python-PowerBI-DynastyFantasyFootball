@@ -71,6 +71,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Owner, planner chat: "i did point the local env at etl_writer".** Relayed to the manager to check and close the Action.
    **Supabase-auditor:** ticket #321, PR #322 (worktree `pau` in this scratchpad, venv junction, branch `docs/supabase-auditor`). Its merge is a queue Decision; the manager merges on (a)
    and then does a dry run on #312. Remove `pau` (junction first) only on the owner's word. NEXT (4) is now waiting on that merge.
+   **#322 merged** (`a9e3b3d`) on the owner's (a), 19:18; the trial run on #321 found no blocking finding. Triage is issuecomment-6619925989: (1) proven main-only,
+   (2) not a finding (fold into the auditor file at its next edit), (4) dropped, (3) ticket #323 low, dispatch queued. The Never line (no live DB connection outside
+   the connector, no reading .env) is on #218 issuecomment-6619930971 for the manager's PR. The rotation of etl_writer's password is queued, recommended (b): only if the
+   manager's check showed the value. Worktree `pau` stays until the owner's word.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
