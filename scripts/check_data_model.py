@@ -217,9 +217,9 @@ def validate(data: dict) -> int:
     for t in tables:
         name = t.get("name")
         try:
-            stored = etl_helpers.read_stored(name)   # uncast: this is the drift check
+            stored = etl_helpers.read_stored(name, etl_helpers.DATA)   # snapshot, uncast: the drift check
         except FileNotFoundError:
-            errors.append(f"[{name}] no data/{name}.parquet found on disk")
+            errors.append(f"[{name}] no data/{name}.parquet found in the published snapshot")
             continue
         real_cols = {c: str(d) for c, d in stored.dtypes.items()}
         errors += etl_checks.schema_errors(t, real_cols)
@@ -241,7 +241,7 @@ def validate(data: dict) -> int:
     if errors:
         print(f"\n{len(errors)} failure(s) — {n_tables} tables checked.")
         return 1
-    print(f"OK — {n_tables} tables validated against real parquet schemas.")
+    print(f"OK — {n_tables} tables validated against the published snapshot schemas.")
     return 0
 
 
