@@ -123,6 +123,15 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 
    **supabase-dynasty verified:** the owner's CREATE test returned SQLSTATE 25006, so the server enforces read-only. Rule text is on #218 (issuecomment-6620522099), covering GOAL-RUN after-schema check, the Never lines and project-fantasy-football.md Supabase access. It is queued with the manager, (a) recommended. The manager's current session lacks the tools, so the check parks until a fresh session.
 
+   **Resume, 2026-11-04, planner session `73d38bcc-afbf-4461-af56-c14790bb2362`. Queue entries it raises answer here; overrides above where they differ.**
+   Same worktree `ps1103`. Merged since the clear: #326 `96c6f5e`, #327 `c4f8dae` (GOAL-RUN haiku sentence), skills#73 `1a602cf`. The live skills clone is at `1a602cf`.
+   Done: worktree `skbs` removed and local `docs/ignore-builder-state` deleted (PR merged). The sandbox would not delete the stub dirs under the skills repo's `.git/worktrees/`
+   (skbs and 9 older ones with no gitdir). They are harmless and left alone; no hand item.
+   ListAgents shows only the manager; the Supabase-consultant sessions are not running.
+   **Open:** (1) skills#70 is in flight as `s70-guard`; the manager re-proves and merges it. (2) #316 waits on the ordinary run (no data commit on main since #311); order on #300.
+   (3) This branch's batch PR is open; its merge is a queue Decision (recommended (a)). Merge it on the owner's answer, then branch a new state branch for later saves.
+   (4) At the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding".
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
