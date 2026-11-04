@@ -21,7 +21,27 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **Update, 2026-11-03 ~19:50, session `010006f2`, before a compact: overrides everything below where they differ.** **#325 (Closes #323) merged `cc3fad1`** under the standing approval: re-proof and `supabase-auditor` posted on #325, no blocking finding. The push run 41755092495 on main was SUCCESS. Builder `b323-build` (`293ef052`) is stopped and removed. **Cleanup (owner: "you perform the cleanup"):**
+- **Update, 2026-11-03 ~20:35, session `010006f2`, before a clear: overrides everything below where they differ.** Main is at `96c6f5e`.
+  - **#326 merged `96c6f5e`** on the owner's word ("merge 326"; pane (a) 20:07 recorded on #218). It applies the planner's #218 text: `supabase-dynasty` is the one look-only path into Supabase. That is a user-level MCP server, project-scoped, `read_only=true`, with 10 tools. GOAL-RUN "After a schema change lands" uses its `get_advisors` and `execute_sql` (SELECT only). A session without its tools parks that check. A fresh session has the tools.
+  - Remote `docs/218-supabase-dynasty` is left for the owner; the command was given. The local branch is left until skills#70 lands.
+  - The temp worktree `g218` is unregistered, but its folder is locked on disk.
+  - **The skills repo is now dispatchable:**
+    - skills#71 (planner's `stage-builder` role and `PROJECT-RULES.md`) merged `eff997e` on the owner's "merge 71". The skills main checkout is fast-forwarded to it; the owner's uncommitted `PLAN.md` change is kept.
+    - The owner pasted that repo's `.claude/dispatch.json` and `.claude/builders.settings.json`, and added it to `C:\Users\benha\.claude\dispatch-projects.json`.
+    - Dispatch with `-Project C:\Users\benha\OneDrive\Documents\GitHub\skills-plugins-hooks-agents`.
+    - Its Green is in that repo's `.claude/memory/PROJECT-RULES.md`: 3 CI checks, `pytest -q tests`, then `build_catalog.py` with `git diff --exit-code -- CATALOG.md`. A local suite run takes about 6.5 min; make a temp worktree with `-c core.longpaths=true`, because the scratchpad path is too long otherwise.
+    - The skills repo has no queue of its own. Its builders park by messaging me, and entries go in the dynasty `NEEDS-OWNER.md`.
+  - **In flight, both dispatched 2026-11-03 on the owner's pane (a) at 19:37 and recorded on their tickets:**
+    - **`s70-guard`**, skills#70, medium, session `9f53c865-4d76-4013-958e-4c4219c47e52`. The guardrail allows a force branch delete only when GitHub shows a merged PR whose head equals the local tip. At re-proof, run the hook tests myself, then feed the hook a `-D` of a real merged branch: it must pass. Feed it `--delete --force` of an unmerged branch: it must block. Never actually delete to test. Merge under the standing approval.
+    - **`s68-haiku`**, skills#68, low, session `c403bb3a-7936-48aa-bece-e9c8e891e2b4`. A haiku tier in `dispatch.ps1` and session-rules, plus a plugin version bump. Merge under the standing approval.
+    - After either merges, the live plugin and hook copies under `C:\Users\benha\claude-live\…` and `~/.claude/hooks` may need updating. Check how they link before telling the owner.
+    - After #68 merges, the dynasty project's own haiku limit (never cap, ledger, pipeline or schema work) goes in `GOAL-RUN.md` by a PR on the owner's word.
+  - **Still held:** #316 until the ordinary run (order in the ~19:00 bullet).
+  - The 89-branch local `-D` command is still the owner's, unconfirmed. Once skills#70 is live, agents may delete merged-PR branches themselves.
+  - Queue: Actions only (Dead Money #211, cutover #93).
+  - Briefs `s70-prompt.txt` and `s68-prompt.txt` are in the old scratchpad `…\C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\010006f2…\scratchpad`.
+  - The guardrail hook also blocks any Bash command whose text contains `branch -D`, even inside a heredoc. Write such text with the Write tool.
+- **Update, 2026-11-03 ~19:50, session `010006f2`, before a compact: overridden above where they differ.** **#325 (Closes #323) merged `cc3fad1`** under the standing approval: re-proof and `supabase-auditor` posted on #325, no blocking finding. The push run 41755092495 on main was SUCCESS. Builder `b323-build` (`293ef052`) is stopped and removed. **Cleanup (owner: "you perform the cleanup"):**
   - Removed worktrees ps8, g234, ms, ps1101 x2, st and b300-scope from git; stopped `b300-scope` (`fde3dc66`). Some of their folders remain on disk (Windows: in use).
   - Kept, with unsaved or unpushed work: b234, m292, b108r3-build, metadata-principles. Kept remote `docs/planner-state-6` (commit after merge).
   - The owner deleted the 15 merged remote branches themselves; my run was refused by the permission check as destructive.
