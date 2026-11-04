@@ -52,6 +52,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Fantrax rule amended (owner, planner chat 2026-11-03, pane "Per run, runner exempt"):** an agent's Fantrax login, a live 04a/t/v/w/s run,
    or a login-step run_pipeline moves from Never to Always parks, on the owner's word per run. The scheduled runner after checkpoint 1 is exempt.
    Text is on #218 issuecomment-6619365378, for the manager's GOAL-RUN.md PR. **#317 merged** (`90c71ff`) on the owner's pane (a), 18:52, so the rule is in force on main.
+   **Supabase persona critique sent to the consultant (2026-11-03).** The main hole: Bash plus psycopg plus the .env etl_writer URL gets around the read_only MCP.
+   Recommended: the auditor stays repo-only; the live advisor and grant checks become a manager closeout step (GOAL-RUN text via #218, on the owner's word). Piece 2 is my PR on a ticket once the owner re-confirms.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
