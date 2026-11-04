@@ -533,6 +533,8 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
     Returns a crosswalk DataFrame keyed (source, source_player_id):
         source, source_player_id, source_player_name, source_position, source_team,
         gsis_id, player_key, match_method, match_score, resolved_date.
+    gsis_id is the newest id of its chain (`current_gsis`), after overrides and
+    name matching alike.
 
     Matching mirrors the Fantrax crosswalk (04z): exact cleaned-name vs
     dim_nfl_players.display_name -> disambiguate by position / ACT / recency ->
@@ -601,7 +603,10 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
             "gsis_id": gsis, "player_key": pkey,
             "match_method": method, "match_score": score, "resolved_date": today,
         })
-    return pd.DataFrame.from_records(recs)
+    out = pd.DataFrame.from_records(recs)
+    if len(out):
+        out["gsis_id"] = current_gsis(out["gsis_id"])
+    return out
 
 
 # ---- Dynasty metrics: shared vocabulary (single source of truth) -------------
