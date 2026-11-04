@@ -59,6 +59,13 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Queued: "briefs name every install" (recommended (a)). On (a), a planner PR to central-planner.md plus #218 text for GOAL-RUN.
    **#318 merged** (`75cecc0`). **Owner (a), pane 19:08: briefs name every install, for builders too.** My PR #319 (worktree `pbi` in this scratchpad, venv
    junction, branch `docs/planner-brief-installs`) is open; its merge is a queue Decision. The GOAL-RUN text is on #218, issuecomment-6619745201, for the manager's PR.
+   **Before a compact, 2026-11-03 evening.** #320 (the manager's GOAL-RUN install text) is open, and its diff was checked. One queue Decision covers
+   #319 and #320; the manager merges both on the owner's (a). **Owner's word in the planner's chat: "once merged, remove the pbi worktree".** So when
+   the manager reports #319 merged: remove the `pbi` junction first, then `git worktree remove` for `pbi`. Local branch `docs/planner-brief-installs` stays,
+   because the guardrail blocks a force delete; it becomes an owner hand item next to `docs/planner-scoping-flow`. **NEXT for a resumed planner:** (1) that
+   removal; (2) #316 waits on the ordinary run, then the order on #300 (issuecomment-6619150797); (3) skills#68's dispatch waits on the owner's word;
+   (4) the Supabase-auditor role file is my PR on a ticket once the owner re-confirms the consultant's plan; (5) open the batch PR for
+   `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. The owner's hand item: point the local `.env` at etl_writer.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
