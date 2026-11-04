@@ -68,6 +68,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. The owner's hand item: point the local `.env` at etl_writer.
    **Done after that save:** #319 merged (`e47a787`) and #320 (`0b8fc73`) on the owner's pane (a), 19:12. Worktree `pbi` and its junction are removed
    and the remote branch is deleted. NEXT (1) is done; the owner's hand item is the local branches `docs/planner-brief-installs` and `docs/planner-scoping-flow`.
+   **Owner, planner chat: "i did point the local env at etl_writer".** Relayed to the manager to check and close the Action.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
