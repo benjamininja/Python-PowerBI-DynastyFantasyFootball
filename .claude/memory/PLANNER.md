@@ -75,8 +75,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    (2) not a finding (fold into the auditor file at its next edit), (4) dropped, (3) ticket #323 low, dispatch queued. The Never line (no live DB connection outside
    the connector, no reading .env) is on #218 issuecomment-6619930971 for the manager's PR. The rotation of etl_writer's password is queued, recommended (b): only if the
    manager's check showed the value. Worktree `pau` stays until the owner's word.
-   **Before a compact, 2026-11-03 late.** On the owner's word, worktree `pau` and its junction are removed; its remote branch was deleted. Local branches for the owner
-   to delete by hand: `docs/planner-scoping-flow`, `docs/planner-brief-installs`, `docs/supabase-auditor`. #324 (the Never line) is open, and its diff was checked. The
+   **Before a compact, 2026-11-03 late.** On the owner's word, worktree `pau` and its junction are removed; its remote branch was deleted. Those three local branches are already
+   gone. **Owner, planner chat: "you could totally remove those branches".** From now on the planner deletes its own local branch once its PR shows MERGED,
+   with `git branch --delete --force`; the hook blocks only the short form. This is no hand item for the owner. #324 (the Never line) is open, and its diff was checked. The
    manager's facts: the etl_writer value never appeared in output, so (b) means no rotation. **Queued for the owner:** merge #324; dispatch #323 (low);
    rotate etl_writer (recommended (b), not needed per the facts). **NEXT for a resumed planner:** (1) #316 waits on the ordinary run, then the order on #300
    (issuecomment-6619150797); (2) skills#68's dispatch waits on the owner's word; (3) at the next edit of `supabase-auditor.md`, fold in "needs: on validate is no finding";
