@@ -45,6 +45,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Ruling issuecomment-6619090050: (c) is out; recommended (b) narrowed, adding the 4 ledger tables to the script. That went to the manager as a queue entry, waiting on the owner.
    **Owner answered (a), pane 2026-11-03 18:30:01: hold #316 until the ordinary run, with no date.** The order is on #300: the run lands,
    then #316 is brought up to date and the script re-runs, then the manager re-proves with the roster-to-rankings measure, then Brief 5. NEXT (1) waits on that run.
+   **#135 passwords Action done** by the owner's hand (consultant's evidence; manager's closeout issuecomment-6619301255). The etl
+   `SUPABASE_DB_URL` now uses etl_writer, so NEXT (4) is resolved. A queued Decision asks whether the local `.env` moves to etl_writer
+   (recommended (a)). The Supabase-consultant has my input on a persona: a read-only `supabase-auditor` subagent run at re-proof, plus
+   the consultant kept for the owner. The agent file would be my PR on a ticket, on the owner's word. A project-scoped read-only MCP is fine, set up by the owner's hand.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
