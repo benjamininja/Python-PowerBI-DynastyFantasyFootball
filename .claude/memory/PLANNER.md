@@ -144,6 +144,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Q2 deferred to #136 (needs a ruling before its brief), Q4 noted on #138. Owner (planner chat): dispatch B1 (with the tests.yml storage-pg job) and B4 now, in parallel. Sent to the manager.
    D1 (how the backfill runs; (a) a dispatch workflow is recommended) is the manager's queue entry. Next: after B1 merges, B2 and #137 in parallel. Q2's ruling is mine to grill before #136.
 
+   **D1 answered (a), dispatch workflow** (owner, planner chat, 2026-11-04; on #135). B3's `backfill.yml` is approved; the owner presses the button. B3 still waits for B2.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
