@@ -11,7 +11,21 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000. **Newest (2026-11-03, before a clear). Overrides 00 and 0 where they differ.**
+000. **Newest (2026-11-03). Overrides 00 and 0 where they differ.** Session
+   `4b9eacec-28e7-4933-9da7-ba57c05fbb14`; queue entries it raises answer here. Worktree `ps1101` is
+   now in *this* session's scratchpad, detached, with a `.venv` junction to the main checkout's venv for the PII hook (remove it first). The older
+   `ps1101` in `d1366ab6`'s scratchpad (detached `ab5ab6e`, with a junction) is still there; remove it
+   only on the owner's word, junction first. The branch `docs/state-2026-11-01b` is checked out in the
+   manager's `st` worktree, so push with `HEAD:<branch>`. No batch PR is open for it yet.
+   The manager is also a new session (`010006f2`). **#108 trial evaluated:** issuecomment-6618708590 has the token table. Opus use per PR fell; the only
+   rework came from the data (#299); no builder sent a design question back. Decision "Keep the scoping
+   flow for high tickets?" went to the manager as a queue entry, recommended (a). On (a): a
+   `central-planner.md` PR, rule text on #218 with the shrink, a Haiku-tier ticket, and the rule that a
+   scoping brief checks any new constraint against the current snapshot.
+   **#300:** Brief 3 is PR #313 and the manager re-proves it. Brief 4's script rule is in
+   `builders.settings.json`; when Brief 4 merges, the manager adds the planner's "Remove the one-time
+   script rule" Action. Brief 5 comes after.
+00a. **Earlier 2026-11-03, the old session's save before its clear.** Item 000 overrides it where they differ.
    Merged: #301 (#307), #306 (#308), #300 Briefs 1 and 2 (#309, #311), #108 Briefs 3 and 4 (#310,
    #312; **#108 closed**), state batch #304. Evidence re-runs done for #301 and #306; #108 rulings at
    issuecomment-6560651713. Supabase project `vulbdywraotfodcmlawy` restored by the owner, first push
@@ -22,7 +36,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    when it merges: id columns only, row counts unchanged, 0 orphans. #108 token comparison and
    judgement still to do. Older items below stand. State branch `docs/state-2026-11-01b`, no PR yet;
    open its PR, or a new day's branch, at the next state save. Worktree `ps1101` stays until the owner says.
-00. **Older (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
+00. **2026-11-01. Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
    #302 merged (`55d9d6b`) on the owner's word. #303 merged (`0bd80d5`), closing #299; re-proof is
    issuecomment-6558667160. **Next on #108:** Brief 2, whose restart waits on the owner's word for
    `claude stop d274edd9`; the manager holds that. **#300 and #301** are unblocked and need the
