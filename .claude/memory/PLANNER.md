@@ -11,7 +11,18 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00. **Newest (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
+000. **Newest (2026-11-03, before a clear). Overrides 00 and 0 where they differ.**
+   Merged: #301 (#307), #306 (#308), #300 Briefs 1 and 2 (#309, #311), #108 Briefs 3 and 4 (#310,
+   #312; **#108 closed**), state batch #304. Evidence re-runs done for #301 and #306; #108 rulings at
+   issuecomment-6560651713. Supabase project `vulbdywraotfodcmlawy` restored by the owner, first push
+   applied 36 tables; it was `INACTIVE` once, reason unread. **Open:** #313, #300 Brief 3
+   (`b300c-build`), the manager's. Brief 4 dispatches when it merges. The owner added its script rule.
+   Removing that rule after Brief 4 is a queued Action, as is #135's passwords Action. Then Brief 5,
+   which closes #300. **Mine:** rule on Brief 3 to 5 PRs when the manager asks. Re-run Brief 4's evidence
+   when it merges: id columns only, row counts unchanged, 0 orphans. #108 token comparison and
+   judgement still to do. Older items below stand. State branch `docs/state-2026-11-01b`, no PR yet;
+   open its PR, or a new day's branch, at the next state save. Worktree `ps1101` stays until the owner says.
+00. **Older (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
    #302 merged (`55d9d6b`) on the owner's word. #303 merged (`0bd80d5`), closing #299; re-proof is
    issuecomment-6558667160. **Next on #108:** Brief 2, whose restart waits on the owner's word for
    `claude stop d274edd9`; the manager holds that. **#300 and #301** are unblocked and need the
