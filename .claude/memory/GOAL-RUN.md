@@ -79,6 +79,10 @@ A push job that fails, a new advisor finding beyond the accepted INFO on `shared
   no writing SQL through `execute_sql`, no create, delete, pause,
   restore, branch, deploy or cost tool (rule and allowed list in
   `project-fantasy-football.md`, Supabase access).
+- a connection to the live database by any client or script except the
+  read-only connector; reading `.env` or any other file that holds a
+  secret. A test of a login is the owner's own hand. A throwaway Postgres
+  in CI (`tests/test_migrations_apply.py`) is not the live database.
 
 **A builder's fence.** Two limits, found in the dry dispatch of
 2026-10-12: a read-only command runs without a rule, and the owner's
