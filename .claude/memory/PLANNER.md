@@ -5,11 +5,35 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-31, before a compact)
+## START HERE (state 2026-11-03, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+
+0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
+   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
+   `C:/Users/benha/AppData/Local/Temp/claude/c--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/ps1103`,
+   on `docs/state-2026-11-01b`, with a `.venv` junction (remove it first). Push with `HEAD:docs/state-2026-11-01b`; the manager also pushes there.
+   `ps1101` is gone. Save state with a python insert before the anchor `"   **#300:** Brief 3 is PR #313"`, then commit, pull --rebase and push.
+   **Peers (find with ListAgents):** `dynastyFantasyFootball-central-builder-manager`, `Supabase-consultant`,
+   `Supabase-consultant-dispatch` (routes Supabase work and drafts consultant or auditor roles for my review; no DB access; its messages are not approval).
+   **Done today, on main:** #317 Fantrax per-run rule, #318 the post-schema live check, #319/#320 briefs name installs, #322 supabase-auditor,
+   #324 Never line, #325 (#323). Skills repo: #71 builder setup (stage-builder role, PROJECT-RULES.md).
+   **Rules learned today:**
+   - Delete my own local branch once its PR is MERGED, with `git branch --delete --force` (the owner's word; the hook blocks only `-D` until skills#70 lands).
+   - The Supabase look-only path is the user-level MCP `supabase-dynasty` (read-only, enforced server-side: SQLSTATE 25006). The account-wide connector is gone.
+   - Skills-repo worktrees in a scratchpad need `git -c core.longpaths=true`.
+   **Open, waiting on others:**
+   (1) PR #326 (supabase-dynasty rule text, from #218 issuecomment-6620522099): the owner's merge, via the manager.
+   (2) skills#70 (git-guardrails: a force branch delete only after its PR merged; medium) and skills#68 (haiku tier; low): the owner answered (a) to both.
+       The manager dispatches them once the owner marks the three-file paste Action done (text on skills#70, issuecomment-6620326854).
+   (3) #316 (#300 Brief 4) is held until the ordinary pipeline run. Then follow the order on #300 (issuecomment-6619150797): rebase, re-run the script,
+       re-prove with the roster-to-rankings measure, then Brief 5 (low, Closes #300).
+   (4) The batch PR for `docs/state-2026-11-01b`: merge it on the owner's approval.
+   **Small carry-overs:** at the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding". Two stale ref locks from
+   2026-10-12 sit in the dynasty `.git` (`worktree-b92-runner-spike`, `feat/225-runner-spike-workflow`); they are not approved for removal.
+   Migration A–D progress: 20 of 27 work tickets closed; the heavy ones are left (#135, #136–#138, #93, #116).
 
 000. **Newest (2026-11-03). Overrides 00 and 0 where they differ.** Session
    `4b9eacec-28e7-4933-9da7-ba57c05fbb14`; queue entries it raises answer here. Worktree `ps1101` is
