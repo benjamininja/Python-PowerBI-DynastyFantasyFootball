@@ -22,6 +22,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    flow for high tickets?" went to the manager as a queue entry, recommended (a). On (a): a
    `central-planner.md` PR, rule text on #218 with the shrink, a Haiku-tier ticket, and the rule that a
    scoping brief checks any new constraint against the current snapshot.
+   **Owner answered (a), pane 2026-11-03 18:06: keep the scoping flow.** Done: PR #314 (role file; its merge is a
+   queue Decision to this session, worktree `psf` in this scratchpad with a venv junction), `GOAL-RUN.md` rule text
+   on #218 issuecomment-6618835679 (manager's PR), Haiku tier ticket skills#68 (low). Manager told.
+   A `Supabase-consultant` session offered help; told it ADR-0014/0018 and migrate.yml settle schema and access, work
+   reaches it only by ticket on the owner's word; no task given.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
