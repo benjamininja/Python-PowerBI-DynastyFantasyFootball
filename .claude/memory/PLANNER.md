@@ -92,6 +92,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 
    **~20:30 2026-11-03:** skills#71 merged `eff997e` on the owner's "merge 71". I removed sk-setup and its branch. The manager dispatches skills#70 (medium) and #68 (low) when the owner marks the three-file paste Action done. Supabase: the owner replaced the account-wide connector with user-level MCP `supabase-dynasty` (read_only, 10 tools, no apply_migration/project/branch/edge tools). Its server-side write refusal is NOT yet verified; the owner is running a CREATE check. After the result, I draft #218 text for: GOAL-RUN 'After a schema change lands' (get_advisors via supabase-dynasty), the Never line ('read-only connector' becomes supabase-dynasty), and project-fantasy-football.md Supabase access (one look-only path). Sessions that were already running see the new server only after a restart.
 
+   **supabase-dynasty verified:** the owner's CREATE test returned SQLSTATE 25006, so the server enforces read-only. Rule text is on #218 (issuecomment-6620522099), covering GOAL-RUN after-schema check, the Never lines and project-fantasy-football.md Supabase access. It is queued with the manager, (a) recommended. The manager's current session lacks the tools, so the check parks until a fresh session.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
