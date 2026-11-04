@@ -66,6 +66,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    removal; (2) #316 waits on the ordinary run, then the order on #300 (issuecomment-6619150797); (3) skills#68's dispatch waits on the owner's word;
    (4) the Supabase-auditor role file is my PR on a ticket once the owner re-confirms the consultant's plan; (5) open the batch PR for
    `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. The owner's hand item: point the local `.env` at etl_writer.
+   **Done after that save:** #319 merged (`e47a787`) and #320 (`0b8fc73`) on the owner's pane (a), 19:12. Worktree `pbi` and its junction are removed
+   and the remote branch is deleted. NEXT (1) is done; the owner's hand item is the local branches `docs/planner-brief-installs` and `docs/planner-scoping-flow`.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
