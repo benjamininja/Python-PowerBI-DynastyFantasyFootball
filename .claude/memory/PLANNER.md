@@ -57,6 +57,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Owner: "yes, draft the closeout step on #218".** Text: issuecomment-6619638802, a live check after a schema change lands (advisors plus roles and grants against ADR-0018 d9/d10). Sent to the manager for a GOAL-RUN PR.
    #318 (closeout text) is open; its merge is queued, and the diff was checked. Consultant: Opus scopes advised as (1) narrowed, (2), (3), and an added (6) suspected exposure.
    Queued: "briefs name every install" (recommended (a)). On (a), a planner PR to central-planner.md plus #218 text for GOAL-RUN.
+   **#318 merged** (`75cecc0`). **Owner (a), pane 19:08: briefs name every install, for builders too.** My PR #319 (worktree `pbi` in this scratchpad, venv
+   junction, branch `docs/planner-brief-installs`) is open; its merge is a queue Decision. The GOAL-RUN text is on #218, issuecomment-6619745201, for the manager's PR.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
