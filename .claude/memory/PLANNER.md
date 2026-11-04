@@ -55,6 +55,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Supabase persona critique sent to the consultant (2026-11-03).** The main hole: Bash plus psycopg plus the .env etl_writer URL gets around the read_only MCP.
    Recommended: the auditor stays repo-only; the live advisor and grant checks become a manager closeout step (GOAL-RUN text via #218, on the owner's word). Piece 2 is my PR on a ticket once the owner re-confirms.
    **Owner: "yes, draft the closeout step on #218".** Text: issuecomment-6619638802, a live check after a schema change lands (advisors plus roles and grants against ADR-0018 d9/d10). Sent to the manager for a GOAL-RUN PR.
+   #318 (closeout text) is open; its merge is queued, and the diff was checked. Consultant: Opus scopes advised as (1) narrowed, (2), (3), and an added (6) suspected exposure.
+   Queued: "briefs name every install" (recommended (a)). On (a), a planner PR to central-planner.md plus #218 text for GOAL-RUN.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
