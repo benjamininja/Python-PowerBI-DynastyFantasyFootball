@@ -22,7 +22,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    flow for high tickets?" went to the manager as a queue entry, recommended (a). On (a): a
    `central-planner.md` PR, rule text on #218 with the shrink, a Haiku-tier ticket, and the rule that a
    scoping brief checks any new constraint against the current snapshot.
-   **#300:** Brief 3 is PR #313 and the manager re-proves it. Brief 4's script rule is in
+   **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
+   no breach, and auditor U1 to U3 are all no finding. Merging is the manager's. Brief 4's script rule is in
    `builders.settings.json`; when Brief 4 merges, the manager adds the planner's "Remove the one-time
    script rule" Action. Brief 5 comes after.
 00a. **Earlier 2026-11-03, the old session's save before its clear.** Item 000 overrides it where they differ.
