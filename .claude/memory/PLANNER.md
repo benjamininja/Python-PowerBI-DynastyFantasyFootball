@@ -30,8 +30,15 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Later:** #313 merged `91a0ad3`. Brief 4 is `b300d-build` (session `a2bc1cc7`, medium, `feat/300-rekey-history`).
    When it merges, re-run its evidence: id columns only, row counts unchanged, 0 orphans. Queued: merging #314 (mine)
    and the manager's `GOAL-RUN.md` PR from the #218 text. skills#68 waits for the owner's dispatch word.
-   **#314 merged** (`4964793`) on the owner's pane (a), 18:15; remote branch deleted. Local branch and worktree
-   `psf` (venv junction: remove first) stay until the owner says.
+   **#314 merged** (`4964793`) on the owner's pane (a), 18:15; remote branch deleted. On the owner's word, worktree
+   `psf` and its junction are removed. Local branch `docs/planner-scoping-flow` stays: the guardrail hook blocks
+   a force delete of a branch, so the owner deletes it by hand.
+   **Before a compact (2026-11-03). NEXT for a resumed planner:** (1) when the manager reports Brief 4 (`b300d-build`)
+   merged, re-run its evidence (id columns only, row counts unchanged, 0 orphans on all FKs) and post it on #300;
+   then Brief 5 (low, `Closes #300`) after D6's ordinary pipeline run. (2) Owner's word pending: the manager's
+   `GOAL-RUN.md` PR from the #218 text, and skills#68's dispatch. (3) Open the batch PR for `docs/state-2026-11-01b`
+   when the day's saves are done; merge it on the owner's approval, before any worktree cleanup. (4) Unverified:
+   `SUPABASE_DB_URL` in `etl`; nobody may list secrets, so only the owner can check.
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
