@@ -54,19 +54,22 @@ can be traced.
 
 ## Decisions
 
-### [ ] How does Brief 5 write the pruned player table?
-- Ticket: #300 (Brief 5, builder `b300e-build`)
-- Context: #316 merged (68de4af). Brief 5 has made the D4 rule ("a `DROPPED` row is removed when no published table references it") and its tests. Writing `data/dim_nfl_players.parquet` needs one run of the builder's prune script, and that call was denied ("don't ask mode"). The builder manager may not run it for the builder or change the builders' settings. Nothing is committed yet.
-- Options: (a) you add one allow rule for that command, as you did for the rekey script, and the builder finishes and closes #300 in this PR; (b) the PR ships the rule and tests only, and the table prunes on the next ordinary run, which keeps #300 open until then.
-- Recommended: (a), because it closes #300 now and follows the rekey precedent. Add this line to the `allow` list in `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\.claude\builders.settings.json`, then answer (a). Remove it after the PR merges.
+## Actions
+
+### [ ] Remove the one-time prune rule (after Brief 5 merges)
+- Ticket: #300
+- Steps: wait until the builder manager says Brief 5's PR (Closes #300) has merged. Then:
+  1. Open this file:
+  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\.claude\builders.settings.json`
+  2. Remove this line from the `allow` list:
   ```
   "Bash(.venv/Scripts/python.exe builder-state/prune.py*)",
   ```
-- Blocks: closing #300, then the backfill button (#135). The planner's order on #300 is #316, then Brief 5, then the backfill, so the database loads the pruned table.
-- Raised: 2026-11-05, by the builder manager
+  3. Say so in chat.
+- Context: you added it for Brief 5's single prune run (answer (a), pane 2026-11-04 21:45:50). Like the rekey rule, it's one-time.
+- Blocks: nothing. Don't remove it before Brief 5 merges, or a rerun would be denied.
+- Raised: 2026-11-05, by the builder manager, at the planner's request
 - Session: 59aab023-596a-4bc8-8864-e417f82a0fa3
-
-## Actions
 
 ### [ ] Check the Dead Money model in Power BI Desktop
 - Ticket: #211
@@ -83,44 +86,11 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [x] Run the pipeline once by hand (the ordinary run)
-- Done: 2026-11-05. All 19 steps and the three Chains passed and 21 tables changed. The data landed on `main` as b863586 by hand PR #340, because the ruleset refused the direct push.
-- Ticket: #300 (owner, planner chat, 2026-11-05: "I run it once now (Recommended)")
-- Steps: 1. Open a PowerShell window. Do not change folder.
-  2. Run this command. It logs to
-  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\outputs\pipeline_runs`
-  and commits and pushes the data tables to `main` by itself.
-  ```
-  & "C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\run_weekly.ps1" --trigger manual
-  ```
-  3. When it ends, say in the builder manager's chat that it finished,
-  with its last few lines.
-- Context: no pipeline data commit has reached `main` since 2026-10-11, and
-  Stage D now comes after the cutover, so this run would never come by
-  itself. Its data commit unblocks #316. Then the builder manager brings
-  #316 up to date, has the rekey rerun, re-proves and merges it. Brief 5
-  and your backfill button (#135) follow.
-- Blocks: #316, Brief 5 (#300), the backfill (#135), #336.
-- Raised: 2026-11-05, by the builder manager, on the planner's note
-
-### [ ] Remove the one-time script rule
-- Ticket: #300
-- Steps: 1. Open this file:
-  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\.claude\builders.settings.json`
-  2. Remove this line from the `allow` list:
-  ```
-  "Bash(.venv/Scripts/python.exe scripts/rekey_gsis_history.py*)",
-  ```
-  3. Say so in chat.
-- Context: you chose (a), and the rule was for the rekey run only. #316 merged as 68de4af, so no builder needs it now. A second run would change nothing.
-- Blocks: nothing.
-- Raised: 2026-11-01, by the planner; added 2026-11-05 by the builder manager after #316 merged
-
 ### [ ] Storage cutover: the PC refreshes write to Supabase (later)
 - Ticket: #336 (owner, planner chat, 2026-11-05: "Cut over after Stage C (Recommended)")
 - Steps: the order is in #336's body.
-  - It runs after #316 merges.
-  - Then you press the backfill button (#135), and #136, #137 and #138 merge.
+  - #316 (68de4af), #137 (a84b617) and #138 (3c6df1a) have merged. Brief 5 (#300) and #136 come next.
+  - Then you press the backfill button (#135).
   - You set `ETL_STORAGE=postgres` in the local `.env` by hand.
   - One supervised run follows, on your word.
 - Context: Stage C. The storage switch runs on today's PC runner.
