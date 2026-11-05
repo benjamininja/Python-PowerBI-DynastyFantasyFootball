@@ -31,6 +31,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    anywhere in a command, even in a `gh pr create` body. The owner added 5 allow lines to builders.settings.json.
    **After the save:** #136 dispatched as b136-export. #316 rekey rerun (b300d-build), measured at re-proof. #338 bringing main in again. New #341 (low): #337 advisories 1/2/3/6/9,
    after #136 and #339, before cutover; needs the owner's dispatch word.
+   **Later:** #316 merged `68de4af`, #338 merged `3c6df1a`, #339 dispatched (b339-marker). Brief 5 (b300e) waits on the owner adding a prune allow rule.
+   #342 (#136): (1)(2)(3)(5)(6) fixed in the PR, (7) on the #336 tasklist, (8) moved to #341. New #344 (low, row order; dispatch-ready on the owner's word; parallel OK).
+   #341 is owner-approved for after #136 and #339.
    **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
