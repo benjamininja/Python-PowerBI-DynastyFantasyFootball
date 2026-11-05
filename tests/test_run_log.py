@@ -239,9 +239,10 @@ class TestEnvFileFallback:
 
             def execute(self, sql, params=None):
                 seen.append(sql.split()[0])
+                return SimpleNamespace(fetchone=lambda: (0,))
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert seen == ["SET", "INSERT", "SET", "UPDATE", "SET", "UPDATE"]
+        assert seen == ["SET", "SELECT", "SET", "INSERT", "SET", "UPDATE"]
         shown = capsys.readouterr()
         assert "hunter2-pw" not in shown.out + shown.err + "".join(pipe.notified)
 
@@ -325,11 +326,12 @@ class TestUnreachable:
 
             def execute(self, sql, params=None):
                 seen.append(sql)
-                if "finished_at = %s" in sql:
+                if sql.startswith("UPDATE"):
                     raise OSError("server closed the connection")
+                return SimpleNamespace(fetchone=lambda: (0,))
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert [s.split()[0] for s in seen] == ["SET", "INSERT", "SET", "UPDATE", "SET", "UPDATE"]
+        assert [s.split()[0] for s in seen] == ["SET", "SELECT", "SET", "INSERT", "SET", "UPDATE"]
         assert seen[0] == f"SET LOCAL statement_timeout = {rl.STATEMENT_TIMEOUT_MS}"
         assert rl.STATEMENT_TIMEOUT_MS == 10000
         assert pipe.notified[0].startswith("⚠️ run log not written: server closed the connection")
@@ -420,18 +422,18 @@ class TestPostgres:
         assert row[6] == "RuntimeError raised before the run finished"
         assert row[8] is not None
 
-    def test_a_row_left_running_by_a_killed_run_is_closed_at_the_next_start(self, pipe, pg):
+    def test_rows_left_running_by_a_killed_run_are_counted_in_the_summary_not_changed(self, pipe, pg):
         import psycopg
         with psycopg.connect(pg.url) as conn:
-            old, fresh = (conn.execute(
+            before = conn.execute(rl.COUNT_STALE).fetchone()[0]
+            old = conn.execute(
                 "INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status) "
-                "VALUES (gen_random_uuid(), 'manual', now() - %s::interval, 'running') RETURNING run_id::text",
-                (age,)).fetchone()[0] for age in ("2 days", "1 hour"))
+                "VALUES (gen_random_uuid(), 'manual', now() - interval '2 days', 'running') "
+                "RETURNING run_id::text").fetchone()[0]
         assert pipe.run() == 0
+        assert pipe.notified[0].splitlines()[0].startswith(f"⚠️ {before + 1} earlier run(s) still marked running")
         by_id = {r[0]: r for r in pg.mine()}
-        assert by_id[old][2] == "failed" and by_id[old][8] is not None
-        assert by_id[old][6] == "no finish was recorded; closed by a later run"
-        assert by_id[fresh][2] == "running" and by_id[fresh][8] is None
+        assert by_id[old][2] == "running" and by_id[old][8] is None
 
     def test_a_stalled_statement_is_a_write_error(self, pipe, pg, monkeypatch):
         import psycopg

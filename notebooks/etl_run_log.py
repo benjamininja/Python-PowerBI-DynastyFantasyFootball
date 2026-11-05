@@ -20,11 +20,7 @@ INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s WHERE run_id = %s")
-STALE_AFTER_HOURS = 12
-CLOSE_STALE = ("UPDATE ops.etl_run_log SET finished_at = now(), status = 'failed', "
-               "error = 'no finish was recorded; closed by a later run' "
-               f"WHERE status = 'running' AND run_id <> %s "
-               f"AND started_at < now() - interval '{STALE_AFTER_HOURS} hours'")
+COUNT_STALE = "SELECT count(*) FROM ops.etl_run_log WHERE status = 'running' AND finished_at IS NULL"
 
 
 def env_value(key: str, path: Path | None = None) -> str | None:
@@ -70,6 +66,12 @@ def _write(sql: str, params: tuple) -> None:
     with _connect() as conn:
         conn.execute(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}")
         conn.execute(sql, params)
+
+
+def _count(sql: str) -> int:
+    with _connect() as conn:
+        conn.execute(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}")
+        return int(conn.execute(sql).fetchone()[0])
 
 
 def _secrets() -> list[str]:
@@ -154,16 +156,17 @@ class RunLog:
             return
         run_id = str(uuid.uuid4())
         try:
-            _write(INSERT, (run_id, self.trigger, datetime.now(timezone.utc), git_sha))
+            stale = _count(COUNT_STALE)
+            _write(INSERT,(run_id, self.trigger, datetime.now(timezone.utc), git_sha))
         except Exception as exc:
             self._failed(exc)
             return
         self.run_id = run_id
         print(f"[info] run log: {run_id} running")
-        try:
-            _write(CLOSE_STALE, (run_id,))
-        except Exception as exc:
-            self._failed(exc)
+        if stale:
+            self.warning = (f"⚠️ {stale} earlier run(s) still marked running with no finish; "
+                            f"a run may have been killed.")
+            print(f"[warn] {self.warning}")
 
     def finish(self, status: str, snapshot_commit_sha: str | None = None,
                rows_written: dict | None = None, error: str | None = None) -> None:
