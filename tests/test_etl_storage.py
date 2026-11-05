@@ -28,6 +28,7 @@ import pytest
 import yaml
 
 import etl_helpers as etl
+import etl_storage_pg as pg
 
 SCRATCH = "seam_contract"
 REGISTRY = {"tables": [
@@ -562,131 +563,22 @@ TABLES = sorted(p.stem for p in (REPO / "data").glob("*.parquet"))
 REFUSED = {}     # empty since #109 keyed fact_trade_log on (transaction_id, asset_id)
 
 
-def pg_breaks(conn, spec, batch, columns):
-    """Why the database refused `batch`: rows per constraint it breaks, counted
-    on an unconstrained copy of the table. Counts only, never a cell."""
-    import etl_storage_pg as pg
-    _, sql = pg._psycopg()
-    probe = sql.Identifier("_probe")
-    lines = []
-    with conn.transaction(), conn.cursor() as cur:
-        cur.execute(sql.SQL("CREATE TEMP TABLE {} AS SELECT * FROM {} WITH NO DATA")
-                    .format(probe, pg._table(spec)))
-        pg._copy(cur, probe, columns, pg._rows(batch, spec, columns))
-        for col in spec["columns"]:
-            if col["not_null"] and col["name"] not in spec["pk"]:
-                n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE {} IS NULL")
-                                .format(probe, sql.Identifier(col["name"]))).fetchone()[0]
-                if n:
-                    lines.append(f"NOT NULL {spec['name']}.{col['name']}: {n} row(s)")
-        checks = cur.execute(
-            "SELECT conname, pg_get_expr(conbin, conrelid) FROM pg_constraint "
-            "WHERE conrelid = %s::regclass AND contype = 'c'",
-            (f"{spec['schema']}.{spec['name']}",)).fetchall()
-        for name, expr in checks:
-            n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE ({}) IS FALSE")
-                            .format(probe, sql.SQL(expr))).fetchone()[0]
-            if n:
-                lines.append(f"CHECK {name}: {n} row(s)")
-        cur.execute(sql.SQL("DROP TABLE {}").format(probe))
-    return lines
-
-
-def pg_orphans(conn):
-    """Rows per foreign key whose parent is missing, for every foreign key in
-    the schema, counted with the rows loaded and the keys still deferred."""
-    keys = conn.execute(
-        "SELECT c.conname, c.conrelid::regclass::text, c.confrelid::regclass::text, "
-        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.conkey) WITH ORDINALITY k(n, ord) "
-        " JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n), "
-        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.confkey) WITH ORDINALITY k(n, ord) "
-        " JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.n) "
-        "FROM pg_constraint c WHERE c.contype = 'f' AND c.connamespace = 'football'::regnamespace "
-        "ORDER BY c.conname").fetchall()
-    lines = []
-    for name, child, parent, ccols, pcols in keys:
-        present = " AND ".join(f'c."{x}" IS NOT NULL' for x in ccols)
-        match = " AND ".join(f'p."{y}" = c."{x}"' for x, y in zip(ccols, pcols))
-        n = conn.execute(f"SELECT count(*) FROM {child} c WHERE {present} "
-                         f"AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match})").fetchone()[0]
-        if n:
-            lines.append(f"FOREIGN KEY {name}: {n} row(s) with no parent")
-    return lines
-
-
-def pg_load_published(url, frames):
-    """Load every table of `frames` in one transaction, as the login in `url`,
-    and commit. Returns the lines of what the database refused (nothing is then
-    committed), or [] when every row went in with the deferred keys checked."""
-    import psycopg
-    import etl_storage_pg as pg
-    _, sql = pg._psycopg()
-    report = []
-    with psycopg.connect(url) as conn:
-        with conn.transaction() as tx:
-            for name, frame in frames.items():
-                entry = etl._table_entry(name)
-                batch = etl._check_batch(frame, entry)
-                spec = pg._spec(entry)
-                columns = pg._check_columns(entry, spec)
-                try:
-                    with conn.transaction(), conn.cursor() as cur:
-                        staged = pg.stage(cur, spec, columns, batch)
-                        cur.execute(sql.SQL("DELETE FROM {}").format(pg._table(spec)))
-                        pg.insert_staged(cur, spec, columns, staged)
-                except psycopg.Error as exc:
-                    first = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
-                    report.append(f"{name}: refused: {first}")
-                    try:
-                        report.extend(pg_breaks(conn, spec, batch, columns))
-                    except psycopg.Error as again:
-                        report.append(f"{name}: no count: {(str(again).strip().splitlines() or [''])[0]}")
-            if not report:
-                report.extend(pg_orphans(conn))
-            if not report:
-                conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
-            else:
-                raise psycopg.Rollback(tx)
-    return report
-
-
-def pg_clear_published(url, names):
-    import psycopg
-    with psycopg.connect(url) as conn:
-        for name in names:
-            conn.execute(f'DELETE FROM football."{name}"')
-
-
 @pytest.fixture(scope="module")
 def golden_pg():
     """The test database holding every published table, loaded in one
     transaction as the login in TEST_DATABASE_URL (etl_writer in CI) against
-    the migrations' schema. Emptied again afterwards."""
+    the migrations' schema. Emptied again afterwards. The load and compare
+    functions are the backfill's (etl_storage_pg)."""
     url = database_url()
     frames = {t: pd.read_parquet(REPO / "data" / f"{t}.parquet") for t in TABLES}
-    pg_clear_published(url, TABLES)
+    pg.clear_published(url, TABLES)
     try:
-        report = pg_load_published(url, frames)
+        report = pg.load_published(url, frames).problems
         if report:
             pytest.fail("the database refuses published rows:\n  " + "\n  ".join(report), pytrace=False)
         yield url, frames
     finally:
-        pg_clear_published(url, TABLES)
-
-
-def text_flavour_free(df, entry):
-    """`df` with each declared text column as object and its gaps as None. The
-    seam treats str, string and object as one text type (etl._coerce) and a
-    database keeps only text, so a published column that is `string` where the
-    registry says `str` (fact_roster_transactions.claim_method,
-    fact_trade_log.pick_ref) cannot come back as `string`. Values and nulls
-    are still compared exactly."""
-    out = df.copy()
-    for col in entry["columns"]:
-        if str(col["dtype"]) in etl._TEXT_DTYPES:
-            name = col["name"]
-            out[name] = out[name].astype(object).where(out[name].notna(), None)
-    return out
+        pg.clear_published(url, TABLES)
 
 
 class TestGolden:
@@ -694,10 +586,10 @@ class TestGolden:
         entry = {"columns": [{"name": "k", "dtype": "int64"}, {"name": "t", "dtype": "str"}]}
         a = pd.DataFrame({"k": [1, 2], "t": pd.array(["x", None], dtype="string")})
         b = pd.DataFrame({"k": [1, 2], "t": pd.Series(["x", None], dtype="str")})
-        pd.testing.assert_frame_equal(text_flavour_free(a, entry), text_flavour_free(b, entry))
+        pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(b, entry))
         c = b.assign(t=["x", "y"])
         with pytest.raises(AssertionError):
-            pd.testing.assert_frame_equal(text_flavour_free(a, entry), text_flavour_free(c, entry))
+            pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(c, entry))
 
     def test_every_published_table_is_declared(self):
         assert set(TABLES) == set(etl._registry())
@@ -718,17 +610,14 @@ class TestGolden:
 
     @pytest.mark.parametrize("table", TABLES)
     def test_postgres_gives_the_published_table_back(self, table, golden_pg, monkeypatch):
-        import etl_storage_pg
         url, frames = golden_pg
         published = frames[table]
         monkeypatch.setenv("ETL_STORAGE", "postgres")
-        monkeypatch.setenv(etl_storage_pg.URL_ENV, url)
+        monkeypatch.setenv(pg.URL_ENV, url)
         if published.empty:
             assert etl.table_exists(table) is False
             return
         entry = etl._table_entry(table)
-        key = etl.table_grain(entry)
         got = etl.read_table(table)[list(published.columns)]
-        pd.testing.assert_frame_equal(
-            text_flavour_free(got.sort_values(key).reset_index(drop=True), entry),
-            text_flavour_free(published.sort_values(key).reset_index(drop=True), entry))
+        pd.testing.assert_frame_equal(pg.prepared(got, entry), pg.prepared(published, entry))
+        assert pg.differences(got, published, entry) == []

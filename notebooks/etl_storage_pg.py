@@ -9,7 +9,9 @@ taken from supabase/registry_state.json.
 import contextlib
 import json
 import os
+import re
 from pathlib import Path
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -108,6 +110,13 @@ def read(entry: dict, columns=None):
     ordered by primary key; None when it holds no rows. Values are mapped to
     the registry dtype where the SQL type differs: date to an ISO string,
     integer to float, timestamp to the declared unit, timestamptz to UTC."""
+    with _db_errors(), _connect() as conn:
+        return read_on(conn, entry, columns)
+
+
+def read_on(conn, entry: dict, columns=None):
+    """`read` on an open connection, so a load can read back what it wrote
+    before it commits."""
     _, sql = _psycopg()
     spec = _spec(entry)
     declared = _declared(entry)
@@ -118,8 +127,7 @@ def read(entry: dict, columns=None):
         raise WriteRefused(f"{entry['name']}: no such column {unknown}")
     query = sql.SQL("SELECT {} FROM {} ORDER BY {}").format(
         _names(wanted), _table(spec), _names(spec["pk"]))
-    with _db_errors(), _connect() as conn:
-        rows = conn.execute(query).fetchall()
+    rows = conn.execute(query).fetchall()
     if not rows:
         return None
     sql_types = {c["name"]: c["sql_type"] for c in spec["columns"]}
@@ -133,7 +141,7 @@ def _python(value, sql_type: str, where: str):
     if sql_type == "integer":
         whole = int(value)
         if whole != value:
-            raise WriteRefused(f"{where}: {value!r} is not a whole number")
+            raise WriteRefused(f"{where}: a value is not a whole number")
         return whole
     if sql_type == "double precision":
         return float(value)
@@ -235,3 +243,244 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
                     _keys_delete(cur, spec, columns, df, keys)
                 count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
     return int(count)
+
+
+# ---- The backfill: load the published tables, read them back, compare (#135, B3) ----
+# Everything below prints and returns counts and names, never a cell. The
+# workflow log that runs scripts/backfill_postgres.py is public.
+SCHEMA = "football"
+LOGIN = "etl_writer"
+TEST_URL_ENV = "TEST_DATABASE_URL"
+_QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
+
+
+class Loaded(NamedTuple):
+    problems: list
+    counts: dict
+
+
+def scrub(text: str) -> str:
+    """The first line of `text` with every quoted string removed: a database
+    or Python error quotes the value it choked on."""
+    lines = str(text).strip().splitlines()
+    return _QUOTED.sub("<quoted>", lines[0] if lines else "")[:200]
+
+
+def describe(exc: BaseException) -> str:
+    """An error in words that carry no cell value. A psycopg error is its class,
+    SQLSTATE and the table, column and constraint it names (its message and
+    DETAIL hold the row); any other is its class and scrubbed first line."""
+    psycopg, _ = _psycopg()
+    if isinstance(exc, psycopg.Error):
+        diag = exc.diag
+        parts = [type(exc).__name__]
+        if getattr(exc, "sqlstate", None):
+            parts.append(f"SQLSTATE {exc.sqlstate}")
+        for label, value in (("table", diag.table_name), ("column", diag.column_name),
+                             ("constraint", diag.constraint_name)):
+            if value:
+                parts.append(f"{label} {value}")
+        return " ".join(parts)
+    return f"{type(exc).__name__}: {scrub(exc)}"
+
+
+def breaks(conn, spec: dict, batch: pd.DataFrame, columns: list[str]) -> list[str]:
+    """Why the database refused `batch`: rows per constraint it breaks, counted
+    on an unconstrained copy of the table. Counts only, never a cell."""
+    _, sql = _psycopg()
+    probe = sql.Identifier("_probe")
+    lines = []
+    with conn.transaction(), conn.cursor() as cur:
+        cur.execute(sql.SQL("CREATE TEMP TABLE {} AS SELECT * FROM {} WITH NO DATA")
+                    .format(probe, _table(spec)))
+        _copy(cur, probe, columns, _rows(batch, spec, columns))
+        for col in spec["columns"]:
+            if col["not_null"] and col["name"] not in spec["pk"]:
+                n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE {} IS NULL")
+                                .format(probe, sql.Identifier(col["name"]))).fetchone()[0]
+                if n:
+                    lines.append(f"NOT NULL {spec['name']}.{col['name']}: {n} row(s)")
+        checks = cur.execute(
+            "SELECT conname, pg_get_expr(conbin, conrelid) FROM pg_constraint "
+            "WHERE conrelid = %s::regclass AND contype = 'c'",
+            (f"{spec['schema']}.{spec['name']}",)).fetchall()
+        for name, expr in checks:
+            n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE ({}) IS FALSE")
+                            .format(probe, sql.SQL(expr))).fetchone()[0]
+            if n:
+                lines.append(f"CHECK {name}: {n} row(s)")
+        cur.execute(sql.SQL("DROP TABLE {}").format(probe))
+    return lines
+
+
+def orphans(conn) -> list[str]:
+    """Rows per foreign key whose parent is missing, for every foreign key in
+    the schema, counted with the rows loaded and the keys still deferred."""
+    keys = conn.execute(
+        "SELECT c.conname, c.conrelid::regclass::text, c.confrelid::regclass::text, "
+        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.conkey) WITH ORDINALITY k(n, ord) "
+        " JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n), "
+        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.confkey) WITH ORDINALITY k(n, ord) "
+        " JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.n) "
+        "FROM pg_constraint c WHERE c.contype = 'f' AND c.connamespace = %s::regnamespace "
+        "ORDER BY c.conname", (SCHEMA,)).fetchall()
+    lines = []
+    for name, child, parent, ccols, pcols in keys:
+        present = " AND ".join(f'c."{x}" IS NOT NULL' for x in ccols)
+        match = " AND ".join(f'p."{y}" = c."{x}"' for x, y in zip(ccols, pcols))
+        n = conn.execute(f"SELECT count(*) FROM {child} c WHERE {present} "
+                         f"AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match})").fetchone()[0]
+        if n:
+            lines.append(f"FOREIGN KEY {name}: {n} row(s) with no parent")
+    return lines
+
+
+def text_flavour_free(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """`df` with each declared text column as object and its gaps as None. The
+    seam treats str, string and object as one text type (etl._coerce) and a
+    database keeps only text, so a published column that is `string` where the
+    registry says `str` (fact_roster_transactions.claim_method,
+    fact_trade_log.pick_ref) cannot come back as `string`: the read already
+    gives the registry's dtype, and the snapshot is the odd one. Values and
+    nulls are still compared exactly."""
+    out = df.copy()
+    for col in entry["columns"]:
+        if str(col["dtype"]) in _TEXT_DTYPES:
+            name = col["name"]
+            out[name] = out[name].astype(object).where(out[name].notna(), None)
+    return out
+
+
+def prepared(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """`df` in the order a Postgres read gives (sorted by the table's key, a
+    fresh index) with text flavours folded: the shape two frames are compared in."""
+    import etl_helpers as etl
+    out = text_flavour_free(df, entry)
+    return out.sort_values(etl.table_grain(entry)).reset_index(drop=True)
+
+
+def _unequal(a: pd.Series, b: pd.Series) -> pd.Series:
+    same = (a == b).fillna(False).astype(bool)
+    return ~(same | (a.isna() & b.isna()))
+
+
+def differences(got, published: pd.DataFrame, entry: dict) -> list[str]:
+    """How `got` (a read-back, None for no rows) differs from `published`, as
+    counts per table or column; [] when they are equal. An empty table is
+    compared too: no rows read back against none published is equal."""
+    name = entry["name"]
+    rows = 0 if got is None else len(got)
+    if rows != len(published):
+        return [f"{name}: {rows} row(s) read back, {len(published)} published"]
+    if not rows:
+        return []
+    columns = list(published.columns)
+    if set(got.columns) != set(columns):
+        return [f"{name}: the columns read back differ from the published ones"]
+    left, right = prepared(got[columns], entry), prepared(published, entry)
+    lines = []
+    for col in columns:
+        if str(left[col].dtype) != str(right[col].dtype):
+            lines.append(f"{name}.{col}: {left[col].dtype} read back, {right[col].dtype} published")
+            continue
+        n = int(_unequal(left[col], right[col]).sum())
+        if n:
+            lines.append(f"{name}.{col}: {n} cell(s) differ")
+    return lines
+
+
+def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool = False) -> Loaded:
+    """Load every table of `frames` in one transaction, as the login in `url`.
+    The foreign keys are deferred, so the load order does not matter. With
+    `verify`, every table is read back inside the transaction and compared
+    with its frame before the commit. Returns the problems (counts and names;
+    then nothing is committed) and the rows loaded per table. `replace` empties
+    each table first; without it a table that holds rows is a primary-key error."""
+    import etl_helpers as etl
+    psycopg, sql = _psycopg()
+    problems, counts = [], {}
+    with psycopg.connect(url, prepare_threshold=None) as conn:
+        with conn.transaction() as tx:
+            for name, frame in frames.items():
+                entry = etl._table_entry(name)
+                batch = etl._check_batch(frame, entry)
+                spec = _spec(entry)
+                columns = _check_columns(entry, spec)
+                try:
+                    with conn.transaction(), conn.cursor() as cur:
+                        staged = stage(cur, spec, columns, batch)
+                        if replace:
+                            cur.execute(sql.SQL("DELETE FROM {}").format(_table(spec)))
+                        insert_staged(cur, spec, columns, staged)
+                except psycopg.Error as exc:
+                    problems.append(f"{name}: refused: {describe(exc)}")
+                    try:
+                        problems.extend(breaks(conn, spec, batch, columns))
+                    except psycopg.Error as again:
+                        problems.append(f"{name}: no count: {describe(again)}")
+                else:
+                    counts[name] = len(batch)
+            if not problems:
+                problems.extend(orphans(conn))
+            if not problems:
+                conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            if verify and not problems:
+                for name, frame in frames.items():
+                    entry = etl._table_entry(name)
+                    got = read_on(conn, entry)
+                    if got is not None:
+                        got = etl._coerce(got, entry)
+                    problems.extend(differences(got, frame, entry))
+            if problems:
+                raise psycopg.Rollback(tx)
+    return Loaded(problems, counts)
+
+
+def clear_published(url: str, names) -> None:
+    """Empty the `names` tables of the football schema. Runs only against the
+    database in TEST_DATABASE_URL, whatever else a caller holds."""
+    allowed = os.environ.get(TEST_URL_ENV)
+    if not allowed or url != allowed:
+        raise RuntimeError(f"clear_published runs only against {TEST_URL_ENV}")
+    psycopg, sql = _psycopg()
+    with psycopg.connect(url, prepare_threshold=None) as conn:
+        for name in names:
+            conn.execute(sql.SQL("DELETE FROM {}").format(sql.Identifier(SCHEMA, name)))
+
+
+def login_facts(conn) -> dict:
+    """Who the connection is, and which football tables have row-level security."""
+    user, bypass, superuser = conn.execute(
+        "SELECT current_user, r.rolbypassrls, r.rolsuper FROM pg_roles r "
+        "WHERE r.rolname = current_user").fetchone()
+    rls = dict(conn.execute(
+        "SELECT c.relname, c.relrowsecurity FROM pg_class c "
+        "WHERE c.relnamespace = %s::regnamespace AND c.relkind IN ('r', 'p')", (SCHEMA,)).fetchall())
+    return {"user": user, "bypass_rls": bool(bypass), "superuser": bool(superuser), "rls": rls}
+
+
+def login_problems(facts: dict, tables) -> list[str]:
+    """What is wrong with the login for a load of `tables`: it must be etl_writer
+    (ADR-0018 decision 9), without BYPASSRLS or superuser, and row-level security
+    must be on for every football table."""
+    problems = []
+    if facts["user"] != LOGIN:
+        problems.append(f"connected as {facts['user']}, expected {LOGIN}")
+    if facts["bypass_rls"]:
+        problems.append("the login has BYPASSRLS")
+    if facts["superuser"]:
+        problems.append("the login is a superuser")
+    for name in sorted(set(facts["rls"]) | set(tables)):
+        if name not in facts["rls"]:
+            problems.append(f"{SCHEMA}.{name}: no such table")
+        elif not facts["rls"][name]:
+            problems.append(f"{SCHEMA}.{name}: row-level security is off")
+    return problems
+
+
+def nonempty(conn, tables) -> list[str]:
+    """The football tables among `tables` that hold at least one row."""
+    _, sql = _psycopg()
+    return [name for name in tables
+            if conn.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM {})")
+                            .format(sql.Identifier(SCHEMA, name))).fetchone()[0]]
