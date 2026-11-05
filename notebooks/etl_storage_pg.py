@@ -257,13 +257,19 @@ _QUOTED = re.compile(r"'[^']*'|\"[^\"]*\"")
 class Loaded(NamedTuple):
     problems: list
     counts: dict
+    refused: bool = False
 
 
 def scrub(text: str) -> str:
-    """The first line of `text` with every quoted string removed: a database
-    or Python error quotes the value it choked on."""
+    """The first line of `text` with every quoted string removed, and anything
+    after a quote mark that never closes: a database or Python error quotes the
+    value it choked on."""
     lines = str(text).strip().splitlines()
-    return _QUOTED.sub("<quoted>", lines[0] if lines else "")[:200]
+    line = _QUOTED.sub("<quoted>", lines[0] if lines else "")
+    stray = re.search(r"['\"]", line)
+    if stray:
+        line = line[:stray.start()] + "<quoted>"
+    return line[:200]
 
 
 def describe(exc: BaseException) -> str:
@@ -389,18 +395,31 @@ def differences(got, published: pd.DataFrame, entry: dict) -> list[str]:
     return lines
 
 
-def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool = False) -> Loaded:
+def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool = False,
+                   empty_only: bool = False) -> Loaded:
     """Load every table of `frames` in one transaction, as the login in `url`.
     The foreign keys are deferred, so the load order does not matter. With
     `verify`, every table is read back inside the transaction and compared
     with its frame before the commit. Returns the problems (counts and names;
-    then nothing is committed) and the rows loaded per table. `replace` empties
-    each table first; without it a table that holds rows is a primary-key error."""
+    then nothing is committed) and the rows each table holds, counted in the
+    database before the commit. `replace` empties each table first; without it
+    a table that holds rows is a primary-key error. `empty_only` locks the
+    tables and refuses, in the same transaction, if any holds a row."""
     import etl_helpers as etl
     psycopg, sql = _psycopg()
-    problems, counts = [], {}
+    problems, counts, refused = [], {}, False
     with psycopg.connect(url, prepare_threshold=None) as conn:
         with conn.transaction() as tx:
+            if empty_only:
+                for name in sorted(frames):
+                    conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE")
+                                 .format(sql.Identifier(SCHEMA, name)))
+                problems.extend(f"{SCHEMA}.{name} already holds rows; this run loads an empty schema "
+                                f"(--replace empties each table first)"
+                                for name in nonempty(conn, sorted(frames)))
+                refused = bool(problems)
+                if refused:
+                    raise psycopg.Rollback(tx)
             for name, frame in frames.items():
                 entry = etl._table_entry(name)
                 batch = etl._check_batch(frame, entry)
@@ -418,12 +437,13 @@ def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool
                         problems.extend(breaks(conn, spec, batch, columns))
                     except psycopg.Error as again:
                         problems.append(f"{name}: no count: {describe(again)}")
-                else:
-                    counts[name] = len(batch)
             if not problems:
                 problems.extend(orphans(conn))
             if not problems:
                 conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+                counts = {name: conn.execute(sql.SQL("SELECT count(*) FROM {}")
+                                             .format(sql.Identifier(SCHEMA, name))).fetchone()[0]
+                          for name in frames}
             if verify and not problems:
                 for name, frame in frames.items():
                     entry = etl._table_entry(name)
@@ -433,7 +453,7 @@ def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool
                     problems.extend(differences(got, frame, entry))
             if problems:
                 raise psycopg.Rollback(tx)
-    return Loaded(problems, counts)
+    return Loaded(problems, counts, refused)
 
 
 def clear_published(url: str, names) -> None:
@@ -462,7 +482,11 @@ def login_facts(conn) -> dict:
 def login_problems(facts: dict, tables) -> list[str]:
     """What is wrong with the login for a load of `tables`: it must be etl_writer
     (ADR-0018 decision 9), without BYPASSRLS or superuser, and row-level security
-    must be on for every football table."""
+    must be on for every football table. FORCE ROW LEVEL SECURITY and table
+    ownership are not checked: ADR-0018 decision 9 gives etl_writer an explicit
+    USING (true) policy per table, so RLS filters nothing for this login whether
+    it owns a table or not, and BYPASSRLS, which is checked, is the only way
+    past a policy that would matter."""
     problems = []
     if facts["user"] != LOGIN:
         problems.append(f"connected as {facts['user']}, expected {LOGIN}")

@@ -187,6 +187,35 @@ class TestEnvFileFallback:
                        f"  {rl.URL_ENV}=\"postgresql://file.invalid/db\"  \n")
         assert rl.database_url() == "postgresql://file.invalid/db"
 
+    @pytest.mark.parametrize("line", [
+        "export KEY=postgresql://file.invalid/db",
+        "KEY = postgresql://file.invalid/db",
+        "export KEY = \"postgresql://file.invalid/db\"",
+        "KEY=postgresql://file.invalid/db # the live one",
+        "KEY='postgresql://file.invalid/db' # the live one",
+        "  KEY=postgresql://file.invalid/db\t# tab comment",
+    ])
+    def test_the_dotenv_forms_a_shell_or_editor_writes_are_read(self, monkeypatch, tmp_path, line):
+        path = tmp_path / "forms.env"
+        path.write_text(f"OTHER=1\n{line}\n", encoding="utf-8")
+        assert rl.env_value("KEY", path) == "postgresql://file.invalid/db"
+
+    @pytest.mark.parametrize("text", ["# KEY=x\n", "KEYS=x\n", "export OTHER=x\n", "KEY=# only a comment\n", "KEY=\"\"\n"])
+    def test_lines_that_are_not_the_key_are_skipped(self, tmp_path, text):
+        path = tmp_path / "skip.env"
+        path.write_text(text, encoding="utf-8")
+        assert rl.env_value("KEY", path) is None
+
+    def test_notify_reads_its_webhook_with_the_same_parser(self, monkeypatch, tmp_path):
+        (tmp_path / ".env").write_text("export DISCORD_WEBHOOK_URL = 'https://hook.invalid/x' # note\n",
+                                       encoding="utf-8")
+        monkeypatch.delenv("DISCORD_WEBHOOK_URL", raising=False)
+        monkeypatch.setattr(rp, "REPO", tmp_path)
+        sent = []
+        monkeypatch.setattr(rp.urllib.request, "urlopen", lambda req, timeout=None: sent.append(req.full_url))
+        rp.notify("hello")
+        assert sent == ["https://hook.invalid/x"]
+
     def test_the_environment_wins_over_the_file(self, monkeypatch, tmp_path):
         self.write_env(monkeypatch, tmp_path, f"{rl.URL_ENV}=postgresql://file.invalid/db\n")
         monkeypatch.setenv(rl.URL_ENV, "postgresql://env.invalid/db")
@@ -210,9 +239,10 @@ class TestEnvFileFallback:
 
             def execute(self, sql, params=None):
                 seen.append(sql.split()[0])
+                return SimpleNamespace(fetchone=lambda: (0,))
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert seen == ["SET", "INSERT", "SET", "UPDATE"]
+        assert seen == ["SET", "SELECT", "SET", "INSERT", "SET", "UPDATE"]
         shown = capsys.readouterr()
         assert "hunter2-pw" not in shown.out + shown.err + "".join(pipe.notified)
 
@@ -233,6 +263,21 @@ class TestUnreachable:
         assert pipe.summary_file.read_text(encoding="utf-8").splitlines()[0] == first
         shown = capsys.readouterr()
         assert "hunter2-pw" not in shown.out + shown.err + "".join(pipe.notified)
+
+    def test_a_crash_after_a_failed_log_write_still_sends_the_warning(self, pipe, monkeypatch):
+        monkeypatch.setenv(rl.URL_ENV, UNREACHABLE)
+        pipe.results = RuntimeError(SENTINEL)
+        with pytest.raises(RuntimeError):
+            pipe.run()
+        assert len(pipe.notified) == 1
+        assert pipe.notified[0].startswith("⚠️ run log not written: ")
+        assert "RuntimeError" in pipe.notified[0] and SENTINEL not in pipe.notified[0]
+
+    def test_a_crash_with_a_working_log_sends_nothing_new(self, pipe, monkeypatch):
+        pipe.results = RuntimeError(SENTINEL)
+        with pytest.raises(RuntimeError):
+            pipe.run()
+        assert pipe.notified == []
 
     def test_a_failed_run_keeps_its_exit_code(self, pipe, monkeypatch):
         import psycopg
@@ -283,9 +328,10 @@ class TestUnreachable:
                 seen.append(sql)
                 if sql.startswith("UPDATE"):
                     raise OSError("server closed the connection")
+                return SimpleNamespace(fetchone=lambda: (0,))
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert [s.split()[0] for s in seen] == ["SET", "INSERT", "SET", "UPDATE"]
+        assert [s.split()[0] for s in seen] == ["SET", "SELECT", "SET", "INSERT", "SET", "UPDATE"]
         assert seen[0] == f"SET LOCAL statement_timeout = {rl.STATEMENT_TIMEOUT_MS}"
         assert rl.STATEMENT_TIMEOUT_MS == 10000
         assert pipe.notified[0].startswith("⚠️ run log not written: server closed the connection")
@@ -375,6 +421,19 @@ class TestPostgres:
         assert row[2] == "failed"
         assert row[6] == "RuntimeError raised before the run finished"
         assert row[8] is not None
+
+    def test_rows_left_running_by_a_killed_run_are_counted_in_the_summary_not_changed(self, pipe, pg):
+        import psycopg
+        with psycopg.connect(pg.url) as conn:
+            before = conn.execute(rl.COUNT_STALE).fetchone()[0]
+            old = conn.execute(
+                "INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status) "
+                "VALUES (gen_random_uuid(), 'manual', now() - interval '2 days', 'running') "
+                "RETURNING run_id::text").fetchone()[0]
+        assert pipe.run() == 0
+        assert pipe.notified[0].splitlines()[0].startswith(f"⚠️ {before + 1} earlier run(s) still marked running")
+        by_id = {r[0]: r for r in pg.mine()}
+        assert by_id[old][2] == "running" and by_id[old][8] is None
 
     def test_a_stalled_statement_is_a_write_error(self, pipe, pg, monkeypatch):
         import psycopg
