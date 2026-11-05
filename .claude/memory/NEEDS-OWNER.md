@@ -71,7 +71,8 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Run the pipeline once by hand (the ordinary run)
+### [x] Run the pipeline once by hand (the ordinary run)
+- Done: 2026-11-05. All 19 steps and the three Chains passed and 21 tables changed. The data landed on `main` as b863586 by hand PR #340, because the ruleset refused the direct push.
 - Ticket: #300 (owner, planner chat, 2026-11-05: "I run it once now (Recommended)")
 - Steps: 1. Open a PowerShell window. Do not change folder.
   2. Run this command. It logs to
