@@ -21,6 +21,142 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **CURRENT STATE (NEWEST, 2026-11-04 ~22:10 local, session `adfa28db`), before a clear. This overrides everything below.** Main is at `c56601f`. Reconcile with live state first, as always. Migration only; the standing merge approval holds. The table in the `59aab023` bullet below still holds, except:
+  - **#345 = Brief 5** (`b300e-build`, head `c5432e5`, Closes #300). The cap-ledger-auditor re-count shows no blocking finding: 25541→25011 rows, DROPPED 677→147, 530 removed (all DROPPED), 0 orphans in the 14 gsis_id tables on both sides, all 147 kept are referenced. The removed superseded ids in `dim_gsis_link.old_gsis_id` are intended (#300 design: old_gsis_id "takes no FK, because that row is meant to go"). Advisories for the planner: `referenced_ids` matches only columns named exactly `gsis_id`, and its test shares that blind spot. The push run's storage-pg passed 258 (the head predates #338 and #343). **Merge when the pull_request run's storage-pg passes with ≥ 275**, post the re-proof, tell the planner (it re-runs the #300 evidence), and then the owner: remove the prune rule; then the backfill steps.
+  - **#342** is DIRTY. b136 has been told to merge main, plus items (1), (2), (3), (5) and (6) and the pg marker.
+  - **b344** was denied `builder-state/probe.py`; its worktree does have a `.venv`. I told it to use the allowed pytest and pre_commit forms and skip the probe. **At re-proof, I measure the 2 affected players' trade-bud position myself.**
+  - **State batch #346:** the owner answered (a), merge once today's saves are pushed (pane 22:04:49). The planner merges it. My saves after that go on a new state branch. The entry is removed from NEEDS-OWNER.
+- **CURRENT STATE (NEWEST, 2026-11-05 ~22:00 local, session `59aab023`), before a clear. This overrides everything below.** Main is at `c56601f` when written. **Reconcile with live state first:** fetch, `git log origin/main --oneline -8`, `gh pr list --state open`, `claude agents --json`. Where they disagree, live state wins. Migration is the only focus. The standing merge approval holds.
+  - **Merged this stretch:** #337 `9ad4e48` (#333); #316 `68de4af` (#300 Brief 4; roster-to-rankings 890→1066); #338 `3c6df1a` (#138 drill); #343 `c56601f` (#339 pg marker; storage-pg now runs `pytest tests/ -m pg`, and `tests/test_pg_marker.py` fails on any unmarked file that reads TEST_DATABASE_URL). Re-proof comments are on each PR. Those builders are removed, and their branches deleted.
+  - **Builders running: trigger, then action.**
+
+    | Builder (session) | Ticket / PR | Trigger, then action |
+    |---|---|---|
+    | `b136-export` (`2bee05fb`, medium) | #136 / **PR #342** | The supabase-auditor found **2 blocking issues at 64a0998**: (1) a failed export reloads from a partly overwritten `data/`, leaving a mixed database; (2) the HEAD check ignores git's returncode, so it fails open. I sent both, plus (3) untracked `data/` files in the HEAD check, (5) the summary printing published after a reload, (6) under postgres the restore runs even with `--no-commit` (planner ruling issuecomment-6649198036), and: take main's `-m pg` storage-pg line and add `pytestmark = pytest.mark.pg` to `tests/test_publish_pg.py`. When it reports: CI green, storage-pg passed > 275 with `test_publish_pg.py` in the log, and **re-run the supabase-auditor on the delta** to check (1), (2), (3), (5) and (6) are fixed. Then merge. Advisories: (7) stays on the #336 tasklist; (8) moved to #341. |
+    | `b300e-build` (`22b1ed97`, low; restarted from `dfe987e9`) | #300 Brief 5 / PR coming, `Closes #300` | The owner answered (a) and added the prune allow rule (recorded #300 issuecomment-6649120159). It runs `builder-state/prune.py` dry, then with write, then pytest, `--check-only`, the PII check, and opens the PR. Re-prove: CI; DROPPED counts in the body; on the published tables, no `old_gsis_id` in any `gsis_id` column and every remaining DROPPED row referenced. Have the **cap-ledger-auditor** count it read-only. Merge. Then tell the owner the queue Action "Remove the one-time prune rule" is due. **Then the backfill button** (below). |
+    | `b344-order` (`8557cdf7`, low) | #344 row-order fix / PR coming | Dispatched on the owner's "dispatch 344" (recorded issuecomment-6649303249). Re-prove: CI including **bot-tests**; the tie test in `discord_bot/tests/test_offline_smoke.py`; the trade-bud dedupe test; the PR says whether the 2 affected players' trade-bud position changes. Merge. No auditor is needed (bot and trade-bud, no ledger or seam), but cap-ledger-auditor is fine if in doubt. |
+
+  - **Queued, in order:**
+    - **#341** (low; the owner's "Dispatch after #136 and #339 (Recommended)", recorded on #341). #339 is merged, so it **dispatches when #342 merges**. Scope: #337 advisories 1, 2, 3, 6 and 9, plus #342's advisory 8 (issuecomment-6649198407). The prompt must start with fetch, then `git merge origin/main`.
+    - **Backfill button (#135)**, after Brief 5 merges. Give the owner exact steps: GitHub → Actions → `backfill` → Run workflow on `main` (workflow_dispatch only, env `etl`, no inputs, refuses a non-empty database). Then run the Settled 5 live checks with supabase-dynasty `execute_sql`, SELECT only, and post them on #135.
+    - **#138 live drill (mine)**, after the backfill and before the next data commit. Rerun storage-pg on the backfilled commit. Check the connector's role can see `football` rows (`select current_user` and one count; an RLS-blind role reads 0). Run `restore_drill.py --print-sql`, execute the SQL SELECT-only, compare rows and md5 per table, and post on #138. Any difference blocks #336.
+    - **#336 cutover** (the owner's steps). Every data commit lands by a hand PR like #340 until #336's final tasklist (GH013 ruleset; the webhook 403 and the unregistered scheduled task are parked there).
+  - **Owner queue (NEEDS-OWNER):** Actions: "Remove the one-time prune rule (after Brief 5 merges)", Dead Money (#211), storage cutover (#336), Actions cutover (#93). No open Decisions.
+  - **Environment notes:**
+    - **Local `main` in the main checkout is stale at `9a89cb6`**, and dispatch.ps1 branches from it. Every builder prompt therefore starts with: git fetch origin, then git merge origin/main. The owner may fix it with `git -C <repo> reset --keep origin/main`; I offered it.
+    - The packed-refs lock was cleared by the owner; fetch works.
+    - **Restarting a held builder:** `claude stop <id>`, then `dispatch.ps1 -Name <same>` reuses the worktree. It may print "refused: not running in its worktree" from an early check while the session actually runs. Verify with `claude agents --json`, and with `claude logs <id>` to see the new prompt.
+    - A running builder does **not** reload `builders.settings.json`. After the owner adds a rule, restart the builder.
+    - The worktree `b300d-build` is kept (an untracked `workspace/measure300d.py`; `claude rm` refuses). That's the owner's to discard, or leave it.
+    - My local pytest stays declined. Re-prove with CI, the builder's run and the auditors.
+    - Prompts: `C:\Users\benha\AppData\Local\Temp\claude\91da30c6664f42e7\59aab023-596a-4bc8-8864-e417f82a0fa3\scratchpad\` (`b136-prompt.txt`, `b300e2-prompt.txt`, `b344-prompt.txt`, `r3xx.md`).
+- **Progress after the clear note below (NEWEST, 2026-11-05 late, session `59aab023`): this overrides the table below where they differ.**
+  - **#316 merged `68de4af`**, re-proof issuecomment-6648898819. The roster-to-rankings measure was 890 on main and 1066 on the PR; the ledger and dynasty tables have 0 rows on a superseded id. b300d's job was stopped; its worktree is kept (an untracked `workspace/measure300d.py`) and its remote branch is deleted. The Action "Remove the one-time script rule" (rekey) is now in NEEDS-OWNER.
+  - **#338 merged `3c6df1a`**, re-proof issuecomment-6648952899. b138 is removed and its branch deleted. **Live drill (mine) after the backfill**, as in the table.
+  - **#339 dispatched**: `b339-marker`, low, session `7c7b7aeb`, prompt `b339-prompt.txt`. Re-prove when it reports; storage-pg passed must be ≥ 275.
+  - **Brief 5 dispatched**: `b300e-build`, low, session `dfe987e9`, prompt `b300e-prompt.txt`. It merged main (ee1e873) and wrote the D4 rule and tests, all uncommitted. **Its prune run `builder-state/prune.py` was denied**, so it is **parked with the owner** as the NEEDS-OWNER Decision "How does Brief 5 write the pruned player table?" ((a) the owner adds the allow rule, recommended; (b) ship the code and prune on the next ordinary run). b300e holds. Relay the answer word for word. **The backfill button waits for Brief 5** (planner order: #316, Brief 5, backfill).
+  - **Local `main` in the main checkout is stale at `9a89cb6`** (the owner's run's local commit; the pushed copy is `b863586`). dispatch.ps1 branches from it, so **every new builder prompt must start with: git fetch origin, then git merge origin/main.** The fix, for the owner: `git -C <repo> reset --keep origin/main`.
+  - **A hung git** (the owner's `push --delete data/refresh-2026-11-04`, processes 30712, 45104 and 29960 since 21:20) holds `.git\packed-refs.lock`, so every ref update prints a lock error, though the operations succeed. It was offered to the owner ("stop the hung git"). The remote branch itself is deleted.
+  - Running: `b136-export` (#136), `b339-marker` (#339), `b300e-build` (held). #341 dispatches after #136 and #339.
+- **Update, 2026-11-05, before a clear, session `59aab023`: overrides everything below where they differ.** Main is at `b863586` when written. This is a snapshot: **reconcile against live state first** (see "First moves"). Migration is the only focus.
+  - **First moves after the clear (in order):**
+    1. `git fetch origin`, then `git log origin/main --oneline -8`; `gh pr list --state open --json number,title,headRefOid,mergeStateStatus`; `claude agents --json`. Anything below that live state contradicts has moved on: trust live state, then the ticket and PR comments.
+    2. Builders message me by name (`dynastyFantasyFootball-central-builder-manager`); the name survives the clear. A builder that is idle with no message to me may have reported before the clear: read its PR, its last ticket comment and `claude logs <id>`.
+    3. Act on the table below, for each row whose trigger has fired.
+  - **Done this stretch:**
+    - **#337 (#333) merged `9ad4e48`**, re-proof issuecomment-6648651447. b333 is closed and its branch deleted. The planner turned advisories 1, 2, 3, 6 and 9 into **#341**.
+    - **The owner's ordinary run** landed as `b863586` through hand PR #340 (a direct push is refused by ruleset 24086028, GH013). The queue entry is marked `[x]` (state `0e23a54`; the main checkout's copy is updated too). **Until #336's final tasklist, every run's data lands by a hand PR like #340.** That includes the supervised cutover run. The webhook 403 and the unregistered scheduled task are parked on #336.
+    - **#136 dispatched**: `b136-export`, medium, job `2bee05fb`, from main at `9ad4e48`/`b863586`. Brief issuecomment-6648020913; prompt in the scratchpad `b136-prompt.txt`.
+    - **#316 resumed**: a fresh `b300d-build` (job `7ba1d667`, medium) in the existing worktree on `feat/300-rekey-history`; prompt `b300d2-prompt.txt`. It merged main (`0f2ab22`), took main's two dynasty parquets, and reran the rekey: 4042 and 308 changed (same as before), 0 orphans. **Its measuring script was denied**, and I told it not to retry. It pushes without the measure; **I measure at re-proof** (no laundering: I don't run its denied script, I do my own check).
+  - **Open work: trigger, then action** (all merges under the standing approval unless noted):
+
+    | Item | State when written | Trigger, then action |
+    |---|---|---|
+    | **#338** (#138, `b138-drill`, job `4951b683`) | Head `98e784f`, CI running. It was asked to bring main in again, because `deb26ea` lacked `9ad4e48`. | When b138 reports, check that `9ad4e48` and `b863586` are ancestors of the head, CI is all green, and the storage-pg log shows `test_restore_drill.py` cases PASSED plus the per-table lines. The auditor already ran with no blocking finding at `deb26ea`: re-audit only if `restore_drill.py` changed beyond the merge. Post the re-proof, merge (the owner also said "merge 338 when green"), `claude rm 4951b683`, `git push origin --delete worktree-b138-drill`. |
+    | **#339** (pg marker, low) | Approved (owner: "dispatch 339 at low when 338 merges"). | After #338 merges, dispatch at low. Its brief is the #339 body. In the prompt, say #136's new `test_publish_pg.py` may land first and then needs the marker. |
+    | **#316** (#300 Brief 4) | Head `0f2ab22` when written; the builder is committing the rerun. | When it reports, re-prove: CI green; the two parquets differ from `b863586` only in id columns, with row counts equal. **The roster-to-rankings measure**: `fact_fantasy_teams` rows that find dynasty rankings on `gsis_id`, PR ≥ main (main was 1066/1107 before the ordinary run; recount on `b863586`). Run it myself, or have **cap-ledger-auditor** count it on both sides. Then merge, and add the Action "Remove the one-time script rule" (text in the 11-01 ~12:30 bullet). Tell the planner. |
+    | **#300 Brief 5** (low) | Waits for #316. | After #316 merges, dispatch from #300's comments. Ask the planner for the brief link if it isn't clear. |
+    | **Backfill button (#135)** | Waits for #316 (owner: "Backfill after #316 (Recommended)"). | After #316 merges, give the owner exact steps: run `backfill.yml` via workflow_dispatch on main, no `--replace`. Then run the Settled 5 live checks (SELECT only) and post on #135. |
+    | **#138 live drill (mine)** | After #338 merges and after the backfill. | Before the next data commit: rerun storage-pg on the backfilled commit; run `restore_drill.py --print-sql` and execute the SQL with supabase-dynasty `execute_sql` (SELECT only). **First check the connector's role can see `football` rows** (`select current_user`, and a count on one table): an RLS-blind role reads 0 and fakes a difference. Compare rows and md5 per table and post on #138. Any difference blocks #336. |
+    | **#136** (`b136-export`) | Building. | Re-prove: CI; storage-pg shows `test_publish_pg.py`; the supabase-auditor; the row-order findings posted on #136. Then merge. |
+    | **#341** (low) | The owner's word, in the planner's chat: "Dispatch after #136 and #339 (Recommended)". | Dispatch at low after both merge. |
+    | **#336 cutover** | The owner's later steps. | After the above. |
+  - **For the owner:** the remote `data/refresh-2026-11-04` (fully merged; my delete was denied). The command is given in chat: `git -C "C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball" push origin --delete data/refresh-2026-11-04`. If it's still there, offer it again.
+  - **How-to that survives:**
+    - Dispatch with `dispatch.ps1` (path in the bullet below), never `2>&1`. A `-Name` with an existing worktree reuses it and its branch.
+    - Re-proof comments go through `--body-file`. Merge with `--squash --match-head-commit`.
+    - Branch deletes may be denied by the classifier. Then hand the owner the exact command.
+    - On parallel git in this repo, a `packed-refs.lock` error is transient (a builder's git). Retry once.
+    - My local pytest stays declined. Re-prove with CI, the builder's run and the auditors.
+- **Update, 2026-11-05, before a compact, session `59aab023`: overrides everything below where they differ.** Main is at `a84b617`. Migration is the only focus; the owner said the project is paused until it's done.
+  - **#335 (#137) merged as `a84b617`** on the owner's "merge 335 when green".
+    - Before that, I ran the merge of main myself (b02a3d1), with `git -C`, after the owner switched to manual and said "i approve you completing these steps".
+    - The owner declined my local pytest re-proof twice, so I re-prove with CI, the builder's local run and the auditor, unless the owner says otherwise.
+    - b137 is closed. Its sessions are removed and its remote branch is deleted.
+  - **Running builders:**
+    - `b333-advisories` (#333, low, session `1df4d23a`): dispatched on the owner's direct "dispatch 333 at low". It opened **PR #337** (head a2c6c6f, green). I told it #335 merged, so it should bring main in and do the four #335-derived items (the conftest ImportError guard matters most). **Hold #337's re-proof until it reports.** #337 changes `load_published` (new `empty_only` parameter and `Loaded.refused`), which #136 also edits.
+    - `b138-drill` (#138, medium, session `4951b683`): dispatched on the owner's "#138 now (Recommended)". It opened **PR #338** (head da5c213). I told it to bring main in and append `tests/test_restore_drill.py` to the storage-pg line. Re-prove when it reports. **After it merges, my part** (per the brief, issuecomment-6648084935): after the owner's backfill and before the next data commit, rerun storage-pg on that commit, run `restore_drill.py --print-sql` through supabase-dynasty (SELECT only), compare rows and md5 per table, and post the result on #138. Any difference blocks #336.
+  - **Next:**
+    - **#136** (medium, brief issuecomment-6648020913): dispatch **after #337 merges**, since both touch `etl_storage_pg.py`. Its `main()` overlap with #335 is now cleared. **It needs the owner's dispatch word.** The planner's note was "dispatch after #335 merges"; confirm with the owner.
+    - The **backfill button** waits for #316 to merge. #316 is still held for the ordinary run.
+    - **#339, the marker change (low):** ticketed and approved, including its `tests.yml` change. The owner said in the planner's chat: "i approve what builder manager is sending over, it's my request". **Dispatch it at low after #138 merges.**
+      - Scope: a `pg` marker in pyproject.toml, `pytestmark` in the four PG test files, and the storage-pg line becoming `pytest tests/ -m pg -v -rs`.
+      - A guard test, `tests/test_pg_marker.py`, fails on any test file that reads TEST_DATABASE_URL without the marker. `test_migrations_apply.py` is the one exception.
+      - Done when storage-pg's passed count is at least the last green run on main.
+    - **skills#75 is merged** (2e1bebc, on the owner's word in the planner's chat). Builders get the command forms from the next skill load. The owner is adding lines to `builders.settings.json` by hand; don't touch that file.
+  - **Builder command forms** (from the planner, already sent to b333 and b138):
+    - one command per call, no `cd`, chains or loops;
+    - `git add -u`;
+    - the PII check with `pre_commit run --from-ref origin/main --to-ref HEAD`;
+    - `gh issue view --comments`;
+    - `gh pr checks --watch`;
+    - `git fetch origin`, then `git merge origin/main`;
+    - the Write tool for scratch files.
+  - **The owner may switch back to auto.** Nothing pending needs manual mode.
+- **Update, 2026-11-05 later, session `59aab023`: overrides everything below where they differ.** Main is at `2e15942`. The owner says the project is paused until migration is done, so migration is the only focus.
+  - **#334 (#135 B3) merged as `2e15942`** after re-proof. The supabase-auditor had no blocking finding. Live `football` has 36 empty tables. **The backfill button waits for #316 to merge** (owner: "Backfill after #316 (Recommended)"). Don't put it to the owner before then. My earlier steps on #135 are corrected there.
+  - **#335 (#137) is open.**
+    - Builder `b137-runlog` runs as copy `88f7a1d7` (the old job was `c898b07a`). It's adding the planner's ruling: 'published' means pushed, and a `--no-push` commit is 'committed'.
+    - Already in it: the `.env` fallback (ruled on #137) and `statement_timeout`. The auditor had no blocking finding at a8a3eb9.
+    - **Parked with the owner:** bringing main into #335. The builder's `git merge origin/main` was refused, and I won't run it for the builder. The `tests.yml` line must read `tests/test_etl_storage.py tests/test_backfill.py tests/test_run_log.py`. I gave the owner the steps.
+    - The owner also declined my local pytest run of #335. I asked whether to rely on CI plus the builder's local result.
+  - **Owner, planner chat, 2026-11-05, word for word:**
+    - "Cut over after Stage C (Recommended)". This created #336, the storage cutover. NEEDS-OWNER's Cutover entry is split into #336 and the #93 Actions cutover.
+    - "Backfill after #316 (Recommended)".
+    - "Approve both (Recommended)": the storage-pg pytest line, for #136/#137/#138 and B3.
+  - **Next:**
+    - #136 (medium): the brief is issuecomment-6648020913. Dispatch it **after #335 merges** (both touch `main()`), not alongside #333. The `load_published` replace=False default now lives in #136.
+    - #333 (low): the leftover advisories, with #334's added and the silent conftest guard skip flagged as the most important. **Its dispatch needs the owner's yes; I've asked.** Never run it alongside #136 (both touch `etl_storage_pg.py`).
+    - #138 after B3. #316 is still held for the ordinary run.
+- **Update, 2026-11-05, before a compact, session `59aab023`: overrides everything below where they differ.** Main is at `251493c`. **No builder is running.** Open PRs: #316 (held for the ordinary run).
+  - **#331 (#135 B1) merged `88e9cbd`.** It was sent back once, because nothing stopped tests reaching the live database. Fix: a `no_live_database` autouse fixture in `tests/conftest.py`.
+  - **#332 (#135 B2) merged `251493c`** on the owner's "merge 332 when green". All 36 published tables round-trip as `etl_writer` with RLS on, with zero constraint violations. It includes the RLS write fix I approved while the planner was offline: COPY is refused under RLS, so the write path stages rows in a temp table and then runs `INSERT ... SELECT`. Live read-only check: `etl_writer` has TEMP and `football` USAGE.
+  - Builders `b135-pg` and `b135-golden` are closed and removed.
+  - **Next on #135:**
+    - **B3** (medium): `scripts/backfill_postgres.py`, `tests/test_backfill.py`, and `.github/workflows/backfill.yml`, which D1 (a) approved. Its load function is `pg_load_published` in `tests/test_etl_storage.py`; move it out and import it, never copy it. B3's prerequisites (B2, D1) are met, but **its dispatch has no owner word yet: ask.** After the owner presses the button, I run the Settled 5 live checks (supabase-dynasty, SELECT only) and post the counts on #135.
+    - **#136** waits for the planner's Q2 ruling.
+    - **#137** waits for a planner brief. The owner approved its dispatch after B1, but the ticket has no files, done line or proof.
+    - **#138** waits for B3.
+  - **Planner follow-ups** (sent to the planner at this save; also in the ~00:15 bullet):
+    - #331's advisories: `load_dotenv` in `04a` restores the live URL; nothing checks that `TEST_DATABASE_URL` is a throwaway; cell values in `StorageError`; `__cause__` tracebacks print `DETAIL` rows in Actions logs (matters for B3 and the runner); the guard covers `tests/` only.
+    - #332's advisories: the golden test never asserts `etl_writer` and RLS; `pg_clear_published` deletes on any URL; an empty table skips its compare; the `claim_method` and `pick_ref` dtypes don't match the registry.
+- **Update, 2026-11-05 ~00:15, session `59aab023`: overrides everything below where they differ.** Main is at `ca0ea5e`. The owner asked for builders in parallel ("feels super slow to launch one builder at a time, only").
+  - **Merged under the standing approval:** skills#74 (Closes skills#70) `9dee578`; #330 (#135 B4) `632ea00`; #329 (#279 part 1) `ca0ea5e`. Part 2 of #279 stays held.
+  - **skills#74 is live.** `~/.claude/hooks/*` are junctions into the skills main checkout, which is at `9dee578`; the `claude-live` clone is also at `9dee578`. Agents may now force-delete a branch whose merged PR head equals the local tip.
+  - **In flight:** `b135-pg` (#135 B1, medium, session `52743174`, PR #331). It was sent back on a blocking supabase-auditor finding: no suite-wide guard keeps tests off the live DB when `ETL_STORAGE=postgres` (fix: an autouse `tests/conftest.py` fixture, approved; plus 3 advisories). PR comment issuecomment-6645609246.
+  - **When B1 merges:** dispatch B2 (medium) and #137 (medium) in parallel. The owner already answered "B2 and #137 follow once B1 merges" (#135 issuecomment-6645174195). Then #136 after the Q2 ruling, and B3 (medium; D1 (a): `backfill.yml` approved; the owner presses the button, then I run Settled 5 live checks via supabase-dynasty). Then #138.
+  - **For the planner (its session was offline at 00:00):**
+    - ADR-0016:261 is stale after #329.
+    - Rename `test_render_cap_cards_reads_both_figures`.
+    - An explicit `actions/setup-node` step in `tests.yml` (a workflow change).
+    - B1 advisories left to B2: `etl_writer` grants and RLS are not exercised in CI; cell values can appear in `StorageError` text; the date-partition path is untested; an empty table reads as missing under PG.
+  - **Gotchas:**
+    - `dispatch.ps1` may refuse with "not running in its worktree" when it checks too fast. Look at `claude agents --json` before a second try (`b135-pg` was fine).
+    - `claude --bg --resume <id>` with flags starts a copy. Message a live builder with SendMessage instead.
+    - `claude stop` / `claude rm` take the 8-char id.
+    - Local pytest of a PR checkout must run with that checkout as the process's working directory (`Start-Process -WorkingDirectory`), or the tests import main's `etl_helpers`.
+  - **Left:** the `s70-guard` worktree holds only `builder-state/` (`claude rm 8cf02c5f` refuses); the old `9f53c865` job; worktree `g218b`; the `.git/worktrees/ms4` record.
+- **Update, 2026-11-04, session `59aab023`: overrides everything below where they differ.** On the owner's word ("merge 327, merge 73, update live"): **#327 merged `c4f8dae`** (GOAL-RUN haiku sentence; main fast-forwarded to it). **skills#73 merged `1a602cf`** (ignore `builder-state/`). skills#68 had already merged as skills#72 `0d8ee1e`, so the haiku limit is now in GOAL-RUN. **Live updated:** `C:\Users\benha\claude-live\skills-plugins-hooks-agents` is a plain clone (no links, no plugin cache copy); fast-forwarded `d09dcbd..1a602cf`, session-dispatch plugin 0.2.0. Hooks untouched (#70 not merged). Skills main checkout fast-forwarded to `1a602cf`, owner's `PLAN.md` kept. The owner deleted remotes `docs/218-supabase-dynasty`, `docs/218-haiku-sentence` and skills `worktree-s68-haiku`. Left: worktree `g218b` holding local `docs/218-haiku-sentence`. **#328 (state batch) merged `96170e2`** by the planner on the owner's pane (a) 17:02:26 and chat "(a) merge 328"; entry removed. State saves now go on `docs/state-2026-11-04` (the planner's worktree `ps1103` has it checked out; push with `HEAD:docs/state-2026-11-04`). Still in flight: `s70-guard` (skills#70). #316 held.
 - **Update, 2026-11-03 ~20:35, session `010006f2`, before a clear: overrides everything below where they differ.** Main is at `96c6f5e`.
   - **#326 merged `96c6f5e`** on the owner's word ("merge 326"; pane (a) 20:07 recorded on #218). It applies the planner's #218 text: `supabase-dynasty` is the one look-only path into Supabase. That is a user-level MCP server, project-scoped, `read_only=true`, with 10 tools. GOAL-RUN "After a schema change lands" uses its `get_advisors` and `execute_sql` (SELECT only). A session without its tools parks that check. A fresh session has the tools.
   - Remote `docs/218-supabase-dynasty` is left for the owner; the command was given. The local branch is left until skills#70 lands.

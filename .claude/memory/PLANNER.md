@@ -5,11 +5,44 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-11-03, before a clear)
+## START HERE (state 2026-11-05, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+
+000000. **NEWEST: resume, 2026-11-05 late. Overrides 00000 where they differ.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries it raises answer here.
+   Live: #345 (Brief 5, Closes #300) open, CI 7 green, 1 pending. #342 (#136) DIRTY at efc50a6 (needs main merged in). #344 no PR yet. #341 after #342.
+   Then the backfill button, live checks plus the #138 drill compare, then #336; its final tasklist stays parked until last. No open Decisions for me. Manager told.
+   Data branch `data/refresh-2026-11-04` already deleted on the remote (manager state), so that loose end is closed. When #345 merges: re-run the #300 evidence and close the map line.
+
+00000. **NEWEST: clear boundary, 2026-11-05 ~03:30Z. Overrides every item below where they differ.** Session `73d38bcc-afbf-4461-af56-c14790bb2362`.
+   **Goal:** migration only. Owner: "we are VERY CLOSE"; the project is paused until the refreshes run on Supabase.
+   **Worktree:** `ps1103` (path in item 0000), now on `docs/state-2026-11-04`, which tracks origin. It has a `.venv` junction (remove that before the worktree).
+   Push with `HEAD:docs/state-2026-11-04`; the manager pushes there too. No batch PR is open for this branch yet. Save state the same way (insert before the `#300:` anchor; pull --rebase; push).
+   **Peers:** `dynastyFantasyFootball-central-builder-manager` (it restarts often: use ListAgents and send by name, not by an old pipe address), plus builders b138-drill and b333-advisories (the latter is done).
+   **Merged since 2026-11-04:** #334 B3, #335 run log `a84b617`, #337 (#333) `9ad4e48`, #340 data run `b863586`, skills#75 command forms `2e1bebc`.
+   **Cutover path (#336 holds the order):**
+   1. #136 export/restore: the owner approved its dispatch after #337, and #337 has merged, so the manager dispatches it at medium (brief issuecomment-6648020913).
+   2. #138 drill = PR #338 (b138-drill: storage-pg ordering assert + DIRTY). Rule if it raises the checksum design (brief issuecomment-6648084935).
+   3. #339 pg marker (low, owner-approved), after #338 merges.
+   4. #316: unblocked by b863586. The manager brings it up to date, reruns the rekey, re-proves and merges. Then #300 Brief 5.
+   5. The owner's backfill button (#135), then the manager's live counts plus the #138 checksum compare, then ETL_STORAGE=postgres, a supervised run, and a docs PR.
+   **Final tasklist on #336 (issuecomment-6648581255). The owner wants it re-evaluated only after everything else is done:**
+   how runs land data under ruleset 24086028 (a direct push gets GH013; leaning: the pipeline opens a PR), the webhook 403, and the scheduled task, which isn't registered.
+   Until then, every run's data lands by a hand PR like #340. A run started by an agent is barred (its run log connects to live). The owner runs:
+   `powershell -ExecutionPolicy Bypass -File .\run_weekly.ps1 --trigger manual` from the repo root.
+   **Learned:** builders run in an ask-nothing mode, so refusals are allowlist misses, not a classifier. Use the command forms in session-rules. The project deny rules match file names
+   anywhere in a command, even in a `gh pr create` body. The owner added 5 allow lines to builders.settings.json.
+   **After the save:** #136 dispatched as b136-export. #316 rekey rerun (b300d-build), measured at re-proof. #338 bringing main in again. New #341 (low): #337 advisories 1/2/3/6/9,
+   after #136 and #339, before cutover; needs the owner's dispatch word.
+   **Later:** #316 merged `68de4af`, #338 merged `3c6df1a`, #339 dispatched (b339-marker). Brief 5 (b300e) waits on the owner adding a prune allow rule.
+   #342 (#136): (1)(2)(3)(5)(6) fixed in the PR, (7) on the #336 tasklist, (8) moved to #341. New #344 (low, row order; dispatch-ready on the owner's word; parallel OK).
+   #341 is owner-approved for after #136 and #339.
+   **Last, before the clear (2026-11-05 ~04:00Z):** #339 merged `c56601f`. The open cutover work: #342 (#136, b136 fixing auditor items 1/2/3/5/6), Brief 5 (b300e, prune rule added;
+   the removal is queued for after it merges), #341 (after #136), #344 (row order; the manager is confirming the owner's dispatch word). Then the backfill button, live checks and #336.
+   The remote data branch is deleted. A hung push had held .git/packed-refs.lock; the owner cleared it. If a fetch fails on that lock again, look for a hung git process and give the owner the steps.
+   **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
    Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
@@ -131,6 +164,50 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Open:** (1) skills#70 is in flight as `s70-guard`; the manager re-proves and merges it. (2) #316 waits on the ordinary run (no data commit on main since #311); order on #300.
    (3) This branch's batch PR is open; its merge is a queue Decision (recommended (a)). Merge it on the owner's answer, then branch a new state branch for later saves.
    (4) At the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding".
+
+   **2026-11-04 17:05, same session: #328 merged `96170e2`** on the owner's pane (a) at 17:02:26, recorded on the PR. The state branch is now `docs/state-2026-11-04`,
+   cut from main and checked out in `ps1103`; push with `HEAD:docs/state-2026-11-04`. The manager pushes there too. `docs/state-2026-11-01b` is deleted, local and remote.
+   Open item (3) above is done; (1), (2) and (4) stand.
+
+   **2026-11-04 ~17:20: parallel dispatch.** The owner (planner chat) chose "Both now": #279 part 1 (low) and #135 scoping (high, TurnCap 40), in parallel. Recorded, with briefs, on both tickets.
+   The #135 scoping brief must settle the test DB and its installs, and how the real-project backfill runs under the Never line (no live agent connection). Each option is a queue Decision.
+   Not free: #136/#137/#138 wait on #135; #111 runs after cutover; #116/#93 are blocked. Sent to the manager to dispatch. When the scoping plan posts on #135, I review it.
+
+   **2026-11-04 later: #135 scoped** (s135-scope, issuecomment-6645074641). My ruling is the next comment: B1 medium, B2 medium, B3 medium (raised), B4 low. Q1 sort by pk; Q3 no sources.yml change;
+   Q2 deferred to #136 (needs a ruling before its brief), Q4 noted on #138. Owner (planner chat): dispatch B1 (with the tests.yml storage-pg job) and B4 now, in parallel. Sent to the manager.
+   D1 (how the backfill runs; (a) a dispatch workflow is recommended) is the manager's queue entry. Next: after B1 merges, B2 and #137 in parallel. Q2's ruling is mine to grill before #136.
+
+   **D1 answered (a), dispatch workflow** (owner, planner chat, 2026-11-04; on #135). B3's `backfill.yml` is approved; the owner presses the button. B3 still waits for B2.
+
+   **2026-11-05: Stage C moving.** Merged: skills#74 (#70), #330 (B4), #329 (#279 pt1), #331 (B1), #332 (B2; COPY under RLS replaced by temp table + INSERT SELECT, manager-approved, no grant change).
+   B3 brief: #135 issuecomment-6646329446 (medium; owner: "yes, dispatch B3 once the brief lands"). #137 brief: issuecomment-6646358564 (medium; owner: log from now on, run goes on loud).
+   Q2 ruled on #136 (6646359596): reload failed Chains from the snapshot in one txn, else the whole run's tables; brief #136 after B3. New #333 (low) for leftover advisories, after B3.
+   Known risk: the weekly PC run sits at the 7-day pause limit until #93's daily runner.
+
+   **BEFORE A COMPACT, 2026-11-05 (session 73d38bcc). NEXT for a resumed planner; overrides above.** Owner: "we are VERY CLOSE"; the project is paused until migration completes. Migration only.
+   **Owner answers (planner chat 2026-11-05):** cutover after Stage C on the PC runner (Stage D, #93/#116, after, on Postgres); backfill button only after #316 merges; storage-pg pytest line approved for B3, #137, #136, #138.
+   **Cutover ticket #336** (low, Stage C) holds the order: ordinary run, #316 merges (#300 Brief 5); owner presses the backfill button; manager runs live checks; #136, #137 and #138 merge;
+   owner sets ETL_STORAGE=postgres in .env; one supervised run; manager checks; docs PR (CLAUDE.md storage line, ADR-0014 status, map #69). The manager was asked to rewrite the 'Cutover (later)' Action.
+   **Merged:** #334 (B3, `2e15942`); live football has 36 empty tables. **#335** (#137) is green at e93a265; still to do: the 'published = pushed' fix (my ruling on #137), then main merged in (refused in the builder; parked with the owner).
+   **#136 brief:** issuecomment-6648020913 (medium), after #335 merges; not alongside #333 (both touch etl_storage_pg.py). **#333** (low) has the #331/#332/#335 advisories (the conftest silent-skip is the top one); run it after #136.
+   **#138:** brief not written yet. It's my next one. Its load step uses B3's `load_published`; the live compare is manager SELECT counts and checksums (Q4). Write it now, so it can run in parallel with #136 if the files allow.
+   Manager is a restarted session under the same name; b137-runlog could not reach it once, so I relayed.
+
+   **Later 2026-11-05 (same session), overrides above.** #138 brief posted (issuecomment-6648084935, medium): new scripts/restore_drill.py + tests/test_restore_drill.py + storage-pg line;
+   no etl_storage_pg.py edit, so it may run beside #136 (shared pytest line only). The manager compares with --print-sql via supabase-dynasty after the backfill. Dispatch of #138 and #333 waits on the owner's word.
+   #335 is DIRTY (conflicts), so there's no Update-branch button; the owner has the link, and it stays parked with them. Manager done: NEEDS-OWNER cutover split (#336 / #93), #135 corrected, ruling relayed to b137-runlog copy 88f7a1d7.
+
+   **Builder refusals, 2026-11-05.** Tally: 184 refusals across 72 builder transcripts, which run in an ask-nothing mode (not a classifier). Owner chose session-rules text: skills#75 (Command forms section), plus a GOAL-RUN.md line
+   listing the deny-named files. Settings lines the owner adds by hand: `git merge origin/main*` (replacing the exact rule), `gh run watch *`, `mkdir -p builder-state*`, `cp * builder-state/*`, `git check-ignore*`. Builder-state scripts stay refused (owner).
+   The manager ran the #335 merge itself on the owner's word (b02a3d1). #333 was dispatched by the owner directly (b333-advisories), and #136 now waits for #333. #138 was dispatched as b138-drill.
+
+   **Latest 2026-11-05.** skills#75 merged `2e1bebc` (owner's word); live skills clone fast-forwarded. The owner made the builders.settings.json lines. #335 merged `a84b617`.
+   New #339 (low): storage-pg selects tests by a `pg` marker; owner-approved in my chat; dispatches after #138 (PR #338). Open: #337 (#333), #338 (#138), then #136 after #337.
+   Manager state ec977f6. Mine next: rule on PRs when asked; then the #336 cutover sequence.
+
+   **Ordinary run landed, 2026-11-05.** The scheduled task was never registered. The owner ran it by hand; all Chains passed. Ruleset 24086028 (required checks) refused the direct push (GH013),
+   so the data landed via PR #340 (rebase merge, owner's word) as `b863586`. #316 is unblocked (manager told). Final tasklist on #336 (issuecomment-6648581255), which the owner wants re-evaluated after everything else:
+   how runs land data under the ruleset (leaning: the pipeline opens a PR), the webhook 403, and the unregistered task. Until then, each run's data lands by a hand PR. #339 = pg marker (owner-approved, after #338).
 
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
