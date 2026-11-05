@@ -755,7 +755,8 @@ def _coerce(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
                 out = df.copy()
             out[name] = _cast(out[name], declared)
         except (TypeError, ValueError) as exc:
-            raise StorageError(f"{entry['name']}.{name}: cannot cast {real} to {declared}: {exc}") from exc
+            raise StorageError(f"{entry['name']}.{name}: cannot cast {real} to {declared} "
+                               f"({type(exc).__name__}; {len(out)} row(s); values withheld)") from exc
     return out
 
 
