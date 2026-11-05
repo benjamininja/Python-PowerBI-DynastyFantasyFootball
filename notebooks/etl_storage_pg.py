@@ -116,7 +116,9 @@ def read(entry: dict, columns=None):
 
 def read_on(conn, entry: dict, columns=None):
     """`read` on an open connection, so a load can read back what it wrote
-    before it commits."""
+    before it commits. The rows come in the binary format, which sends a
+    double as its 8 bytes whatever extra_float_digits the session holds; the
+    text format prints 15 digits at 0 (a Supabase session) and loses bits."""
     _, sql = _psycopg()
     spec = _spec(entry)
     declared = _declared(entry)
@@ -127,7 +129,7 @@ def read_on(conn, entry: dict, columns=None):
         raise WriteRefused(f"{entry['name']}: no such column {unknown}")
     query = sql.SQL("SELECT {} FROM {} ORDER BY {}").format(
         _names(wanted), _table(spec), _names(spec["pk"]))
-    rows = conn.execute(query).fetchall()
+    rows = conn.execute(query, binary=True).fetchall()
     if not rows:
         return None
     sql_types = {c["name"]: c["sql_type"] for c in spec["columns"]}
