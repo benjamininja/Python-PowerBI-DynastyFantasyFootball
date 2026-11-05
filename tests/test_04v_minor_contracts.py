@@ -142,7 +142,7 @@ class TestRun:
         monkeypatch.setattr(mv, "CFG", cfg)
         monkeypatch.setattr(mv.etl.CFG, "data_dir", str(tmp_path))   # where the seam writes
         monkeypatch.setattr(mv, "date", Clock)
-        monkeypatch.setattr(mv, "fetch_eligibility", lambda scraper, ctx, page: PULLS)
+        monkeypatch.setattr(mv, "fetch_eligibility", lambda scraper, ctx, page, meta=None: PULLS)
 
         elig = mv.run()
 
