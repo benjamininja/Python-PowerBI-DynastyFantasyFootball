@@ -49,8 +49,10 @@ def team_assets(team_key: str) -> dict:
     players_dim = da.read_parquet("dim_nfl_players")[
         ["gsis_id", "display_name", "position", "position_group", "team_abbr", "birth_date"]
     ]
+    players_dim = players_dim.dropna(subset=["gsis_id"])
     roster = roster.merge(players_dim, on="gsis_id", how="left")
     crosswalk = ps.crosswalk_one_per_gsis(da.read_parquet("dim_fantrax_crosswalk"))
+    crosswalk = crosswalk.dropna(subset=["gsis_id"])
     roster = roster.merge(crosswalk, on="gsis_id", how="left")
     sort_order = _position_sort_order()
     values = _values_by_stance()
