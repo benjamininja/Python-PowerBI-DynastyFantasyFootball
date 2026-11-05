@@ -21,6 +21,22 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-05 ~00:15, session `59aab023`: overrides everything below where they differ.** Main is at `ca0ea5e`. The owner asked for builders in parallel ("feels super slow to launch one builder at a time, only").
+  - **Merged under the standing approval:** skills#74 (Closes skills#70) `9dee578`; #330 (#135 B4) `632ea00`; #329 (#279 part 1) `ca0ea5e`. Part 2 of #279 stays held.
+  - **skills#74 is live.** `~/.claude/hooks/*` are junctions into the skills main checkout, which is at `9dee578`; the `claude-live` clone is also at `9dee578`. Agents may now force-delete a branch whose merged PR head equals the local tip.
+  - **In flight:** `b135-pg` (#135 B1, medium, session `52743174`, PR #331). It was sent back on a blocking supabase-auditor finding: no suite-wide guard keeps tests off the live DB when `ETL_STORAGE=postgres` (fix: an autouse `tests/conftest.py` fixture, approved; plus 3 advisories). PR comment issuecomment-6645609246.
+  - **When B1 merges:** dispatch B2 (medium) and #137 (medium) in parallel. The owner already answered "B2 and #137 follow once B1 merges" (#135 issuecomment-6645174195). Then #136 after the Q2 ruling, and B3 (medium; D1 (a): `backfill.yml` approved; the owner presses the button, then I run Settled 5 live checks via supabase-dynasty). Then #138.
+  - **For the planner (its session was offline at 00:00):**
+    - ADR-0016:261 is stale after #329.
+    - Rename `test_render_cap_cards_reads_both_figures`.
+    - An explicit `actions/setup-node` step in `tests.yml` (a workflow change).
+    - B1 advisories left to B2: `etl_writer` grants and RLS are not exercised in CI; cell values can appear in `StorageError` text; the date-partition path is untested; an empty table reads as missing under PG.
+  - **Gotchas:**
+    - `dispatch.ps1` may refuse with "not running in its worktree" when it checks too fast. Look at `claude agents --json` before a second try (`b135-pg` was fine).
+    - `claude --bg --resume <id>` with flags starts a copy. Message a live builder with SendMessage instead.
+    - `claude stop` / `claude rm` take the 8-char id.
+    - Local pytest of a PR checkout must run with that checkout as the process's working directory (`Start-Process -WorkingDirectory`), or the tests import main's `etl_helpers`.
+  - **Left:** the `s70-guard` worktree holds only `builder-state/` (`claude rm 8cf02c5f` refuses); the old `9f53c865` job; worktree `g218b`; the `.git/worktrees/ms4` record.
 - **Update, 2026-11-04, session `59aab023`: overrides everything below where they differ.** On the owner's word ("merge 327, merge 73, update live"): **#327 merged `c4f8dae`** (GOAL-RUN haiku sentence; main fast-forwarded to it). **skills#73 merged `1a602cf`** (ignore `builder-state/`). skills#68 had already merged as skills#72 `0d8ee1e`, so the haiku limit is now in GOAL-RUN. **Live updated:** `C:\Users\benha\claude-live\skills-plugins-hooks-agents` is a plain clone (no links, no plugin cache copy); fast-forwarded `d09dcbd..1a602cf`, session-dispatch plugin 0.2.0. Hooks untouched (#70 not merged). Skills main checkout fast-forwarded to `1a602cf`, owner's `PLAN.md` kept. The owner deleted remotes `docs/218-supabase-dynasty`, `docs/218-haiku-sentence` and skills `worktree-s68-haiku`. Left: worktree `g218b` holding local `docs/218-haiku-sentence`. **#328 (state batch) merged `96170e2`** by the planner on the owner's pane (a) 17:02:26 and chat "(a) merge 328"; entry removed. State saves now go on `docs/state-2026-11-04` (the planner's worktree `ps1103` has it checked out; push with `HEAD:docs/state-2026-11-04`). Still in flight: `s70-guard` (skills#70). #316 held.
 - **Update, 2026-11-03 ~20:35, session `010006f2`, before a clear: overrides everything below where they differ.** Main is at `96c6f5e`.
   - **#326 merged `96c6f5e`** on the owner's word ("merge 326"; pane (a) 20:07 recorded on #218). It applies the planner's #218 text: `supabase-dynasty` is the one look-only path into Supabase. That is a user-level MCP server, project-scoped, `read_only=true`, with 10 tools. GOAL-RUN "After a schema change lands" uses its `get_advisors` and `execute_sql` (SELECT only). A session without its tools parks that check. A fresh session has the tools.
