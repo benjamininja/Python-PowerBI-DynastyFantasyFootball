@@ -72,6 +72,13 @@ already commits refreshed `data/*.parquet` to `main`, and the workflow triggers
 on that path. Worth confirming after the first real pipeline run rather than
 assuming.
 
+*Amended 2026-11-05 (#361, PR #364; recorded by #365): the pipeline no longer
+commits to `main` directly. It lands the refreshed `data/*.parquet` by its own
+data PR, gated by `pii-scan`, `tests` and `bot-tests`, and merges that PR
+itself. Nothing is pushed to `main`, nothing is bypassed. The workflow's path
+trigger still fires, now on the merge. See the data-PR exception in
+CONTRIBUTING.md.*
+
 **Nothing generated is committed** (`_site/` is gitignored). The site rebuilds
 from parquet on every deploy, so it cannot drift from the data the way a
 checked-in artifact could.
