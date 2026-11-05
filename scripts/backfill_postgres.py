@@ -6,7 +6,8 @@ etl_writer login. Nothing here is run by an agent against the real project.
 
   1. The login must be etl_writer, without BYPASSRLS or superuser, and every
      football table must have row-level security on.
-  2. Every football table must be empty, unless --replace is passed.
+  2. Every football table must be empty, unless --replace is passed. That
+     check runs inside the load transaction, under a table lock.
   3. Every data/*.parquet is read as stored and loaded in ONE transaction (the
      foreign keys are deferred, so the order does not matter). Each table is
      then read back inside that transaction and compared with the snapshot,
@@ -51,15 +52,17 @@ def run(url: str, frames: dict, *, replace: bool = False, out=print) -> int:
     tables = sorted(frames)
     with psycopg.connect(url, prepare_threshold=None) as conn:
         refusals = pg.login_problems(pg.login_facts(conn), tables)
-        if not refusals and not replace:
-            refusals = [f"{pg.SCHEMA}.{name} already holds rows; this run loads an empty schema "
-                        f"(--replace empties each table first)" for name in pg.nonempty(conn, tables)]
     if refusals:
         for line in refusals:
             out(f"refused: {line}")
         out("nothing was written")
         return 2
-    loaded = pg.load_published(url, frames, replace=replace, verify=True)
+    loaded = pg.load_published(url, frames, replace=replace, verify=True, empty_only=not replace)
+    if loaded.refused:
+        for line in loaded.problems:
+            out(f"refused: {line}")
+        out("nothing was written")
+        return 2
     if loaded.problems:
         for line in loaded.problems:
             out(f"failed: {line}")
