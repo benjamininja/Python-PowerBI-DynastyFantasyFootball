@@ -20,7 +20,8 @@ INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s WHERE run_id = %s")
-COUNT_STALE = "SELECT count(*) FROM ops.etl_run_log WHERE status = 'running' AND finished_at IS NULL"
+COUNT_STALE = ("SELECT count(*) FROM ops.etl_run_log WHERE status = 'running' "
+               "AND finished_at IS NULL AND started_at < now() - interval '6 hours'")
 
 
 def env_value(key: str, path: Path | None = None) -> str | None:
@@ -155,9 +156,13 @@ class RunLog:
             print(f"[info] {URL_ENV} not set - run log skipped")
             return
         run_id = str(uuid.uuid4())
+        stale = 0
         try:
             stale = _count(COUNT_STALE)
-            _write(INSERT,(run_id, self.trigger, datetime.now(timezone.utc), git_sha))
+        except Exception as exc:
+            print(f"[warn] stale-run count failed: {first_line(exc)}")
+        try:
+            _write(INSERT, (run_id, self.trigger, datetime.now(timezone.utc), git_sha))
         except Exception as exc:
             self._failed(exc)
             return

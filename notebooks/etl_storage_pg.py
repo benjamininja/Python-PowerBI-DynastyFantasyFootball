@@ -414,6 +414,7 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
     with psycopg.connect(url, prepare_threshold=None) as conn:
         with conn.transaction() as tx:
             if empty_only:
+                conn.execute("SET LOCAL lock_timeout = '10s'")
                 for name in sorted(frames):
                     conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE")
                                  .format(sql.Identifier(SCHEMA, name)))
@@ -476,8 +477,10 @@ def reload_snapshot(url: str, names, data_dir) -> Loaded:
 def like_snapshot(df: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
     """`df` in the snapshot's column order, and with its text flavour where the
     snapshot's differs (a published `string` column the registry calls `str`)."""
-    if set(snapshot.columns) != set(df.columns):
-        return df
+    missing = [c for c in snapshot.columns if c not in df.columns]
+    extra = [c for c in df.columns if c not in snapshot.columns]
+    if missing or extra:
+        raise ValueError(f"columns differ from the snapshot: missing {missing}, extra {extra}")
     out = df[list(snapshot.columns)].copy()
     for col in out.columns:
         was, want = str(out[col].dtype), str(snapshot[col].dtype)

@@ -437,6 +437,31 @@ class TestPostgres:
         by_id = {r[0]: r for r in pg.mine()}
         assert by_id[old][2] == "running" and by_id[old][8] is None
 
+    def test_a_run_in_flight_is_not_stale_but_an_old_one_is(self, pg):
+        import psycopg
+        with psycopg.connect(pg.url) as conn:
+            before = conn.execute(rl.COUNT_STALE).fetchone()[0]
+            ids = [conn.execute(
+                "INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status) "
+                f"VALUES (gen_random_uuid(), 'manual', now() - interval '{age}', 'running') "
+                "RETURNING run_id::text").fetchone()[0] for age in ("1 minute", "7 hours")]
+            after = conn.execute(rl.COUNT_STALE).fetchone()[0]
+        assert after == before + 1
+        with psycopg.connect(pg.url) as conn:
+            for run_id in ids:
+                conn.execute("DELETE FROM ops.etl_run_log WHERE run_id = %s::uuid", (run_id,))
+
+    def test_a_failed_stale_count_still_inserts_the_run_row(self, pg, monkeypatch, capsys):
+        def broken(sql):
+            raise OSError("count refused")
+        monkeypatch.setattr(rl, "_count", broken)
+        log = rl.RunLog("manual")
+        log.start(HEAD)
+        out = capsys.readouterr().out
+        assert log.run_id is not None and log.warning is None
+        assert "[warn] stale-run count failed: count refused" in out
+        assert [r[2] for r in pg.mine()] == ["running"]
+
     def test_a_stalled_statement_is_a_write_error(self, pipe, pg, monkeypatch):
         import psycopg
         monkeypatch.setattr(rl, "STATEMENT_TIMEOUT_MS", 500)

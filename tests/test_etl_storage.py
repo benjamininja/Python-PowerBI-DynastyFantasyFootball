@@ -84,12 +84,14 @@ OPT_IN_NONLOCAL = "ALLOW_NONLOCAL_TEST_DATABASE"
 def refuse_unless_throwaway(url):
     """The PG cases delete and rewrite tables. Only a database on this machine
     (the CI service container) is a throwaway; any other host needs the opt-in."""
-    from urllib.parse import urlsplit
+    from psycopg.conninfo import conninfo_to_dict
     try:
-        host = urlsplit(url).hostname
-    except ValueError:
-        host = None
-    if host not in LOCAL_HOSTS and not os.environ.get(OPT_IN_NONLOCAL):
+        parts = conninfo_to_dict(url)
+    except Exception:
+        parts = {}
+    hosts = [h for key in ("host", "hostaddr") for h in str(parts.get(key) or "").split(",") if h]
+    local = bool(parts.get("host")) and not parts.get("hostaddr") and all(h in LOCAL_HOSTS for h in hosts)
+    if not local and not os.environ.get(OPT_IN_NONLOCAL):
         pytest.fail(f"TEST_DATABASE_URL host is not localhost or 127.0.0.1; "
                     f"set {OPT_IN_NONLOCAL} only for a throwaway database", pytrace=False)
 
@@ -362,6 +364,10 @@ class TestGuards:
         ("postgresql://u:p@127.0.0.1/d", True),
         ("postgresql://u:p@db.example.com:5432/d", False),
         ("postgresql://u:p@/d", False),
+        ("postgresql://u:p@localhost/d?host=db.example.com", False),
+        ("postgresql://u:p@localhost/d?hostaddr=10.0.0.5", False),
+        ("postgresql://u:p@localhost/d?host=localhost,db.example.com", False),
+        ("postgresql://u:p@localhost,db.example.com/d", False),
     ])
     def test_only_a_local_database_is_a_throwaway(self, monkeypatch, url, ok):
         monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
