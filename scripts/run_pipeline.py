@@ -495,6 +495,15 @@ def _run_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def resolve_storage_env(env_file: Path | None = None) -> str:
+    for key in ("ETL_STORAGE", etl_run_log.URL_ENV):
+        if not os.environ.get(key):
+            value = etl_run_log.env_value(key, REPO / ".env" if env_file is None else env_file)
+            if value:
+                os.environ[key] = value
+    return os.environ.get("ETL_STORAGE") or "parquet"
+
+
 def main() -> int:
     # Console may be cp1252 (bare python.exe outside run_weekly.ps1's
     # PYTHONUTF8): keep the summary's emoji from crashing the print. Guarded
@@ -526,6 +535,8 @@ def main() -> int:
     ap.add_argument("--trigger", choices=etl_run_log.TRIGGERS, default="manual",
                     help="what started the run, for ops.etl_run_log")
     args = ap.parse_args()
+
+    print(f"storage: {resolve_storage_env()}")
 
     if args.check_only:
         return check_only(args.accept_shrink)
