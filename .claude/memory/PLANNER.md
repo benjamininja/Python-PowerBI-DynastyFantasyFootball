@@ -34,6 +34,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Later:** #316 merged `68de4af`, #338 merged `3c6df1a`, #339 dispatched (b339-marker). Brief 5 (b300e) waits on the owner adding a prune allow rule.
    #342 (#136): (1)(2)(3)(5)(6) fixed in the PR, (7) on the #336 tasklist, (8) moved to #341. New #344 (low, row order; dispatch-ready on the owner's word; parallel OK).
    #341 is owner-approved for after #136 and #339.
+   **Last, before the clear (2026-11-05 ~04:00Z):** #339 merged `c56601f`. The open cutover work: #342 (#136, b136 fixing auditor items 1/2/3/5/6), Brief 5 (b300e, prune rule added;
+   the removal is queued for after it merges), #341 (after #136), #344 (row order; the manager is confirming the owner's dispatch word). Then the backfill button, live checks and #336.
+   The remote data branch is deleted. A hung push had held .git/packed-refs.lock; the owner cleared it. If a fetch fails on that lock again, look for a hung git process and give the owner the steps.
    **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
