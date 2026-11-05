@@ -174,14 +174,14 @@ class TestTheDatabase:
         assert held(db) == []
 
     def test_the_loaded_counts_are_the_database_counts(self, db, frames):
-        loaded = pg.load_published(db, frames)
+        loaded = pg.load_published(db, frames, replace=True)
         assert loaded.problems == [] and not loaded.refused
         assert loaded.counts == {t: len(frames[t]) for t in TABLES}
         for table in TABLES:
             assert count(db, table) == loaded.counts[table]
 
     def test_empty_only_refuses_inside_the_load_and_writes_nothing(self, db, frames):
-        assert pg.load_published(db, frames).problems == []
+        assert pg.load_published(db, frames, replace=True).problems == []
         before = {t: count(db, t) for t in TABLES}
         again = pg.load_published(db, frames, replace=False, empty_only=True)
         assert again.refused and again.counts == {}
@@ -189,13 +189,13 @@ class TestTheDatabase:
         assert {t: count(db, t) for t in TABLES} == before
 
     def test_the_clear_helper_deletes_in_the_test_database(self, db, frames):
-        assert pg.load_published(db, frames).problems == []
+        assert pg.load_published(db, frames, replace=True).problems == []
         assert held(db)
         pg.clear_published(db, TABLES)
         assert held(db) == []
 
     def test_a_load_without_replace_into_a_full_table_rolls_back(self, db, frames):
-        assert pg.load_published(db, frames).problems == []
+        assert pg.load_published(db, frames, replace=True).problems == []
         again = pg.load_published(db, frames, replace=False)
         assert any("refused: UniqueViolation SQLSTATE 23505" in line for line in again.problems)
         for table in TABLES:

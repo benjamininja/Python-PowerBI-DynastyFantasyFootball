@@ -615,7 +615,7 @@ def golden_pg():
     frames = {t: pd.read_parquet(REPO / "data" / f"{t}.parquet") for t in TABLES}
     pg.clear_published(url, TABLES)
     try:
-        report = pg.load_published(url, frames).problems
+        report = pg.load_published(url, frames, replace=True).problems
         if report:
             pytest.fail("the database refuses published rows:\n  " + "\n  ".join(report), pytrace=False)
         yield url, frames

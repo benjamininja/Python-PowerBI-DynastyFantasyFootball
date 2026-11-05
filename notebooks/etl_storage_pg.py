@@ -395,16 +395,17 @@ def differences(got, published: pd.DataFrame, entry: dict) -> list[str]:
     return lines
 
 
-def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool = False,
+def load_published(url: str, frames: dict, *, replace: bool = False, verify: bool = False,
                    empty_only: bool = False) -> Loaded:
     """Load every table of `frames` in one transaction, as the login in `url`.
     The foreign keys are deferred, so the load order does not matter. With
     `verify`, every table is read back inside the transaction and compared
     with its frame before the commit. Returns the problems (counts and names;
     then nothing is committed) and the rows each table holds, counted in the
-    database before the commit. `replace` empties each table first; without it
-    a table that holds rows is a primary-key error. `empty_only` locks the
-    tables and refuses, in the same transaction, if any holds a row."""
+    database before the commit. `replace` empties each table first and is off
+    unless a caller asks for it, since it deletes; without it a table that
+    holds rows is a primary-key error. `empty_only` locks the tables and
+    refuses, in the same transaction, if any holds a row."""
     import etl_helpers as etl
     psycopg, sql = _psycopg()
     problems, counts, refused = [], {}, False
@@ -454,6 +455,56 @@ def load_published(url: str, frames: dict, *, replace: bool = True, verify: bool
             if problems:
                 raise psycopg.Rollback(tx)
     return Loaded(problems, counts, refused)
+
+
+def reload_snapshot(url: str, names, data_dir) -> Loaded:
+    """Reload the `names` tables from the snapshot in `data_dir`, replacing
+    what they hold, in one transaction (`load_published`): a refusal leaves
+    every table as it was. A table with no file in `data_dir` is emptied."""
+    import etl_helpers as etl
+    frames = {}
+    for name in names:
+        try:
+            frames[name] = etl.read_stored(name, data_dir)
+        except etl.TableNotFound:
+            frames[name] = etl.empty_frame(etl._table_entry(name))
+    return load_published(url, frames, replace=True)
+
+
+def like_snapshot(df: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
+    """`df` in the snapshot's column order, and with its text flavour where the
+    snapshot's differs (a published `string` column the registry calls `str`)."""
+    if set(snapshot.columns) != set(df.columns):
+        return df
+    out = df[list(snapshot.columns)].copy()
+    for col in out.columns:
+        was, want = str(out[col].dtype), str(snapshot[col].dtype)
+        if was != want and was in _TEXT_DTYPES and want in _TEXT_DTYPES:
+            out[col] = out[col].astype(snapshot[col].dtype)
+    return out
+
+
+def export_published(names, data_dir) -> dict:
+    """Write `<data_dir>/<name>.parquet` for each of `names` from the database
+    and return the rows written per table. Rows are sorted by the table's
+    primary key (Q1 of #135); columns and dtypes follow the snapshot already
+    in `data_dir`, if any. Every table is read before any file is written."""
+    import etl_helpers as etl
+    data_dir = Path(data_dir)
+    frames = {}
+    with _db_errors(), _connect() as conn:
+        for name in names:
+            entry = etl._table_entry(name)
+            got = read_on(conn, entry)
+            df = etl.empty_frame(entry) if got is None else etl._coerce(got, entry)
+            df = df.sort_values(etl.table_grain(entry), kind="stable").reset_index(drop=True)
+            try:
+                df = like_snapshot(df, etl.read_stored(name, data_dir))
+            except etl.TableNotFound:
+                pass
+            frames[name] = (entry, df)
+    return {name: len(etl._write_parquet(data_dir / f"{name}.parquet", df, "replace", None, None, entry))
+            for name, (entry, df) in frames.items()}
 
 
 def clear_published(url: str, names) -> None:

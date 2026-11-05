@@ -872,11 +872,29 @@ def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
     return _coerce(df, entry)
 
 
+def empty_frame(entry: dict) -> pd.DataFrame:
+    """No rows, the registry's columns and dtypes: what an empty table reads as
+    where a parquet file with no rows would."""
+    return pd.DataFrame({c["name"]: pd.Series(dtype=str(c["dtype"])) for c in entry["columns"]})
+
+
 def read_stored(name: str, data_dir: Path | str | None = None) -> pd.DataFrame:
     """The table `name` exactly as the store holds it: no cast and no registry
     lookup. For the checks that compare the store with the registry (the
     Table Gates in etl_checks, check_data_model); ETL code calls `read_table`.
-    `data_dir` points a check at another copy of the store."""
+    `data_dir` points a check at another copy of the store: a folder of parquet
+    files, under either backend. Under ETL_STORAGE=postgres and with no
+    `data_dir` the store is the database, read through the type map (the
+    registry's dtypes, rows by primary key); a table with no rows is an empty
+    frame, as an empty parquet file is."""
+    pg = _backend() if data_dir is None else None
+    if pg is not None:
+        entry = _table_entry(name)
+        try:
+            df = pg.read(entry)
+        except pg.WriteRefused as exc:
+            raise StorageError(f"{name}: {exc}") from exc
+        return empty_frame(entry) if df is None else _coerce(df, entry)
     path = _table_path(name) if data_dir is None else Path(data_dir) / f"{name}.parquet"
     if not path.exists():
         raise TableNotFound(f"{name}: no data at {path}")
