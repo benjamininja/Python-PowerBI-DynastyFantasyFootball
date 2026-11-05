@@ -11,7 +11,9 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000. **NEWEST, 2026-11-05 ~14:10Z. Overrides 000000000 where they differ.** #351 merged `a9c5615` (re-proof issuecomment-6659755050; the 26 min was runner variance). #349 stays open until the backfill rerun passes its golden compare; then close it with that run's id.
+00000000000. **NEWEST, 2026-11-05 ~14:40Z. Overrides everything below.** Backfill rerun 42041824937 (a9c5615) passed: all 36 tables read back equal, 130,679 rows. #349 closed with that run id. Next, in order: the manager's live checks plus the #138 drill compare, then the #341 merge (b341-follow), then #336 cutover. Local branch in ps1103 is now `planner-state-1105` tracking origin/docs/state-2026-11-04b (a pull had rebased the old local branch onto main; reset --hard is hook-blocked, so the old local `docs/state-2026-11-04b` is stale, holds nothing unique, and can be deleted).
+
+0000000000. **, 2026-11-05 ~14:10Z. Overrides 000000000 where they differ.** #351 merged `a9c5615` (re-proof issuecomment-6659755050; the 26 min was runner variance). #349 stays open until the backfill rerun passes its golden compare; then close it with that run's id.
    Auditor advisories: B dropped; A and C ticketed as #352 (low, after #336). #341 runs as b341-follow (low, on the owner's order); the manager holds its merge until after the backfill, the live checks and the #138 compare. The owner has been told to press the backfill.
 
 000000000. **NEWEST: before a compact, 2026-11-05 ~13:55Z. Overrides everything below.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries answer here.
