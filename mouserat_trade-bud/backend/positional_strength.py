@@ -28,10 +28,23 @@ def _position_sort_order() -> pd.DataFrame:
     data-model's own display order, not alphabetical). Side of ball is the
     primary sort key, position within a side is secondary -- offense before
     defense before special teams/picks, matching dim_position's own grain."""
-    dp = da.read_parquet("dim_position")[
+    dp = da.read_parquet("dim_position")
+    # Tie-break: first position_raw alphabetically, so row order cannot pick the row.
+    dp = dp.sort_values("position_raw", kind="stable")[
         ["position_group", "side_of_ball_sort_order", "position_sort_order"]
     ]
     return dp.drop_duplicates("position_group")
+
+
+def crosswalk_one_per_gsis(crosswalk: pd.DataFrame) -> pd.DataFrame:
+    # Tie-break: newest resolved_date wins (nulls last), then lowest scorer_id.
+    ordered = crosswalk.sort_values(
+        ["resolved_date", "scorer_id"],
+        ascending=[False, True],
+        na_position="last",
+        kind="stable",
+    )
+    return ordered[["gsis_id", "position_raw"]].drop_duplicates("gsis_id")
 
 
 def _multi_position_counts(positions: list[str]) -> pd.DataFrame:

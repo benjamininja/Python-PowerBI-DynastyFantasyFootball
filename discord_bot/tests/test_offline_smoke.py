@@ -106,6 +106,40 @@ def test_name_search_still_resolves_a_person_with_only_a_dropped_row():
     assert player._resolve_player(_people([("old", "DROPPED")]), "Sam Person")["gsis_id"] == "old"
 
 
+def _tied_board(order: list[int]) -> list[str]:
+    eav = pd.DataFrame({
+        "snapshot_date": pd.to_datetime(["2026-01-01"] * 3), "source_name": ["KTC"] * 3,
+        "format": ["SF"] * 3, "metric_key": ["ktc_positional_rank"] * 3,
+        "gsis_id": ["g1", "g2", "g3"], "metric_num": [1.0, 1.0, 1.0],
+    }).iloc[order]
+    players = pd.DataFrame({
+        "gsis_id": ["g1", "g2", "g3"], "display_name": ["Zed Zee", "Amy Ant", "Amy Ant"],
+        "position_group": ["QB"] * 3, "team_abbr": ["AAA", "BBB", "CCC"],
+    })
+    fetch = lambda path, _cfg: eav if "metrics" in path else players  # noqa: E731
+    return [
+        (f.name, f.value)
+        for e in _rank_embeds(fetch)
+        for f in e.fields
+    ]
+
+
+def _rank_embeds(fetch):
+    saved = rankings.fetch_parquet
+    rankings.fetch_parquet = fetch
+    try:
+        return rankings.build_rankings_embeds(CFG, fmt="SF", position="QB")
+    finally:
+        rankings.fetch_parquet = saved
+
+
+def test_rankings_ties_break_by_name_then_gsis_whichever_row_comes_first():
+    first = _tied_board([0, 1, 2])
+    assert _tied_board([2, 1, 0]) == _tied_board([1, 0, 2]) == first
+    body = first[0][1]
+    assert body.index("BBB") < body.index("CCC") < body.index("Zed")
+
+
 def _league_fetch(owned: pd.DataFrame, teams: pd.DataFrame):
     def fetch(path: str, _cfg: Config) -> pd.DataFrame:
         return owned if "fantasy_teams" in path and "dim_" not in path else teams

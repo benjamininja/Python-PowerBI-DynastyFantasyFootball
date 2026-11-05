@@ -134,6 +134,8 @@ def build_player_embeds(cfg: Config, name: str) -> list[discord.Embed]:
             latest = with_adp[with_adp["capture_date"] == with_adp["capture_date"].max()]
             hit = latest[latest["gsis_id"] == gsis]
             if not hit.empty:
+                # Tie-break: lowest scorer_id, so row order cannot pick the row.
+                hit = hit.sort_values("scorer_id", kind="stable")
                 fantrax_adp = float(hit.iloc[0]["adp"])
 
     title = f"{p['display_name']} — {pos_group} · {render.safe_str(p['team_abbr']) or 'FA'}"
