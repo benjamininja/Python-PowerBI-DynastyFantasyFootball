@@ -264,3 +264,5 @@
   - *Built 2026-10-30 (#97 Brief 2): `/roster` and `/cap` read the stored `cap_hit` and `fact_team_cap`, so the player card and both commands agree.*
   - *Built 2026-10-31 (#97 Brief 3): trade-bud no longer reaches `capmath`; it reads the same tables itself, and its what-if follows decision 7. The bot and trade-bud now show the cap room in the published table, and a test compares the two readers and the table for all 28 teams.*
 - Power BI already exempts the `IR` slot in its measures; modelling `fact_team_cap` there is #140.
+
+*2026-11-05: the week key and `snapshot_date` anchor of the weekly-history tables, and the overwrite-in-place rule, are in [ADR-0020](0020-daily-runs-weekly-finals.md).*

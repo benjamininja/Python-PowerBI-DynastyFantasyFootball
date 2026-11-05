@@ -250,6 +250,19 @@ period. Raised as an alert, never auto-applied, because history must not change
 silently.
 _Avoid_: correction (that's the normal change a closing period absorbs)
 
+**Daily Run**:
+The one scheduled run a day.
+_Avoid_: weekly run, the Change Poll (separate)
+
+**Close Day**:
+The day after a Scoring Period ends (Eastern clock), or the league's fixed
+weekday off season.
+
+**Weekly Final**:
+The one snapshot a week kept in history, from the last good run before the next
+Scoring Period (or week, off season) begins.
+_Avoid_: weekly snapshot, daily history
+
 ### Teams & divisions
 
 **Conference**:
