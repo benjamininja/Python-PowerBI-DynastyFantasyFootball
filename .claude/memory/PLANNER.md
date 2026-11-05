@@ -11,6 +11,11 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+000000. **NEWEST: resume, 2026-11-05 late. Overrides 00000 where they differ.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries it raises answer here.
+   Live: #345 (Brief 5, Closes #300) open, CI 7 green, 1 pending. #342 (#136) DIRTY at efc50a6 (needs main merged in). #344 no PR yet. #341 after #342.
+   Then the backfill button, live checks plus the #138 drill compare, then #336; its final tasklist stays parked until last. No open Decisions for me. Manager told.
+   Data branch `data/refresh-2026-11-04` already deleted on the remote (manager state), so that loose end is closed. When #345 merges: re-run the #300 evidence and close the map line.
+
 00000. **NEWEST: clear boundary, 2026-11-05 ~03:30Z. Overrides every item below where they differ.** Session `73d38bcc-afbf-4461-af56-c14790bb2362`.
    **Goal:** migration only. Owner: "we are VERY CLOSE"; the project is paused until the refreshes run on Supabase.
    **Worktree:** `ps1103` (path in item 0000), now on `docs/state-2026-11-04`, which tracks origin. It has a `.venv` junction (remove that before the worktree).
