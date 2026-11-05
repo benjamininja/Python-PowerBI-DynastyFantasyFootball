@@ -51,7 +51,8 @@ class Pipeline:
         self.notified = []
         self.committed = []
         self.results = [{"name": "s1", "status": "ok", "detail": ""}]
-        self.commit_line = "committed + pushed 1 parquet file(s) to main"
+        self.commit_line = "committed + merged 1 parquet file(s) via data PR #1"
+        self.landed_sha = "b" * 40
         self.mid_run = None
         self.counts = {"dim_a": 3}
         mp = monkeypatch
@@ -82,6 +83,8 @@ class Pipeline:
 
     def _commit_data(self, *args, **kwargs):
         self.committed.append(kwargs)
+        if rl.data_merged(self.commit_line):
+            kwargs["landed"].update(pr=1, sha=self.landed_sha)
         return self.commit_line
 
     def run(self, *argv):
@@ -107,8 +110,9 @@ class TestHelpers:
         assert rl.first_line(KeyError()) == "KeyError"
 
     def test_status(self):
-        assert rl.final_status(1, "committed + pushed 2 parquet file(s) to main") == "failed"
-        assert rl.final_status(0, "committed + pushed 2 parquet file(s) to main") == "published"
+        assert rl.final_status(1, "committed + merged 2 parquet file(s) via data PR #7") == "failed"
+        assert rl.final_status(0, "committed + merged 2 parquet file(s) via data PR #7") == "published"
+        assert rl.final_status(1, "ABORTED: data PR #7 left open, required check failed (tests)") == "failed"
         assert rl.final_status(0, "committed 2 file(s), push skipped (--no-push)") == "committed"
         assert rl.final_status(0, "no data changes — commit skipped") == "committed"
         assert rl.final_status(0, "commit skipped (flag)") == "committed"
@@ -381,7 +385,7 @@ class TestPostgres:
         assert seen[0][1] == "weekly" and seen[0][3] == HEAD and seen[0][8] is None
         (row,) = pg.mine()
         run_id, trigger, status, git_sha, snapshot, rows_written, error, started, finished = row
-        assert (trigger, status, git_sha, snapshot) == ("weekly", "published", HEAD, HEAD)
+        assert (trigger, status, git_sha, snapshot) == ("weekly", "published", HEAD, pipe.landed_sha)
         assert rows_written == {"dim_a": 3}
         assert error is None
         assert started.tzinfo is not None and started <= finished
