@@ -164,6 +164,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    no etl_storage_pg.py edit, so it may run beside #136 (shared pytest line only). The manager compares with --print-sql via supabase-dynasty after the backfill. Dispatch of #138 and #333 waits on the owner's word.
    #335 is DIRTY (conflicts), so there's no Update-branch button; the owner has the link, and it stays parked with them. Manager done: NEEDS-OWNER cutover split (#336 / #93), #135 corrected, ruling relayed to b137-runlog copy 88f7a1d7.
 
+   **Builder refusals, 2026-11-05.** Tally: 184 refusals across 72 builder transcripts, which run in an ask-nothing mode (not a classifier). Owner chose session-rules text: skills#75 (Command forms section), plus a GOAL-RUN.md line
+   listing the deny-named files. Settings lines the owner adds by hand: `git merge origin/main*` (replacing the exact rule), `gh run watch *`, `mkdir -p builder-state*`, `cp * builder-state/*`, `git check-ignore*`. Builder-state scripts stay refused (owner).
+   The manager ran the #335 merge itself on the owner's word (b02a3d1). #333 was dispatched by the owner directly (b333-advisories), and #136 now waits for #333. #138 was dispatched as b138-drill.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a

@@ -92,6 +92,14 @@ user-level allow rules reach a builder too. So what a builder must never
 do is a **deny** rule in `.claude/builders.settings.json`: a deny beats an
 allow from anywhere.
 
+**File names a deny rule holds** (the skill's "Command forms" section):
+`run_weekly.ps1`, `04a_fantrax_weekly_scrape.py`,
+`04t_fantrax_transaction_history.py`, `04v_minor_contracts.py` and
+`04w_fantrax_draft_results.py`. A command that names one is refused, even
+`git add` or `check_pii.py`. Stage those with `git add -u` or the folder,
+and run the PII check with
+`.venv/Scripts/python.exe -m pre_commit run --from-ref origin/main --to-ref HEAD`.
+
 **The planner's read.** Past the skill's triggers, the manager also asks
 for it when a PR changes a table's grain or a key.
 
