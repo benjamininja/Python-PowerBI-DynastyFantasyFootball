@@ -674,7 +674,31 @@ def golden_pg():
         pg_clear_published(url, TABLES)
 
 
+def text_flavour_free(df, entry):
+    """`df` with each declared text column as object and its gaps as None. The
+    seam treats str, string and object as one text type (etl._coerce) and a
+    database keeps only text, so a published column that is `string` where the
+    registry says `str` (fact_roster_transactions.claim_method,
+    fact_trade_log.pick_ref) cannot come back as `string`. Values and nulls
+    are still compared exactly."""
+    out = df.copy()
+    for col in entry["columns"]:
+        if str(col["dtype"]) in etl._TEXT_DTYPES:
+            name = col["name"]
+            out[name] = out[name].astype(object).where(out[name].notna(), None)
+    return out
+
+
 class TestGolden:
+    def test_text_flavours_compare_equal_and_values_still_differ(self):
+        entry = {"columns": [{"name": "k", "dtype": "int64"}, {"name": "t", "dtype": "str"}]}
+        a = pd.DataFrame({"k": [1, 2], "t": pd.array(["x", None], dtype="string")})
+        b = pd.DataFrame({"k": [1, 2], "t": pd.Series(["x", None], dtype="str")})
+        pd.testing.assert_frame_equal(text_flavour_free(a, entry), text_flavour_free(b, entry))
+        c = b.assign(t=["x", "y"])
+        with pytest.raises(AssertionError):
+            pd.testing.assert_frame_equal(text_flavour_free(a, entry), text_flavour_free(c, entry))
+
     def test_every_published_table_is_declared(self):
         assert set(TABLES) == set(etl._registry())
 
@@ -702,7 +726,9 @@ class TestGolden:
         if published.empty:
             assert etl.table_exists(table) is False
             return
-        key = etl.table_grain(etl._table_entry(table))
+        entry = etl._table_entry(table)
+        key = etl.table_grain(entry)
         got = etl.read_table(table)[list(published.columns)]
-        pd.testing.assert_frame_equal(got.sort_values(key).reset_index(drop=True),
-                                      published.sort_values(key).reset_index(drop=True))
+        pd.testing.assert_frame_equal(
+            text_flavour_free(got.sort_values(key).reset_index(drop=True), entry),
+            text_flavour_free(published.sort_values(key).reset_index(drop=True), entry))
