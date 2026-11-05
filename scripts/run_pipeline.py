@@ -343,6 +343,94 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     return f"committed + pushed {len(staged)} parquet file(s) to main"
 
 
+def storage_is_postgres() -> bool:
+    return (os.environ.get("ETL_STORAGE") or "parquet") == "postgres"
+
+
+def _withhold(plan: dict) -> None:
+    """Nothing publishes: the passing Chains are listed as not published."""
+    plan["publish"] = []
+    plan["unpublished"] = list(plan["passed"])
+
+
+def _dirty_data(tables: list[str], cwd: Path) -> int:
+    """How many data/ files of `tables` differ from HEAD (modified, staged or
+    untracked). Raises when git cannot say, so a git error never reads as clean."""
+    r = _git("status", "--porcelain", "--untracked-files=all", "--", *_parquet_paths(tables), cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not compare data/ with HEAD")
+    return len([line for line in r.stdout.splitlines() if line.strip()])
+
+
+def _data_to_head(tables: list[str], cwd: Path) -> None:
+    """Put the data/ files of `tables` back to HEAD: tracked ones are checked
+    out, untracked ones (no HEAD copy) are removed."""
+    paths = _parquet_paths(tables)
+    r = _git("ls-files", "--", *paths, cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not list data/")
+    tracked = r.stdout.split()
+    if tracked and _git("checkout", "HEAD", "--", *tracked, cwd=cwd).returncode != 0:
+        raise RuntimeError("git could not restore data/ to HEAD")
+    for path in set(paths) - set(tracked):
+        (cwd / path).unlink(missing_ok=True)
+
+
+def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str | None:
+    """The Postgres branch of the publish step (#136, ADR-0014). The steps
+    wrote to the database and left data/ equal to HEAD. The failed Chains'
+    tables are reloaded from that snapshot in one transaction; if the database
+    refuses (a passing Chain's rows reference a key the reload removes), every
+    table the run wrote is reloaded and nothing publishes; if it refuses that
+    too the run is ABORTED. Then each passing Chain's tables are exported from
+    the database to data/, rows sorted by primary key, for commit_data to stage.
+    Changes plan["publish"] and adds plan["notes"]. Returns an ABORTED line, or
+    None when commit_data should go on. Prints and returns names and counts,
+    never a cell."""
+    import etl_storage_pg as pg
+    data = cwd / "data"
+    notes = plan.setdefault("notes", [])
+    written = sorted(set(plan["publish"]) | set(plan["restore"]))
+    url = os.environ.get(pg.URL_ENV)
+    try:
+        if not url:
+            raise RuntimeError(f"{pg.URL_ENV} is not set")
+        if plan["restore"]:
+            moved = _dirty_data(written, cwd)
+            if moved:
+                _withhold(plan)
+                return (f"ABORTED: {moved} file(s) under data/ differ from HEAD "
+                        f"with ETL_STORAGE=postgres; the snapshot to reload from is not clean")
+            loaded = pg.reload_snapshot(url, plan["restore"], data)
+            if loaded.problems:
+                notes.append(f"reload of the held Chains refused ({loaded.problems[0]}); "
+                             f"all {len(written)} table(s) the run wrote reloaded from the snapshot, "
+                             f"nothing published")
+                loaded = pg.reload_snapshot(url, written, data)
+                if loaded.problems:
+                    _withhold(plan)
+                    return f"ABORTED: reload from the snapshot refused: {loaded.problems[0]}"
+                _withhold(plan)
+    except Exception as exc:
+        _withhold(plan)
+        return f"ABORTED: reload from the snapshot failed: {pg.describe(exc)}"
+    if export and plan["publish"]:
+        published = list(plan["publish"])
+        try:
+            pg.export_published(published, data)
+        except Exception as exc:
+            _withhold(plan)
+            try:
+                _data_to_head(published, cwd)
+                loaded = pg.reload_snapshot(url, sorted(set(published) | set(plan["restore"])), data)
+                if loaded.problems:
+                    raise RuntimeError(loaded.problems[0])
+            except Exception as again:
+                return f"ABORTED: export failed ({pg.describe(exc)}); recovery failed ({pg.describe(again)})"
+            return f"ABORTED: export failed: {pg.describe(exc)}"
+    return None
+
+
 def notify(text: str) -> None:
     """Discord webhook (DISCORD_WEBHOOK_URL in .env / env). Never raises."""
     url = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -370,9 +458,11 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
     if plan:
         lines.append("**Chains:**")
-        lines += [f"✅ {c}: published" for c in plan["passed"]]
+        lines += [f"✅ {c}: " + ("passed, not published" if c in plan.get("unpublished", ()) else "published")
+                  for c in plan["passed"]]
         lines += [f"🛑 {c}: held at HEAD — {'; '.join(w)[:300]}"
                   for c, w in plan["failed"].items()]
+        lines += [f"♻️ {n}" for n in plan.get("notes", [])]
     if filed:
         lines.append(f"🔎 Review findings: {filed['open']} open "
                      f"({filed['opened']} new, {filed['cleared']} cleared)")
@@ -459,8 +549,10 @@ def main() -> int:
             # Gate every table of each Chain that had a step run this phase.
             chains = etl_checks.chain_tables(etl_checks.load_registry())
             ran = {s["chain"] for s in steps if s["name"] in {r["name"] for r in results}}
+            # data_dir=None: under Postgres the Gates read the database.
+            read_from = {"data_dir": None} if storage_is_postgres() else {}
             suite = etl_checks.run_suite([t for c in ran for t in chains.get(c, [])],
-                                         args.accept_shrink)
+                                         args.accept_shrink, **read_from)
             plan = plan_publish(steps, results, suite, chains)
             for c in plan["passed"]:
                 print(f"[chain] {c}: pass")
@@ -471,11 +563,17 @@ def main() -> int:
                 [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
 
         reviews = review_counts()
-        if args.dry_run or args.no_commit:
+        if args.dry_run:
             commit_line = "commit skipped (flag)"
+        elif args.no_commit:
+            # The database is the system of record: a held Chain's rows go
+            # back to the snapshot even when nothing is exported or committed.
+            aborted = publish_postgres(plan, export=False) if storage_is_postgres() else None
+            commit_line = aborted or "commit skipped (flag)"
         else:
-            commit_line = commit_data(phase, week, push=not args.no_push,
-                                      publish=plan["publish"], restore=plan["restore"])
+            aborted = publish_postgres(plan) if storage_is_postgres() else None
+            commit_line = aborted or commit_data(phase, week, push=not args.no_push,
+                                                 publish=plan["publish"], restore=plan["restore"])
         print(f"[info] {commit_line}")
 
         failed = bool(plan and plan["failed"]) or any(
