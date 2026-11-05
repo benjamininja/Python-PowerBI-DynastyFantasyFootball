@@ -210,6 +210,34 @@ class TestTheExport:
         assert equals_snapshot("fact_rookie_rankings", frames)
 
 
+    def test_an_export_that_fails_after_a_table_was_written_puts_data_and_the_database_back_to_head(
+            self, world, frames, monkeypatch):
+        assert len(CHAINS["rookie"]) >= 2
+        drop_first_row("fact_rookie_rankings")
+        real = etl._write_parquet
+        calls, dirty = [], {}
+
+        def write(path, df, mode, keys, partition, entry):
+            calls.append(entry["name"])
+            if len(calls) == 1:
+                return real(path, df.iloc[1:], mode, keys, partition, entry)
+            dirty["at_failure"] = changed_at_head(world.repo)
+            raise RuntimeError("cannot write 'secret-cell'")
+
+        monkeypatch.setattr(etl, "_write_parquet", write)
+        plan = plan_of(["rookie"], [])
+
+        line = rp.publish_postgres(plan, cwd=world.repo)
+
+        assert len(calls) == 2 and dirty["at_failure"] != []
+        assert line == "ABORTED: export failed: RuntimeError: cannot write <quoted>"
+        assert plan["publish"] == [] and plan["unpublished"] == ["rookie"]
+        for table in CHAINS["rookie"]:
+            assert equals_snapshot(table, frames), table
+        assert changed_at_head(world.repo) == []
+        assert git(world.repo, "status", "--porcelain").stdout == ""
+
+
 class TestTheGatesReadTheDatabase:
     def test_read_stored_reads_the_database_without_a_data_dir_and_a_folder_with_one(self, world, frames):
         entry = etl._table_entry("dim_season")
@@ -258,6 +286,35 @@ class TestWithoutADatabase:
         line = rp.publish_postgres(plan)
         assert line.startswith("ABORTED: reload from the snapshot failed: RuntimeError: SUPABASE_DB_URL is not set")
         assert plan["publish"] == []
+
+    def test_a_git_error_in_the_head_check_aborts_before_any_reload(self, monkeypatch):
+        monkeypatch.setenv(pg.URL_ENV, "postgresql://u@h/d")
+        monkeypatch.setattr(rp, "_git", lambda *a, **k: SimpleNamespace(returncode=128, stdout="", stderr="fatal"))
+
+        def reloaded(*a, **k):
+            raise AssertionError("reloaded")
+
+        monkeypatch.setattr(pg, "reload_snapshot", reloaded)
+        plan = plan_of(["rookie"], ["nflverse"])
+        line = rp.publish_postgres(plan)
+        assert line == "ABORTED: reload from the snapshot failed: RuntimeError: git could not compare data/ with HEAD"
+        assert plan["publish"] == [] and plan["unpublished"] == ["rookie"]
+
+    def test_an_untracked_data_file_counts_as_not_at_head(self, git_repo, monkeypatch):
+        monkeypatch.setenv(pg.URL_ENV, "postgresql://u@h/d")
+        (git_repo / "data" / "dim_nfl_teams.parquet").write_bytes(b"x")
+        plan = plan_of(["rookie"], ["nflverse"])
+        plan["restore"] = ["dim_nfl_teams"]
+        line = rp.publish_postgres(plan, cwd=git_repo)
+        assert line.startswith("ABORTED: 1 file(s) under data/ differ from HEAD")
+
+    def test_the_summary_does_not_call_a_withheld_chain_published(self):
+        plan = plan_of(["rookie"], ["nflverse"])
+        text = rp.summarize("INSEASON", "8", [], {}, "no data changes — commit skipped", plan, None)
+        assert "rookie: published" in text
+        rp._withhold(plan)
+        text = rp.summarize("INSEASON", "8", [], {}, "no data changes — commit skipped", plan, None)
+        assert "rookie: passed, not published" in text and "rookie: published" not in text
 
     def test_load_published_does_not_replace_unless_asked(self):
         import inspect

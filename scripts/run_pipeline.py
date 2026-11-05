@@ -347,6 +347,35 @@ def storage_is_postgres() -> bool:
     return (os.environ.get("ETL_STORAGE") or "parquet") == "postgres"
 
 
+def _withhold(plan: dict) -> None:
+    """Nothing publishes: the passing Chains are listed as not published."""
+    plan["publish"] = []
+    plan["unpublished"] = list(plan["passed"])
+
+
+def _dirty_data(tables: list[str], cwd: Path) -> int:
+    """How many data/ files of `tables` differ from HEAD (modified, staged or
+    untracked). Raises when git cannot say, so a git error never reads as clean."""
+    r = _git("status", "--porcelain", "--untracked-files=all", "--", *_parquet_paths(tables), cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not compare data/ with HEAD")
+    return len([line for line in r.stdout.splitlines() if line.strip()])
+
+
+def _data_to_head(tables: list[str], cwd: Path) -> None:
+    """Put the data/ files of `tables` back to HEAD: tracked ones are checked
+    out, untracked ones (no HEAD copy) are removed."""
+    paths = _parquet_paths(tables)
+    r = _git("ls-files", "--", *paths, cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not list data/")
+    tracked = r.stdout.split()
+    if tracked and _git("checkout", "HEAD", "--", *tracked, cwd=cwd).returncode != 0:
+        raise RuntimeError("git could not restore data/ to HEAD")
+    for path in set(paths) - set(tracked):
+        (cwd / path).unlink(missing_ok=True)
+
+
 def publish_postgres(plan: dict, cwd: Path = REPO) -> str | None:
     """The Postgres branch of the publish step (#136, ADR-0014). The steps
     wrote to the database and left data/ equal to HEAD. The failed Chains'
@@ -367,10 +396,10 @@ def publish_postgres(plan: dict, cwd: Path = REPO) -> str | None:
         if not url:
             raise RuntimeError(f"{pg.URL_ENV} is not set")
         if plan["restore"]:
-            moved = _git("diff", "--name-only", "HEAD", "--", *_parquet_paths(written), cwd=cwd).stdout.split()
+            moved = _dirty_data(written, cwd)
             if moved:
-                plan["publish"] = []
-                return (f"ABORTED: {len(moved)} file(s) under data/ differ from HEAD "
+                _withhold(plan)
+                return (f"ABORTED: {moved} file(s) under data/ differ from HEAD "
                         f"with ETL_STORAGE=postgres; the snapshot to reload from is not clean")
             loaded = pg.reload_snapshot(url, plan["restore"], data)
             if loaded.problems:
@@ -379,21 +408,25 @@ def publish_postgres(plan: dict, cwd: Path = REPO) -> str | None:
                              f"nothing published")
                 loaded = pg.reload_snapshot(url, written, data)
                 if loaded.problems:
-                    plan["publish"] = []
+                    _withhold(plan)
                     return f"ABORTED: reload from the snapshot refused: {loaded.problems[0]}"
-                plan["publish"] = []
+                _withhold(plan)
     except Exception as exc:
-        plan["publish"] = []
+        _withhold(plan)
         return f"ABORTED: reload from the snapshot failed: {pg.describe(exc)}"
     if plan["publish"]:
+        published = list(plan["publish"])
         try:
-            pg.export_published(plan["publish"], data)
+            pg.export_published(published, data)
         except Exception as exc:
-            published, plan["publish"] = plan["publish"], []
+            _withhold(plan)
             try:
-                pg.reload_snapshot(url, sorted(set(published) | set(plan["restore"])), data)
+                _data_to_head(published, cwd)
+                loaded = pg.reload_snapshot(url, sorted(set(published) | set(plan["restore"])), data)
+                if loaded.problems:
+                    raise RuntimeError(loaded.problems[0])
             except Exception as again:
-                return f"ABORTED: export failed ({pg.describe(exc)}); reload failed ({pg.describe(again)})"
+                return f"ABORTED: export failed ({pg.describe(exc)}); recovery failed ({pg.describe(again)})"
             return f"ABORTED: export failed: {pg.describe(exc)}"
     return None
 
@@ -425,7 +458,8 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
     if plan:
         lines.append("**Chains:**")
-        lines += [f"✅ {c}: published" for c in plan["passed"]]
+        lines += [f"✅ {c}: " + ("passed, not published" if c in plan.get("unpublished", ()) else "published")
+                  for c in plan["passed"]]
         lines += [f"🛑 {c}: held at HEAD — {'; '.join(w)[:300]}"
                   for c, w in plan["failed"].items()]
         lines += [f"♻️ {n}" for n in plan.get("notes", [])]
