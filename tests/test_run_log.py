@@ -167,6 +167,61 @@ class TestNoRunLog:
         assert stopped.value.code == 2
 
 
+class TestEnvFileFallback:
+    def write_env(self, monkeypatch, tmp_path, text):
+        path = tmp_path / "fallback.env"
+        path.write_text(text, encoding="utf-8")
+        monkeypatch.setattr(rl, "ENV_FILE", path)
+
+    def test_pytest_cannot_find_the_live_url(self):
+        assert rl.URL_ENV not in os.environ
+        assert rl.ENV_FILE != REPO / ".env"
+        assert not rl.ENV_FILE.exists()
+        assert rl.database_url() is None
+        assert not rl.enabled()
+
+    def test_the_file_line_is_read_the_way_notify_reads_its_key(self, monkeypatch, tmp_path):
+        self.write_env(monkeypatch, tmp_path,
+                       f"# {rl.URL_ENV}=postgresql://commented.invalid/x\n"
+                       "OTHER=1\n"
+                       f"  {rl.URL_ENV}=\"postgresql://file.invalid/db\"  \n")
+        assert rl.database_url() == "postgresql://file.invalid/db"
+
+    def test_the_environment_wins_over_the_file(self, monkeypatch, tmp_path):
+        self.write_env(monkeypatch, tmp_path, f"{rl.URL_ENV}=postgresql://file.invalid/db\n")
+        monkeypatch.setenv(rl.URL_ENV, "postgresql://env.invalid/db")
+        assert rl.database_url() == "postgresql://env.invalid/db"
+
+    @pytest.mark.parametrize("text", ["", "OTHER=1\n", f"{rl.URL_ENV}=\n"])
+    def test_a_file_without_the_key_is_not_a_url(self, monkeypatch, tmp_path, text):
+        self.write_env(monkeypatch, tmp_path, text)
+        assert rl.database_url() is None
+
+    def test_a_run_uses_the_file_url_and_prints_nothing_of_it(self, pipe, monkeypatch, tmp_path, capsys):
+        self.write_env(monkeypatch, tmp_path, f"{rl.URL_ENV}={UNREACHABLE}\n")
+        seen = []
+
+        class Conn:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def execute(self, sql, params):
+                seen.append(sql.split()[0])
+        monkeypatch.setattr(rl, "_connect", Conn)
+        assert pipe.run() == 0
+        assert seen == ["INSERT", "UPDATE"]
+        shown = capsys.readouterr()
+        assert "hunter2-pw" not in shown.out + shown.err + "".join(pipe.notified)
+
+    def test_an_error_with_the_file_url_in_it_is_scrubbed(self, monkeypatch, tmp_path):
+        self.write_env(monkeypatch, tmp_path, f"{rl.URL_ENV}={UNREACHABLE}\n")
+        line = rl.first_line(RuntimeError(f"cannot use {UNREACHABLE}"))
+        assert UNREACHABLE not in line and "hunter2-pw" not in line
+
+
 class TestUnreachable:
     def test_the_run_goes_on_and_the_summary_leads_with_the_warning(self, pipe, monkeypatch, capsys):
         monkeypatch.setenv(rl.URL_ENV, UNREACHABLE)

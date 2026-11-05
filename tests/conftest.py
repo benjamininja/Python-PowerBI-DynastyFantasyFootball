@@ -1,5 +1,6 @@
 """Shared fixtures for tests/ (pytest picks this file up automatically)."""
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
@@ -13,6 +14,14 @@ def no_live_database(monkeypatch):
     TEST_DATABASE_URL."""
     monkeypatch.delenv("ETL_STORAGE", raising=False)
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
+    notebooks = str(Path(__file__).resolve().parent.parent / "notebooks")
+    if notebooks not in sys.path:
+        sys.path.insert(0, notebooks)
+    try:
+        import etl_run_log
+        monkeypatch.setattr(etl_run_log, "ENV_FILE", Path(__file__).resolve().parent / "no-such.env")
+    except ImportError:
+        pass
     try:
         import dotenv
         import dotenv.main

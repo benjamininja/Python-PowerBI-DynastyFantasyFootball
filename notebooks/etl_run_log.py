@@ -8,6 +8,7 @@ from urllib.parse import unquote, urlsplit
 
 from etl_storage_pg import URL_ENV
 
+ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 TRIGGERS = ("daily", "poll", "weekly", "manual")
 CONNECT_TIMEOUT_S = 10
 LINE_LIMIT = 200
@@ -19,18 +20,32 @@ UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s WHERE run_id = %s")
 
 
+def database_url() -> str | None:
+    url = os.environ.get(URL_ENV)
+    if url:
+        return url
+    try:
+        lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    for line in lines:
+        if line.strip().startswith(f"{URL_ENV}="):
+            return line.split("=", 1)[1].strip().strip("\"'") or None
+    return None
+
+
 def enabled() -> bool:
-    return bool(os.environ.get(URL_ENV))
+    return database_url() is not None
 
 
 def _connect():
     import psycopg
-    return psycopg.connect(os.environ[URL_ENV], connect_timeout=CONNECT_TIMEOUT_S,
+    return psycopg.connect(database_url(), connect_timeout=CONNECT_TIMEOUT_S,
                            prepare_threshold=None)
 
 
 def _secrets() -> list[str]:
-    url = os.environ.get(URL_ENV, "")
+    url = database_url() or ""
     found = [url]
     try:
         parts = urlsplit(url)
