@@ -8,6 +8,7 @@ from fastapi import APIRouter
 
 import data_access as da
 import pick_value as pv
+import positional_strength as ps
 
 router = APIRouter(prefix="/teams", tags=["assets"])
 
@@ -33,7 +34,9 @@ def _position_sort_order() -> pd.DataFrame:
     Includes the "Pick" group (side_of_ball_sort_order=3,
     position_sort_order=999), so draft-pick assets sort last, after every
     real position, same as the Positional Overview panels."""
-    dp = da.read_parquet("dim_position")[
+    dp = da.read_parquet("dim_position")
+    # Tie-break: first position_raw alphabetically, so row order cannot pick the row.
+    dp = dp.sort_values("position_raw", kind="stable")[
         ["position_group", "side_of_ball_sort_order", "position_sort_order"]
     ]
     return dp.drop_duplicates("position_group").set_index("position_group")
@@ -47,7 +50,7 @@ def team_assets(team_key: str) -> dict:
         ["gsis_id", "display_name", "position", "position_group", "team_abbr", "birth_date"]
     ]
     roster = roster.merge(players_dim, on="gsis_id", how="left")
-    crosswalk = da.read_parquet("dim_fantrax_crosswalk")[["gsis_id", "position_raw"]].drop_duplicates("gsis_id")
+    crosswalk = ps.crosswalk_one_per_gsis(da.read_parquet("dim_fantrax_crosswalk"))
     roster = roster.merge(crosswalk, on="gsis_id", how="left")
     sort_order = _position_sort_order()
     values = _values_by_stance()

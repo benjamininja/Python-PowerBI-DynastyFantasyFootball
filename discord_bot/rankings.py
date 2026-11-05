@@ -127,7 +127,10 @@ def build_rankings_embeds(
             "position_group": "position",
         }
     )
-    board = board.sort_values("positional_rank").drop_duplicates("gsis_id")
+    # Tie-break after positional_rank: player_name, then gsis_id (stable).
+    board = board.sort_values(
+        ["positional_rank", "player_name", "gsis_id"], kind="stable"
+    ).drop_duplicates("gsis_id")
     if board.empty:
         raise CommandError(f"No rankings to show for {fmt}/{src}.")
 
