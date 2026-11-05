@@ -168,6 +168,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    listing the deny-named files. Settings lines the owner adds by hand: `git merge origin/main*` (replacing the exact rule), `gh run watch *`, `mkdir -p builder-state*`, `cp * builder-state/*`, `git check-ignore*`. Builder-state scripts stay refused (owner).
    The manager ran the #335 merge itself on the owner's word (b02a3d1). #333 was dispatched by the owner directly (b333-advisories), and #136 now waits for #333. #138 was dispatched as b138-drill.
 
+   **Latest 2026-11-05.** skills#75 merged `2e1bebc` (owner's word); live skills clone fast-forwarded. The owner made the builders.settings.json lines. #335 merged `a84b617`.
+   New #339 (low): storage-pg selects tests by a `pg` marker; owner-approved in my chat; dispatches after #138 (PR #338). Open: #337 (#333), #338 (#138), then #136 after #337.
+   Manager state ec977f6. Mine next: rule on PRs when asked; then the #336 cutover sequence.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
