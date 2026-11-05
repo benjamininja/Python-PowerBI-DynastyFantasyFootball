@@ -32,8 +32,11 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
   - **Next:**
     - **#136** (medium, brief issuecomment-6648020913): dispatch **after #337 merges**, since both touch `etl_storage_pg.py`. Its `main()` overlap with #335 is now cleared. **It needs the owner's dispatch word.** The planner's note was "dispatch after #335 merges"; confirm with the owner.
     - The **backfill button** waits for #316 to merge. #316 is still held for the ordinary run.
-    - The **marker change**: the owner said "yes, ask the planner to ticket the marker change". storage-pg would select tests by a pytest marker, not a file list. I asked the planner to ticket it after #138. It is a workflow change, so dispatching it needs the owner's word.
-    - **skills#75** (the planner's builder command-forms text) needs the owner's word to merge. The owner is adding lines to `builders.settings.json` by hand; don't touch that file.
+    - **#339, the marker change (low):** ticketed and approved, including its `tests.yml` change. The owner said in the planner's chat: "i approve what builder manager is sending over, it's my request". **Dispatch it at low after #138 merges.**
+      - Scope: a `pg` marker in pyproject.toml, `pytestmark` in the four PG test files, and the storage-pg line becoming `pytest tests/ -m pg -v -rs`.
+      - A guard test, `tests/test_pg_marker.py`, fails on any test file that reads TEST_DATABASE_URL without the marker. `test_migrations_apply.py` is the one exception.
+      - Done when storage-pg's passed count is at least the last green run on main.
+    - **skills#75 is merged** (2e1bebc, on the owner's word in the planner's chat). Builders get the command forms from the next skill load. The owner is adding lines to `builders.settings.json` by hand; don't touch that file.
   - **Builder command forms** (from the planner, already sent to b333 and b138):
     - one command per call, no `cd`, chains or loops;
     - `git add -u`;
