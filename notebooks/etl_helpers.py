@@ -785,6 +785,8 @@ def _check_write_args(mode: str, keys, partition) -> None:
         raise StorageError("replace_partition takes exactly one of keys= / partition=")
     if mode != "replace_partition" and partition is not None:
         raise StorageError(f"partition= is for replace_partition, not {mode}")
+    if partition is not None and not partition:
+        raise StorageError("partition= names no column; an empty partition would match every row")
 
 
 def _backend():
@@ -840,7 +842,10 @@ def table_exists(name: str) -> bool:
     entry = _table_entry(name)
     pg = _backend()
     if pg is not None:
-        return pg.has_rows(entry)
+        try:
+            return pg.has_rows(entry)
+        except pg.WriteRefused as exc:
+            raise StorageError(f"{name}: {exc}") from exc
     return _table_path(name).exists()
 
 
@@ -855,7 +860,7 @@ def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
         try:
             df = pg.read(entry, columns)
         except pg.WriteRefused as exc:
-            raise StorageError(str(exc)) from exc
+            raise StorageError(f"{name}: {exc}") from exc
         if df is None:
             raise TableNotFound(f"{name}: no rows in the database")
         return _coerce(df, entry)

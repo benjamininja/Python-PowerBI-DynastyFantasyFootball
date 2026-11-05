@@ -73,12 +73,18 @@ def pg_ddl(spec):
 
 
 def database_url():
+    required = bool(os.environ.get("REQUIRE_TEST_DATABASE"))
     url = os.environ.get("TEST_DATABASE_URL")
     if not url:
-        if os.environ.get("REQUIRE_TEST_DATABASE"):
+        if required:
             pytest.fail("REQUIRE_TEST_DATABASE is set but TEST_DATABASE_URL is not", pytrace=False)
         pytest.skip("TEST_DATABASE_URL is not set")
-    pytest.importorskip("psycopg")
+    try:
+        import psycopg
+    except ImportError:
+        if required:
+            pytest.fail("REQUIRE_TEST_DATABASE is set but psycopg is not installed", pytrace=False)
+        pytest.skip("psycopg is not installed")
     return url
 
 
@@ -110,11 +116,6 @@ def pg_scratch(tmp_path, monkeypatch):
         finally:
             for spec in specs:
                 admin.execute(f'DROP TABLE IF EXISTS "{SCRATCH}"."{spec["name"]}"')
-
-
-@pytest.fixture(autouse=True)
-def parquet_by_default(monkeypatch):
-    monkeypatch.delenv("ETL_STORAGE", raising=False)
 
 
 @pytest.fixture
@@ -246,6 +247,12 @@ class TestReplacePartition:
     def test_takes_exactly_one_of_keys_and_partition(self, store, kwargs):
         with pytest.raises(etl.StorageError, match="exactly one"):
             etl.write_table("fact_snap", BASE, mode="replace_partition", **kwargs)
+
+    def test_an_empty_partition_is_refused_and_deletes_nothing(self, store):
+        etl.write_table("fact_snap", BASE)
+        with pytest.raises(etl.StorageError, match="names no column"):
+            etl.write_table("fact_snap", BASE.iloc[0:0], mode="replace_partition", partition={})
+        assert len(etl.read_table("fact_snap")) == 4
 
 
 class TestUpsert:
@@ -433,6 +440,16 @@ class TestPostgres:
     def test_a_value_the_database_refuses_is_a_storage_error(self, store):
         with pytest.raises(etl.StorageError):
             etl.write_table("fact_unseen", pd.DataFrame({"id": [1], "games": [2.5]}))
+
+    def test_any_database_error_is_a_storage_error(self, store):
+        import psycopg
+        with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as admin:
+            admin.execute(f'DROP TABLE "{SCRATCH}"."dim_one"')
+        one = pd.DataFrame({"key": [1], "label": ["a"]})
+        for call in (lambda: etl.read_table("dim_one"), lambda: etl.table_exists("dim_one"),
+                     lambda: etl.write_table("dim_one", one)):
+            with pytest.raises(etl.StorageError, match="does not exist"):
+                call()
 
     def test_columns_come_back_in_registry_order_whatever_the_caller_s(self, store):
         etl.write_table("fact_snap", BASE[["value", "player", "source", "day"]])

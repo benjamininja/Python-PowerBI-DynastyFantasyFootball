@@ -6,6 +6,7 @@ docs/data_model.yml; this module maps it to SQL. The login is the URL in
 SUPABASE_DB_URL. Each table is `<schema>.<name>`, the schema and primary key
 taken from supabase/registry_state.json.
 """
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -27,6 +28,17 @@ def _psycopg():
     import psycopg
     from psycopg import sql
     return psycopg, sql
+
+
+@contextlib.contextmanager
+def _db_errors():
+    """Any error psycopg raises comes out as WriteRefused, first line only."""
+    psycopg, _ = _psycopg()
+    try:
+        yield
+    except psycopg.Error as exc:
+        lines = str(exc).strip().splitlines()
+        raise WriteRefused(lines[0] if lines else type(exc).__name__) from exc
 
 
 def _connect():
@@ -76,7 +88,7 @@ def has_rows(entry: dict) -> bool:
     _, sql = _psycopg()
     spec = _spec(entry)
     query = sql.SQL("SELECT EXISTS (SELECT 1 FROM {})").format(_table(spec))
-    with _connect() as conn:
+    with _db_errors(), _connect() as conn:
         return bool(conn.execute(query).fetchone()[0])
 
 
@@ -106,7 +118,7 @@ def read(entry: dict, columns=None):
         raise WriteRefused(f"{entry['name']}: no such column {unknown}")
     query = sql.SQL("SELECT {} FROM {} ORDER BY {}").format(
         _names(wanted), _table(spec), _names(spec["pk"]))
-    with _connect() as conn:
+    with _db_errors(), _connect() as conn:
         rows = conn.execute(query).fetchall()
     if not rows:
         return None
@@ -183,7 +195,7 @@ def _keys_delete(cur, spec: dict, columns: list[str], df: pd.DataFrame, keys) ->
 def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
     """Apply `mode` in one transaction and return the table's row count after.
     `df` is checked and cast already; `keys` is set for upsert."""
-    psycopg, sql = _psycopg()
+    _, sql = _psycopg()
     spec = _spec(entry)
     columns = _check_columns(entry, spec)
     if keys is not None:
@@ -193,19 +205,16 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
             raise WriteRefused(f"{entry['name']}: keys not in the table: {missing}")
     if mode == "upsert":
         df = df.drop_duplicates(subset=keys, keep="last")
-    try:
-        with _connect() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    if mode == "replace":
-                        cur.execute(sql.SQL("DELETE FROM {}").format(_table(spec)))
-                        _copy(cur, _table(spec), columns, _rows(df, spec, columns))
-                    elif mode == "replace_partition" and partition is not None:
-                        _partition_delete(cur, spec, partition)
-                        _copy(cur, _table(spec), columns, _rows(df, spec, columns))
-                    elif len(df):
-                        _keys_delete(cur, spec, columns, df, keys)
-                    count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
-    except (psycopg.errors.IntegrityError, psycopg.errors.DataError) as exc:
-        raise WriteRefused(str(exc).strip().splitlines()[0]) from exc
+    with _db_errors(), _connect() as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                if mode == "replace":
+                    cur.execute(sql.SQL("DELETE FROM {}").format(_table(spec)))
+                    _copy(cur, _table(spec), columns, _rows(df, spec, columns))
+                elif mode == "replace_partition" and partition is not None:
+                    _partition_delete(cur, spec, partition)
+                    _copy(cur, _table(spec), columns, _rows(df, spec, columns))
+                elif len(df):
+                    _keys_delete(cur, spec, columns, df, keys)
+                count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
     return int(count)

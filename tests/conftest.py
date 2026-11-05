@@ -6,6 +6,15 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def no_live_database(monkeypatch):
+    """No test reaches the real project: the seam falls back to parquet and
+    holds no database URL. A case that wants Postgres sets both itself from
+    TEST_DATABASE_URL."""
+    monkeypatch.delenv("ETL_STORAGE", raising=False)
+    monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
+
+
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True)
 
