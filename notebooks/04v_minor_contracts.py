@@ -131,8 +131,53 @@ def eligibility_payload(filter_value: str, page_no: int) -> dict:
     }
 
 
-def fetch_eligibility(scraper, ctx, page) -> dict:
-    """Paginate both MINOR_FANTASY_* filters. Returns {filter_value: [pages]}."""
+_SECRET_KEY = re.compile(r"cookie|auth|token|session|passw|secret|header|credential",
+                         re.IGNORECASE)
+
+
+def _scrub(obj):
+    """Drop any key that names a credential, at any depth. The request payload
+    holds API parameters only; this is the guard that keeps it so."""
+    if isinstance(obj, dict):
+        return {k: _scrub(v) for k, v in obj.items() if not _SECRET_KEY.search(str(k))}
+    if isinstance(obj, list):
+        return [_scrub(v) for v in obj]
+    return obj
+
+
+def _record_pull(meta: dict, filt: str, payload: dict, raw: dict) -> None:
+    """Note one page of one filter into `meta`. Never raises."""
+    try:
+        entry = meta.setdefault(filt, {"request_payload": _scrub(payload),
+                                       "pages_fetched": 0, "rows_parsed": 0})
+        data = raw["responses"][0]["data"]
+        prs = data.get("paginatedResultSet", {})
+        entry["pages_fetched"] += 1
+        entry["rows_parsed"] += len(data.get("statsTable", []))
+        entry["totalNumResults"] = prs.get("totalNumResults")
+        entry["totalNumPages"] = prs.get("totalNumPages")
+    except Exception as exc:
+        print(f"[warn] pull meta for {filt} not recorded: {exc}")
+
+
+def write_pull_sidecar(meta: dict, path) -> None:
+    """Write the per-pull sidecar beside the raw capture and print one line per
+    filter. Never raises: a failure prints a [warn] and the pull carries on."""
+    try:
+        for filt, e in meta.items():
+            print(f"[info] {filt}: totalNumResults={e.get('totalNumResults')} "
+                  f"totalNumPages={e.get('totalNumPages')} "
+                  f"pages_fetched={e['pages_fetched']} rows_parsed={e['rows_parsed']}")
+        Path(path).write_text(json.dumps(meta, indent=2), encoding="utf-8")
+        print(f"[ok] pull sidecar -> {Path(path).name}")
+    except Exception as exc:
+        print(f"[warn] pull sidecar not written: {exc}")
+
+
+def fetch_eligibility(scraper, ctx, page, meta: dict | None = None) -> dict:
+    """Paginate both MINOR_FANTASY_* filters. Returns {filter_value: [pages]}.
+    When `meta` is given it is filled per filter with the request payload sent
+    and the server totals (see write_pull_sidecar)."""
     out = {}
     first = True
     for filt in ELIGIBILITY_FILTERS:
@@ -141,9 +186,11 @@ def fetch_eligibility(scraper, ctx, page) -> dict:
             if not first:
                 _pause(PULL_DELAY_S)
             first = False
-            raw = _post_healed(scraper, ctx, page,
-                               eligibility_payload(filt, page_no), filt)
+            payload = eligibility_payload(filt, page_no)
+            raw = _post_healed(scraper, ctx, page, payload, filt)
             pages.append(raw)
+            if meta is not None:
+                _record_pull(meta, filt, payload, raw)
             prs = raw["responses"][0]["data"].get("paginatedResultSet", {})
             total_pages = prs.get("totalNumPages", 1)
             print(f"[info] {filt} page {page_no}/{total_pages}")
@@ -233,13 +280,15 @@ def run() -> pd.DataFrame:
         )
         page = ctx.new_page()
         page.set_default_timeout(CFG.nav_timeout_ms)
-        elig_pulls = fetch_eligibility(scraper, ctx, page)
+        pull_meta: dict = {}
+        elig_pulls = fetch_eligibility(scraper, ctx, page, meta=pull_meta)
         ctx.close()
 
     # Raw audit file (data/raw is gitignored).
     elig_path = Path(CFG.raw_dir) / f"fantrax_minor_eligibility_{season}_wk{week}.json"
     elig_path.write_text(json.dumps(elig_pulls, indent=2), encoding="utf-8")
     print(f"[ok] raw -> {elig_path.name}")
+    write_pull_sidecar(pull_meta, elig_path.with_name(elig_path.stem + "_pull.json"))
 
     elig = eligibility_to_frame(elig_pulls)
     n_av = (elig["fa_status"] == "available").sum() if len(elig) else 0
