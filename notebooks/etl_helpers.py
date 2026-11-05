@@ -943,15 +943,20 @@ def pfr_to_gsis_map(dim_nfl: pd.DataFrame) -> dict:
 
 
 def referenced_ids(name: str, key: str = "gsis_id") -> set:
-    """Every `key` value held by a stored table, other than `name`, whose
-    registry columns include `key`. Found from the registry, read through the
+    """Every id held by a stored table, other than `name`, in any registry
+    column whose name contains the stem of `key` (`gsis` for `gsis_id`, so
+    `new_gsis_id` counts too). Found from the registry, read through the
     seam; a declared table with no data holds nothing."""
+    stem = key.removesuffix("_id")
     ids: set = set()
     for other, entry in _registry().items():
-        if other == name or key not in [c["name"] for c in entry.get("columns", [])]:
+        if other == name or not table_exists(other):
             continue
-        if table_exists(other):
-            ids.update(read_table(other, [key])[key].dropna())
+        cols = [c["name"] for c in entry.get("columns", []) if stem in c["name"]]
+        if cols:
+            frame = read_table(other, cols)
+            for col in cols:
+                ids.update(frame[col].dropna())
     return ids
 
 
