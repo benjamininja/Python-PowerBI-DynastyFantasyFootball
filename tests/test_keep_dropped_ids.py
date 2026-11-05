@@ -30,6 +30,8 @@ REGISTRY = {"tables": [
                  {"name": "entry_year", "dtype": "int32"}, {"name": "weight", "dtype": "float64"}]},
     {"name": "dim_rookie_prospect", "type": "dim", "grain": "player_key",
      "columns": [{"name": "player_key", "dtype": "str"}, {"name": "player_name", "dtype": "str"}]},
+    {"name": "fact_ref", "type": "fact", "grain": "gsis_id",
+     "columns": [{"name": "gsis_id", "dtype": "str"}]},
     {"name": etl.GSIS_LINK_TABLE, "type": "resolver", "grain": "old_gsis_id",
      "columns": [{"name": c, "dtype": "str"} for c in etl.GSIS_LINK_COLUMNS]},
 ]}
@@ -58,8 +60,10 @@ FRESH = rows(person("A1", "Ann Alpha", "RET", year=2020, weight=201.0),
              person("D4", "Di Delta", "ACT", year=2025))
 
 
-def stored_table(df):
+def stored_table(df, referenced=("B2", "C3")):
     etl.write_table(NPL, df)
+    if referenced:
+        etl.write_table("fact_ref", pd.DataFrame({"gsis_id": list(referenced)}))
     return etl.read_table(NPL)
 
 
@@ -110,6 +114,21 @@ class TestKeepDroppedIds:
     def test_a_published_table_passes_the_seam_write(self, store):
         stored_table(STORED)
         assert etl.write_table(NPL, etl.keep_dropped_ids(NPL, FRESH)) == 4
+
+    def test_an_unreferenced_dropped_id_is_removed(self, store):
+        stored_table(STORED, referenced=("B2",))
+        out = etl.keep_dropped_ids(NPL, FRESH)
+        assert out["gsis_id"].tolist() == ["A1", "D4", "B2"]
+
+    def test_a_dropped_row_is_removed_when_no_table_references_it(self, store):
+        stored_table(STORED, referenced=())
+        out = etl.keep_dropped_ids(NPL, FRESH)
+        assert out["gsis_id"].tolist() == ["A1", "D4"]
+
+    def test_a_dropped_row_already_stored_is_removed_once_unreferenced(self, store):
+        stored_table(rows(person("B2", "Bo Beta", "DROPPED")), referenced=())
+        out = etl.keep_dropped_ids(NPL, FRESH)
+        assert "B2" not in out["gsis_id"].tolist()
 
     def test_no_existing_table_keeps_nothing(self, store):
         assert not etl.table_exists(NPL)

@@ -924,17 +924,32 @@ def pfr_to_gsis_map(dim_nfl: pd.DataFrame) -> dict:
     return dict(zip(ordered["pfr_id"], ordered["gsis_id"]))
 
 
-def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd.DataFrame:
-    """`fresh` plus every stored row of table `name` whose `key` is not in `fresh`.
+def referenced_ids(name: str, key: str = "gsis_id") -> set:
+    """Every `key` value held by a stored table, other than `name`, whose
+    registry columns include `key`. Found from the registry, read through the
+    seam; a declared table with no data holds nothing."""
+    ids: set = set()
+    for other, entry in _registry().items():
+        if other == name or key not in [c["name"] for c in entry.get("columns", [])]:
+            continue
+        if table_exists(other):
+            ids.update(read_table(other, [key])[key].dropna())
+    return ids
 
-    A person nflverse stops returning keeps the id other tables point at. Kept
-    rows follow the fresh rows, keep their stored values and take status
-    DROPPED; a fresh row always wins on a shared id. Reads the stored table
-    through the seam; no stored table keeps nothing."""
+
+def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd.DataFrame:
+    """`fresh` plus every stored row of table `name` whose `key` is not in `fresh`
+    and is held by another table's `key` column (#300 D4).
+
+    A person nflverse stops returning keeps the id other tables point at; a
+    row nothing points at goes. Kept rows follow the fresh rows, keep their
+    stored values and take status DROPPED; a fresh row always wins on a shared
+    id. Reads through the seam; no stored table keeps nothing."""
     if not table_exists(name):
         return fresh
     stored = read_table(name)
-    kept = stored[~stored[key].isin(fresh[key])].reindex(columns=fresh.columns).copy()
+    absent = stored[~stored[key].isin(fresh[key])]
+    kept = absent[absent[key].isin(referenced_ids(name, key))].reindex(columns=fresh.columns).copy()
     if kept.empty:
         return fresh
     kept["status"] = DROPPED_STATUS
