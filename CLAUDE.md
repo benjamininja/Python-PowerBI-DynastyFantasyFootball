@@ -65,8 +65,9 @@ the parquet alone.
   every dim/fact table, written only through the `etl_helpers` storage seam.
   `data/*.parquet` is the **published snapshot**, exported after a good run;
   Power BI, the bot and trade-bud read only the snapshot, never the database.
-  Until the seam (#77) and its Postgres backend land, parquet is still the
-  store that gets written. CSV is only for human-review staging (`data/review/*.csv`).
+  The PC runner writes Postgres through the seam when `ETL_STORAGE=postgres`
+  is set; `data/*.parquet` stays the published snapshot, exported after a
+  good run. CSV is only for human-review staging (`data/review/*.csv`).
 - **Shared config/helpers**: `notebooks/etl_helpers.py` is the single source
   of truth — `LeagueConfig`/`CFG`/`DATA`/`REVIEW` (repo-root-anchored, CWD
   independent), `clean_player_name`, `generate_player_key`,
