@@ -151,6 +151,15 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Q2 ruled on #136 (6646359596): reload failed Chains from the snapshot in one txn, else the whole run's tables; brief #136 after B3. New #333 (low) for leftover advisories, after B3.
    Known risk: the weekly PC run sits at the 7-day pause limit until #93's daily runner.
 
+   **BEFORE A COMPACT, 2026-11-05 (session 73d38bcc). NEXT for a resumed planner; overrides above.** Owner: "we are VERY CLOSE"; the project is paused until migration completes. Migration only.
+   **Owner answers (planner chat 2026-11-05):** cutover after Stage C on the PC runner (Stage D, #93/#116, after, on Postgres); backfill button only after #316 merges; storage-pg pytest line approved for B3, #137, #136, #138.
+   **Cutover ticket #336** (low, Stage C) holds the order: ordinary run, #316 merges (#300 Brief 5); owner presses the backfill button; manager runs live checks; #136, #137 and #138 merge;
+   owner sets ETL_STORAGE=postgres in .env; one supervised run; manager checks; docs PR (CLAUDE.md storage line, ADR-0014 status, map #69). The manager was asked to rewrite the 'Cutover (later)' Action.
+   **Merged:** #334 (B3, `2e15942`); live football has 36 empty tables. **#335** (#137) is green at e93a265; still to do: the 'published = pushed' fix (my ruling on #137), then main merged in (refused in the builder; parked with the owner).
+   **#136 brief:** issuecomment-6648020913 (medium), after #335 merges; not alongside #333 (both touch etl_storage_pg.py). **#333** (low) has the #331/#332/#335 advisories (the conftest silent-skip is the top one); run it after #136.
+   **#138:** brief not written yet. It's my next one. Its load step uses B3's `load_published`; the live compare is manager SELECT counts and checksums (Q4). Write it now, so it can run in parallel with #136 if the files allow.
+   Manager is a restarted session under the same name; b137-runlog could not reach it once, so I relayed.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
