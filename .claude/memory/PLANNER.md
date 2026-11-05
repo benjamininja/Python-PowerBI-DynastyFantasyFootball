@@ -11,7 +11,13 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000. **NEWEST: before a compact, 2026-11-05 late night. Overrides everything below; read 00000000000000000000000000000 next.**
+0000000000000000000000000000000. **NEWEST: 2026-11-05 late night, early cadence start. Overrides everything below; read 000000000000000000000000000000 next for resume details.**
+- The owner approved in planner chat: "approved, start 372, 378 and the 374 shell now". Recorded on #372, #378, #374 and map #375, and relayed to the manager word for word for dispatch from `aaa01ec`.
+- #372 and #378 may reach Green but **must not merge** until the 2026-11-12 06:00 run passes and #336 closes.
+- #374 was split: it is now the site shell, not blocked, and merges as usual (it touches no runner file). New #380 (low) is the generated schedule page, blocked by #372 and #374.
+- Order: #372, #378 and #374 now; after #336, merge #372 and #378; then #373 (the owner re-registers the daily task); then #380.
+
+000000000000000000000000000000. **before a compact, 2026-11-05 late night. Overrides everything below; read 00000000000000000000000000000 next.**
 - Resume: worktree ps1103, local branch `docs/state-2026-11-05`. Push with `git push origin HEAD:docs/state-2026-11-05`, run as its own command; the guard hook misreads combined commands. Shared with the manager. Find peers with ListAgents: the manager is `dynastyFantasyFootball-central-builder-manager`. Planner session 747f3826-fe11-43fd-b303-2bcec526e9e3.
 - The default branch is at `aaa01ec`. No builders are running. #377 is closed (PR #379: ADR-0020 and the three CONTEXT.md terms).
 - Waiting on the 2026-11-12 06:00 scheduled run (task verified Ready). Its checks: data PR merged, run log `published` with the landed sha, `storage: postgres`, no warning, the Discord notice (the owner confirms) and the 04v `_pull.json` sidecar. Then close #361, #362, #370 and #336. #359 closes once a logged pull explains the row drop.
