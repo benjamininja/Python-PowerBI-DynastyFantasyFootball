@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Collection, Literal, Mapping, Sequence
+from typing import Collection, Literal, Mapping, NamedTuple, Sequence
 
 import pandas as pd
 import requests
@@ -65,6 +65,7 @@ class LeagueConfig:
     nfl_players_name: str = "dim_nfl_players"
     rookie_prospect_name: str = "dim_rookie_prospect"
     alias_name: str = "dim_player_alias"
+    close_day_weekday: int = 3
 
     def __post_init__(self):
         # Anchor relative data paths to the repo root → CWD-independent. (Absolute
@@ -941,6 +942,14 @@ def league_date(day=None) -> date:
     return stamp.date()
 
 
+def stored_scoring_periods() -> pd.DataFrame | None:
+    """`dim_scoring_period` as stored, or None where there is no such table."""
+    try:
+        return read_table("dim_scoring_period")
+    except TableNotFound:
+        return None
+
+
 def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Series | None:
     """The `dim_scoring_period` row holding `day`, or None off season.
 
@@ -952,11 +961,8 @@ def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Serie
     place the day in; without it the stored table is read, and a missing or
     empty table is off season."""
     if periods is None:
-        try:
-            periods = read_table("dim_scoring_period")
-        except TableNotFound:
-            return None
-    if periods.empty:
+        periods = stored_scoring_periods()
+    if periods is None or periods.empty:
         return None
     stamp = pd.Timestamp.now(tz="UTC") if day is None else pd.Timestamp(day)
     if stamp.tzinfo is not None:
@@ -969,16 +975,84 @@ def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Serie
     return hit.sort_values(["start_date", "period"]).iloc[0]
 
 
-def week_anchor(day=None, periods: pd.DataFrame | None = None) -> date:
-    """The date that keys a week in the weekly-history tables (ADR-0020
-    decision 7): the end date of the Scoring Period holding `day` in season,
-    the ISO week's Sunday off season. Every run of a week gets the same date,
-    so `replace_partition` on it overwrites the week's slice in place."""
+class Week(NamedTuple):
+    """One week of the league's calendar, defined once (ADR-0020 decisions 2,
+    4 and 7).
+
+    key        `<season_id>-p<NN>` in season (a playoff period too), the ISO
+               week `<year>-W<NN>` off season. Stored in ops.etl_run_log.
+    anchor     the `snapshot_date` the week's rows carry: the period's end date
+               in season, the ISO week's Sunday off season.
+    close_day  the day after the period ends in season; off season the
+               `close_day_weekday` of the ISO week.
+    mode       "period" or "weekday".
+    """
+    key: str
+    anchor: date
+    close_day: date
+    mode: str
+    is_playoff: bool
+
+
+ONE_DAY = timedelta(days=1)
+
+
+def _period_week(row) -> Week:
+    end = pd.Timestamp(row["end_date"]).date()
+    return Week(f"{row['season_id']}-p{int(row['period']):02d}", end, end + ONE_DAY,
+                "period", bool(row["is_playoff"]))
+
+
+def _iso_week(day: date, weekday: int) -> Week:
+    year, number, _ = day.isocalendar()
+    monday = day - timedelta(days=day.weekday())
+    return Week(f"{year}-W{number:02d}", monday + timedelta(days=6),
+                monday + timedelta(days=weekday), "weekday", False)
+
+
+def week_of(day=None, periods: pd.DataFrame | None = None,
+            close_day_weekday: int | None = None) -> Week:
+    """The week `day` falls in, placed as `scoring_period_on` places it: the
+    Scoring Period holding it in season, else its ISO week. `day` None is now.
+    `periods` and `close_day_weekday` default to the stored table and
+    `CFG.close_day_weekday`."""
+    if periods is None:
+        periods = stored_scoring_periods()
     hit = scoring_period_on(day, periods)
     if hit is not None:
-        return pd.Timestamp(hit["end_date"]).date()
-    local = league_date(day)
-    return local + timedelta(days=6 - local.weekday())
+        return _period_week(hit)
+    weekday = CFG.close_day_weekday if close_day_weekday is None else close_day_weekday
+    return _iso_week(league_date(day), weekday)
+
+
+def closed_week(day=None, periods: pd.DataFrame | None = None,
+                close_day_weekday: int | None = None) -> Week | None:
+    """The week whose Close Day is the latest on or before `day`: the week the
+    close_day steps owe on `day`.
+
+    While `day` is inside the calendar of `periods` (the first start through
+    the last Close Day) it is the latest period whose end date + 1 is on or
+    before `day`, None before the first. Outside the calendar it is the ISO
+    week of the latest `close_day_weekday` (Monday = 0) on or before `day`."""
+    today = league_date(day)
+    if periods is None:
+        periods = stored_scoring_periods()
+    if periods is not None and len(periods):
+        rows = periods.sort_values(["start_date", "end_date"])
+        first = pd.Timestamp(rows["start_date"].iloc[0]).date()
+        last_close = pd.Timestamp(rows["end_date"].iloc[-1]).date() + ONE_DAY
+        if first <= today <= last_close:
+            closed = rows[rows["end_date"].map(lambda d: pd.Timestamp(d).date() + ONE_DAY) <= today]
+            return None if closed.empty else _period_week(closed.iloc[-1])
+    weekday = CFG.close_day_weekday if close_day_weekday is None else close_day_weekday
+    return _iso_week(today - timedelta(days=(today.weekday() - weekday) % 7), weekday)
+
+
+def week_anchor(day=None, periods: pd.DataFrame | None = None) -> date:
+    """The `snapshot_date` of the week `day` falls in (`week_of(...).anchor`).
+    Every run of a week gets the same date, so `replace_partition` on it
+    overwrites the week's slice in place."""
+    return week_of(day, periods).anchor
 
 
 DROPPED_STATUS = "DROPPED"

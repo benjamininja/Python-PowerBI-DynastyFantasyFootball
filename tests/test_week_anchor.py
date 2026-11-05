@@ -134,6 +134,141 @@ class TestAnchorOffSeason:
         assert etl.week_anchor() is not None
 
 
+def reference_close_day_state(periods, today, weekday):
+    """The week key and Close Day as run_pipeline.close_day_state (#372, PR
+    #382) builds them, kept here so the keys already stored stay valid."""
+    one_day = timedelta(days=1)
+    rows = []
+    if periods is not None and len(periods):
+        rows = sorted((pd.Timestamp(r.start_date).date(), pd.Timestamp(r.end_date).date(),
+                       str(r.season_id), int(r.period), bool(r.is_playoff))
+                      for r in periods.itertuples())
+    if rows and rows[0][0] <= today <= rows[-1][1] + one_day:
+        closed = [r for r in rows if r[1] + one_day <= today]
+        if not closed:
+            return None
+        _, end, season, period, playoff = closed[-1]
+        return ("period", f"{season}-p{period:02d}", end + one_day, playoff)
+    day = today - timedelta(days=(today.weekday() - weekday) % 7)
+    year, week, _ = day.isocalendar()
+    return ("weekday", f"{year}-W{week:02d}", day, False)
+
+
+THURSDAY = 3
+NO_PERIODS = PERIODS.iloc[0:0]
+
+
+class TestWeek:
+    def test_an_in_season_week_has_a_key_an_anchor_and_a_close_day(self):
+        week = etl.week_of(date(2026, 9, 16), PERIODS)
+        assert week == etl.Week("2026-2027-p01", date(2026, 9, 17), date(2026, 9, 18), "period", False)
+
+    def test_the_key_zero_pads_the_period(self):
+        assert etl.week_of(date(2026, 11, 4), PERIODS).key == "2026-2027-p08"
+
+    def test_a_playoff_period_is_a_week_too(self):
+        week = etl.week_of(date(2026, 12, 20), PERIODS)
+        assert week == etl.Week("2026-2027-p15", date(2026, 12, 24), date(2026, 12, 25), "period", True)
+
+    def test_the_close_day_is_the_day_after_the_period_ends(self):
+        week = etl.week_of(date(2026, 9, 17), PERIODS)
+        assert week.close_day == week.anchor + timedelta(days=1)
+        assert week.close_day.weekday() == 4
+
+    def test_an_off_season_week_is_the_iso_week(self):
+        week = etl.week_of(date(2027, 2, 10), PERIODS)
+        assert week == etl.Week("2027-W06", date(2027, 2, 14), date(2027, 2, 11), "weekday", False)
+
+    def test_the_off_season_close_day_follows_the_configured_weekday(self):
+        week = etl.week_of(date(2027, 2, 10), PERIODS, close_day_weekday=0)
+        assert (week.key, week.close_day) == ("2027-W06", date(2027, 2, 8))
+
+    def test_the_default_weekday_is_the_configs_thursday(self):
+        assert etl.CFG.close_day_weekday == THURSDAY
+        assert etl.week_of(date(2027, 2, 10), PERIODS).close_day.weekday() == THURSDAY
+
+    @pytest.mark.parametrize("day, key, anchor", [
+        (date(2026, 12, 31), "2026-W53", date(2027, 1, 3)),
+        (date(2027, 1, 1), "2026-W53", date(2027, 1, 3)),
+        (date(2027, 1, 4), "2027-W01", date(2027, 1, 10)),
+    ])
+    def test_the_iso_year_comes_from_the_iso_week(self, day, key, anchor):
+        week = etl.week_of(day, NO_PERIODS)
+        assert (week.key, week.anchor, week.mode) == (key, anchor, "weekday")
+
+    def test_the_anchor_is_week_anchor(self):
+        day = date(2026, 9, 16)
+        assert etl.week_anchor(day, PERIODS) == etl.week_of(day, PERIODS).anchor
+        assert etl.week_anchor(date(2027, 2, 10), PERIODS) == etl.week_of(date(2027, 2, 10), PERIODS).anchor
+
+    def test_no_table_is_an_off_season_week(self, no_tables):
+        week = etl.week_of(date(2026, 9, 16))
+        assert (week.key, week.mode) == ("2026-W38", "weekday")
+
+    def test_the_week_is_read_from_the_stored_table(self, stored_periods):
+        assert etl.week_of(date(2026, 9, 16)).key == "2026-2027-p01"
+        assert etl.closed_week(date(2026, 9, 25)).key == "2026-2027-p02"
+
+
+class TestClosedWeek:
+    def test_inside_a_period_it_is_the_last_period_to_have_closed(self):
+        week = etl.closed_week(date(2026, 9, 22), PERIODS)
+        assert (week.key, week.close_day) == ("2026-2027-p01", date(2026, 9, 18))
+
+    def test_the_day_after_a_period_ends_it_is_that_period(self):
+        week = etl.closed_week(date(2026, 9, 25), PERIODS)
+        assert (week.key, week.close_day) == ("2026-2027-p02", date(2026, 9, 25))
+
+    def test_the_day_a_period_ends_it_is_not_closed_yet(self):
+        assert etl.closed_week(date(2026, 9, 17), PERIODS) is None
+        assert etl.closed_week(date(2026, 9, 12), PERIODS) is None
+
+    def test_a_playoff_period_closes_too(self):
+        week = etl.closed_week(date(2026, 12, 26), PERIODS)
+        assert (week.key, week.is_playoff) == ("2026-2027-p15", True)
+
+    def test_the_last_period_closes_the_day_after_it_ends(self):
+        assert etl.closed_week(date(2027, 1, 8), PERIODS).key == "2026-2027-p17"
+
+    def test_off_season_it_is_the_iso_week_of_the_latest_close_day(self):
+        assert etl.closed_week(date(2027, 2, 11), PERIODS).key == "2027-W06"
+        assert etl.closed_week(date(2027, 2, 15), PERIODS).key == "2027-W06"
+        assert etl.closed_week(date(2027, 2, 18), PERIODS).key == "2027-W07"
+
+    def test_no_calendar_uses_the_weekday(self):
+        week = etl.closed_week(date(2026, 9, 22), NO_PERIODS)
+        assert week.mode == "weekday"
+
+    def test_the_keys_match_run_pipelines_on_every_day(self):
+        day = date(2026, 8, 1)
+        while day <= date(2027, 3, 1):
+            ref = reference_close_day_state(PERIODS, day, THURSDAY)
+            got = etl.closed_week(day, PERIODS, THURSDAY)
+            if ref is None:
+                assert got is None, day
+            else:
+                assert (got.mode, got.key, got.close_day, got.is_playoff) == ref, day
+            day += timedelta(days=1)
+
+    def test_the_keys_match_run_pipelines_with_no_calendar(self):
+        day = date(2026, 8, 1)
+        while day <= date(2027, 3, 1):
+            ref = reference_close_day_state(None, day, THURSDAY)
+            got = etl.closed_week(day, NO_PERIODS, THURSDAY)
+            assert (got.mode, got.key, got.close_day, got.is_playoff) == ref, day
+            day += timedelta(days=1)
+
+    def test_a_week_closes_into_itself_on_its_close_day(self):
+        day = date(2026, 9, 10)
+        while day <= date(2027, 3, 1):
+            week = etl.week_of(day, PERIODS)
+            if week.mode == "weekday" and day <= date(2027, 1, 10):
+                day += timedelta(days=1)
+                continue
+            assert etl.closed_week(week.close_day, PERIODS).key == week.key, day
+            day += timedelta(days=1)
+
+
 ENTRY = {
     "name": "fixture_snapshot", "grain": "(snapshot_date, source_name, player)",
     "columns": [{"name": "snapshot_date", "dtype": "datetime64[us]", "sql_type": "timestamp"},
