@@ -29,6 +29,10 @@ $logDir = Join-Path $root 'data\outputs\pipeline_runs'
 New-Item -ItemType Directory -Force $logDir | Out-Null
 $log = Join-Path $logDir ("console_{0:yyyyMMdd_HHmmss}.txt" -f (Get-Date))
 
+if (-not ($Rest | Where-Object { $_ -like '--trig*' })) {
+    $Rest = @('--trigger', 'weekly') + @($Rest)
+}
+
 $env:PYTHONUTF8 = '1'
 Set-Location $root
 Write-Host "[run_weekly] logging to $log" -ForegroundColor DarkGray

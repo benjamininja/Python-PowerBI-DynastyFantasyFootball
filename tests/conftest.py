@@ -13,6 +13,13 @@ def no_live_database(monkeypatch):
     TEST_DATABASE_URL."""
     monkeypatch.delenv("ETL_STORAGE", raising=False)
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
+    try:
+        import dotenv
+        import dotenv.main
+    except ImportError:
+        return
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr(dotenv.main, "load_dotenv", lambda *args, **kwargs: False)
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess:

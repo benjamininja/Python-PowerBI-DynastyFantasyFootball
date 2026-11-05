@@ -82,7 +82,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://etl_writer:throwaway-etl-writer@localhost:5432/seam_check
           REQUIRE_TEST_DATABASE: '1'
-        run: python -m pytest tests/test_etl_storage.py -v -rs
+        run: python -m pytest tests/test_etl_storage.py tests/test_run_log.py -v -rs
 
   bot-tests:
     runs-on: ubuntu-latest
