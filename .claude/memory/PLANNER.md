@@ -11,6 +11,18 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+000000000. **NEWEST: before a compact, 2026-11-05 ~13:55Z. Overrides everything below.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries answer here.
+   **Worktree** `ps1103` (path in item 0000) on `docs/state-2026-11-04b` (cut from main `24f2c58` after #346 merged). Push with `HEAD:docs/state-2026-11-04b`; the manager pushes there too. No batch PR is open for it yet. Insert new state before the anchor `00000000. **NEWEST, 2026-11-05.`.
+   **Peers (ListAgents, by name):** `dynastyFantasyFootball-central-builder-manager` (restarts often); `b349-floats2` (#349 builder, bg); `Supabase-consultant-dispatch` (routes only); the Supabase consultant runs as `skills-plugins-hooks-agents-bd`. It takes tasks only from the owner; its reports are input, not approval.
+   **Merged this session:** #345 `fbd5009` (#300 closed; my evidence issuecomment-6649502295; #336 step 1 marked done), #346 `24f2c58`, #342 `01fe6ea` (#136), #347 (#344).
+   **#349 (backfill float fix, medium) = PR #351, draft, head e9c6aad.** Cause proven: text read-back under Supabase's extra_float_digits=0. The repro at e1369de failed on the same 64 cells as live backfill run 41966668704. Fix: read_on with binary=True.
+   My ruling issuecomment-6659006228: binary, SET LOCAL as a second layer only; no startup option, no session SET. Pooler = Supavisor session mode 5432 (issuecomment-6659388612).
+   Manager re-proof gates: date and timestamptz round-trips pass; storage-pg took 26 min vs the usual 10–15 (compare durations; if binary is the cause, say so on the PR). The push run passed; the PR run was in progress at 13:48Z.
+   **Next:** #351 merges → the owner re-presses the backfill → the manager's live checks plus the #138 drill compare (SELECT only) → #341 (low, owner-approved after #349) → #336 cutover (owner sets ETL_STORAGE=postgres, supervised run, docs PR) → only then #336's final tasklist (ruleset GH013, webhook 403, scheduled task).
+   **Parked after #336 (need the owner's dispatch word):** #348 (prune scan sees only gsis_id, low), #350 (trade-bud null-gsis merge, low).
+   **Owner said:** not their item: the locked b349-floats folder (on #237 as agent-retry only). The prune-rule removal is the owner's, later (folded into the 'Remove the one-time script rules (later)' Action).
+   **Carry-over:** at the next edit of supabase-auditor.md, add "a missing `needs:` on validate is no finding". Open the batch PR for this branch at the end of the day; merge on the owner's approval.
+
 00000000. **NEWEST, 2026-11-05. Overrides below.** #342 merged `01fe6ea`. #349 runs as b349-floats2 (medium, from main `4124ed1`); the first try (b349-floats) stalled on the stale local main, which the owner has since reset. The locked `b349-floats` worktree stays where it is: owner, 2026-11-05, it is nobody's hand item. It's harmless (it holds only main's content), so don't queue it again.
    #341 (low) follows #349. #350 ticketed (trade-bud null-gsis merge, low, after #336). Consultant questions 1–5 on #349 are pending; the owner pasted 4 and 5 into the consultant. Post its answers on #349; the manager relays them to the builder.
 
