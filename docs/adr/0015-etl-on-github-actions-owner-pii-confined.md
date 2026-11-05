@@ -58,3 +58,4 @@
 - Discord posts only on events (failure, period close, drift, poll-triggered run). Silence means success, which is why the dead-man's switch is required. *[ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decision 12) adds one daily-digest line: counts of new Review findings, only when there are any.*
 - Freshness is bounded by the poll (10 min + a one-poll debounce) plus ~2 min for publishing.
 - Docs and commits refer to people by role, not by name.
+- *2026-11-05: the daily schedule keeps one Weekly Final per week in history, and each step declares a cadence ([ADR-0020](0020-daily-runs-weekly-finals.md)).*
