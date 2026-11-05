@@ -3,7 +3,9 @@
 `etl.read_table` / `etl.write_table` address a table by name; the registry
 (docs/data_model.yml) is the schema a write is checked against. The contract
 cases run on a temp data dir with a small fixture registry. The golden cases
-run every published table through the seam against the real registry.
+run every published table through the seam against the real registry; the
+Postgres golden cases load all of them in one transaction into the migrations'
+schema and read each back (#135, B2).
 
 The contract cases run on both backends: the `store` fixture is `parquet` (a
 temp data dir) or `pg` (a scratch schema, `seam_contract`, in the database
@@ -560,6 +562,117 @@ TABLES = sorted(p.stem for p in (REPO / "data").glob("*.parquet"))
 REFUSED = {}     # empty since #109 keyed fact_trade_log on (transaction_id, asset_id)
 
 
+def pg_breaks(conn, spec, batch, columns):
+    """Why the database refused `batch`: rows per constraint it breaks, counted
+    on an unconstrained copy of the table. Counts only, never a cell."""
+    import etl_storage_pg as pg
+    _, sql = pg._psycopg()
+    probe = sql.Identifier("_probe")
+    lines = []
+    with conn.transaction(), conn.cursor() as cur:
+        cur.execute(sql.SQL("CREATE TEMP TABLE {} AS SELECT * FROM {} WITH NO DATA")
+                    .format(probe, pg._table(spec)))
+        pg._copy(cur, probe, columns, pg._rows(batch, spec, columns))
+        for col in spec["columns"]:
+            if col["not_null"] and col["name"] not in spec["pk"]:
+                n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE {} IS NULL")
+                                .format(probe, sql.Identifier(col["name"]))).fetchone()[0]
+                if n:
+                    lines.append(f"NOT NULL {spec['name']}.{col['name']}: {n} row(s)")
+        checks = cur.execute(
+            "SELECT conname, pg_get_expr(conbin, conrelid) FROM pg_constraint "
+            "WHERE conrelid = %s::regclass AND contype = 'c'",
+            (f"{spec['schema']}.{spec['name']}",)).fetchall()
+        for name, expr in checks:
+            n = cur.execute(sql.SQL("SELECT count(*) FROM {} WHERE ({}) IS FALSE")
+                            .format(probe, sql.SQL(expr))).fetchone()[0]
+            if n:
+                lines.append(f"CHECK {name}: {n} row(s)")
+        cur.execute(sql.SQL("DROP TABLE {}").format(probe))
+    return lines
+
+
+def pg_orphans(conn):
+    """Rows per foreign key whose parent is missing, for every foreign key in
+    the schema, counted with the rows loaded and the keys still deferred."""
+    keys = conn.execute(
+        "SELECT c.conname, c.conrelid::regclass::text, c.confrelid::regclass::text, "
+        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.conkey) WITH ORDINALITY k(n, ord) "
+        " JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.n), "
+        "(SELECT array_agg(a.attname ORDER BY k.ord) FROM unnest(c.confkey) WITH ORDINALITY k(n, ord) "
+        " JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.n) "
+        "FROM pg_constraint c WHERE c.contype = 'f' AND c.connamespace = 'football'::regnamespace "
+        "ORDER BY c.conname").fetchall()
+    lines = []
+    for name, child, parent, ccols, pcols in keys:
+        present = " AND ".join(f'c."{x}" IS NOT NULL' for x in ccols)
+        match = " AND ".join(f'p."{y}" = c."{x}"' for x, y in zip(ccols, pcols))
+        n = conn.execute(f"SELECT count(*) FROM {child} c WHERE {present} "
+                         f"AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match})").fetchone()[0]
+        if n:
+            lines.append(f"FOREIGN KEY {name}: {n} row(s) with no parent")
+    return lines
+
+
+def pg_load_published(url, frames):
+    """Load every table of `frames` in one transaction, as the login in `url`,
+    and commit. Returns the lines of what the database refused (nothing is then
+    committed), or [] when every row went in with the deferred keys checked."""
+    import psycopg
+    import etl_storage_pg as pg
+    _, sql = pg._psycopg()
+    report = []
+    with psycopg.connect(url) as conn:
+        with conn.transaction() as tx:
+            for name, frame in frames.items():
+                entry = etl._table_entry(name)
+                batch = etl._check_batch(frame, entry)
+                spec = pg._spec(entry)
+                columns = pg._check_columns(entry, spec)
+                try:
+                    with conn.transaction(), conn.cursor() as cur:
+                        cur.execute(sql.SQL("DELETE FROM {}").format(pg._table(spec)))
+                        pg._copy(cur, pg._table(spec), columns, pg._rows(batch, spec, columns))
+                except psycopg.Error as exc:
+                    first = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
+                    report.append(f"{name}: refused: {first}")
+                    try:
+                        report.extend(pg_breaks(conn, spec, batch, columns))
+                    except psycopg.Error as again:
+                        report.append(f"{name}: no count: {(str(again).strip().splitlines() or [''])[0]}")
+            if not report:
+                report.extend(pg_orphans(conn))
+            if not report:
+                conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+            else:
+                raise psycopg.Rollback(tx)
+    return report
+
+
+def pg_clear_published(url, names):
+    import psycopg
+    with psycopg.connect(url) as conn:
+        for name in names:
+            conn.execute(f'DELETE FROM football."{name}"')
+
+
+@pytest.fixture(scope="module")
+def golden_pg():
+    """The test database holding every published table, loaded in one
+    transaction as the login in TEST_DATABASE_URL (etl_writer in CI) against
+    the migrations' schema. Emptied again afterwards."""
+    url = database_url()
+    frames = {t: pd.read_parquet(REPO / "data" / f"{t}.parquet") for t in TABLES}
+    pg_clear_published(url, TABLES)
+    try:
+        report = pg_load_published(url, frames)
+        if report:
+            pytest.fail("the database refuses published rows:\n  " + "\n  ".join(report), pytrace=False)
+        yield url, frames
+    finally:
+        pg_clear_published(url, TABLES)
+
+
 class TestGolden:
     def test_every_published_table_is_declared(self):
         assert set(TABLES) == set(etl._registry())
@@ -577,3 +690,18 @@ class TestGolden:
         # the seam cast nothing: the file is the one a plain write gives
         published.to_parquet(tmp_path / "plain.parquet", index=False)
         assert (tmp_path / f"{table}.parquet").read_bytes() == (tmp_path / "plain.parquet").read_bytes()
+
+    @pytest.mark.parametrize("table", TABLES)
+    def test_postgres_gives_the_published_table_back(self, table, golden_pg, monkeypatch):
+        import etl_storage_pg
+        url, frames = golden_pg
+        published = frames[table]
+        monkeypatch.setenv("ETL_STORAGE", "postgres")
+        monkeypatch.setenv(etl_storage_pg.URL_ENV, url)
+        if published.empty:
+            assert etl.table_exists(table) is False
+            return
+        key = etl.table_grain(etl._table_entry(table))
+        got = etl.read_table(table)[list(published.columns)]
+        pd.testing.assert_frame_equal(got.sort_values(key).reset_index(drop=True),
+                                      published.sort_values(key).reset_index(drop=True))
