@@ -21,6 +21,28 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-05, before a compact (newest), session `59aab023`: overrides everything below where they differ.** Main is at `a84b617`. Migration is the only focus; the owner said the project is paused until it's done.
+  - **#335 (#137) merged as `a84b617`** on the owner's "merge 335 when green".
+    - Before that, I ran the merge of main myself (b02a3d1), with `git -C`, after the owner switched to manual and said "i approve you completing these steps".
+    - The owner declined my local pytest re-proof twice, so I re-prove with CI, the builder's local run and the auditor, unless the owner says otherwise.
+    - b137 is closed. Its sessions are removed and its remote branch is deleted.
+  - **Running builders:**
+    - `b333-advisories` (#333, low, session `1df4d23a`): dispatched on the owner's direct "dispatch 333 at low". It opened **PR #337** (head a2c6c6f, green). I told it #335 merged, so it should bring main in and do the four #335-derived items (the conftest ImportError guard matters most). **Hold #337's re-proof until it reports.** #337 changes `load_published` (new `empty_only` parameter and `Loaded.refused`), which #136 also edits.
+    - `b138-drill` (#138, medium, session `4951b683`): dispatched on the owner's "#138 now (Recommended)". It opened **PR #338** (head da5c213). I told it to bring main in and append `tests/test_restore_drill.py` to the storage-pg line. Re-prove when it reports. **After it merges, my part** (per the brief, issuecomment-6648084935): after the owner's backfill and before the next data commit, rerun storage-pg on that commit, run `restore_drill.py --print-sql` through supabase-dynasty (SELECT only), compare rows and md5 per table, and post the result on #138. Any difference blocks #336.
+  - **Next:**
+    - **#136** (medium, brief issuecomment-6648020913): dispatch **after #337 merges**, since both touch `etl_storage_pg.py`. Its `main()` overlap with #335 is now cleared. **It needs the owner's dispatch word.** The planner's note was "dispatch after #335 merges"; confirm with the owner.
+    - The **backfill button** waits for #316 to merge. #316 is still held for the ordinary run.
+    - The **marker change**: the owner said "yes, ask the planner to ticket the marker change". storage-pg would select tests by a pytest marker, not a file list. I asked the planner to ticket it after #138. It is a workflow change, so dispatching it needs the owner's word.
+    - **skills#75** (the planner's builder command-forms text) needs the owner's word to merge. The owner is adding lines to `builders.settings.json` by hand; don't touch that file.
+  - **Builder command forms** (from the planner, already sent to b333 and b138):
+    - one command per call, no `cd`, chains or loops;
+    - `git add -u`;
+    - the PII check with `pre_commit run --from-ref origin/main --to-ref HEAD`;
+    - `gh issue view --comments`;
+    - `gh pr checks --watch`;
+    - `git fetch origin`, then `git merge origin/main`;
+    - the Write tool for scratch files.
+  - **The owner may switch back to auto.** Nothing pending needs manual mode.
 - **Update, 2026-11-05 later, session `59aab023`: overrides everything below where they differ.** Main is at `2e15942`. The owner says the project is paused until migration is done, so migration is the only focus.
   - **#334 (#135 B3) merged as `2e15942`** after re-proof. The supabase-auditor had no blocking finding. Live `football` has 36 empty tables. **The backfill button waits for #316 to merge** (owner: "Backfill after #316 (Recommended)"). Don't put it to the owner before then. My earlier steps on #135 are corrected there.
   - **#335 (#137) is open.**
