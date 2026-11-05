@@ -11,7 +11,9 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000. **NEWEST: before a compact, 2026-11-05 evening. Overrides everything below; read 000000000000000000 next.**
+00000000000000000000. **NEWEST: 2026-11-05 evening, after the compact. Overrides everything below; read 0000000000000000000 next for resume details.** #362 merged as PR #363 `50ed2ca` (4 checks green, verified). It stays open for its live Done-when (the Discord notice on the next run), which the owner checks. #361 dispatched at medium as b361-datapr from 50ed2ca. Next: #361 merges, then remind the owner of the registration Action. Builders read tickets with `gh issue view N --json body,comments`, because `--comments` printed nothing for them.
+
+0000000000000000000. **before a compact, 2026-11-05 evening. Overrides everything below; read 000000000000000000 next.**
 - Resume: worktree ps1103. The local branch is `planner-state-1105`, tracking origin/docs/state-2026-11-04b. Push with `git push origin HEAD:docs/state-2026-11-04b`. The old local `docs/state-2026-11-04b` is stale, can be deleted and holds nothing unique. Planner session 747f3826-fe11-43fd-b303-2bcec526e9e3. Find peers with ListAgents: the manager is `dynastyFantasyFootball-central-builder-manager`, dispatch is `Supabase-consultant-dispatch`, the consultant is `skills-plugins-hooks-agents-bd`.
 - Migration is about 85%. In flight: b362-ua (#362, low). Then #361 (medium; dispatch only after #362 merges, same file). Then the owner registers the scheduled task (queued Action). Then the first scheduled run publishes from Postgres with no warning, which closes #336.
 - On each report: re-check the merge on GitHub, record it on the ticket, save state here, and tell the owner. When #361 merges, remind the owner of the registration Action.
