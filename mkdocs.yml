@@ -1,0 +1,23 @@
+site_name: Dynasty Fantasy Football
+site_description: Data pipeline and owner tools for a 28-team IDP dynasty league.
+site_url: https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/
+repo_url: https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball
+
+docs_dir: docs/site/pages
+site_dir: _site/docs
+use_directory_urls: true
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+
+nav:
+  - Home: index.md
+  - Refresh schedule: refresh-schedule.md
+  - Running the pipeline: running-the-pipeline.md
+  - Data sources: data-sources.md
+  - Data model: data-model.md
+
+markdown_extensions:
+  - admonition
