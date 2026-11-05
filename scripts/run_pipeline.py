@@ -442,11 +442,13 @@ def notify(text: str) -> None:
     try:
         req = urllib.request.Request(
             url, data=json.dumps({"content": text[:1900]}).encode("utf-8"),
-            headers={"Content-Type": "application/json"})
+            headers={"Content-Type": "application/json",
+                     "User-Agent": "DiscordBot (https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball, 1.0)"})
         urllib.request.urlopen(req, timeout=15)
         print("[ok] Discord notification sent")
     except Exception as e:
-        print(f"[warn] webhook failed: {e}")
+        reason = str(e).replace(url, "<webhook>")
+        print(f"[warn] webhook failed: {type(e).__name__}: {reason}")
 
 
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
