@@ -5,11 +5,31 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-11-03, before a clear)
+## START HERE (state 2026-11-05, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+
+00000. **NEWEST: clear boundary, 2026-11-05 ~03:30Z. Overrides every item below where they differ.** Session `73d38bcc-afbf-4461-af56-c14790bb2362`.
+   **Goal:** migration only. Owner: "we are VERY CLOSE"; the project is paused until the refreshes run on Supabase.
+   **Worktree:** `ps1103` (path in item 0000), now on `docs/state-2026-11-04`, which tracks origin. It has a `.venv` junction (remove that before the worktree).
+   Push with `HEAD:docs/state-2026-11-04`; the manager pushes there too. No batch PR is open for this branch yet. Save state the same way (insert before the `#300:` anchor; pull --rebase; push).
+   **Peers:** `dynastyFantasyFootball-central-builder-manager` (it restarts often: use ListAgents and send by name, not by an old pipe address), plus builders b138-drill and b333-advisories (the latter is done).
+   **Merged since 2026-11-04:** #334 B3, #335 run log `a84b617`, #337 (#333) `9ad4e48`, #340 data run `b863586`, skills#75 command forms `2e1bebc`.
+   **Cutover path (#336 holds the order):**
+   1. #136 export/restore: the owner approved its dispatch after #337, and #337 has merged, so the manager dispatches it at medium (brief issuecomment-6648020913).
+   2. #138 drill = PR #338 (b138-drill: storage-pg ordering assert + DIRTY). Rule if it raises the checksum design (brief issuecomment-6648084935).
+   3. #339 pg marker (low, owner-approved), after #338 merges.
+   4. #316: unblocked by b863586. The manager brings it up to date, reruns the rekey, re-proves and merges. Then #300 Brief 5.
+   5. The owner's backfill button (#135), then the manager's live counts plus the #138 checksum compare, then ETL_STORAGE=postgres, a supervised run, and a docs PR.
+   **Final tasklist on #336 (issuecomment-6648581255). The owner wants it re-evaluated only after everything else is done:**
+   how runs land data under ruleset 24086028 (a direct push gets GH013; leaning: the pipeline opens a PR), the webhook 403, and the scheduled task, which isn't registered.
+   Until then, every run's data lands by a hand PR like #340. A run started by an agent is barred (its run log connects to live). The owner runs:
+   `powershell -ExecutionPolicy Bypass -File .\run_weekly.ps1 --trigger manual` from the repo root.
+   **Learned:** builders run in an ask-nothing mode, so refusals are allowlist misses, not a classifier. Use the command forms in session-rules. The project deny rules match file names
+   anywhere in a command, even in a `gh pr create` body. The owner added 5 allow lines to builders.settings.json.
+   **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
    Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
