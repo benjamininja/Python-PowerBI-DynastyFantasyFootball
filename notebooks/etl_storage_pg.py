@@ -178,18 +178,33 @@ def _partition_delete(cur, spec: dict, partition) -> None:
         _table(spec), sql.SQL(" AND ").join(parts)), params)
 
 
+def stage(cur, spec: dict, columns: list[str], df: pd.DataFrame):
+    """COPY `df` into a temp table shaped like the target and return its name.
+    COPY FROM is refused on a table with row-level security, so rows reach the
+    target by INSERT ... SELECT from here (insert_staged)."""
+    _, sql = _psycopg()
+    batch = sql.Identifier(BATCH_TABLE)
+    cur.execute(sql.SQL("CREATE TEMP TABLE {} AS SELECT * FROM {} WITH NO DATA")
+                .format(batch, _table(spec)))
+    _copy(cur, batch, columns, _rows(df, spec, columns))
+    return batch
+
+
+def insert_staged(cur, spec: dict, columns: list[str], batch) -> None:
+    """INSERT the staged rows into the target and drop the temp table."""
+    _, sql = _psycopg()
+    cur.execute(sql.SQL("INSERT INTO {} ({cols}) SELECT {cols} FROM {}").format(
+        _table(spec), batch, cols=_names(columns)))
+    cur.execute(sql.SQL("DROP TABLE {}").format(batch))
+
+
 def _keys_delete(cur, spec: dict, columns: list[str], df: pd.DataFrame, keys) -> None:
     _, sql = _psycopg()
-    target = _table(spec)
-    batch = sql.Identifier(BATCH_TABLE)
-    cur.execute(sql.SQL("CREATE TEMP TABLE {} ON COMMIT DROP AS SELECT * FROM {} WITH NO DATA")
-                .format(batch, target))
-    _copy(cur, batch, columns, _rows(df, spec, columns))
+    batch = stage(cur, spec, columns, df)
     same = sql.SQL(" AND ").join(
         sql.SQL("t.{0} = b.{0}").format(sql.Identifier(k)) for k in keys)
-    cur.execute(sql.SQL("DELETE FROM {} t USING {} b WHERE {}").format(target, batch, same))
-    cur.execute(sql.SQL("INSERT INTO {} ({cols}) SELECT {cols} FROM {}").format(
-        target, batch, cols=_names(columns)))
+    cur.execute(sql.SQL("DELETE FROM {} t USING {} b WHERE {}").format(_table(spec), batch, same))
+    insert_staged(cur, spec, columns, batch)
 
 
 def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
@@ -209,11 +224,13 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
         with conn.transaction():
             with conn.cursor() as cur:
                 if mode == "replace":
+                    batch = stage(cur, spec, columns, df)
                     cur.execute(sql.SQL("DELETE FROM {}").format(_table(spec)))
-                    _copy(cur, _table(spec), columns, _rows(df, spec, columns))
+                    insert_staged(cur, spec, columns, batch)
                 elif mode == "replace_partition" and partition is not None:
+                    batch = stage(cur, spec, columns, df)
                     _partition_delete(cur, spec, partition)
-                    _copy(cur, _table(spec), columns, _rows(df, spec, columns))
+                    insert_staged(cur, spec, columns, batch)
                 elif len(df):
                     _keys_delete(cur, spec, columns, df, keys)
                 count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]

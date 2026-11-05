@@ -631,8 +631,9 @@ def pg_load_published(url, frames):
                 columns = pg._check_columns(entry, spec)
                 try:
                     with conn.transaction(), conn.cursor() as cur:
+                        staged = pg.stage(cur, spec, columns, batch)
                         cur.execute(sql.SQL("DELETE FROM {}").format(pg._table(spec)))
-                        pg._copy(cur, pg._table(spec), columns, pg._rows(batch, spec, columns))
+                        pg.insert_staged(cur, spec, columns, staged)
                 except psycopg.Error as exc:
                     first = (str(exc).strip().splitlines() or [type(exc).__name__])[0]
                     report.append(f"{name}: refused: {first}")
