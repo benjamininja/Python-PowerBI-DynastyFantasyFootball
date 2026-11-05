@@ -30,6 +30,8 @@ import yaml
 import etl_helpers as etl
 import etl_storage_pg as pg
 
+pytestmark = pytest.mark.pg
+
 SCRATCH = "seam_contract"
 REGISTRY = {"tables": [
     {"name": "fact_snap", "type": "fact", "grain": "(day, source, player)",
@@ -75,6 +77,23 @@ def pg_ddl(spec):
     return f'CREATE TABLE "{spec["schema"]}"."{spec["name"]}" (' + ", ".join(cols) + ")"
 
 
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+OPT_IN_NONLOCAL = "ALLOW_NONLOCAL_TEST_DATABASE"
+
+
+def refuse_unless_throwaway(url):
+    """The PG cases delete and rewrite tables. Only a database on this machine
+    (the CI service container) is a throwaway; any other host needs the opt-in."""
+    from urllib.parse import urlsplit
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        host = None
+    if host not in LOCAL_HOSTS and not os.environ.get(OPT_IN_NONLOCAL):
+        pytest.fail(f"TEST_DATABASE_URL host is not localhost or 127.0.0.1; "
+                    f"set {OPT_IN_NONLOCAL} only for a throwaway database", pytrace=False)
+
+
 def database_url():
     required = bool(os.environ.get("REQUIRE_TEST_DATABASE"))
     url = os.environ.get("TEST_DATABASE_URL")
@@ -82,6 +101,7 @@ def database_url():
         if required:
             pytest.fail("REQUIRE_TEST_DATABASE is set but TEST_DATABASE_URL is not", pytrace=False)
         pytest.skip("TEST_DATABASE_URL is not set")
+    refuse_unless_throwaway(url)
     try:
         import psycopg
     except ImportError:
@@ -330,6 +350,30 @@ class TestGuards:
     def test_a_value_that_cannot_be_cast_raises(self, store):
         with pytest.raises(etl.StorageError, match="cannot cast"):
             etl.write_table("dim_one", pd.DataFrame({"key": ["x", "y"], "label": ["a", "b"]}))
+
+    def test_a_cast_error_names_the_column_and_row_count_but_no_value(self, store):
+        with pytest.raises(etl.StorageError) as raised:
+            etl.write_table("dim_one", pd.DataFrame({"key": ["SENTINEL-4471", "y"], "label": ["a", "b"]}))
+        text = str(raised.value)
+        assert "dim_one.key" in text and "2 row(s)" in text and "SENTINEL-4471" not in text
+
+    @pytest.mark.parametrize("url, ok", [
+        ("postgresql://u:p@localhost:5432/d", True),
+        ("postgresql://u:p@127.0.0.1/d", True),
+        ("postgresql://u:p@db.example.com:5432/d", False),
+        ("postgresql://u:p@/d", False),
+    ])
+    def test_only_a_local_database_is_a_throwaway(self, monkeypatch, url, ok):
+        monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
+        if ok:
+            refuse_unless_throwaway(url)
+        else:
+            with pytest.raises(pytest.fail.Exception, match="not localhost"):
+                refuse_unless_throwaway(url)
+
+    def test_the_opt_in_lets_another_host_through(self, monkeypatch):
+        monkeypatch.setenv(OPT_IN_NONLOCAL, "1")
+        refuse_unless_throwaway("postgresql://u:p@db.example.com/d")
 
     def test_an_object_column_of_numbers_and_na_casts_to_float(self, store):
         rows = pd.DataFrame({"day": BASE["day"], "source": BASE["source"], "player": BASE["player"],

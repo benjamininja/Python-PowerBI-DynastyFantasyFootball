@@ -16,6 +16,10 @@ if not URL:
         pytest.fail("REQUIRE_TEST_DATABASE is set but TEST_DATABASE_URL is not", pytrace=False)
     pytest.skip("TEST_DATABASE_URL is not set", allow_module_level=True)
 
+from test_etl_storage import refuse_unless_throwaway
+
+refuse_unless_throwaway(URL)
+
 psycopg = pytest.importorskip("psycopg")
 
 STATE = json.loads((REPO / "supabase" / gm.STATE_FILE).read_text(encoding="utf-8"))

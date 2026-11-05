@@ -25,6 +25,8 @@ import etl_helpers as etl
 import etl_storage_pg as pg
 from test_etl_storage import TABLES, database_url
 
+pytestmark = pytest.mark.pg
+
 SENTINEL = "SENTINEL-4471"
 ENTRY = {"name": "t", "grain": "k", "columns": [
     {"name": "k", "dtype": "int64"}, {"name": "v", "dtype": "float64"}, {"name": "s", "dtype": "str"}]}
@@ -173,6 +175,21 @@ class TestTheDatabase:
         assert "connected as postgres, expected etl_writer" in out and "nothing was written" in out
         assert held(db) == []
 
+    def test_the_loaded_counts_are_the_database_counts(self, db, frames):
+        loaded = pg.load_published(db, frames)
+        assert loaded.problems == [] and not loaded.refused
+        assert loaded.counts == {t: len(frames[t]) for t in TABLES}
+        for table in TABLES:
+            assert count(db, table) == loaded.counts[table]
+
+    def test_empty_only_refuses_inside_the_load_and_writes_nothing(self, db, frames):
+        assert pg.load_published(db, frames).problems == []
+        before = {t: count(db, t) for t in TABLES}
+        again = pg.load_published(db, frames, replace=False, empty_only=True)
+        assert again.refused and again.counts == {}
+        assert any("already holds rows" in line for line in again.problems)
+        assert {t: count(db, t) for t in TABLES} == before
+
     def test_the_clear_helper_deletes_in_the_test_database(self, db, frames):
         assert pg.load_published(db, frames).problems == []
         assert held(db)
@@ -220,6 +237,28 @@ class TestWithoutADatabase:
         with pytest.raises(psycopg.Error) as raised:
             psycopg.connect(f"postgresql://u:{SENTINEL}@/d?bogus=1")
         assert pg.describe(raised.value) == type(raised.value).__name__
+
+    @pytest.mark.parametrize("text", [
+        f"bad value '{SENTINEL}",
+        f'bad value "{SENTINEL}',
+        f"bad value '{SENTINEL}' and then \"{SENTINEL}",
+    ])
+    def test_scrub_drops_a_quote_that_never_closes(self, text):
+        assert SENTINEL not in pg.scrub(text)
+        assert pg.scrub(text).startswith("bad value <quoted>")
+
+    def test_a_non_database_error_with_an_open_quote_prints_no_value(self, monkeypatch, capsys):
+        monkeypatch.setenv(pg.URL_ENV, "postgresql://u@h/d")
+        monkeypatch.setattr(backfill, "published_frames", lambda: {})
+
+        def failing(url, frames, **kwargs):
+            raise ValueError(f"cannot cast 'x{SENTINEL}")
+
+        monkeypatch.setattr(backfill, "run", failing)
+        assert backfill.main([]) == 1
+        out = said(capsys)
+        assert "ValueError: cannot cast <quoted>" in out
+        assert SENTINEL not in out and "Traceback" not in out
 
     def test_scrub_drops_quoted_values_and_keeps_the_first_line(self):
         text = f'invalid input syntax for type integer: "{SENTINEL}"\nDETAIL: Key (a)=(\'{SENTINEL}\')'

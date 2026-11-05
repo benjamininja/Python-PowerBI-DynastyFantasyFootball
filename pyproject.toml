@@ -2,3 +2,4 @@
 # Scoped to tests/ only — discord_bot/tests/ runs under its own .botvenv (see
 # discord_bot/tests/test_offline_smoke.py's docstring), not this repo's .venv.
 testpaths = ["tests"]
+markers = ["pg: needs the throwaway Postgres in TEST_DATABASE_URL (run in the storage-pg CI job)"]
