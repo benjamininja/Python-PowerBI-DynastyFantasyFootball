@@ -258,16 +258,22 @@ class TestWhatIfText:
     text = INDEX.read_text(encoding="utf-8")
 
     def test_render_cap_cards_reads_both_figures(self):
-        body = _function(self.text, "renderCapCards")
+        body = _function(self.text, "whatIfCapRooms")
         assert "cap_hit" in body and "contract_value" in body
 
-    def test_the_giver_sheds_the_charge_and_the_receiver_takes_the_salary(self):
+    def test_render_cap_cards_wires_the_pure_function_in_order(self):
         body = " ".join(_function(self.text, "renderCapCards").split())
-        charges = re.search(r"const sumCharges = [^;]*a\.cap_hit", body)
-        salaries = re.search(r"const sumSalaries = [^;]*a\.contract_value", body)
-        assert charges and salaries
-        assert re.search(r"capCard-my.*remaining_cap_current_yr \+ giveCharges - receiveSalaries", body)
-        assert re.search(r"capCard-cp.*remaining_cap_current_yr \+ receiveCharges - giveSalaries", body)
+        assert re.search(
+            r"whatIfCapRooms\( myTeam \? myTeam\.remaining_cap_current_yr : 0, "
+            r"cpTeam \? cpTeam\.remaining_cap_current_yr : 0, "
+            r"state\.give, state\.receive\)", body)
+
+    def test_each_card_renders_its_own_result(self):
+        body = " ".join(_function(self.text, "renderCapCards").split())
+        assert re.search(
+            r"capCard-my.*capCardHtml\(myTeam, myTeam\.remaining_cap_current_yr, after\.my\)", body)
+        assert re.search(
+            r"capCard-cp.*capCardHtml\(cpTeam, cpTeam\.remaining_cap_current_yr, after\.cp\)", body)
 
     def test_the_lines_say_cap_room(self):
         card = _function(self.text, "capCardHtml")
