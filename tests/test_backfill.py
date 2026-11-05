@@ -190,6 +190,28 @@ class TestTheDatabase:
         assert any("already holds rows" in line for line in again.problems)
         assert {t: count(db, t) for t in TABLES} == before
 
+    def test_a_held_lock_is_an_ordinary_error_after_the_lock_timeout(self, db, frames):
+        import psycopg
+        name = sorted(frames)[0]
+        with psycopg.connect(db) as holder:
+            holder.execute(f'LOCK TABLE football."{name}" IN ACCESS EXCLUSIVE MODE')
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                pg.load_published(db, frames, empty_only=True)
+        assert held(db) == []
+
+    def test_like_snapshot_names_the_missing_and_extra_columns_only(self):
+        snapshot = pd.DataFrame({"a": [1], "b": [SENTINEL], "c": [3]})
+        frame = pd.DataFrame({"a": [1], "c": [3], "d": [SENTINEL]})
+        with pytest.raises(ValueError) as raised:
+            pg.like_snapshot(frame, snapshot)
+        text = str(raised.value)
+        assert "missing ['b']" in text and "extra ['d']" in text and SENTINEL not in text
+
+    def test_like_snapshot_reorders_to_the_snapshot_columns(self):
+        snapshot = pd.DataFrame({"b": ["x"], "a": [1]})
+        frame = pd.DataFrame({"a": [1], "b": ["x"]})
+        assert list(pg.like_snapshot(frame, snapshot).columns) == ["b", "a"]
+
     def test_the_clear_helper_deletes_in_the_test_database(self, db, frames):
         assert pg.load_published(db, frames, replace=True).problems == []
         assert held(db)
