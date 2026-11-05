@@ -92,7 +92,7 @@ def checksum_sql(tables) -> str:
             f"coalesce(md5(string_agg(md5(ROW({row})::text), ',' ORDER BY {order})), "
             f"{_literal(EMPTY)}) AS checksum "
             f"FROM {_ident(spec['schema'])}.{_ident(name)}")
-    return "\nUNION ALL\n".join(branches)
+    return "\nUNION ALL\n".join(branches) + "\nORDER BY 1"
 
 
 def checksum_lines(conn, tables) -> list[str]:

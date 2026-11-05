@@ -150,7 +150,7 @@ class TestTheDrillOnTheDatabase:
             with psycopg.connect(db) as conn:
                 conn.read_only = True
                 rows = conn.execute(statement).fetchall()
-            assert [f"{t} {n} {c}" for t, n, c in rows] == [l for l in lines if LINE.match(l)]
+            assert sorted(f"{t} {n} {c}" for t, n, c in rows) == sorted(l for l in lines if LINE.match(l))
         finally:
             monkeypatch.undo()
             real(db, TABLES)
