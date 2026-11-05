@@ -107,7 +107,7 @@ class TestHelpers:
     def test_status(self):
         assert rl.final_status(1, "committed + pushed 2 parquet file(s) to main") == "failed"
         assert rl.final_status(0, "committed + pushed 2 parquet file(s) to main") == "published"
-        assert rl.final_status(0, "committed 2 file(s), push skipped (--no-push)") == "published"
+        assert rl.final_status(0, "committed 2 file(s), push skipped (--no-push)") == "committed"
         assert rl.final_status(0, "no data changes — commit skipped") == "committed"
         assert rl.final_status(0, "commit skipped (flag)") == "committed"
         assert rl.final_status(0, "commit skipped: on branch 'x', not main") == "committed"
