@@ -11,6 +11,9 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+0000000000. **NEWEST, 2026-11-05 ~14:10Z. Overrides 000000000 where they differ.** #351 merged `a9c5615` (re-proof issuecomment-6659755050; the 26 min was runner variance). #349 stays open until the backfill rerun passes its golden compare; then close it with that run's id.
+   Auditor advisories: B dropped; A and C ticketed as #352 (low, after #336). #341 runs as b341-follow (low, on the owner's order); the manager holds its merge until after the backfill, the live checks and the #138 compare. The owner has been told to press the backfill.
+
 000000000. **NEWEST: before a compact, 2026-11-05 ~13:55Z. Overrides everything below.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries answer here.
    **Worktree** `ps1103` (path in item 0000) on `docs/state-2026-11-04b` (cut from main `24f2c58` after #346 merged). Push with `HEAD:docs/state-2026-11-04b`; the manager pushes there too. No batch PR is open for it yet. Insert new state before the anchor `00000000. **NEWEST, 2026-11-05.`.
    **Peers (ListAgents, by name):** `dynastyFantasyFootball-central-builder-manager` (restarts often); `b349-floats2` (#349 builder, bg); `Supabase-consultant-dispatch` (routes only); the Supabase consultant runs as `skills-plugins-hooks-agents-bd`. It takes tasks only from the owner; its reports are input, not approval.
