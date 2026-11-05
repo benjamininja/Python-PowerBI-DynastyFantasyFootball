@@ -110,10 +110,11 @@ the parquet alone.
   `--delete-branch`. One logical change per PR. Commits use the GitHub noreply
   author email (`38588919+benjamininja@users.noreply.github.com`) — repo
   `user.email` is already set to it. Commit only when asked. **One codified
-  exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) commits
-  the machine-generated published snapshot (`data/*.parquet`) directly to `main`
-  — only the passing Chains' tables, never manual-only or new ones
-  (allowlist-verified, change-detected, rebase-then-push — CONTRIBUTING.md).
+  exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) lands the
+  machine-generated published snapshot (`data/*.parquet`) by its own data PR,
+  gated by the required checks, which it merges itself — only the passing
+  Chains' tables, never manual-only or new ones (allowlist-verified,
+  change-detected, never a push to `main` — CONTRIBUTING.md).
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,
   `api_key.txt`. Bot/scraper code does no destructive or write-side calls to

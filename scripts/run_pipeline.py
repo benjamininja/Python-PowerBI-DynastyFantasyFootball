@@ -2,9 +2,9 @@
 
 Runs the scheduled slice of the pipeline in dependency order, gates each
 Chain, surfaces review-queue counts, commits the passing Chains' refreshed
-data (allowlisted `data/*.parquet` ONLY — the codified exception to the
-never-commit-to-main rule; see CONTRIBUTING.md), and notifies a private
-Discord channel via webhook.
+data (allowlisted `data/*.parquet` ONLY) by its own data PR, which it merges
+itself once pii-scan, tests and bot-tests pass (#361; see CONTRIBUTING.md),
+and notifies a private Discord channel via webhook.
 
 Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
 (fantrax_core, rookie, dynasty_profile, nflverse — each step and each
@@ -39,6 +39,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -48,6 +49,9 @@ VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
 NB = REPO / "notebooks"
 OUT_DIR = REPO / "data" / "outputs"
 STEP_TIMEOUT_S = 1800
+REQUIRED_CHECKS = ("pii-scan", "tests", "bot-tests")
+CHECKS_TIMEOUT_S = 1800
+CHECKS_POLL_S = 30
 
 sys.path.insert(0, str(NB))
 import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
@@ -291,12 +295,71 @@ def _parquet_paths(tables: list[str]) -> list[str]:
     return [f"data/{t}.parquet" for t in tables]
 
 
+def _gh(*args: str, cwd: Path = REPO) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(["gh", *args], cwd=cwd, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return subprocess.CompletedProcess(["gh", *args], 1, "", f"{type(exc).__name__}: {exc}")
+
+
+def _checks_state(pr: int, cwd: Path) -> tuple[str, list[str]]:
+    """One read of the PR's required checks: ("failed", names that failed),
+    ("passed", []) or ("pending", names not yet passed). A check that gh does
+    not list yet (the PR was just opened) is pending."""
+    done = _gh("pr", "checks", str(pr), "--json", "name,bucket", cwd=cwd)
+    try:
+        rows = json.loads(done.stdout or "[]")
+    except ValueError:
+        rows = []
+    seen: dict[str, set[str]] = {}
+    for row in rows:
+        if row.get("name") in REQUIRED_CHECKS:
+            seen.setdefault(row["name"], set()).add(row.get("bucket"))
+    failed = [n for n in REQUIRED_CHECKS if seen.get(n, set()) & {"fail", "cancel"}]
+    if failed:
+        return "failed", failed
+    waiting = [n for n in REQUIRED_CHECKS if not (n in seen and seen[n] <= {"pass", "skipping"})]
+    return ("pending", waiting) if waiting else ("passed", [])
+
+
+def _wait_for_checks(pr: int, cwd: Path, timeout_s: float, poll_s: float) -> tuple[str, list[str]]:
+    """Poll until the required checks pass or one fails; "timeout" when
+    `timeout_s` runs out first."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        state, names = _checks_state(pr, cwd)
+        if state != "pending":
+            return state, names
+        if time.monotonic() >= deadline:
+            return "timeout", names
+        time.sleep(poll_s)
+
+
+def _pr_body(staged: list[str], run_id: str | None, rows: dict | None) -> str:
+    lines = ["Machine-generated parquet refresh via scripts/run_pipeline.py "
+             "(allowlisted data-only commit). Opened and merged by the pipeline "
+             "once pii-scan, tests and bot-tests pass.", "",
+             f"Run log: {run_id or 'not written'}", "", "Tables:"]
+    for path in staged:
+        table = Path(path).stem
+        lines.append(f"- {table}: {(rows or {}).get(table, 'rows unknown')}")
+    return "\n".join(lines)
+
+
 def commit_data(phase: str, week: str, push: bool, publish: list[str],
-                restore: list[str], cwd: Path = REPO) -> str:
-    """Allowlisted direct-to-main data commit, per Chain. Restores the failed
-    Chains' tracked parquet from HEAD, stages exactly the passing Chains'
-    tracked parquet (never a glob), verifies every staged path, skips when
-    nothing changed (change detection), rebases on origin before pushing.
+                restore: list[str], cwd: Path = REPO, run_id: str | None = None,
+                rows: dict | None = None, landed: dict | None = None,
+                checks_timeout_s: float = CHECKS_TIMEOUT_S,
+                poll_s: float = CHECKS_POLL_S) -> str:
+    """Allowlisted data commit, per Chain, landed by its own data PR (#361).
+    Restores the failed Chains' tracked parquet from HEAD, stages exactly the
+    passing Chains' tracked parquet (never a glob), verifies every staged
+    path, skips when nothing changed (change detection). With push, commits
+    to data/<date>-<phase>-wk<NN>, rebases it on origin/main, pushes it, opens
+    a PR, waits for the required checks (bounded) and rebase-merges it. A
+    failed check, a timeout or a refused merge leaves the PR open. `landed`,
+    when given, receives {"pr", "sha"} once the PR has merged. Without push
+    the commit stays on local main and nothing is pushed.
     `publish`/`restore` are table names. Returns a one-line outcome."""
     branch = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd).stdout.strip()
     if branch != "main":
@@ -321,26 +384,72 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     if bad:
         _git("reset", cwd=cwd)
         return f"ABORTED: non-allowlisted staged path(s): {bad}"
-    msg = (f"data: pipeline refresh {date.today().isoformat()} "
-           f"({phase.lower()}, wk {week})\n\n"
+    title = f"data: pipeline refresh {date.today().isoformat()} ({phase.lower()}, wk {week})"
+    msg = (f"{title}\n\n"
            f"Machine-generated parquet refresh via scripts/run_pipeline.py "
            f"(allowlisted data-only commit).\n\n"
            f"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>")
+    data_branch = None
+    if push:
+        wk = re.sub(r"[^A-Za-z0-9._-]", "", week)
+        data_branch = f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}"
+        s = _git("switch", "-c", data_branch, cwd=cwd)
+        if s.returncode != 0:
+            _git("reset", cwd=cwd)
+            return f"ABORTED: could not create branch {data_branch}: {s.stderr.strip()[:200]}"
     c = _git("commit", "-m", msg, cwd=cwd)
     if c.returncode != 0:
+        if data_branch:
+            _git("switch", "main", cwd=cwd)
+            _git("branch", "-D", data_branch, cwd=cwd)
         return f"ABORTED: commit failed: {c.stderr.strip()[:200]}"
-    if not push:
+    if not data_branch:
         return f"committed {len(staged)} file(s), push skipped (--no-push)"
     # autostash: nbconvert --inplace leaves executed .ipynb files dirty in the
     # working tree, which would otherwise block the rebase.
     r = _git("-c", "rebase.autostash=true", "pull", "--rebase", "origin", "main", cwd=cwd)
     if r.returncode != 0:
         _git("rebase", "--abort", cwd=cwd)
+        _git("switch", "main", cwd=cwd)
         return f"ABORTED: rebase conflict — resolve manually: {r.stderr.strip()[:200]}"
-    p = _git("push", "origin", "main", cwd=cwd)
+    p = _git("push", "-u", "origin", data_branch, cwd=cwd)
     if p.returncode != 0:
+        _git("switch", "main", cwd=cwd)
         return f"ABORTED: push failed: {p.stderr.strip()[:200]}"
-    return f"committed + pushed {len(staged)} parquet file(s) to main"
+    made = _gh("pr", "create", "--base", "main", "--head", data_branch, "--title", title,
+               "--body", _pr_body(staged, run_id, rows), cwd=cwd)
+    found = re.search(r"/pull/(\d+)", made.stdout) if made.returncode == 0 else None
+    if not found:
+        _git("switch", "main", cwd=cwd)
+        return (f"ABORTED: {data_branch} pushed but no data PR was opened: "
+                f"{(made.stderr or made.stdout).strip()[:200]}")
+    pr = int(found.group(1))
+    state, names = _wait_for_checks(pr, cwd, checks_timeout_s, poll_s)
+    # Whatever the checks say, data/ goes back to main's files until the PR lands.
+    back = _git("switch", "main", cwd=cwd)
+    if back.returncode != 0:
+        return f"ABORTED: data PR #{pr} left open, could not switch back to main"
+    if state == "failed":
+        return f"ABORTED: data PR #{pr} left open, required check failed ({', '.join(names)})"
+    if state == "timeout":
+        return (f"ABORTED: data PR #{pr} left open, checks not done after "
+                f"{int(checks_timeout_s // 60)} min (waiting on {', '.join(names)})")
+    merge = _gh("pr", "merge", str(pr), "--rebase", "--delete-branch", cwd=cwd)
+    view = _gh("pr", "view", str(pr), "--json", "state,mergeCommit", cwd=cwd)
+    try:
+        info = json.loads(view.stdout or "{}")
+    except ValueError:
+        info = {}
+    if info.get("state") != "MERGED":
+        return (f"ABORTED: data PR #{pr} left open, merge refused "
+                f"({' '.join((merge.stderr or merge.stdout).split())[:200]})")
+    if landed is not None:
+        landed.update(pr=pr, sha=(info.get("mergeCommit") or {}).get("oid"))
+    pulled = _git("-c", "merge.autostash=true", "pull", "--ff-only", "origin", "main", cwd=cwd)
+    if pulled.returncode != 0:
+        print(f"[warn] data PR #{pr} merged but local main did not fast-forward: "
+              f"{pulled.stderr.strip()[:200]}")
+    return f"committed + merged {len(staged)} parquet file(s) via data PR #{pr}"
 
 
 def storage_is_postgres() -> bool:
@@ -576,6 +685,7 @@ def main() -> int:
                 [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
 
         reviews = review_counts()
+        rows, landed = None, {}
         if args.dry_run:
             commit_line = "commit skipped (flag)"
         elif args.no_commit:
@@ -585,8 +695,11 @@ def main() -> int:
             commit_line = aborted or "commit skipped (flag)"
         else:
             aborted = publish_postgres(plan) if storage_is_postgres() else None
+            if not aborted:
+                rows = etl_run_log.row_counts(plan["publish"])
             commit_line = aborted or commit_data(phase, week, push=not args.no_push,
-                                                 publish=plan["publish"], restore=plan["restore"])
+                                                 publish=plan["publish"], restore=plan["restore"],
+                                                 run_id=runlog.run_id, rows=rows, landed=landed)
         print(f"[info] {commit_line}")
 
         failed = bool(plan and plan["failed"]) or any(
@@ -596,9 +709,11 @@ def main() -> int:
         if runlog.run_id:
             runlog.finish(
                 etl_run_log.final_status(code, commit_line),
-                snapshot_commit_sha=(etl_run_log.head_sha(REPO)
+                snapshot_commit_sha=(landed.get("sha") if etl_run_log.data_merged(commit_line)
+                                     else etl_run_log.head_sha(REPO)
                                      if etl_run_log.data_committed(commit_line) else None),
-                rows_written=etl_run_log.row_counts(plan["publish"]),
+                rows_written=(rows if rows is not None
+                              else etl_run_log.row_counts(plan["publish"])),
                 error=(etl_run_log.failure_summary(results, plan, commit_line)
                        if code else None))
     except BaseException as exc:

@@ -3,7 +3,7 @@
 ## Branch structure
 
 ```
-main        ← the only long-lived branch. Never commit directly (one exception below).
+main        ← the only long-lived branch. Never commit directly.
 <type>/<n>-<slug>  ← short-lived branch per change, e.g. feat/109-pick-legs, docs/readme-truth-up
 ```
 
@@ -11,17 +11,28 @@ Every change goes feature branch → pull request → `main`. One logical change
 per pull request. Merge by squash and delete the branch
 (`gh pr merge <n> --squash --delete-branch`).
 
-**Allowlisted data-commit exception (2026-07-13):** the scheduled pipeline
-(`scripts/run_pipeline.py`, via `run_weekly.ps1`) commits **machine-generated
-`data/*.parquet` refreshes directly to `main`**. This is deliberate and
-narrowly scoped: the orchestrator stages only the tracked parquet of the
-Chains that passed their steps and Gate checks (ADR-0008 amendment, #115),
-restores a held Chain's parquet from `HEAD`, verifies every staged path
-matches `data/*.parquet` (aborts otherwise), skips the commit entirely when
-nothing changed, and rebases on `origin/main` before pushing. Manual-only
-tables (no `chain:` in `docs/data_model.yml`) and brand-new parquet files are
-never staged by the pipeline — they reach `main` by PR.
-Code, notebooks, PBI, and docs still always go feature branch → PR.
+**Allowlisted data-PR exception (2026-07-13, changed by #361):** the scheduled
+pipeline (`scripts/run_pipeline.py`, via `run_weekly.ps1`) lands its
+**machine-generated `data/*.parquet` refreshes by its own data PR**, gated by
+the three required checks below, and merges that PR itself. Nothing is pushed to
+`main`, no ruleset or repository setting is changed and nothing is bypassed.
+This is deliberate and narrowly scoped: the orchestrator stages only the
+tracked parquet of the Chains that passed their steps and Gate checks (ADR-0008
+amendment, #115), restores a held Chain's parquet from `HEAD`, verifies every
+staged path matches `data/*.parquet` (aborts otherwise) and skips the commit
+entirely when nothing changed. It then commits to a new branch
+`data/<date>-<phase>-wk<NN>`, rebases it on `origin/main`, pushes the branch and
+opens a PR titled `data: pipeline refresh <date> (<phase>, wk <NN>)`. It polls
+the PR for `pii-scan`, `tests` and `bot-tests` for up to 30 minutes, then merges
+with `gh pr merge --rebase --delete-branch`. The run log reads `published` only
+once the PR has merged, and its `snapshot_commit_sha` is the commit as it
+landed on `main`. A failed check, a timeout or a refused merge leaves the PR
+open, ends the run `failed` with the PR number in its error, and sends the
+Discord notice. `--no-push` keeps its meaning: commit locally, push nothing,
+open no PR. Manual-only tables (no `chain:` in `docs/data_model.yml`) and
+brand-new parquet files are never staged by the pipeline — they reach `main` by
+a PR of their own.
+Code, notebooks, PBI, and docs always go feature branch → PR.
 Watchpoint: parquet history growth — revisit (LFS/releases) only if repo size
 becomes a problem.
 

@@ -109,14 +109,14 @@ def data_committed(commit_line: str) -> bool:
     return commit_line.startswith("committed")
 
 
-def data_pushed(commit_line: str) -> bool:
-    return commit_line.startswith("committed + pushed")
+def data_merged(commit_line: str) -> bool:
+    return commit_line.startswith("committed + merged")
 
 
 def final_status(code: int, commit_line: str) -> str:
     if code:
         return "failed"
-    return "published" if data_pushed(commit_line) else "committed"
+    return "published" if data_merged(commit_line) else "committed"
 
 
 def failure_summary(results: list[dict], plan: dict | None, commit_line: str) -> str:
