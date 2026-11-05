@@ -25,7 +25,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Collection, Literal, Mapping, Sequence
 
@@ -927,6 +927,58 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
         return pg.write(entry, df, mode, keys, partition)
     except pg.WriteRefused as exc:
         raise StorageError(f"{name}: {exc}") from exc
+
+
+LEAGUE_TZ = "America/New_York"
+
+
+def league_date(day=None) -> date:
+    """`day` as a day on the league's Eastern clock. A tz-aware stamp is
+    converted, a plain date or naive stamp is taken as is, None is now."""
+    stamp = pd.Timestamp.now(tz="UTC") if day is None else pd.Timestamp(day)
+    if stamp.tzinfo is not None:
+        stamp = stamp.tz_convert(LEAGUE_TZ).tz_localize(None)
+    return stamp.date()
+
+
+def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Series | None:
+    """The `dim_scoring_period` row holding `day`, or None off season.
+
+    A tz-aware stamp (and None, which is now) is placed by the exact bounds,
+    `start_at <= t < end_at`. A plain date is placed by Eastern days,
+    `start_date <= day <= end_date`, and the turnover Thursday, which is the
+    end of one period and the start of the next, belongs to the one ending:
+    a morning run that day still sees it in play. `periods` is a frame to
+    place the day in; without it the stored table is read, and a missing or
+    empty table is off season."""
+    if periods is None:
+        try:
+            periods = read_table("dim_scoring_period")
+        except TableNotFound:
+            return None
+    if periods.empty:
+        return None
+    stamp = pd.Timestamp.now(tz="UTC") if day is None else pd.Timestamp(day)
+    if stamp.tzinfo is not None:
+        hit = periods[(periods["start_at"] <= stamp) & (stamp < periods["end_at"])]
+    else:
+        stamp = stamp.normalize()
+        hit = periods[(periods["start_date"] <= stamp) & (stamp <= periods["end_date"])]
+    if hit.empty:
+        return None
+    return hit.sort_values(["start_date", "period"]).iloc[0]
+
+
+def week_anchor(day=None, periods: pd.DataFrame | None = None) -> date:
+    """The date that keys a week in the weekly-history tables (ADR-0020
+    decision 7): the end date of the Scoring Period holding `day` in season,
+    the ISO week's Sunday off season. Every run of a week gets the same date,
+    so `replace_partition` on it overwrites the week's slice in place."""
+    hit = scoring_period_on(day, periods)
+    if hit is not None:
+        return pd.Timestamp(hit["end_date"]).date()
+    local = league_date(day)
+    return local + timedelta(days=6 - local.weekday())
 
 
 DROPPED_STATUS = "DROPPED"
