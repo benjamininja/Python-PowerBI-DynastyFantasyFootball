@@ -4,6 +4,7 @@ Every test uses a tmp .env, never the real one. The process environment wins
 over the file; the step subprocesses inherit the resolved values; the URL is
 never printed.
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -19,10 +20,15 @@ import run_pipeline as rp
 URL = "postgresql://db.example.invalid:5432/postgres?password=s3cretpw"
 
 
+_KEYS = ("ETL_STORAGE", rp.etl_run_log.URL_ENV)
+_AT_IMPORT = {k: os.environ.get(k) for k in _KEYS}
+
+
 @pytest.fixture
 def clean_env(monkeypatch):
-    for key in ("ETL_STORAGE", rp.etl_run_log.URL_ENV):
-        monkeypatch.delenv(key, raising=False)
+    for key in _KEYS:
+        monkeypatch.setenv(key, "x")
+        monkeypatch.delenv(key)
     return monkeypatch
 
 
@@ -76,3 +82,7 @@ def test_url_never_in_stdout(clean_env, tmp_path, capsys):
     out = capsys.readouterr().out
     assert "storage: postgres" in out
     assert URL not in out and "s3cretpw" not in out
+
+
+def test_zz_no_leak_after_resolve():
+    assert {k: os.environ.get(k) for k in _KEYS} == _AT_IMPORT
