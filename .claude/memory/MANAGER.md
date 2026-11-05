@@ -21,6 +21,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-05, before a compact, session `59aab023`: overrides everything below where they differ.** Main is at `251493c`. **No builder is running.** Open PRs: #316 (held for the ordinary run).
+  - **#331 (#135 B1) merged `88e9cbd`.** It was sent back once, because nothing stopped tests reaching the live database. Fix: a `no_live_database` autouse fixture in `tests/conftest.py`.
+  - **#332 (#135 B2) merged `251493c`** on the owner's "merge 332 when green". All 36 published tables round-trip as `etl_writer` with RLS on, with zero constraint violations. It includes the RLS write fix I approved while the planner was offline: COPY is refused under RLS, so the write path stages rows in a temp table and then runs `INSERT ... SELECT`. Live read-only check: `etl_writer` has TEMP and `football` USAGE.
+  - Builders `b135-pg` and `b135-golden` are closed and removed.
+  - **Next on #135:**
+    - **B3** (medium): `scripts/backfill_postgres.py`, `tests/test_backfill.py`, and `.github/workflows/backfill.yml`, which D1 (a) approved. Its load function is `pg_load_published` in `tests/test_etl_storage.py`; move it out and import it, never copy it. B3's prerequisites (B2, D1) are met, but **its dispatch has no owner word yet: ask.** After the owner presses the button, I run the Settled 5 live checks (supabase-dynasty, SELECT only) and post the counts on #135.
+    - **#136** waits for the planner's Q2 ruling.
+    - **#137** waits for a planner brief. The owner approved its dispatch after B1, but the ticket has no files, done line or proof.
+    - **#138** waits for B3.
+  - **Planner follow-ups** (sent to the planner at this save; also in the ~00:15 bullet):
+    - #331's advisories: `load_dotenv` in `04a` restores the live URL; nothing checks that `TEST_DATABASE_URL` is a throwaway; cell values in `StorageError`; `__cause__` tracebacks print `DETAIL` rows in Actions logs (matters for B3 and the runner); the guard covers `tests/` only.
+    - #332's advisories: the golden test never asserts `etl_writer` and RLS; `pg_clear_published` deletes on any URL; an empty table skips its compare; the `claim_method` and `pick_ref` dtypes don't match the registry.
 - **Update, 2026-11-05 ~00:15, session `59aab023`: overrides everything below where they differ.** Main is at `ca0ea5e`. The owner asked for builders in parallel ("feels super slow to launch one builder at a time, only").
   - **Merged under the standing approval:** skills#74 (Closes skills#70) `9dee578`; #330 (#135 B4) `632ea00`; #329 (#279 part 1) `ca0ea5e`. Part 2 of #279 stays held.
   - **skills#74 is live.** `~/.claude/hooks/*` are junctions into the skills main checkout, which is at `9dee578`; the `claude-live` clone is also at `9dee578`. Agents may now force-delete a branch whose merged PR head equals the local tip.
