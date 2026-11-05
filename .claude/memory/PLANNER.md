@@ -11,6 +11,11 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+0000000. **NEWEST, 2026-11-04 ~22:40 local. Overrides below.** Session 747f3826. State branch is now `docs/state-2026-11-04b` (from main `24f2c58`); push `HEAD:docs/state-2026-11-04b`. #346 batch merged `24f2c58` on the owner's (a) plus "merge 346 once the manager pushes"; old branch deleted.
+   #345 merged `fbd5009`, #300 closed; my evidence issuecomment-6649502295 (0/0/0 of 147); #336 step 1 marked done. Advisory 2 is #348 (low, after #336). Advisory 1 dropped (by design).
+   **Backfill run 41966668704 failed safely**: 64 double cells differ (dim_position_ceiling replacement_fpts/vor/ceiling, fact_rookie_rankings.grade); lead `extra_float_digits=0` on Supabase. Ticket **#349** (medium): reproduce in pg CI, binary read-back or SET LOCAL, all seam read paths, no compare loosening.
+   **Owner (planner chat): #349 dispatches after #342 merges, before #341.** Relayed to the manager. Prune rule removal: the owner does it later (folded into one later Action). Then: backfill rerun, live checks, #138 drill, #336.
+
 000000. **NEWEST: resume, 2026-11-05 late. Overrides 00000 where they differ.** Planner session `747f3826-fe11-43fd-b303-2bcec526e9e3`; queue entries it raises answer here.
    Live: #345 (Brief 5, Closes #300) open, CI 7 green, 1 pending. #342 (#136) DIRTY at efc50a6 (needs main merged in). #344 no PR yet. #341 after #342.
    Then the backfill button, live checks plus the #138 drill compare, then #336; its final tasklist stays parked until last. No open Decisions for me. Manager told.
