@@ -11,6 +11,9 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+00000000. **NEWEST, 2026-11-05. Overrides below.** #342 merged `01fe6ea`. #349 runs as b349-floats2 (medium, from main `4124ed1`); the first try (b349-floats) stalled on the stale local main, which the owner has since reset. Owner hand item: remove the locked `b349-floats` worktree and branch.
+   #341 (low) follows #349. #350 ticketed (trade-bud null-gsis merge, low, after #336). Consultant questions 1–5 on #349 are pending; the owner pasted 4 and 5 into the consultant. Post its answers on #349; the manager relays them to the builder.
+
 0000000. **NEWEST, 2026-11-04 ~22:40 local. Overrides below.** Session 747f3826. State branch is now `docs/state-2026-11-04b` (from main `24f2c58`); push `HEAD:docs/state-2026-11-04b`. #346 batch merged `24f2c58` on the owner's (a) plus "merge 346 once the manager pushes"; old branch deleted.
    #345 merged `fbd5009`, #300 closed; my evidence issuecomment-6649502295 (0/0/0 of 147); #336 step 1 marked done. Advisory 2 is #348 (low, after #336). Advisory 1 dropped (by design).
    **Backfill run 41966668704 failed safely**: 64 double cells differ (dim_position_ceiling replacement_fpts/vor/ceiling, fact_rookie_rankings.grade); lead `extra_float_digits=0` on Supabase. Ticket **#349** (medium): reproduce in pg CI, binary read-back or SET LOCAL, all seam read paths, no compare loosening.
