@@ -172,6 +172,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    New #339 (low): storage-pg selects tests by a `pg` marker; owner-approved in my chat; dispatches after #138 (PR #338). Open: #337 (#333), #338 (#138), then #136 after #337.
    Manager state ec977f6. Mine next: rule on PRs when asked; then the #336 cutover sequence.
 
+   **Ordinary run landed, 2026-11-05.** The scheduled task was never registered. The owner ran it by hand; all Chains passed. Ruleset 24086028 (required checks) refused the direct push (GH013),
+   so the data landed via PR #340 (rebase merge, owner's word) as `b863586`. #316 is unblocked (manager told). Final tasklist on #336 (issuecomment-6648581255), which the owner wants re-evaluated after everything else:
+   how runs land data under the ruleset (leaning: the pipeline opens a PR), the webhook 403, and the unregistered task. Until then, each run's data lands by a hand PR. #339 = pg marker (owner-approved, after #338).
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
