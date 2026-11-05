@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import uuid
 from datetime import datetime, timezone
@@ -19,20 +20,40 @@ INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s WHERE run_id = %s")
+STALE_AFTER_HOURS = 12
+CLOSE_STALE = ("UPDATE ops.etl_run_log SET finished_at = now(), status = 'failed', "
+               "error = 'no finish was recorded; closed by a later run' "
+               f"WHERE status = 'running' AND run_id <> %s "
+               f"AND started_at < now() - interval '{STALE_AFTER_HOURS} hours'")
+
+
+def env_value(key: str, path: Path | None = None) -> str | None:
+    """`key` from a dotenv-style file: `KEY=v`, `export KEY=v`, `KEY = v`,
+    a quoted value (whatever follows the closing quote is dropped) or an
+    unquoted one with an inline ` # comment`. A commented-out line is no line."""
+    try:
+        lines = (ENV_FILE if path is None else path).read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return None
+    for raw in lines:
+        line = raw.strip()
+        if line.startswith("export "):
+            line = line[len("export "):].lstrip()
+        name, sep, value = line.partition("=")
+        if not sep or name.strip() != key:
+            continue
+        value = value.strip()
+        if value and value[0] in "\"'":
+            end = value.find(value[0], 1)
+            value = value[1:] if end == -1 else value[1:end]
+        else:
+            value = re.split(r"(?:^|\s+)#", value, maxsplit=1)[0]
+        return value.strip() or None
+    return None
 
 
 def database_url() -> str | None:
-    url = os.environ.get(URL_ENV)
-    if url:
-        return url
-    try:
-        lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
-        return None
-    for line in lines:
-        if line.strip().startswith(f"{URL_ENV}="):
-            return line.split("=", 1)[1].strip().strip("\"'") or None
-    return None
+    return os.environ.get(URL_ENV) or env_value(URL_ENV)
 
 
 def enabled() -> bool:
@@ -139,6 +160,10 @@ class RunLog:
             return
         self.run_id = run_id
         print(f"[info] run log: {run_id} running")
+        try:
+            _write(CLOSE_STALE, (run_id,))
+        except Exception as exc:
+            self._failed(exc)
 
     def finish(self, status: str, snapshot_commit_sha: str | None = None,
                rows_written: dict | None = None, error: str | None = None) -> None:

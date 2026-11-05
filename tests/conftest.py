@@ -17,11 +17,8 @@ def no_live_database(monkeypatch):
     notebooks = str(Path(__file__).resolve().parent.parent / "notebooks")
     if notebooks not in sys.path:
         sys.path.insert(0, notebooks)
-    try:
-        import etl_run_log
-        monkeypatch.setattr(etl_run_log, "ENV_FILE", Path(__file__).resolve().parent / "no-such.env")
-    except ImportError:
-        pass
+    import etl_run_log
+    monkeypatch.setattr(etl_run_log, "ENV_FILE", Path(__file__).resolve().parent / "no-such.env")
     try:
         import dotenv
         import dotenv.main
