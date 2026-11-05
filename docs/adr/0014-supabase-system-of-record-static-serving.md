@@ -45,6 +45,7 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
 2. **Consumers read a published snapshot, never the store.**
    - After a run, the seam exports the record to `data/*.parquet`.
    - `run_pipeline.py` commits that export to `main` (the existing change-detected commit).
+   - *Amended 2026-11-05 (#361, PR #364; recorded by #365): the export lands on `main` by the pipeline's own data PR, gated by `pii-scan`, `tests` and `bot-tests` and merged by the pipeline itself, with no push to `main` and no bypass. The run log reads `published` only after that merge, and records the landed sha.*
    - Power BI, the bot and trade-bud read only that snapshot, so serving survives a paused or unreachable database.
 3. **Publish only a good run.**
    - The snapshot is exported only after the run's DB transaction commits and its post-run checks pass (the test strategy is #88).
@@ -94,6 +95,7 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
   - an `etl_run_log` table
   - a **restore drill**: rebuild an empty project from migrations plus the snapshot. It must pass before cutover.
 - **Snapshot commits to `main` become more frequent** (daily runs plus change polls). They are change-detected and allowlist-verified exactly as now, so this is churn, not risk.
+  - *Amended 2026-11-05 (#361, PR #364; recorded by #365): each of these snapshot commits now arrives as a data PR the pipeline opens, gates on `pii-scan`, `tests` and `bot-tests`, and merges itself. Nothing is pushed to `main` and nothing is bypassed.*
 - **Freshness is bounded by the Change Poll interval** plus about 2 minutes for the Pages rebuild and the bot's next fetch. It is not instant.
 - **The RLS posture still applies to our ETL-only store.**
   - HoD's anon-writable RLS stays rejected.

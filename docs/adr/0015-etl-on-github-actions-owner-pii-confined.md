@@ -15,6 +15,7 @@
 - The in-season design (#87) needs a **daily run** plus a **Change Poll** every 10 minutes in season. Both must run year-round, because the daily run's `etl_run_log` write is what keeps the Supabase Free project from pausing (ADR-0014).
 - The authed Fantrax steps (`04a`/`04s`/`04t`) log in with a headless Playwright browser from `FANTRAX_EMAIL`/`FANTRAX_PASSWORD`. The code already warns about a Cloudflare/captcha gate, which is more likely from a datacenter IP.
 - The repo is **public**: Actions minutes are free, and `GITHUB_TOKEN` can commit the snapshot to `main` natively.
+  - *Amended 2026-11-05 (#361, PR #364; recorded by #365): the snapshot does not reach `main` by a direct commit or push. The pipeline lands it by its own data PR, gated by `pii-scan`, `tests` and `bot-tests`, and merges that PR itself, with no push to `main` and no bypass. The run log reads `published` only after the merge, with the landed sha.*
 - GitHub disables scheduled workflows in a public repo after **60 days without repository activity**. A quiet off-season with change-detected commits can reach that.
 - The owner scoped confidentiality to one thing: **Owner PII** (human names, emails, Fantrax usernames). Everything else is league data. At decision time 24 manager emails were found in a tracked notebook's saved outputs, and the owner sheet is link-readable with its ID committed.
 
@@ -33,6 +34,7 @@
 4. **Security requirements.**
    - **Owner PII lives only in `shared.owner`** (`owner_id`, `team_key`, `human_name`, `email`, `fantrax_username`). RLS on; no grant to any read or anon role; never exported to the snapshot or to raw storage. Team names, abbreviations and Fantrax team ids are public identity.
    - A **CI PII check** (and pre-commit hook) fails any commit containing an email pattern or a known `human_name`/`fantrax_username`. It runs inside the data-commit job *before* the push, and on every PR.
+     - *Amended 2026-11-05 (#361, PR #364; recorded by #365): the data job pushes a data branch, not `main`. `pii-scan` runs as a required check on the data PR, which the pipeline merges only when `pii-scan`, `tests` and `bot-tests` pass. Nothing is pushed to `main` and nothing is bypassed.*
    - The ETL uses a **least-privilege Postgres writer role**, never the `service_role` key.
    - Actions hygiene: secrets in a `main`-only environment, per-job `permissions:`, third-party actions pinned by SHA, no `pull_request_target`.
 5. **State that used to be local disk moves to Supabase.**
