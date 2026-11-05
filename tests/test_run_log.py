@@ -208,11 +208,11 @@ class TestEnvFileFallback:
             def __exit__(self, *exc):
                 return False
 
-            def execute(self, sql, params):
+            def execute(self, sql, params=None):
                 seen.append(sql.split()[0])
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert seen == ["INSERT", "UPDATE"]
+        assert seen == ["SET", "INSERT", "SET", "UPDATE"]
         shown = capsys.readouterr()
         assert "hunter2-pw" not in shown.out + shown.err + "".join(pipe.notified)
 
@@ -279,13 +279,15 @@ class TestUnreachable:
             def __exit__(self, *exc):
                 return False
 
-            def execute(self, sql, params):
+            def execute(self, sql, params=None):
                 seen.append(sql)
                 if sql.startswith("UPDATE"):
                     raise OSError("server closed the connection")
         monkeypatch.setattr(rl, "_connect", Conn)
         assert pipe.run() == 0
-        assert [s.split()[0] for s in seen] == ["INSERT", "UPDATE"]
+        assert [s.split()[0] for s in seen] == ["SET", "INSERT", "SET", "UPDATE"]
+        assert seen[0] == f"SET LOCAL statement_timeout = {rl.STATEMENT_TIMEOUT_MS}"
+        assert rl.STATEMENT_TIMEOUT_MS == 10000
         assert pipe.notified[0].startswith("⚠️ run log not written: server closed the connection")
 
 
@@ -373,6 +375,25 @@ class TestPostgres:
         assert row[2] == "failed"
         assert row[6] == "RuntimeError raised before the run finished"
         assert row[8] is not None
+
+    def test_a_stalled_statement_is_a_write_error(self, pipe, pg, monkeypatch):
+        import psycopg
+        monkeypatch.setattr(rl, "STATEMENT_TIMEOUT_MS", 500)
+        holder = psycopg.connect(pg.url)
+
+        def lock_the_row():
+            (row,) = pg.mine()
+            holder.execute("SELECT 1 FROM ops.etl_run_log WHERE run_id = %s::uuid FOR UPDATE", (row[0],))
+        pipe.mid_run = lock_the_row
+        try:
+            assert pipe.run() == 0
+        finally:
+            holder.close()
+        assert len(pipe.committed) == 1
+        first = pipe.notified[0].splitlines()[0]
+        assert first.startswith("⚠️ run log not written: ")
+        assert "statement timeout" in first
+        assert [r[2] for r in pg.mine()] == ["running"]
 
     def test_a_database_error_prints_no_row_values(self, pg, capsys):
         log = rl.RunLog(f"bogus-{SENTINEL}")

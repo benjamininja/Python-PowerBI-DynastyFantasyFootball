@@ -11,6 +11,7 @@ from etl_storage_pg import URL_ENV
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 TRIGGERS = ("daily", "poll", "weekly", "manual")
 CONNECT_TIMEOUT_S = 10
+STATEMENT_TIMEOUT_MS = 10000
 LINE_LIMIT = 200
 PAUSED_HINT = "The Supabase project may be paused; resume it from the dashboard."
 
@@ -42,6 +43,12 @@ def _connect():
     import psycopg
     return psycopg.connect(database_url(), connect_timeout=CONNECT_TIMEOUT_S,
                            prepare_threshold=None)
+
+
+def _write(sql: str, params: tuple) -> None:
+    with _connect() as conn:
+        conn.execute(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}")
+        conn.execute(sql, params)
 
 
 def _secrets() -> list[str]:
@@ -122,8 +129,7 @@ class RunLog:
             return
         run_id = str(uuid.uuid4())
         try:
-            with _connect() as conn:
-                conn.execute(INSERT, (run_id, self.trigger, datetime.now(timezone.utc), git_sha))
+            _write(INSERT, (run_id, self.trigger, datetime.now(timezone.utc), git_sha))
         except Exception as exc:
             self._failed(exc)
             return
@@ -136,9 +142,8 @@ class RunLog:
             return
         rows = None if rows_written is None else json.dumps(rows_written)
         try:
-            with _connect() as conn:
-                conn.execute(UPDATE, (datetime.now(timezone.utc), status, snapshot_commit_sha,
-                                      rows, error, self.run_id))
+            _write(UPDATE, (datetime.now(timezone.utc), status, snapshot_commit_sha,
+                            rows, error, self.run_id))
         except Exception as exc:
             self._failed(exc)
             return
