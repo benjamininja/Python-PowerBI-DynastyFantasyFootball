@@ -20,6 +20,8 @@ sys.path.insert(0, str(REPO / "notebooks"))
 import etl_run_log as rl  # noqa: E402
 import run_pipeline as rp  # noqa: E402
 
+pytestmark = pytest.mark.pg
+
 SENTINEL = "SENTINEL-CELL-VALUE-91827"
 UNREACHABLE = "postgresql://runlog_user:hunter2-pw@127.0.0.1:1/none"
 HEAD = "a" * 40
