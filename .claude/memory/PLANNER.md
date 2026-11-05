@@ -160,6 +160,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **#138:** brief not written yet. It's my next one. Its load step uses B3's `load_published`; the live compare is manager SELECT counts and checksums (Q4). Write it now, so it can run in parallel with #136 if the files allow.
    Manager is a restarted session under the same name; b137-runlog could not reach it once, so I relayed.
 
+   **Later 2026-11-05 (same session), overrides above.** #138 brief posted (issuecomment-6648084935, medium): new scripts/restore_drill.py + tests/test_restore_drill.py + storage-pg line;
+   no etl_storage_pg.py edit, so it may run beside #136 (shared pytest line only). The manager compares with --print-sql via supabase-dynasty after the backfill. Dispatch of #138 and #333 waits on the owner's word.
+   #335 is DIRTY (conflicts), so there's no Update-branch button; the owner has the link, and it stays parked with them. Manager done: NEEDS-OWNER cutover split (#336 / #93), #135 corrected, ruling relayed to b137-runlog copy 88f7a1d7.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
