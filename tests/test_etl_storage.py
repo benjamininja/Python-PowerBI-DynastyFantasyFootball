@@ -3,11 +3,19 @@
 `etl.read_table` / `etl.write_table` address a table by name; the registry
 (docs/data_model.yml) is the schema a write is checked against. The contract
 cases run on a temp data dir with a small fixture registry. The golden cases
-run every published table through the seam against the real registry.
+run every published table through the seam against the real registry; the
+Postgres golden cases load all of them in one transaction into the migrations'
+schema and read each back (#135, B2).
 
-Parquet is the only backend today. The Postgres backend joins this suite
-behind `TEST_DATABASE_URL` when it lands.
+The contract cases run on both backends: the `store` fixture is `parquet` (a
+temp data dir) or `pg` (a scratch schema, `seam_contract`, in the database
+at TEST_DATABASE_URL, reached as the ETL_STORAGE=postgres login). A case that
+holds only for files, or only for the database, takes `parquet_store` or
+sits in TestPostgres. With TEST_DATABASE_URL unset the `pg` cases skip;
+REQUIRE_TEST_DATABASE=1 makes that a failure (the storage-pg CI job).
 """
+import json
+import os
 import sys
 from pathlib import Path
 
@@ -20,35 +28,147 @@ import pytest
 import yaml
 
 import etl_helpers as etl
+import etl_storage_pg as pg
 
+SCRATCH = "seam_contract"
 REGISTRY = {"tables": [
     {"name": "fact_snap", "type": "fact", "grain": "(day, source, player)",
-     "columns": [{"name": "day", "dtype": "datetime64[us]"}, {"name": "source", "dtype": "str"},
-                 {"name": "player", "dtype": "str"}, {"name": "value", "dtype": "float64"}]},
+     "columns": [{"name": "day", "dtype": "datetime64[us]", "sql_type": "timestamp"},
+                 {"name": "source", "dtype": "str", "sql_type": "text"},
+                 {"name": "player", "dtype": "str", "sql_type": "text"},
+                 {"name": "value", "dtype": "float64", "sql_type": "double precision"}]},
     {"name": "dim_one", "type": "dim", "grain": "key",
-     "columns": [{"name": "key", "dtype": "int64"}, {"name": "label", "dtype": "str"}]},
+     "columns": [{"name": "key", "dtype": "int64", "sql_type": "integer"},
+                 {"name": "label", "dtype": "str", "sql_type": "text"}]},
     {"name": "fact_types", "type": "fact", "grain": "id",
-     "columns": [{"name": "id", "dtype": "int64"}, {"name": "nullable_int", "dtype": "Int64"},
-                 {"name": "small_int", "dtype": "int32"}, {"name": "gappy", "dtype": "float64"},
-                 {"name": "day_us", "dtype": "datetime64[us]"}, {"name": "day_ms", "dtype": "datetime64[ms]"},
-                 {"name": "at_utc", "dtype": "datetime64[us, UTC]"},
+     "columns": [{"name": "id", "dtype": "int64", "sql_type": "integer"},
+                 {"name": "nullable_int", "dtype": "Int64", "sql_type": "integer"},
+                 {"name": "small_int", "dtype": "int32", "sql_type": "integer"},
+                 {"name": "gappy", "dtype": "float64", "sql_type": "double precision"},
+                 {"name": "day_us", "dtype": "datetime64[us]", "sql_type": "timestamp"},
+                 {"name": "day_ms", "dtype": "datetime64[ms]", "sql_type": "timestamp"},
+                 {"name": "at_utc", "dtype": "datetime64[us, UTC]", "sql_type": "timestamptz"},
                  {"name": "empty", "dtype": "object", "sql_type": "text"},
-                 {"name": "flag", "dtype": "bool"}, {"name": "text", "dtype": "str"},
-                 {"name": "camelCase", "dtype": "str"}]},
+                 {"name": "flag", "dtype": "bool", "sql_type": "boolean"},
+                 {"name": "text", "dtype": "str", "sql_type": "text"},
+                 {"name": "camelCase", "dtype": "str", "sql_type": "text"}]},
     {"name": "fact_unseen", "type": "fact", "grain": "id",
-     "columns": [{"name": "id", "dtype": "int64"},
+     "columns": [{"name": "id", "dtype": "int64", "sql_type": "integer"},
                  {"name": "games", "dtype": "object", "sql_type": "integer"}]},
 ]}
+PKS = {t["name"]: etl.table_grain(t) for t in REGISTRY["tables"]}
+
+
+def pg_state():
+    """The fixture registry as supabase/registry_state.json holds a table."""
+    return {"tables": {f"{SCRATCH}.{t['name']}": {
+        "schema": SCRATCH, "name": t["name"], "pk": PKS[t["name"]],
+        "columns": [{"name": c["name"], "sql_type": c["sql_type"], "not_null": c["name"] in PKS[t["name"]]}
+                    for c in t["columns"]]} for t in REGISTRY["tables"]}}
+
+
+def pg_ddl(spec):
+    """CREATE TABLE with every identifier quoted, which the generator does not
+    do (the registry allows no mixed-case name; the fixture has one)."""
+    cols = [f'"{c["name"]}" {c["sql_type"]}{" NOT NULL" if c["not_null"] else ""}' for c in spec["columns"]]
+    cols.append("PRIMARY KEY (" + ", ".join(f'"{k}"' for k in spec["pk"]) + ")")
+    return f'CREATE TABLE "{spec["schema"]}"."{spec["name"]}" (' + ", ".join(cols) + ")"
+
+
+LOCAL_HOSTS = ("localhost", "127.0.0.1")
+OPT_IN_NONLOCAL = "ALLOW_NONLOCAL_TEST_DATABASE"
+
+
+def refuse_unless_throwaway(url):
+    """The PG cases delete and rewrite tables. Only a database on this machine
+    (the CI service container) is a throwaway; any other host needs the opt-in."""
+    from urllib.parse import urlsplit
+    try:
+        host = urlsplit(url).hostname
+    except ValueError:
+        host = None
+    if host not in LOCAL_HOSTS and not os.environ.get(OPT_IN_NONLOCAL):
+        pytest.fail(f"TEST_DATABASE_URL host is not localhost or 127.0.0.1; "
+                    f"set {OPT_IN_NONLOCAL} only for a throwaway database", pytrace=False)
+
+
+def database_url():
+    required = bool(os.environ.get("REQUIRE_TEST_DATABASE"))
+    url = os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        if required:
+            pytest.fail("REQUIRE_TEST_DATABASE is set but TEST_DATABASE_URL is not", pytrace=False)
+        pytest.skip("TEST_DATABASE_URL is not set")
+    refuse_unless_throwaway(url)
+    try:
+        import psycopg
+    except ImportError:
+        if required:
+            pytest.fail("REQUIRE_TEST_DATABASE is set but psycopg is not installed", pytrace=False)
+        pytest.skip("psycopg is not installed")
+    return url
+
+
+def pg_scratch(tmp_path, monkeypatch):
+    """Point the seam at the fixture registry in the scratch schema of the
+    test database, empty tables, and drop them after the case. The schema
+    exists already (the CI job creates it owned by etl_writer) or is created
+    here by a login that may."""
+    import psycopg
+    import etl_storage_pg
+    url = database_url()
+    registry = tmp_path / "registry.yml"
+    registry.write_text(yaml.safe_dump(REGISTRY), encoding="utf-8")
+    state = tmp_path / "registry_state.json"
+    state.write_text(json.dumps(pg_state()), encoding="utf-8")
+    monkeypatch.setattr(etl, "REGISTRY_PATH", registry)
+    monkeypatch.setattr(etl_storage_pg, "STATE_PATH", state)
+    monkeypatch.setenv("ETL_STORAGE", "postgres")
+    monkeypatch.setenv(etl_storage_pg.URL_ENV, url)
+    specs = list(pg_state()["tables"].values())
+    with psycopg.connect(url, autocommit=True) as admin:
+        if not admin.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", (SCRATCH,)).fetchone():
+            admin.execute(f"CREATE SCHEMA {SCRATCH}")
+        for spec in specs:
+            admin.execute(f'DROP TABLE IF EXISTS "{SCRATCH}"."{spec["name"]}"')
+            admin.execute(pg_ddl(spec))
+        try:
+            yield tmp_path
+        finally:
+            for spec in specs:
+                admin.execute(f'DROP TABLE IF EXISTS "{SCRATCH}"."{spec["name"]}"')
 
 
 @pytest.fixture
-def store(tmp_path, monkeypatch):
+def parquet_store(tmp_path, monkeypatch):
     """A temp data dir and the fixture registry."""
     registry = tmp_path / "registry.yml"
     registry.write_text(yaml.safe_dump(REGISTRY), encoding="utf-8")
     monkeypatch.setattr(etl, "REGISTRY_PATH", registry)
     monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path))
     return tmp_path
+
+
+@pytest.fixture(params=["parquet", "pg"])
+def store(request, tmp_path, monkeypatch):
+    """The fixture registry on a backend: a temp data dir, or the scratch
+    schema of the test database, emptied after each case."""
+    if request.param == "parquet":
+        yield request.getfixturevalue("parquet_store")
+    else:
+        yield from pg_scratch(tmp_path, monkeypatch)
+
+
+def ordered(table, df):
+    """`df` sorted by the table's key. A database keeps no row order."""
+    return df.sort_values(PKS[table]).reset_index(drop=True)
+
+
+def same(table, got, want):
+    """The frames are equal. Under Postgres the rows are compared by key."""
+    if os.environ.get("ETL_STORAGE") == "postgres":
+        got, want = ordered(table, got), ordered(table, want)
+    pd.testing.assert_frame_equal(got, want)
 
 
 def snap(rows):
@@ -79,18 +199,18 @@ def typed():
 class TestReplace:
     def test_round_trips_and_returns_the_row_count(self, store):
         assert etl.write_table("fact_snap", BASE) == 4
-        pd.testing.assert_frame_equal(etl.read_table("fact_snap"), BASE)
+        same("fact_snap", etl.read_table("fact_snap"), BASE)
 
     def test_replaces_the_whole_table(self, store):
         etl.write_table("fact_snap", BASE)
         assert etl.write_table("fact_snap", BASE.iloc[:1]) == 1
         assert len(etl.read_table("fact_snap")) == 1
 
-    def test_leaves_no_temp_file(self, store):
+    def test_leaves_no_temp_file(self, parquet_store):
         etl.write_table("fact_snap", BASE)
-        assert sorted(p.name for p in store.glob("fact_snap*")) == ["fact_snap.parquet"]
+        assert sorted(p.name for p in parquet_store.glob("fact_snap*")) == ["fact_snap.parquet"]
 
-    def test_a_failed_write_leaves_the_table_as_it_was(self, store, monkeypatch):
+    def test_a_failed_write_leaves_the_table_as_it_was(self, parquet_store, monkeypatch):
         etl.write_table("fact_snap", BASE)
 
         def fail(self, path, **kwargs):
@@ -100,7 +220,7 @@ class TestReplace:
         with pytest.raises(OSError):
             etl.write_table("fact_snap", BASE.iloc[:1])
         monkeypatch.undo()
-        assert len(pd.read_parquet(store / "fact_snap.parquet")) == 4
+        assert len(pd.read_parquet(parquet_store / "fact_snap.parquet")) == 4
 
 
 class TestReplacePartition:
@@ -138,10 +258,22 @@ class TestReplacePartition:
                         partition={"source": ["KTC"], "player": ["a"]})
         assert len(etl.read_table("fact_snap")) == 2
 
+    def test_partition_on_a_timestamp_column(self, store):
+        etl.write_table("fact_snap", BASE)
+        etl.write_table("fact_snap", BASE.iloc[0:0], mode="replace_partition",
+                        partition={"day": [pd.Timestamp(D1)]})
+        assert etl.read_table("fact_snap")["player"].tolist() == ["a"]
+
     @pytest.mark.parametrize("kwargs", [{}, {"keys": ("day",), "partition": {"source": ["KTC"]}}])
     def test_takes_exactly_one_of_keys_and_partition(self, store, kwargs):
         with pytest.raises(etl.StorageError, match="exactly one"):
             etl.write_table("fact_snap", BASE, mode="replace_partition", **kwargs)
+
+    def test_an_empty_partition_is_refused_and_deletes_nothing(self, store):
+        etl.write_table("fact_snap", BASE)
+        with pytest.raises(etl.StorageError, match="names no column"):
+            etl.write_table("fact_snap", BASE.iloc[0:0], mode="replace_partition", partition={})
+        assert len(etl.read_table("fact_snap")) == 4
 
 
 class TestUpsert:
@@ -159,6 +291,12 @@ class TestUpsert:
         etl.write_table("dim_one", pd.DataFrame({"key": [1, 2], "label": ["a", "b"]}))
         etl.write_table("dim_one", pd.DataFrame({"key": [3], "label": ["b"]}), mode="upsert", keys=("label",))
         assert sorted(etl.read_table("dim_one")["key"]) == [1, 3]
+
+    def test_a_batch_repeating_an_explicit_key_keeps_its_last_row(self, store):
+        etl.write_table("dim_one", pd.DataFrame({"key": [1, 2], "label": ["a", "b"]}))
+        etl.write_table("dim_one", pd.DataFrame({"key": [5, 6], "label": ["z", "z"]}), mode="upsert",
+                        keys=("label",))
+        assert sorted(etl.read_table("dim_one")["key"]) == [1, 2, 6]
 
     def test_partition_is_refused(self, store):
         with pytest.raises(etl.StorageError, match="replace_partition"):
@@ -182,7 +320,7 @@ class TestGuards:
     def test_a_repeated_key_raises_and_writes_nothing(self, store):
         with pytest.raises(etl.StorageError, match="1 repeated key"):
             etl.write_table("fact_snap", pd.concat([BASE, BASE.iloc[:1]]))
-        assert not (store / "fact_snap.parquet").exists()
+        assert etl.table_exists("fact_snap") is False
 
     def test_a_null_key_raises(self, store):
         with pytest.raises(etl.StorageError, match="1 row.s. with a null key"):
@@ -193,7 +331,7 @@ class TestGuards:
         with pytest.raises(etl.StorageError, match="columns do not match"):
             etl.write_table("fact_snap", batch)
 
-    def test_column_order_is_the_caller_s(self, store):
+    def test_column_order_is_the_caller_s(self, parquet_store):
         etl.write_table("fact_snap", BASE[["value", "player", "source", "day"]])
         assert list(etl.read_table("fact_snap").columns) == ["value", "player", "source", "day"]
 
@@ -211,12 +349,37 @@ class TestGuards:
         with pytest.raises(etl.StorageError, match="cannot cast"):
             etl.write_table("dim_one", pd.DataFrame({"key": ["x", "y"], "label": ["a", "b"]}))
 
+    def test_a_cast_error_names_the_column_and_row_count_but_no_value(self, store):
+        with pytest.raises(etl.StorageError) as raised:
+            etl.write_table("dim_one", pd.DataFrame({"key": ["SENTINEL-4471", "y"], "label": ["a", "b"]}))
+        text = str(raised.value)
+        assert "dim_one.key" in text and "2 row(s)" in text and "SENTINEL-4471" not in text
+
+    @pytest.mark.parametrize("url, ok", [
+        ("postgresql://u:p@localhost:5432/d", True),
+        ("postgresql://u:p@127.0.0.1/d", True),
+        ("postgresql://u:p@db.example.com:5432/d", False),
+        ("postgresql://u:p@/d", False),
+    ])
+    def test_only_a_local_database_is_a_throwaway(self, monkeypatch, url, ok):
+        monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
+        if ok:
+            refuse_unless_throwaway(url)
+        else:
+            with pytest.raises(pytest.fail.Exception, match="not localhost"):
+                refuse_unless_throwaway(url)
+
+    def test_the_opt_in_lets_another_host_through(self, monkeypatch):
+        monkeypatch.setenv(OPT_IN_NONLOCAL, "1")
+        refuse_unless_throwaway("postgresql://u:p@db.example.com/d")
+
     def test_an_object_column_of_numbers_and_na_casts_to_float(self, store):
         rows = pd.DataFrame({"day": BASE["day"], "source": BASE["source"], "player": BASE["player"],
                              "value": pd.Series([1.0, pd.NA, 3.0, 4.0], dtype="object")})
         etl.write_table("fact_snap", rows)
-        got = etl.read_table("fact_snap")["value"]
-        assert str(got.dtype) == "float64" and got.isna().tolist() == [False, True, False, False]
+        got = ordered("fact_snap", etl.read_table("fact_snap"))["value"]
+        want = ordered("fact_snap", rows)["value"].isna().tolist()
+        assert str(got.dtype) == "float64" and got.isna().tolist() == want
 
     def test_values_in_a_column_declared_empty_text_must_be_text(self, store):
         with pytest.raises(etl.StorageError, match="text declared"):
@@ -234,6 +397,11 @@ class TestGuards:
         with pytest.raises(etl.StorageError, match="unknown write mode"):
             etl.write_table("fact_snap", BASE, mode="append")
 
+    def test_an_unknown_backend_is_refused(self, parquet_store, monkeypatch):
+        monkeypatch.setenv("ETL_STORAGE", "sqlite")
+        with pytest.raises(etl.StorageError, match="expected parquet or postgres"):
+            etl.read_table("fact_snap")
+
 
 class TestDtypes:
     """Each hazard class of the inventory's section 5 comes back as declared."""
@@ -249,21 +417,27 @@ class TestDtypes:
         assert back["nullable_int"].isna().tolist() == [False, True, False]
         assert back["gappy"].isna().tolist() == [False, True, False]
 
-    def test_the_batch_is_cast_to_the_registry_on_write(self, store):
+    def test_the_batch_is_cast_to_the_registry_on_write(self, parquet_store):
         loose = typed().assign(small_int=[7, 8, 9], nullable_int=[1.0, np.nan, 3.0],
                                day_us=pd.to_datetime(["2026-01-01", None, "2026-01-03"]))
         etl.write_table("fact_types", loose)
-        stored = pd.read_parquet(store / "fact_types.parquet")
+        stored = pd.read_parquet(parquet_store / "fact_types.parquet")
         assert str(stored["small_int"].dtype) == "int32" and str(stored["nullable_int"].dtype) == "Int64"
         assert str(stored["day_us"].dtype) == "datetime64[us]"
+
+    def test_the_batch_is_cast_to_the_registry_before_it_is_stored(self, store):
+        loose = typed().assign(small_int=[7, 8, 9], nullable_int=[1.0, np.nan, 3.0],
+                               day_us=pd.to_datetime(["2026-01-01", None, "2026-01-03"]))
+        etl.write_table("fact_types", loose)
+        pd.testing.assert_frame_equal(etl.read_table("fact_types"), typed())
 
     def test_the_caller_s_frame_is_not_changed(self, store):
         loose = typed().assign(small_int=[7, 8, 9])
         etl.write_table("fact_types", loose)
         assert str(loose["small_int"].dtype) == "int64"
 
-    def test_a_read_casts_a_file_that_drifted(self, store):
-        typed().assign(small_int=[7, 8, 9]).to_parquet(store / "fact_types.parquet", index=False)
+    def test_a_read_casts_a_file_that_drifted(self, parquet_store):
+        typed().assign(small_int=[7, 8, 9]).to_parquet(parquet_store / "fact_types.parquet", index=False)
         assert str(etl.read_table("fact_types")["small_int"].dtype) == "int32"
 
     def test_a_column_projection(self, store):
@@ -271,20 +445,77 @@ class TestDtypes:
         back = etl.read_table("fact_types", columns=["small_int", "id"])
         assert list(back.columns) == ["small_int", "id"] and str(back["small_int"].dtype) == "int32"
 
-    def test_read_stored_gives_the_file_uncast(self, store):
+    def test_read_stored_gives_the_file_uncast(self, parquet_store):
         """The Gates compare the store with the registry, so their read must not cast."""
-        typed().assign(small_int=[7, 8, 9]).to_parquet(store / "fact_types.parquet", index=False)
+        typed().assign(small_int=[7, 8, 9]).to_parquet(parquet_store / "fact_types.parquet", index=False)
         assert str(etl.read_stored("fact_types")["small_int"].dtype) == "int64"
 
-    def test_read_stored_reads_another_copy_of_the_store(self, store, tmp_path):
+    def test_read_stored_reads_another_copy_of_the_store(self, parquet_store, tmp_path):
         other = tmp_path / "other"
         other.mkdir()
         pd.DataFrame({"k": [1]}).to_parquet(other / "anything.parquet", index=False)
         assert len(etl.read_stored("anything", other)) == 1       # no registry lookup
 
-    def test_read_stored_of_a_table_with_no_data(self, store):
+    def test_read_stored_of_a_table_with_no_data(self, parquet_store):
         with pytest.raises(etl.TableNotFound):
             etl.read_stored("fact_types")
+
+
+class TestPostgres:
+    """What holds for the database and not for a file: the twins of the cases
+    above that are parquet-only."""
+
+    @pytest.fixture
+    def store(self, tmp_path, monkeypatch):
+        yield from pg_scratch(tmp_path, monkeypatch)
+
+    def test_a_failed_write_leaves_the_table_as_it_was(self, store):
+        etl.write_table("dim_one", pd.DataFrame({"key": [1, 2], "label": ["a", "b"]}))
+        with pytest.raises(etl.StorageError, match="out of range"):
+            etl.write_table("dim_one", pd.DataFrame({"key": [3, 2 ** 40], "label": ["c", "d"]}))
+        assert sorted(etl.read_table("dim_one")["key"]) == [1, 2]
+
+    def test_a_failed_partition_write_leaves_the_slice_as_it_was(self, store):
+        etl.write_table("dim_one", pd.DataFrame({"key": [1, 2], "label": ["a", "b"]}))
+        with pytest.raises(etl.StorageError, match="out of range"):
+            etl.write_table("dim_one", pd.DataFrame({"key": [1, 2 ** 40], "label": ["c", "d"]}),
+                            mode="replace_partition", keys=("key",))
+        assert etl.read_table("dim_one")["label"].tolist() == ["a", "b"]
+
+    def test_a_value_the_database_refuses_is_a_storage_error(self, store):
+        with pytest.raises(etl.StorageError):
+            etl.write_table("fact_unseen", pd.DataFrame({"id": [1], "games": [2.5]}))
+
+    def test_any_database_error_is_a_storage_error(self, store):
+        import psycopg
+        with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as admin:
+            admin.execute(f'DROP TABLE "{SCRATCH}"."dim_one"')
+        one = pd.DataFrame({"key": [1], "label": ["a"]})
+        for call in (lambda: etl.read_table("dim_one"), lambda: etl.table_exists("dim_one"),
+                     lambda: etl.write_table("dim_one", one)):
+            with pytest.raises(etl.StorageError, match="does not exist"):
+                call()
+
+    def test_columns_come_back_in_registry_order_whatever_the_caller_s(self, store):
+        etl.write_table("fact_snap", BASE[["value", "player", "source", "day"]])
+        assert list(etl.read_table("fact_snap").columns) == ["day", "source", "player", "value"]
+
+    def test_rows_come_back_in_primary_key_order(self, store):
+        etl.write_table("fact_snap", BASE.iloc[::-1])
+        out = etl.read_table("fact_snap")
+        keys = list(zip(out["day"], out["source"], out["player"]))
+        assert keys == sorted(keys)
+
+    def test_a_table_left_with_no_rows_holds_no_data(self, store):
+        etl.write_table("fact_snap", BASE)
+        etl.write_table("fact_snap", BASE.iloc[0:0])
+        assert etl.table_exists("fact_snap") is False
+        with pytest.raises(etl.TableNotFound):
+            etl.read_table("fact_snap")
+
+    def test_a_write_returns_the_count_of_the_whole_table(self, store):
+        etl.write_table("fact_snap", BASE)
+        assert etl.write_table("fact_snap", snap([(D2, "DS", "n", 6.0)]), mode="upsert") == 5
 
 
 # ---- replace_partition writes what the helpers it replaced wrote -------------------
@@ -328,7 +559,7 @@ PARTITIONED = [("fact_dynasty_ranking_metrics", ("snapshot_date", "source_name")
 class TestReplacePartitionAgainstTheOldHelpers:
     """`load_replace_partition` and `upsert_dynasty_crosswalk` are gone (#77
     phase 6). The reference copies above stay, so the seam is still held to
-    the bytes those helpers wrote."""
+    the bytes those helpers wrote. Parquet only: the bytes are a file's."""
 
     @pytest.mark.parametrize("table,part_cols", PARTITIONED)
     def test_keys_write_the_bytes_load_replace_partition_wrote(self, tmp_path, monkeypatch, table, part_cols):
@@ -374,7 +605,34 @@ TABLES = sorted(p.stem for p in (REPO / "data").glob("*.parquet"))
 REFUSED = {}     # empty since #109 keyed fact_trade_log on (transaction_id, asset_id)
 
 
+@pytest.fixture(scope="module")
+def golden_pg():
+    """The test database holding every published table, loaded in one
+    transaction as the login in TEST_DATABASE_URL (etl_writer in CI) against
+    the migrations' schema. Emptied again afterwards. The load and compare
+    functions are the backfill's (etl_storage_pg)."""
+    url = database_url()
+    frames = {t: pd.read_parquet(REPO / "data" / f"{t}.parquet") for t in TABLES}
+    pg.clear_published(url, TABLES)
+    try:
+        report = pg.load_published(url, frames).problems
+        if report:
+            pytest.fail("the database refuses published rows:\n  " + "\n  ".join(report), pytrace=False)
+        yield url, frames
+    finally:
+        pg.clear_published(url, TABLES)
+
+
 class TestGolden:
+    def test_text_flavours_compare_equal_and_values_still_differ(self):
+        entry = {"columns": [{"name": "k", "dtype": "int64"}, {"name": "t", "dtype": "str"}]}
+        a = pd.DataFrame({"k": [1, 2], "t": pd.array(["x", None], dtype="string")})
+        b = pd.DataFrame({"k": [1, 2], "t": pd.Series(["x", None], dtype="str")})
+        pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(b, entry))
+        c = b.assign(t=["x", "y"])
+        with pytest.raises(AssertionError):
+            pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(c, entry))
+
     def test_every_published_table_is_declared(self):
         assert set(TABLES) == set(etl._registry())
 
@@ -391,3 +649,17 @@ class TestGolden:
         # the seam cast nothing: the file is the one a plain write gives
         published.to_parquet(tmp_path / "plain.parquet", index=False)
         assert (tmp_path / f"{table}.parquet").read_bytes() == (tmp_path / "plain.parquet").read_bytes()
+
+    @pytest.mark.parametrize("table", TABLES)
+    def test_postgres_gives_the_published_table_back(self, table, golden_pg, monkeypatch):
+        url, frames = golden_pg
+        published = frames[table]
+        monkeypatch.setenv("ETL_STORAGE", "postgres")
+        monkeypatch.setenv(pg.URL_ENV, url)
+        if published.empty:
+            assert etl.table_exists(table) is False
+            return
+        entry = etl._table_entry(table)
+        got = etl.read_table(table)[list(published.columns)]
+        pd.testing.assert_frame_equal(pg.prepared(got, entry), pg.prepared(published, entry))
+        assert pg.differences(got, published, entry) == []

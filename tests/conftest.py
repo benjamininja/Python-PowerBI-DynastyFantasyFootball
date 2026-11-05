@@ -1,9 +1,31 @@
 """Shared fixtures for tests/ (pytest picks this file up automatically)."""
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def no_live_database(monkeypatch):
+    """No test reaches the real project: the seam falls back to parquet and
+    holds no database URL. A case that wants Postgres sets both itself from
+    TEST_DATABASE_URL."""
+    monkeypatch.delenv("ETL_STORAGE", raising=False)
+    monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
+    notebooks = str(Path(__file__).resolve().parent.parent / "notebooks")
+    if notebooks not in sys.path:
+        sys.path.insert(0, notebooks)
+    import etl_run_log
+    monkeypatch.setattr(etl_run_log, "ENV_FILE", Path(__file__).resolve().parent / "no-such.env")
+    try:
+        import dotenv
+        import dotenv.main
+    except ImportError:
+        return
+    monkeypatch.setattr(dotenv, "load_dotenv", lambda *args, **kwargs: False)
+    monkeypatch.setattr(dotenv.main, "load_dotenv", lambda *args, **kwargs: False)
 
 
 def git(repo: Path, *args: str) -> subprocess.CompletedProcess:

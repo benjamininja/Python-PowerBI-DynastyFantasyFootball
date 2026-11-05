@@ -52,6 +52,7 @@ STEP_TIMEOUT_S = 1800
 sys.path.insert(0, str(NB))
 import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
 import etl_helpers  # noqa: E402
+import etl_run_log  # noqa: E402
 
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
@@ -346,12 +347,7 @@ def notify(text: str) -> None:
     """Discord webhook (DISCORD_WEBHOOK_URL in .env / env). Never raises."""
     url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not url:
-        env_file = REPO / ".env"
-        if env_file.exists():
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                if line.strip().startswith("DISCORD_WEBHOOK_URL="):
-                    url = line.split("=", 1)[1].strip().strip('"')
-                    break
+        url = etl_run_log.env_value("DISCORD_WEBHOOK_URL", REPO / ".env")
     if not url:
         print("[info] no DISCORD_WEBHOOK_URL — notification skipped")
         return
@@ -437,55 +433,79 @@ def main() -> int:
                          "no steps, no commit, no Discord; exit 1 on a Gate failure")
     ap.add_argument("--accept-shrink", action="append", default=[], metavar="TABLE",
                     help="let TABLE shrink past its limit (known rollover); repeatable")
+    ap.add_argument("--trigger", choices=etl_run_log.TRIGGERS, default="manual",
+                    help="what started the run, for ops.etl_run_log")
     args = ap.parse_args()
 
     if args.check_only:
         return check_only(args.accept_shrink)
 
-    phase = args.phase or derive_phase()
-    week = _load_04a().derive_week_label(_load_04a().CFG)
-    print(f"[info] phase={phase} week={week} "
-          f"{'[DRY RUN]' if args.dry_run else ''}")
-
-    steps = build_steps(args.profile)
-    only = set(args.steps.split(",")) if args.steps else None
-    groups = set(args.group.split(",")) if args.group else None
-    results = run_steps(steps, phase, only, args.dry_run, groups)
-
-    plan, filed = None, None
+    runlog = etl_run_log.RunLog(args.trigger)
     if not args.dry_run:
-        # Gate every table of each Chain that had a step run this phase.
-        chains = etl_checks.chain_tables(etl_checks.load_registry())
-        ran = {s["chain"] for s in steps if s["name"] in {r["name"] for r in results}}
-        suite = etl_checks.run_suite([t for c in ran for t in chains.get(c, [])],
-                                     args.accept_shrink)
-        plan = plan_publish(steps, results, suite, chains)
-        for c in plan["passed"]:
-            print(f"[chain] {c}: pass")
-        for c, w in plan["failed"].items():
-            print(f"[chain] {c}: HELD — {'; '.join(w)}")
-        # File only what publishes: a held Chain's tables revert to HEAD.
-        filed = etl_checks.file_review(
-            [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
+        runlog.start(etl_run_log.head_sha(REPO))
+    try:
+        phase = args.phase or derive_phase()
+        week = _load_04a().derive_week_label(_load_04a().CFG)
+        print(f"[info] phase={phase} week={week} "
+              f"{'[DRY RUN]' if args.dry_run else ''}")
 
-    reviews = review_counts()
-    if args.dry_run or args.no_commit:
-        commit_line = "commit skipped (flag)"
-    else:
-        commit_line = commit_data(phase, week, push=not args.no_push,
-                                  publish=plan["publish"], restore=plan["restore"])
-    print(f"[info] {commit_line}")
+        steps = build_steps(args.profile)
+        only = set(args.steps.split(",")) if args.steps else None
+        groups = set(args.group.split(",")) if args.group else None
+        results = run_steps(steps, phase, only, args.dry_run, groups)
+
+        plan, filed = None, None
+        if not args.dry_run:
+            # Gate every table of each Chain that had a step run this phase.
+            chains = etl_checks.chain_tables(etl_checks.load_registry())
+            ran = {s["chain"] for s in steps if s["name"] in {r["name"] for r in results}}
+            suite = etl_checks.run_suite([t for c in ran for t in chains.get(c, [])],
+                                         args.accept_shrink)
+            plan = plan_publish(steps, results, suite, chains)
+            for c in plan["passed"]:
+                print(f"[chain] {c}: pass")
+            for c, w in plan["failed"].items():
+                print(f"[chain] {c}: HELD — {'; '.join(w)}")
+            # File only what publishes: a held Chain's tables revert to HEAD.
+            filed = etl_checks.file_review(
+                [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
+
+        reviews = review_counts()
+        if args.dry_run or args.no_commit:
+            commit_line = "commit skipped (flag)"
+        else:
+            commit_line = commit_data(phase, week, push=not args.no_push,
+                                      publish=plan["publish"], restore=plan["restore"])
+        print(f"[info] {commit_line}")
+
+        failed = bool(plan and plan["failed"]) or any(
+            r["status"] not in ("ok", "dry-run") for r in results)
+        code = 1 if failed or commit_line.startswith("ABORTED") else 0
+
+        if runlog.run_id:
+            runlog.finish(
+                etl_run_log.final_status(code, commit_line),
+                snapshot_commit_sha=(etl_run_log.head_sha(REPO)
+                                     if etl_run_log.data_committed(commit_line) else None),
+                rows_written=etl_run_log.row_counts(plan["publish"]),
+                error=(etl_run_log.failure_summary(results, plan, commit_line)
+                       if code else None))
+    except BaseException as exc:
+        runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
+        if runlog.warning and not args.dry_run:
+            notify(f"{runlog.warning}\nThe pipeline raised {type(exc).__name__} before it finished.")
+        raise
 
     summary = summarize(phase, week, results, reviews, commit_line, plan, filed)
+    if runlog.warning:
+        summary = f"{runlog.warning}\n{summary}"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "pipeline_summary.md").write_text(summary, encoding="utf-8")
     print("\n" + summary)
     if not args.dry_run:
         notify(summary)
 
-    failed = bool(plan and plan["failed"]) or any(
-        r["status"] not in ("ok", "dry-run") for r in results)
-    return 1 if failed or commit_line.startswith("ABORTED") else 0
+    return code
 
 
 if __name__ == "__main__":

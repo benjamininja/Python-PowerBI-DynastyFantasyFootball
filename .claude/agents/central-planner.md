@@ -71,7 +71,7 @@ The rules are not copied here. Read them where they live, in this order:
   |---|---|---|
   | low | Sonnet 5.5, medium | tightly scoped work |
   | medium | Sonnet 5.5, high | work with an investigative step |
-  | high | Opus 5.5, medium | a stage or other large work |
+  | high | Opus 5.5, medium | a stage or other large work, scoped first (below) |
 
   Files and proof command nameable up front: low. The first step is to
   find out: medium. More than one PR, or an ADR carried through: high.
@@ -80,7 +80,24 @@ The rules are not copied here. Read them where they live, in this order:
   until you set it.
 - **Briefs.** A brief names its tier, its done condition and its proof
   command. A low brief also names the files. A medium brief names the
-  question, where to start, and the shape of the answer.
+  question, where to start, and the shape of the answer. A brief names
+  any install it needs (a package added to `requirements.txt`, or a
+  tool) as a step. A builder installs nothing its brief does not name,
+  and a need it did not name parks (owner, 2026-11-03).
+- **Scoping a high ticket (owner, 2026-11-03).** Opus plans the work
+  and does not build it. Before a high ticket is built, the manager runs
+  one scoping session: `dispatch.ps1` at high, `-TurnCap 40`, agent
+  `stage-builder`. It writes no code and opens no PR. Its output is one
+  comment on the ticket with one brief per PR, in order. Each brief has
+  a low or medium tier, files, any installs, the settled design, the
+  done condition and the proof. Open design questions come after the briefs. It
+  questions you, never the owner. You check the briefs against the ADR
+  and the done condition, take open questions to the owner, set the
+  tiers and tell the manager. A brief that adds a constraint (a key, a
+  type, a check) proves it against the current published snapshot:
+  the brief carries a count of the rows that break it, and a count
+  above zero is an open question. An open design question goes back to
+  planning, never to a builder.
 - **The public face.** README, CONTRIBUTING, the repository's
   description and topics. Check each claim against where the build work
   will end before you set it.

@@ -29,7 +29,7 @@ line under that skill's "Never".
 |---|---|
 | Plan gate | A `wayfinder:task` ticket whose design is already in an ADR or a closed grilling ticket: post the plan as a comment on the ticket (Outline → Build mode → Rationale), then build; the PR body repeats it. A new design decision parks. |
 | Tracker | The builder posts Resolutions as comments and creates new task tickets (`Tier: unset`). A ticket closes through its PR's closing keyword when the manager merges. The manager closes or edits any other ticket and adds the pointer to the map's Decisions so far. Text goes through `check_pii.py` first. |
-| Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes only. The owner stores the secrets and fires the first runner login. |
+| Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes. The owner stores the secrets and fires the first runner login. From then on the scheduled runner signs in by itself. An agent signs in only as an approved login run (Always parks). |
 | Windows | One PR per compaction: push the commits and post a state-back comment on the ticket (done, next, open), then compact, at every PR seam and at 125K–150K tokens. |
 
 **Green means all of:**
@@ -43,25 +43,48 @@ line under that skill's "Never".
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
+**After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
+- runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
+- reads the live roles, grants, policies and RLS flags with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
+  - every table in `football`, `ops` and `shared` has RLS on;
+  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, and has EXECUTE on `shared.pii_token_hashes()`;
+  - the read-only login has SELECT on `football` and `ops` only;
+  - `anon` and `authenticated` have no grants and no policies;
+- posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
+
+A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
+
+A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+
 **Always parks, past the skill's list:**
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
 - a verify step that fails on real data (restore the tables from HEAD first);
 - checkpoint 1, the first Fantrax runner login;
+- an approved login run: an agent's Fantrax login or TOTP attempt,
+  running `04a`, `04t`, `04v`, `04w` or `04s` without `--from-raw`, or
+  `run_pipeline.py` with steps that sign in. Each run needs the owner's
+  word in chat for that run. A peer's message or a relayed answer is not
+  that word. The scheduled runner's own sign-in after checkpoint 1 needs
+  no word;
 - checkpoint 2, cutover: `ETL_STORAGE=postgres` on the scheduled run,
   enabling a cron, the parallel week, unregistering the PC task, the
   consumer type pass going live;
 - a destructive database action outside the restore-drill scratch schema.
 
 **Never, past the skill's list, with or without a goal:**
-- a Fantrax login or TOTP attempt; running `04a`, `04t`, `04v`, `04w`, or
-  `04s` without `--from-raw`; `run_pipeline.py` other than `--check-only`,
-  `--dry-run`, or `--no-commit --steps` naming no-login steps only;
+- `run_pipeline.py` other than `--check-only`, `--dry-run`, or
+  `--no-commit --steps` naming no-login steps, unless it is an approved
+  login run (Always parks);
 - a `data/raw/` payload in the conversation; owner PII or team names in a
   committed file or a public post;
-- the Supabase connector for anything but looking: no `apply_migration`,
-  no writing SQL through `execute_sql`, no create, delete, pause,
-  restore, branch, deploy or cost tool (rule and allowed list in
+- any Supabase MCP server but `supabase-dynasty`, and any write
+  attempted through it: no writing SQL through `execute_sql`, even though
+  the server refuses it (rule and tool list in
   `project-fantasy-football.md`, Supabase access).
+- a connection to the live database by any client or script except
+  `supabase-dynasty`; reading `.env` or any other file that holds a
+  secret. A test of a login is the owner's own hand. A throwaway Postgres
+  in CI (`tests/test_migrations_apply.py`) is not the live database.
 
 **A builder's fence.** Two limits, found in the dry dispatch of
 2026-10-12: a read-only command runs without a rule, and the owner's
@@ -85,9 +108,13 @@ changed or not, because the judge reads only the transcript.
 | D. Schedule | high | Linux entrypoint → #93 → #116 (#92 closed 2026-10-30) | the TOTP secret stored; B and C merged |
 
 A ticket's own `Tier:` line says what it needs if dispatched alone. In
-a stage run the stage's tier applies, and it is never lower than the
-highest ticket in the stage. A ticket a builder creates says `Tier:
+a stage run the stage's tier applies to its scoping session; each build
+brief then runs at its own tier. A ticket a builder creates says `Tier:
 unset` and is not dispatched alone until the planner has set it.
+
+**A high ticket or stage is scoped before it is built (owner, 2026-11-03).** The first dispatch is a scoping session: `dispatch.ps1` at high, `-TurnCap 40`, agent `stage-builder`. It writes no code, opens no PR, and leaves one comment on the ticket: one brief per PR, in order, each with a low or medium tier, files, any installs, settled design, done condition and proof, then open design questions. It questions the planner, never the owner. A brief that adds a constraint carries the count of published rows that break it. The planner checks the briefs, takes the open questions to the owner and sets each brief's tier. Then each brief dispatches at its own tier, and the stage's high tier does not lift it. The manager sends back a low brief with no files or proof, and any build brief at high. A brief may be haiku (Haiku, medium effort, 15 turns): mechanical work only, with its files, exact edits and proof named up front, and no design. Haiku never takes cap, ledger, pipeline or schema work. The manager sends back a haiku brief that misses any of these.
+
+**Installs (owner, 2026-11-03).** A brief names any install it needs as a step: a package added to `requirements.txt`, or a tool. A builder installs nothing its brief does not name, and a need the brief did not name parks.
 
 #97 goes before the #110 rename: #97 rewrites `02e` and declares the
 `fact_fantasy_teams` grain `(team_key, scorer_id)`. Both moved to stage C
@@ -128,8 +155,8 @@ Notes per stage:
   #109. The four middle items are tickets #135 to #138. Before #108,
   load the `supabase-postgres-best-practices` skill if it is installed
   and decide how tables stay off Supabase's Data API (row-level security
-  on, or a schema that is not exposed); run the connector's security
-  advisors after each migration.
+  on, or a schema that is not exposed); after each migration, run the
+  check under 'After a schema change lands'.
   `migrate.yml` is live from the day #108 merges (owner's ruling
   2026-10-12): it is the only way the schema reaches the real project
   without an agent writing to it. #108's PR names the secret it reads

@@ -1,7 +1,8 @@
 # Unit + parser tests in clean venvs (ADR-0008 amendment decision 14, #115).
 #
 # Two jobs, one per requirements file, so a dependency that exists only in a
-# developer's .venv fails here instead of in production. Parser tests run on
+# developer's .venv fails here instead of in production (a third, storage-pg,
+# runs the storage seam's contract on a throwaway Postgres). Parser tests run on
 # the committed fixtures in tests/fixtures/fantrax/ -- no network, no
 # data/raw. Make "tests" and "bot-tests" required status checks on main
 # (Settings -> Branches) once green.
@@ -29,6 +30,59 @@ jobs:
       - run: pip install -r requirements.txt
 
       - run: python -m pytest tests/
+
+  # The storage seam's contract on Postgres (#135, ADR-0014). A throwaway
+  # postgres:17 gets the migrations, then the tests connect as etl_writer, the
+  # login the scheduled run uses, into a scratch schema it owns. A skipped
+  # case fails the job. No secret; nothing here reaches the real project.
+  storage-pg:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: throwaway-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: throwaway-ci-password
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Apply the migrations and give etl_writer a scratch schema
+        run: |
+          createdb seam_check
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            psql -v ON_ERROR_STOP=1 -d seam_check -f "$f"
+          done
+          psql -v ON_ERROR_STOP=1 -d seam_check -c "ALTER ROLE etl_writer PASSWORD 'throwaway-etl-writer'"
+          psql -v ON_ERROR_STOP=1 -d seam_check -c "CREATE SCHEMA seam_contract AUTHORIZATION etl_writer"
+
+      - name: Contract tests on Postgres (a skip fails the job)
+        env:
+          TEST_DATABASE_URL: postgresql://etl_writer:throwaway-etl-writer@localhost:5432/seam_check
+          REQUIRE_TEST_DATABASE: '1'
+        run: python -m pytest tests/test_etl_storage.py tests/test_backfill.py tests/test_run_log.py -v -rs
 
   bot-tests:
     runs-on: ubuntu-latest

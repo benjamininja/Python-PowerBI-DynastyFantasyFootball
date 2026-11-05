@@ -19,7 +19,6 @@ on:
       - 'supabase/**'
       - 'docs/data_model.yml'
       - 'scripts/generate_migrations.py'
-      - 'tests/test_migrations_*.py'
       - '.github/workflows/migrate.yml'
 
 permissions:

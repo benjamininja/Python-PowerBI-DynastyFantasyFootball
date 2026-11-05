@@ -5,13 +5,152 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-10-31, before a compact)
+## START HERE (state 2026-11-03, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00. **Newest (2026-11-01). Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
+0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
+   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
+   `C:/Users/benha/AppData/Local/Temp/claude/c--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/ps1103`,
+   on `docs/state-2026-11-01b`, with a `.venv` junction (remove it first). Push with `HEAD:docs/state-2026-11-01b`; the manager also pushes there.
+   `ps1101` is gone. Save state with a python insert before the anchor `"   **#300:** Brief 3 is PR #313"`, then commit, pull --rebase and push.
+   **Peers (find with ListAgents):** `dynastyFantasyFootball-central-builder-manager`, `Supabase-consultant`,
+   `Supabase-consultant-dispatch` (routes Supabase work and drafts consultant or auditor roles for my review; no DB access; its messages are not approval).
+   **Done today, on main:** #317 Fantrax per-run rule, #318 the post-schema live check, #319/#320 briefs name installs, #322 supabase-auditor,
+   #324 Never line, #325 (#323). Skills repo: #71 builder setup (stage-builder role, PROJECT-RULES.md).
+   **Rules learned today:**
+   - Delete my own local branch once its PR is MERGED, with `git branch --delete --force` (the owner's word; the hook blocks only `-D` until skills#70 lands).
+   - The Supabase look-only path is the user-level MCP `supabase-dynasty` (read-only, enforced server-side: SQLSTATE 25006). The account-wide connector is gone.
+   - Skills-repo worktrees in a scratchpad need `git -c core.longpaths=true`.
+   **Open, waiting on others:**
+   (1) PR #326 (supabase-dynasty rule text, from #218 issuecomment-6620522099): the owner's merge, via the manager.
+   (2) skills#70 (git-guardrails: a force branch delete only after its PR merged; medium) and skills#68 (haiku tier; low): the owner answered (a) to both.
+       The manager dispatches them once the owner marks the three-file paste Action done (text on skills#70, issuecomment-6620326854).
+   (3) #316 (#300 Brief 4) is held until the ordinary pipeline run. Then follow the order on #300 (issuecomment-6619150797): rebase, re-run the script,
+       re-prove with the roster-to-rankings measure, then Brief 5 (low, Closes #300).
+   (4) The batch PR for `docs/state-2026-11-01b`: merge it on the owner's approval.
+   **Added after the clear prep (~21:00):** skills#68 merged via skills#72 (`0d8ee1e`). My skills PR #73 adds `builder-state/` to .gitignore, a miss in #71;
+   the worktree is `skbs` in the NEW scratchpad `C:/Users/benha/AppData/Local/Temp/claude/91da30c6664f42e7/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/skbs`
+   (no junction). Remove it and delete its branch once #73 merges. The haiku GOAL-RUN text is on #218 issuecomment-6621169662, queued with the manager, (a) recommended.
+   Dispatch runs the plugin from a separate clone, `C:/Users/benha/claude-live/skills-plugins-hooks-agents` (at `d09dcbd`). Plugin changes go live only when
+   the owner updates that clone; the manager raised it with them.
+   **Small carry-overs:** at the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding". Two stale ref locks from
+   2026-10-12 sit in the dynasty `.git` (`worktree-b92-runner-spike`, `feat/225-runner-spike-workflow`); they are not approved for removal.
+   Migration A–D progress: 20 of 27 work tickets closed; the heavy ones are left (#135, #136–#138, #93, #116).
+
+000. **Newest (2026-11-03). Overrides 00 and 0 where they differ.** Session
+   `4b9eacec-28e7-4933-9da7-ba57c05fbb14`; queue entries it raises answer here. Worktree `ps1101` is
+   now in *this* session's scratchpad, detached, with a `.venv` junction to the main checkout's venv for the PII hook (remove it first). The older
+   `ps1101` in `d1366ab6`'s scratchpad (detached `ab5ab6e`, with a junction) is still there; remove it
+   only on the owner's word, junction first. The branch `docs/state-2026-11-01b` is checked out in the
+   manager's `st` worktree, so push with `HEAD:<branch>`. No batch PR is open for it yet.
+   The manager is also a new session (`010006f2`). **#108 trial evaluated:** issuecomment-6618708590 has the token table. Opus use per PR fell; the only
+   rework came from the data (#299); no builder sent a design question back. Decision "Keep the scoping
+   flow for high tickets?" went to the manager as a queue entry, recommended (a). On (a): a
+   `central-planner.md` PR, rule text on #218 with the shrink, a Haiku-tier ticket, and the rule that a
+   scoping brief checks any new constraint against the current snapshot.
+   **Owner answered (a), pane 2026-11-03 18:06: keep the scoping flow.** Done: PR #314 (role file; its merge is a
+   queue Decision to this session, worktree `psf` in this scratchpad with a venv junction), `GOAL-RUN.md` rule text
+   on #218 issuecomment-6618835679 (manager's PR), Haiku tier ticket skills#68 (low). Manager told.
+   A `Supabase-consultant` session offered help; told it ADR-0014/0018 and migrate.yml settle schema and access, work
+   reaches it only by ticket on the owner's word; no task given.
+   **Later:** #313 merged `91a0ad3`. Brief 4 is `b300d-build` (session `a2bc1cc7`, medium, `feat/300-rekey-history`).
+   When it merges, re-run its evidence: id columns only, row counts unchanged, 0 orphans. Queued: merging #314 (mine)
+   and the manager's `GOAL-RUN.md` PR from the #218 text. skills#68 waits for the owner's dispatch word.
+   **#314 merged** (`4964793`) on the owner's pane (a), 18:15; remote branch deleted. On the owner's word, worktree
+   `psf` and its junction are removed. Local branch `docs/planner-scoping-flow` stays: the guardrail hook blocks
+   a force delete of a branch, so the owner deletes it by hand.
+   **Before a compact (2026-11-03). NEXT for a resumed planner:** (1) when the manager reports Brief 4 (`b300d-build`)
+   merged, re-run its evidence (id columns only, row counts unchanged, 0 orphans on all FKs) and post it on #300;
+   then Brief 5 (low, `Closes #300`) after D6's ordinary pipeline run. (2) Owner's word pending: the manager's
+   `GOAL-RUN.md` PR from the #218 text, and skills#68's dispatch. (3) Open the batch PR for `docs/state-2026-11-01b`
+   when the day's saves are done; merge it on the owner's approval, before any worktree cleanup. (4) Unverified:
+   `SUPABASE_DB_URL` in `etl`; nobody may list secrets, so only the owner can check.
+   **After the compact (2026-11-03):** the manager's `GOAL-RUN.md` PR merged as #315 (`e8f8fa6`), so NEXT (2) is
+   only skills#68's dispatch. Brief 4 is open as PR #316 (`feat/300-rekey-history`); `b300d-build` still busy.
+   **#316 held (2026-11-03):** the audit found that the ledger tables stay on the old id, so 173 rostered rows lose rankings.
+   Ruling issuecomment-6619090050: (c) is out; recommended (b) narrowed, adding the 4 ledger tables to the script. That went to the manager as a queue entry, waiting on the owner.
+   **Owner answered (a), pane 2026-11-03 18:30:01: hold #316 until the ordinary run, with no date.** The order is on #300: the run lands,
+   then #316 is brought up to date and the script re-runs, then the manager re-proves with the roster-to-rankings measure, then Brief 5. NEXT (1) waits on that run.
+   **#135 passwords Action done** by the owner's hand (consultant's evidence; manager's closeout issuecomment-6619301255). The etl
+   `SUPABASE_DB_URL` now uses etl_writer, so NEXT (4) is resolved. A queued Decision asks whether the local `.env` moves to etl_writer
+   (recommended (a)). The Supabase-consultant has my input on a persona: a read-only `supabase-auditor` subagent run at re-proof, plus
+   the consultant kept for the owner. The agent file would be my PR on a ticket, on the owner's word. A project-scoped read-only MCP is fine, set up by the owner's hand.
+   **Fantrax rule amended (owner, planner chat 2026-11-03, pane "Per run, runner exempt"):** an agent's Fantrax login, a live 04a/t/v/w/s run,
+   or a login-step run_pipeline moves from Never to Always parks, on the owner's word per run. The scheduled runner after checkpoint 1 is exempt.
+   Text is on #218 issuecomment-6619365378, for the manager's GOAL-RUN.md PR. **#317 merged** (`90c71ff`) on the owner's pane (a), 18:52, so the rule is in force on main.
+   **Supabase persona critique sent to the consultant (2026-11-03).** The main hole: Bash plus psycopg plus the .env etl_writer URL gets around the read_only MCP.
+   Recommended: the auditor stays repo-only; the live advisor and grant checks become a manager closeout step (GOAL-RUN text via #218, on the owner's word). Piece 2 is my PR on a ticket once the owner re-confirms.
+   **Owner: "yes, draft the closeout step on #218".** Text: issuecomment-6619638802, a live check after a schema change lands (advisors plus roles and grants against ADR-0018 d9/d10). Sent to the manager for a GOAL-RUN PR.
+   #318 (closeout text) is open; its merge is queued, and the diff was checked. Consultant: Opus scopes advised as (1) narrowed, (2), (3), and an added (6) suspected exposure.
+   Queued: "briefs name every install" (recommended (a)). On (a), a planner PR to central-planner.md plus #218 text for GOAL-RUN.
+   **#318 merged** (`75cecc0`). **Owner (a), pane 19:08: briefs name every install, for builders too.** My PR #319 (worktree `pbi` in this scratchpad, venv
+   junction, branch `docs/planner-brief-installs`) is open; its merge is a queue Decision. The GOAL-RUN text is on #218, issuecomment-6619745201, for the manager's PR.
+   **Before a compact, 2026-11-03 evening.** #320 (the manager's GOAL-RUN install text) is open, and its diff was checked. One queue Decision covers
+   #319 and #320; the manager merges both on the owner's (a). **Owner's word in the planner's chat: "once merged, remove the pbi worktree".** So when
+   the manager reports #319 merged: remove the `pbi` junction first, then `git worktree remove` for `pbi`. Local branch `docs/planner-brief-installs` stays,
+   because the guardrail blocks a force delete; it becomes an owner hand item next to `docs/planner-scoping-flow`. **NEXT for a resumed planner:** (1) that
+   removal; (2) #316 waits on the ordinary run, then the order on #300 (issuecomment-6619150797); (3) skills#68's dispatch waits on the owner's word;
+   (4) the Supabase-auditor role file is my PR on a ticket once the owner re-confirms the consultant's plan; (5) open the batch PR for
+   `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. The owner's hand item: point the local `.env` at etl_writer.
+   **Done after that save:** #319 merged (`e47a787`) and #320 (`0b8fc73`) on the owner's pane (a), 19:12. Worktree `pbi` and its junction are removed
+   and the remote branch is deleted. NEXT (1) is done; the owner's hand item is the local branches `docs/planner-brief-installs` and `docs/planner-scoping-flow`.
+   **Owner, planner chat: "i did point the local env at etl_writer".** Relayed to the manager to check and close the Action.
+   **Supabase-auditor:** ticket #321, PR #322 (worktree `pau` in this scratchpad, venv junction, branch `docs/supabase-auditor`). Its merge is a queue Decision; the manager merges on (a)
+   and then does a dry run on #312. Remove `pau` (junction first) only on the owner's word. NEXT (4) is now waiting on that merge.
+   **#322 merged** (`a9e3b3d`) on the owner's (a), 19:18; the trial run on #321 found no blocking finding. Triage is issuecomment-6619925989: (1) proven main-only,
+   (2) not a finding (fold into the auditor file at its next edit), (4) dropped, (3) ticket #323 low, dispatch queued. The Never line (no live DB connection outside
+   the connector, no reading .env) is on #218 issuecomment-6619930971 for the manager's PR. The rotation of etl_writer's password is queued, recommended (b): only if the
+   manager's check showed the value. Worktree `pau` stays until the owner's word.
+   **Before a compact, 2026-11-03 late.** On the owner's word, worktree `pau` and its junction are removed; its remote branch was deleted. Those three local branches are already
+   gone. **Owner, planner chat: "you could totally remove those branches".** From now on the planner deletes its own local branch once its PR shows MERGED,
+   with `git branch --delete --force`; the hook blocks only the short form. This is no hand item for the owner. #324 (the Never line) is open, and its diff was checked. The
+   manager's facts: the etl_writer value never appeared in output, so (b) means no rotation. **Queued for the owner:** merge #324; dispatch #323 (low);
+   rotate etl_writer (recommended (b), not needed per the facts). **NEXT for a resumed planner:** (1) #316 waits on the ordinary run, then the order on #300
+   (issuecomment-6619150797); (2) skills#68's dispatch waits on the owner's word; (3) at the next edit of `supabase-auditor.md`, fold in "needs: on validate is no finding";
+   (4) open the batch PR for `docs/state-2026-11-01b` at the end of the day and merge it on the owner's approval. Only `ps1101` remains in this scratchpad (junction first).
+   **Owner answers, 2026-11-03 19:24 (relayed by the manager, recorded on the tickets):** #324 merged as `a4bd47c` (GOAL-RUN Never line on the live database). Rotation of etl_writer: (b), no rotation, since the value never appeared (#135). #323 dispatched at low as b323-build; the manager merges it. Open in my lane: #316 waits on the ordinary run; skills#68 waits on the owner; batch PR for this branch at end of day.
+
+   **Later 2026-11-03:** #325 (Closes #323) merged `cc3fad1`; auditor clean. I opened skills#70 (git-guardrails: force branch delete only after its PR merged, gh merged-PR + tip check, closes the long-form bypass; owner chose the gh check by pane). skills#68 and skills#70 sit in the owner queue as Decisions; the manager rightly treats my relay of "dispatch skills#68" as not the owner's own word. Blocker for both: the skills repo is not in the owner's dispatch-projects.json, so dispatch.ps1 -Apply refuses there until the owner adds it. Worktree ps1101 lost its .git link and .claude/ at ~19:31 (not by me; nothing lost, last save was pushed). Planner worktree is now ps1103 in this session's scratchpad; the ps1101 leftover dir has a .venv junction, so remove the junction before deleting it, on the owner's word.
+
+   **skills repo setup, 2026-11-03 ~19:45:** owner answered (a) to skills#70 (medium) and skills#68 (low), recorded on both. The skills repo can't be dispatched: no .claude/dispatch.json, no builders settings file, no stage-builder agent, not on dispatch-projects.json. The manager queued one Decision, "Set up the skills repo so builders can be dispatched there?", (a) recommended. On the owner's yes, it's mine to do: (1) one skills-repo PR with a stage-builder role and a rules file (dispatch.json readLine points at it), from plugins/session-dispatch-managers-build-review/templates; (2) post on skills#70 the exact text the owner pastes for skills/.claude/dispatch.json, skills/.claude/builders.settings.json and the line in ~/.claude/dispatch-projects.json. Hold until the pane answer lands.
+
+   **Skills setup done, 2026-11-03 ~20:10:** opened skills PR #71 (stage-builder role, PROJECT-RULES.md, gitignore .claude/worktrees/ and .venv/, CATALOG rebuild). Posted the three paste texts on skills#70 (issuecomment-6620326854) and sent the manager the Action entry. Manager re-proves and merges #71, then dispatches #70 medium and #68 low once the owner's files exist. My skills worktree sk-setup (scratchpad) needs `git -c core.longpaths=true` (the scratchpad path plus plugin paths exceed 260); remove it after #71 merges. Local full pytest hung over 10 min, so I stopped it; CI is the check. Also: owner approved fixing the stale lock and ps1101. A hung `push origin --delete` (15 branches, done on GitHub) held packed-refs.lock; I stopped it, cleared the locks and removed ps1101 (junction first) plus two orphan worktree records. Two old ref locks from 2026-10-12 remain (worktree-b92-runner-spike, feat/225-runner-spike-workflow), not approved. Migration A-D: 20 of 27 work tickets closed (74% by count; the heavy ones are left: #135, #93, #116).
+
+   **~20:30 2026-11-03:** skills#71 merged `eff997e` on the owner's "merge 71". I removed sk-setup and its branch. The manager dispatches skills#70 (medium) and #68 (low) when the owner marks the three-file paste Action done. Supabase: the owner replaced the account-wide connector with user-level MCP `supabase-dynasty` (read_only, 10 tools, no apply_migration/project/branch/edge tools). Its server-side write refusal is NOT yet verified; the owner is running a CREATE check. After the result, I draft #218 text for: GOAL-RUN 'After a schema change lands' (get_advisors via supabase-dynasty), the Never line ('read-only connector' becomes supabase-dynasty), and project-fantasy-football.md Supabase access (one look-only path). Sessions that were already running see the new server only after a restart.
+
+   **supabase-dynasty verified:** the owner's CREATE test returned SQLSTATE 25006, so the server enforces read-only. Rule text is on #218 (issuecomment-6620522099), covering GOAL-RUN after-schema check, the Never lines and project-fantasy-football.md Supabase access. It is queued with the manager, (a) recommended. The manager's current session lacks the tools, so the check parks until a fresh session.
+
+   **Resume, 2026-11-04, planner session `73d38bcc-afbf-4461-af56-c14790bb2362`. Queue entries it raises answer here; overrides above where they differ.**
+   Same worktree `ps1103`. Merged since the clear: #326 `96c6f5e`, #327 `c4f8dae` (GOAL-RUN haiku sentence), skills#73 `1a602cf`. The live skills clone is at `1a602cf`.
+   Done: worktree `skbs` removed and local `docs/ignore-builder-state` deleted (PR merged). The sandbox would not delete the stub dirs under the skills repo's `.git/worktrees/`
+   (skbs and 9 older ones with no gitdir). They are harmless and left alone; no hand item.
+   ListAgents shows only the manager; the Supabase-consultant sessions are not running.
+   **Open:** (1) skills#70 is in flight as `s70-guard`; the manager re-proves and merges it. (2) #316 waits on the ordinary run (no data commit on main since #311); order on #300.
+   (3) This branch's batch PR is open; its merge is a queue Decision (recommended (a)). Merge it on the owner's answer, then branch a new state branch for later saves.
+   (4) At the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding".
+
+   **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
+   no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
+   **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
+   consumer is ticketed. Unverified: whether `SUPABASE_DB_URL` exists in `etl` and which login it holds. My
+   `gh secret list` was denied and the manager was told not to run it for me. Brief 4's script rule is in
+   `builders.settings.json`; when Brief 4 merges, the manager adds the planner's "Remove the one-time
+   script rule" Action. Brief 5 comes after.
+00a. **Earlier 2026-11-03, the old session's save before its clear.** Item 000 overrides it where they differ.
+   Merged: #301 (#307), #306 (#308), #300 Briefs 1 and 2 (#309, #311), #108 Briefs 3 and 4 (#310,
+   #312; **#108 closed**), state batch #304. Evidence re-runs done for #301 and #306; #108 rulings at
+   issuecomment-6560651713. Supabase project `vulbdywraotfodcmlawy` restored by the owner, first push
+   applied 36 tables; it was `INACTIVE` once, reason unread. **Open:** #313, #300 Brief 3
+   (`b300c-build`), the manager's. Brief 4 dispatches when it merges. The owner added its script rule.
+   Removing that rule after Brief 4 is a queued Action, as is #135's passwords Action. Then Brief 5,
+   which closes #300. **Mine:** rule on Brief 3 to 5 PRs when the manager asks. Re-run Brief 4's evidence
+   when it merges: id columns only, row counts unchanged, 0 orphans. #108 token comparison and
+   judgement still to do. Older items below stand. State branch `docs/state-2026-11-01b`, no PR yet;
+   open its PR, or a new day's branch, at the next state save. Worktree `ps1101` stays until the owner says.
+00. **2026-11-01. Overrides item 0 where they differ.** Session `d1366ab6-ec51-4add-8fe7-6bd835ccdc7e`.
    #302 merged (`55d9d6b`) on the owner's word. #303 merged (`0bd80d5`), closing #299; re-proof is
    issuecomment-6558667160. **Next on #108:** Brief 2, whose restart waits on the owner's word for
    `claude stop d274edd9`; the manager holds that. **#300 and #301** are unblocked and need the
@@ -41,7 +180,15 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    Reader search for #301 is done: no Power BI measure or relationship reads the column; `02c` not read.
    **Briefs 2 to 5 (pane 09:20):** (a), in order, Brief 2 after #108 Brief 3 merges; sent to the manager.
    **#301 merged** (`053322b`); evidence re-run holds, issuecomment-6559900172. `b300a-build` is running
-   Brief 1. **#308** is #306's open PR; re-run its evidence when it merges.
+   Brief 1. **#304 merged** (`284e5a2`) on the owner's word in chat, ahead of end of day. **#308 merged**
+   (`2b4039c`), closing #306; evidence holds, issuecomment-6559946514; Brief 3's hold is over, manager told.
+   New saves go on `docs/state-2026-11-01b`, PR when the day's batch is ready.
+   **#108 closed.** #310, #312 merged (`15ef428`); first push succeeded, 36 tables. Rulings at
+   issuecomment-6560651713: `shared.owner` INFO accepted; Q6 holds by grants, Exposed schemas setting
+   unread. Owner stored the secret and restored the project. **#300:** Brief 1 #309, Brief 2 merged
+   (`9fbe927`), Brief 3 `b300c-build` running. Queued via the manager: Brief 4's script rule (recommended
+   (a), answer comes to me; Brief 4 holds for it) and the #135 passwords Action. #108 token comparison
+   and judgement still mine.
    **Prune failure, closed:** stale `.git\worktrees` records were read-only, and Git cannot delete a
    read-only folder on Windows. On the owner's word I ran `attrib -R .git\worktrees\* /S /D`, then
    `git worktree prune -v`; all 8 went. If Permission denied returns on a worktree record, do the same.
