@@ -29,6 +29,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `powershell -ExecutionPolicy Bypass -File .\run_weekly.ps1 --trigger manual` from the repo root.
    **Learned:** builders run in an ask-nothing mode, so refusals are allowlist misses, not a classifier. Use the command forms in session-rules. The project deny rules match file names
    anywhere in a command, even in a `gh pr create` body. The owner added 5 allow lines to builders.settings.json.
+   **After the save:** #136 dispatched as b136-export. #316 rekey rerun (b300d-build), measured at re-proof. #338 bringing main in again. New #341 (low): #337 advisories 1/2/3/6/9,
+   after #136 and #339, before cutover; needs the owner's dispatch word.
    **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
