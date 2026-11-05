@@ -26,6 +26,8 @@ import etl_storage_pg as pg
 import restore_drill as drill
 from test_etl_storage import TABLES, database_url
 
+pytestmark = pytest.mark.pg
+
 SENTINEL = "SENTINEL-6203"
 LINE = re.compile(r"^(\w+) (\d+) ([0-9a-f]{32})$")
 FORBIDDEN = re.compile(r"\b(SET|CREATE|TEMP|TEMPORARY|INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE)\b")

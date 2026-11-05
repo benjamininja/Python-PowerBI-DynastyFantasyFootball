@@ -30,6 +30,8 @@ import yaml
 import etl_helpers as etl
 import etl_storage_pg as pg
 
+pytestmark = pytest.mark.pg
+
 SCRATCH = "seam_contract"
 REGISTRY = {"tables": [
     {"name": "fact_snap", "type": "fact", "grain": "(day, source, player)",
