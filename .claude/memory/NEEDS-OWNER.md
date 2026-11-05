@@ -54,6 +54,18 @@ can be traced.
 
 ## Decisions
 
+### [ ] How does Brief 5 write the pruned player table?
+- Ticket: #300 (Brief 5, builder `b300e-build`)
+- Context: #316 merged (68de4af). Brief 5 has made the D4 rule ("a `DROPPED` row is removed when no published table references it") and its tests. Writing `data/dim_nfl_players.parquet` needs one run of the builder's prune script, and that call was denied ("don't ask mode"). The builder manager may not run it for the builder or change the builders' settings. Nothing is committed yet.
+- Options: (a) you add one allow rule for that command, as you did for the rekey script, and the builder finishes and closes #300 in this PR; (b) the PR ships the rule and tests only, and the table prunes on the next ordinary run, which keeps #300 open until then.
+- Recommended: (a), because it closes #300 now and follows the rekey precedent. Add this line to the `allow` list in `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\.claude\builders.settings.json`, then answer (a). Remove it after the PR merges.
+  ```
+  "Bash(.venv/Scripts/python.exe builder-state/prune.py*)",
+  ```
+- Blocks: closing #300, then the backfill button (#135). The planner's order on #300 is #316, then Brief 5, then the backfill, so the database loads the pruned table.
+- Raised: 2026-11-05, by the builder manager
+- Session: 59aab023-596a-4bc8-8864-e417f82a0fa3
+
 ## Actions
 
 ### [ ] Check the Dead Money model in Power BI Desktop
@@ -90,6 +102,19 @@ can be traced.
   and your backfill button (#135) follow.
 - Blocks: #316, Brief 5 (#300), the backfill (#135), #336.
 - Raised: 2026-11-05, by the builder manager, on the planner's note
+
+### [ ] Remove the one-time script rule
+- Ticket: #300
+- Steps: 1. Open this file:
+  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\.claude\builders.settings.json`
+  2. Remove this line from the `allow` list:
+  ```
+  "Bash(.venv/Scripts/python.exe scripts/rekey_gsis_history.py*)",
+  ```
+  3. Say so in chat.
+- Context: you chose (a), and the rule was for the rekey run only. #316 merged as 68de4af, so no builder needs it now. A second run would change nothing.
+- Blocks: nothing.
+- Raised: 2026-11-01, by the planner; added 2026-11-05 by the builder manager after #316 merged
 
 ### [ ] Storage cutover: the PC refreshes write to Supabase (later)
 - Ticket: #336 (owner, planner chat, 2026-11-05: "Cut over after Stage C (Recommended)")
