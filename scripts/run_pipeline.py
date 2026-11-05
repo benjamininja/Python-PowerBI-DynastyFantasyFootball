@@ -347,12 +347,7 @@ def notify(text: str) -> None:
     """Discord webhook (DISCORD_WEBHOOK_URL in .env / env). Never raises."""
     url = os.environ.get("DISCORD_WEBHOOK_URL")
     if not url:
-        env_file = REPO / ".env"
-        if env_file.exists():
-            for line in env_file.read_text(encoding="utf-8").splitlines():
-                if line.strip().startswith("DISCORD_WEBHOOK_URL="):
-                    url = line.split("=", 1)[1].strip().strip('"')
-                    break
+        url = etl_run_log.env_value("DISCORD_WEBHOOK_URL", REPO / ".env")
     if not url:
         print("[info] no DISCORD_WEBHOOK_URL — notification skipped")
         return
@@ -497,6 +492,8 @@ def main() -> int:
                        if code else None))
     except BaseException as exc:
         runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
+        if runlog.warning and not args.dry_run:
+            notify(f"{runlog.warning}\nThe pipeline raised {type(exc).__name__} before it finished.")
         raise
 
     summary = summarize(phase, week, results, reviews, commit_line, plan, filed)

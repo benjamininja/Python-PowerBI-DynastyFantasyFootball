@@ -257,7 +257,7 @@ def _function(text: str, name: str) -> str:
 class TestWhatIfText:
     text = INDEX.read_text(encoding="utf-8")
 
-    def test_render_cap_cards_reads_both_figures(self):
+    def test_what_if_cap_rooms_source_reads_both_figures(self):
         body = _function(self.text, "whatIfCapRooms")
         assert "cap_hit" in body and "contract_value" in body
 
