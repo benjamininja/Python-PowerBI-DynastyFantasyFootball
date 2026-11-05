@@ -71,17 +71,24 @@ can be traced.
 - Blocks: nothing.
 - Raised: 2026-10-12, by the planner
 
-### [ ] Store the database secret for `migrate.yml` (later)
-- Ticket: #108 (task, map #69)
-- Steps: when #108's PR names the Actions secret it reads, store that
-  secret in the repository's `main`-only environment. Then say so in
-  chat.
-- Context: you ruled on 2026-10-12 that `migrate.yml` is live from the
-  day #108 merges. It applies the migrations to the real project on
-  merge, so the secret must be there first. No agent reads or writes a
-  secret.
-- Blocks: merging #108.
-- Raised: 2026-10-12, by the builder manager
+### [ ] Run the pipeline once by hand (the ordinary run)
+- Ticket: #300 (owner, planner chat, 2026-11-05: "I run it once now (Recommended)")
+- Steps: 1. Open a PowerShell window. Do not change folder.
+  2. Run this command. It logs to
+  `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\outputs\pipeline_runs`
+  and commits and pushes the data tables to `main` by itself.
+  ```
+  & "C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\run_weekly.ps1" --trigger manual
+  ```
+  3. When it ends, say in the builder manager's chat that it finished,
+  with its last few lines.
+- Context: no pipeline data commit has reached `main` since 2026-10-11, and
+  Stage D now comes after the cutover, so this run would never come by
+  itself. Its data commit unblocks #316. Then the builder manager brings
+  #316 up to date, has the rekey rerun, re-proves and merges it. Brief 5
+  and your backfill button (#135) follow.
+- Blocks: #316, Brief 5 (#300), the backfill (#135), #336.
+- Raised: 2026-11-05, by the builder manager, on the planner's note
 
 ### [ ] Storage cutover: the PC refreshes write to Supabase (later)
 - Ticket: #336 (owner, planner chat, 2026-11-05: "Cut over after Stage C (Recommended)")
