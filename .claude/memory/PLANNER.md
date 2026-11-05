@@ -146,6 +146,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 
    **D1 answered (a), dispatch workflow** (owner, planner chat, 2026-11-04; on #135). B3's `backfill.yml` is approved; the owner presses the button. B3 still waits for B2.
 
+   **2026-11-05: Stage C moving.** Merged: skills#74 (#70), #330 (B4), #329 (#279 pt1), #331 (B1), #332 (B2; COPY under RLS replaced by temp table + INSERT SELECT, manager-approved, no grant change).
+   B3 brief: #135 issuecomment-6646329446 (medium; owner: "yes, dispatch B3 once the brief lands"). #137 brief: issuecomment-6646358564 (medium; owner: log from now on, run goes on loud).
+   Q2 ruled on #136 (6646359596): reload failed Chains from the snapshot in one txn, else the whole run's tables; brief #136 after B3. New #333 (low) for leftover advisories, after B3.
+   Known risk: the weekly PC run sits at the 7-day pause limit until #93's daily runner.
+
    **#300:** Brief 3 is PR #313, re-proved green by the manager at `8516cad`. My read is issuecomment-6618764510:
    no breach, and auditor U1 to U3 are all no finding. Merging is the manager's.
    **#135 passwords Action narrowed to the writer** (issuecomment-6618784061): `etl_reader` gets no password until a
