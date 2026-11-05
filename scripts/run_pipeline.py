@@ -376,7 +376,7 @@ def _data_to_head(tables: list[str], cwd: Path) -> None:
         (cwd / path).unlink(missing_ok=True)
 
 
-def publish_postgres(plan: dict, cwd: Path = REPO) -> str | None:
+def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str | None:
     """The Postgres branch of the publish step (#136, ADR-0014). The steps
     wrote to the database and left data/ equal to HEAD. The failed Chains'
     tables are reloaded from that snapshot in one transaction; if the database
@@ -414,7 +414,7 @@ def publish_postgres(plan: dict, cwd: Path = REPO) -> str | None:
     except Exception as exc:
         _withhold(plan)
         return f"ABORTED: reload from the snapshot failed: {pg.describe(exc)}"
-    if plan["publish"]:
+    if export and plan["publish"]:
         published = list(plan["publish"])
         try:
             pg.export_published(published, data)
@@ -563,8 +563,13 @@ def main() -> int:
                 [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
 
         reviews = review_counts()
-        if args.dry_run or args.no_commit:
+        if args.dry_run:
             commit_line = "commit skipped (flag)"
+        elif args.no_commit:
+            # The database is the system of record: a held Chain's rows go
+            # back to the snapshot even when nothing is exported or committed.
+            aborted = publish_postgres(plan, export=False) if storage_is_postgres() else None
+            commit_line = aborted or "commit skipped (flag)"
         else:
             aborted = publish_postgres(plan) if storage_is_postgres() else None
             commit_line = aborted or commit_data(phase, week, push=not args.no_push,

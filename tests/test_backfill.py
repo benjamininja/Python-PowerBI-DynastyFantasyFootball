@@ -25,6 +25,8 @@ import etl_helpers as etl
 import etl_storage_pg as pg
 from test_etl_storage import TABLES, database_url
 
+pytestmark = pytest.mark.pg
+
 SENTINEL = "SENTINEL-4471"
 ENTRY = {"name": "t", "grain": "k", "columns": [
     {"name": "k", "dtype": "int64"}, {"name": "v", "dtype": "float64"}, {"name": "s", "dtype": "str"}]}

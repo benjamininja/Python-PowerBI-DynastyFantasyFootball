@@ -29,6 +29,8 @@ import run_pipeline as rp
 from conftest import git
 from test_etl_storage import TABLES, database_url
 
+pytestmark = pytest.mark.pg
+
 CHAINS = etl_checks.chain_tables(etl_checks.load_registry())
 NEW_ID = "00-0TESTNEW"
 
@@ -124,6 +126,19 @@ class TestAFailedChainIsRestoredAndThePassingOneIsExported:
         assert "data/fact_rookie_rankings.parquet" in staged
         assert set(staged) <= {f"data/{t}.parquet" for t in CHAINS["rookie"]}
         assert changed_at_head(world.repo) == []
+
+    def test_with_no_commit_the_failed_chain_is_restored_and_nothing_is_exported(self, world, frames):
+        drop_first_row("fact_rookie_rankings")
+        drop_first_row("fact_dynasty_ranking_metrics")
+        plan = plan_of(["rookie"], ["dynasty_profile"])
+
+        assert rp.publish_postgres(plan, cwd=world.repo, export=False) is None
+
+        for table in CHAINS["dynasty_profile"]:
+            assert equals_snapshot(table, frames), table
+        assert not equals_snapshot("fact_rookie_rankings", frames)
+        assert changed_at_head(world.repo) == []
+        assert git(world.repo, "status", "--porcelain").stdout == ""
 
     def test_a_reload_refused_by_a_foreign_key_reloads_every_written_table_and_publishes_nothing(
             self, world, frames):
@@ -320,6 +335,35 @@ class TestWithoutADatabase:
         import inspect
         assert inspect.signature(pg.load_published).parameters["replace"].default is False
 
+    @pytest.mark.parametrize("flag, storage, called_with", [
+        ("--no-commit", "postgres", {"export": False}),
+        ("--no-commit", "parquet", None),
+        ("--dry-run", "postgres", None),
+    ])
+    def test_main_restores_but_does_not_export_with_no_commit_and_writes_nothing_on_a_dry_run(
+            self, monkeypatch, tmp_path, flag, storage, called_with):
+        seen = {}
+        step = {"name": "s_rookie", "cmd": [], "phases": {"INSEASON"}, "needs": [],
+                "chain": "rookie", "group": "rookie"}
+        monkeypatch.setenv("ETL_STORAGE", storage)
+        monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--phase", "INSEASON", flag])
+        monkeypatch.setattr(rp, "_load_04a", lambda: SimpleNamespace(derive_week_label=lambda cfg: "8", CFG=None))
+        monkeypatch.setattr(rp, "build_steps", lambda profile: [step])
+        monkeypatch.setattr(rp, "run_steps", lambda *a, **k: [{"name": "s_rookie", "status": "ok", "detail": ""}])
+        monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, shrink, **kw: [])
+        monkeypatch.setattr(rp.etl_checks, "file_review",
+                            lambda *a, **k: {"open": 0, "opened": 0, "cleared": 0, "repeated": 0})
+        monkeypatch.setattr(rp, "publish_postgres", lambda plan, **kw: seen.update(kw=kw))
+        monkeypatch.setattr(rp, "commit_data", lambda *a, **k: seen.update(committed=True))
+        monkeypatch.setattr(rp, "notify", lambda text: None)
+        monkeypatch.setattr(rp, "review_counts", lambda: {})
+        monkeypatch.setattr(rp, "OUT_DIR", tmp_path)
+
+        assert rp.main() == 0
+
+        assert seen.get("kw") == called_with
+        assert "committed" not in seen
+
     @pytest.mark.parametrize("storage, kwargs, publishes", [
         ("postgres", {"data_dir": None}, True),
         ("parquet", {}, False),
@@ -336,7 +380,7 @@ class TestWithoutADatabase:
         monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, shrink, **kw: seen.update(kw=kw) or [])
         monkeypatch.setattr(rp.etl_checks, "file_review",
                             lambda *a, **k: {"open": 0, "opened": 0, "cleared": 0, "repeated": 0})
-        monkeypatch.setattr(rp, "publish_postgres", lambda plan: seen.update(plan=dict(plan)))
+        monkeypatch.setattr(rp, "publish_postgres", lambda plan, **kw: seen.update(plan=dict(plan)))
         monkeypatch.setattr(rp, "commit_data", lambda *a, **k: "no data changes — commit skipped")
         monkeypatch.setattr(rp, "notify", lambda text: None)
         monkeypatch.setattr(rp, "review_counts", lambda: {})
