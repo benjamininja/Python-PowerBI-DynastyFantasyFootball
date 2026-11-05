@@ -83,10 +83,21 @@ can be traced.
 - Blocks: merging #108.
 - Raised: 2026-10-12, by the builder manager
 
-### [ ] Cutover (later)
-- Ticket: #93
+### [ ] Storage cutover: the PC refreshes write to Supabase (later)
+- Ticket: #336 (owner, planner chat, 2026-11-05: "Cut over after Stage C (Recommended)")
+- Steps: the order is in #336's body.
+  - It runs after #316 merges.
+  - Then you press the backfill button (#135), and #136, #137 and #138 merge.
+  - You set `ETL_STORAGE=postgres` in the local `.env` by hand.
+  - One supervised run follows, on your word.
+- Context: Stage C. The storage switch runs on today's PC runner.
+- Blocks: closing #336, then the Actions cutover below.
+- Raised: 2026-10-11, goal-run setup; rewritten 2026-11-05 by the builder manager
+
+### [ ] Actions cutover (later)
+- Ticket: #93 (the Actions cutover only; the storage switch moved to #336)
 - Steps: enable the crons, let the parallel week run, give the cutover go
   in chat, unregister the PC task.
-- Context: checkpoint 2, after stages C and D.
+- Context: Stage D, after #336, on Postgres.
 - Blocks: closing #93 and maps #69, #70, #71.
 - Raised: 2026-10-11, goal-run setup

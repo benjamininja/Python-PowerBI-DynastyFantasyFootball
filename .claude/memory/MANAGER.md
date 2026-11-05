@@ -21,6 +21,21 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **Update, 2026-11-05 later, session `59aab023`: overrides everything below where they differ.** Main is at `2e15942`. The owner says the project is paused until migration is done, so migration is the only focus.
+  - **#334 (#135 B3) merged as `2e15942`** after re-proof. The supabase-auditor had no blocking finding. Live `football` has 36 empty tables. **The backfill button waits for #316 to merge** (owner: "Backfill after #316 (Recommended)"). Don't put it to the owner before then. My earlier steps on #135 are corrected there.
+  - **#335 (#137) is open.**
+    - Builder `b137-runlog` runs as copy `88f7a1d7` (the old job was `c898b07a`). It's adding the planner's ruling: 'published' means pushed, and a `--no-push` commit is 'committed'.
+    - Already in it: the `.env` fallback (ruled on #137) and `statement_timeout`. The auditor had no blocking finding at a8a3eb9.
+    - **Parked with the owner:** bringing main into #335. The builder's `git merge origin/main` was refused, and I won't run it for the builder. The `tests.yml` line must read `tests/test_etl_storage.py tests/test_backfill.py tests/test_run_log.py`. I gave the owner the steps.
+    - The owner also declined my local pytest run of #335. I asked whether to rely on CI plus the builder's local result.
+  - **Owner, planner chat, 2026-11-05, word for word:**
+    - "Cut over after Stage C (Recommended)". This created #336, the storage cutover. NEEDS-OWNER's Cutover entry is split into #336 and the #93 Actions cutover.
+    - "Backfill after #316 (Recommended)".
+    - "Approve both (Recommended)": the storage-pg pytest line, for #136/#137/#138 and B3.
+  - **Next:**
+    - #136 (medium): the brief is issuecomment-6648020913. Dispatch it **after #335 merges** (both touch `main()`), not alongside #333. The `load_published` replace=False default now lives in #136.
+    - #333 (low): the leftover advisories, with #334's added and the silent conftest guard skip flagged as the most important. **Its dispatch needs the owner's yes; I've asked.** Never run it alongside #136 (both touch `etl_storage_pg.py`).
+    - #138 after B3. #316 is still held for the ordinary run.
 - **Update, 2026-11-05, before a compact, session `59aab023`: overrides everything below where they differ.** Main is at `251493c`. **No builder is running.** Open PRs: #316 (held for the ordinary run).
   - **#331 (#135 B1) merged `88e9cbd`.** It was sent back once, because nothing stopped tests reaching the live database. Fix: a `no_live_database` autouse fixture in `tests/conftest.py`.
   - **#332 (#135 B2) merged `251493c`** on the owner's "merge 332 when green". All 36 published tables round-trip as `etl_writer` with RLS on, with zero constraint violations. It includes the RLS write fix I approved while the planner was offline: COPY is refused under RLS, so the write path stages rows in a temp table and then runs `INSERT ... SELECT`. Live read-only check: `etl_writer` has TEMP and `football` USAGE.
