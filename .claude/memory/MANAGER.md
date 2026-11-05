@@ -21,7 +21,37 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **Update, 2026-11-05, before a compact (newest), session `59aab023`: overrides everything below where they differ.** Main is at `a84b617`. Migration is the only focus; the owner said the project is paused until it's done.
+- **Update, 2026-11-05, before a clear (NEWEST), session `59aab023`: overrides everything below where they differ.** Main is at `b863586` when written. This is a snapshot: **reconcile against live state first** (see "First moves"). Migration is the only focus.
+  - **First moves after the clear (in order):**
+    1. `git fetch origin`, then `git log origin/main --oneline -8`; `gh pr list --state open --json number,title,headRefOid,mergeStateStatus`; `claude agents --json`. Anything below that live state contradicts has moved on: trust live state, then the ticket and PR comments.
+    2. Builders message me by name (`dynastyFantasyFootball-central-builder-manager`); the name survives the clear. A builder that is idle with no message to me may have reported before the clear: read its PR, its last ticket comment and `claude logs <id>`.
+    3. Act on the table below, for each row whose trigger has fired.
+  - **Done this stretch:**
+    - **#337 (#333) merged `9ad4e48`**, re-proof issuecomment-6648651447. b333 is closed and its branch deleted. The planner turned advisories 1, 2, 3, 6 and 9 into **#341**.
+    - **The owner's ordinary run** landed as `b863586` through hand PR #340 (a direct push is refused by ruleset 24086028, GH013). The queue entry is marked `[x]` (state `0e23a54`; the main checkout's copy is updated too). **Until #336's final tasklist, every run's data lands by a hand PR like #340.** That includes the supervised cutover run. The webhook 403 and the unregistered scheduled task are parked on #336.
+    - **#136 dispatched**: `b136-export`, medium, job `2bee05fb`, from main at `9ad4e48`/`b863586`. Brief issuecomment-6648020913; prompt in the scratchpad `b136-prompt.txt`.
+    - **#316 resumed**: a fresh `b300d-build` (job `7ba1d667`, medium) in the existing worktree on `feat/300-rekey-history`; prompt `b300d2-prompt.txt`. It merged main (`0f2ab22`), took main's two dynasty parquets, and reran the rekey: 4042 and 308 changed (same as before), 0 orphans. **Its measuring script was denied**, and I told it not to retry. It pushes without the measure; **I measure at re-proof** (no laundering: I don't run its denied script, I do my own check).
+  - **Open work: trigger, then action** (all merges under the standing approval unless noted):
+
+    | Item | State when written | Trigger, then action |
+    |---|---|---|
+    | **#338** (#138, `b138-drill`, job `4951b683`) | Head `98e784f`, CI running. It was asked to bring main in again, because `deb26ea` lacked `9ad4e48`. | When b138 reports, check that `9ad4e48` and `b863586` are ancestors of the head, CI is all green, and the storage-pg log shows `test_restore_drill.py` cases PASSED plus the per-table lines. The auditor already ran with no blocking finding at `deb26ea`: re-audit only if `restore_drill.py` changed beyond the merge. Post the re-proof, merge (the owner also said "merge 338 when green"), `claude rm 4951b683`, `git push origin --delete worktree-b138-drill`. |
+    | **#339** (pg marker, low) | Approved (owner: "dispatch 339 at low when 338 merges"). | After #338 merges, dispatch at low. Its brief is the #339 body. In the prompt, say #136's new `test_publish_pg.py` may land first and then needs the marker. |
+    | **#316** (#300 Brief 4) | Head `0f2ab22` when written; the builder is committing the rerun. | When it reports, re-prove: CI green; the two parquets differ from `b863586` only in id columns, with row counts equal. **The roster-to-rankings measure**: `fact_fantasy_teams` rows that find dynasty rankings on `gsis_id`, PR ≥ main (main was 1066/1107 before the ordinary run; recount on `b863586`). Run it myself, or have **cap-ledger-auditor** count it on both sides. Then merge, and add the Action "Remove the one-time script rule" (text in the 11-01 ~12:30 bullet). Tell the planner. |
+    | **#300 Brief 5** (low) | Waits for #316. | After #316 merges, dispatch from #300's comments. Ask the planner for the brief link if it isn't clear. |
+    | **Backfill button (#135)** | Waits for #316 (owner: "Backfill after #316 (Recommended)"). | After #316 merges, give the owner exact steps: run `backfill.yml` via workflow_dispatch on main, no `--replace`. Then run the Settled 5 live checks (SELECT only) and post on #135. |
+    | **#138 live drill (mine)** | After #338 merges and after the backfill. | Before the next data commit: rerun storage-pg on the backfilled commit; run `restore_drill.py --print-sql` and execute the SQL with supabase-dynasty `execute_sql` (SELECT only). **First check the connector's role can see `football` rows** (`select current_user`, and a count on one table): an RLS-blind role reads 0 and fakes a difference. Compare rows and md5 per table and post on #138. Any difference blocks #336. |
+    | **#136** (`b136-export`) | Building. | Re-prove: CI; storage-pg shows `test_publish_pg.py`; the supabase-auditor; the row-order findings posted on #136. Then merge. |
+    | **#341** (low) | The owner's word, in the planner's chat: "Dispatch after #136 and #339 (Recommended)". | Dispatch at low after both merge. |
+    | **#336 cutover** | The owner's later steps. | After the above. |
+  - **For the owner:** the remote `data/refresh-2026-11-04` (fully merged; my delete was denied). The command is given in chat: `git -C "C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball" push origin --delete data/refresh-2026-11-04`. If it's still there, offer it again.
+  - **How-to that survives:**
+    - Dispatch with `dispatch.ps1` (path in the bullet below), never `2>&1`. A `-Name` with an existing worktree reuses it and its branch.
+    - Re-proof comments go through `--body-file`. Merge with `--squash --match-head-commit`.
+    - Branch deletes may be denied by the classifier. Then hand the owner the exact command.
+    - On parallel git in this repo, a `packed-refs.lock` error is transient (a builder's git). Retry once.
+    - My local pytest stays declined. Re-prove with CI, the builder's run and the auditors.
+- **Update, 2026-11-05, before a compact, session `59aab023`: overrides everything below where they differ.** Main is at `a84b617`. Migration is the only focus; the owner said the project is paused until it's done.
   - **#335 (#137) merged as `a84b617`** on the owner's "merge 335 when green".
     - Before that, I ran the merge of main myself (b02a3d1), with `git -C`, after the owner switched to manual and said "i approve you completing these steps".
     - The owner declined my local pytest re-proof twice, so I re-prove with CI, the builder's local run and the auditor, unless the owner says otherwise.
