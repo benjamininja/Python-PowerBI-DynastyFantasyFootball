@@ -655,9 +655,9 @@ def fold_ranks_long(df, source_col="source_name",
 # Every dim/fact table is read and written through `read_table` /
 # `write_table`, by table NAME. docs/data_model.yml is the schema: a table
 # must be declared there, and its columns, dtypes and grain are what the seam
-# checks a write against. The parquet backend below is the only one today;
-# the Postgres backend (a sibling module, lazy-imported) plugs in behind the
-# same two functions without a change at any call site.
+# checks a write against. ETL_STORAGE picks the backend: parquet (the
+# default, below) or postgres (the sibling module etl_storage_pg, imported
+# when first used, the URL in SUPABASE_DB_URL). Call sites do not change.
 #
 # Guards, in every write mode:
 # - schema: the batch's columns are exactly the table's declared columns.
@@ -778,18 +778,39 @@ def _check_batch(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
     return df
 
 
-def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
-                   entry: dict) -> pd.DataFrame:
-    """The parquet backend: check `df` against the registry `entry`, apply
-    `mode` against the file at `path`, write it atomically and return the
-    table as written."""
-    path = Path(path)
+def _check_write_args(mode: str, keys, partition) -> None:
     if mode not in ("replace", "replace_partition", "upsert"):
         raise StorageError(f"unknown write mode {mode!r}")
     if mode == "replace_partition" and (keys is None) == (partition is None):
         raise StorageError("replace_partition takes exactly one of keys= / partition=")
     if mode != "replace_partition" and partition is not None:
         raise StorageError(f"partition= is for replace_partition, not {mode}")
+    if partition is not None and not partition:
+        raise StorageError("partition= names no column; an empty partition would match every row")
+
+
+def _backend():
+    """The Postgres backend module when ETL_STORAGE=postgres, else None (parquet)."""
+    kind = os.environ.get("ETL_STORAGE") or "parquet"
+    if kind == "parquet":
+        return None
+    if kind != "postgres":
+        raise StorageError(f"ETL_STORAGE={kind!r}: expected parquet or postgres")
+    import sys
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import etl_storage_pg
+    return etl_storage_pg
+
+
+def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
+                   entry: dict) -> pd.DataFrame:
+    """The parquet backend: check `df` against the registry `entry`, apply
+    `mode` against the file at `path`, write it atomically and return the
+    table as written."""
+    path = Path(path)
+    _check_write_args(mode, keys, partition)
     df = _check_batch(df, entry)
     if mode == "upsert" and keys is None:
         keys = table_grain(entry)
@@ -818,14 +839,31 @@ def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
 
 def table_exists(name: str) -> bool:
     """Is the declared table `name` there to read?"""
-    _table_entry(name)
+    entry = _table_entry(name)
+    pg = _backend()
+    if pg is not None:
+        try:
+            return pg.has_rows(entry)
+        except pg.WriteRefused as exc:
+            raise StorageError(f"{name}: {exc}") from exc
     return _table_path(name).exists()
 
 
 def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
     """The whole table `name` (or a column projection), dtypes cast to the
-    docs/data_model.yml registry. Raises TableNotFound if it holds no data."""
+    docs/data_model.yml registry. Raises TableNotFound if it holds no data.
+    Under Postgres the rows come ordered by primary key, the columns in
+    registry order, and a table with no rows holds no data."""
     entry = _table_entry(name)
+    pg = _backend()
+    if pg is not None:
+        try:
+            df = pg.read(entry, columns)
+        except pg.WriteRefused as exc:
+            raise StorageError(f"{name}: {exc}") from exc
+        if df is None:
+            raise TableNotFound(f"{name}: no rows in the database")
+        return _coerce(df, entry)
     path = _table_path(name)
     if not path.exists():
         raise TableNotFound(f"{name}: no data at {path}")
@@ -858,7 +896,18 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
     upsert             insert-or-replace rows on `keys` (default: the registry
                          grain); other rows untouched.
     """
-    return len(_write_parquet(_table_path(name), df, mode, keys, partition, _table_entry(name)))
+    entry = _table_entry(name)
+    pg = _backend()
+    if pg is None:
+        return len(_write_parquet(_table_path(name), df, mode, keys, partition, entry))
+    _check_write_args(mode, keys, partition)
+    df = _check_batch(df, entry)
+    if mode == "upsert" and keys is None:
+        keys = table_grain(entry)
+    try:
+        return pg.write(entry, df, mode, keys, partition)
+    except pg.WriteRefused as exc:
+        raise StorageError(f"{name}: {exc}") from exc
 
 
 DROPPED_STATUS = "DROPPED"
