@@ -49,14 +49,15 @@ class FakeGh:
     return in order (the last one repeats). `pr merge` lands the pushed
     branch on the bare origin's main, as a rebase-merge of one commit does."""
 
-    def __init__(self, origin, checks, create_ok=True, merge_ok=True, pr=42):
+    def __init__(self, origin, checks, create_ok=True, merge_ok=True, pr=42, missing_reads=0):
         self.origin, self.checks, self.create_ok = origin, list(checks), create_ok
-        self.merge_ok, self.pr = merge_ok, pr
-        self.calls, self.merged_sha = [], None
+        self.merge_ok, self.pr, self.missing_reads = merge_ok, pr, missing_reads
+        self.calls, self.merged_sha, self.head = [], None, None
 
     def __call__(self, *args, cwd=None):
         self.calls.append(args)
         if args[:2] == ("pr", "create"):
+            self.head = args[args.index("--head") + 1]
             if not self.create_ok:
                 return subprocess.CompletedProcess(args, 1, "", "GraphQL: not allowed")
             return subprocess.CompletedProcess(args, 0, f"https://github.com/o/r/pull/{self.pr}\n", "")
@@ -66,12 +67,16 @@ class FakeGh:
         if args[:2] == ("pr", "merge"):
             if not self.merge_ok:
                 return subprocess.CompletedProcess(args, 1, "", "the base branch policy prohibits the merge")
-            self.merged_sha = git(self.origin, "rev-parse", BRANCH).stdout.strip()
+            self.merged_sha = git(self.origin, "rev-parse", self.head).stdout.strip()
             git(self.origin, "update-ref", "refs/heads/main", self.merged_sha)
-            git(self.origin, "update-ref", "-d", f"refs/heads/{BRANCH}")
+            git(self.origin, "update-ref", "-d", f"refs/heads/{self.head}")
             return subprocess.CompletedProcess(args, 0, "", "")
         if args[:2] == ("pr", "view"):
-            body = ({"state": "MERGED", "mergeCommit": {"oid": self.merged_sha}} if self.merged_sha
+            oid = self.merged_sha
+            if self.missing_reads > 0:
+                self.missing_reads -= 1
+                oid = None
+            body = ({"state": "MERGED", "mergeCommit": {"oid": oid} if oid else None} if self.merged_sha
                     else {"state": "OPEN", "mergeCommit": None})
             return subprocess.CompletedProcess(args, 0, json.dumps(body), "")
         raise AssertionError(f"unexpected gh call: {args}")
@@ -188,6 +193,120 @@ class TestChecksFail:
     def test_a_cancelled_check_is_a_failure_too(self, world):
         world.gh(checks=[_rows(**{"pii-scan": "cancel", "tests": "pass", "bot-tests": "pass"})])
         assert land(world) == "ABORTED: data PR #42 left open, required check failed (pii-scan)"
+
+
+def local_branches(repo):
+    return git(repo, "branch", "--format=%(refname:short)").stdout.split()
+
+
+def data_is_clean(repo):
+    return git(repo, "status", "--porcelain", "--", "data").stdout == ""
+
+
+class TestRerun:
+    def test_every_stop_after_the_branch_leaves_no_local_data_branch(self, world, monkeypatch):
+        world.gh(checks=[TESTS_FAIL])
+        land(world)
+        assert local_branches(world.repo) == ["main"]
+        world.gh(checks=[NOT_YET])
+        _write(world.repo, "ra", 9)
+        _write(world.repo, "fa", 9)
+        land(world, checks_timeout_s=0)
+        assert local_branches(world.repo) == ["main"]
+        world.gh(merge_ok=False)
+        _write(world.repo, "ra", 9)
+        _write(world.repo, "fa", 9)
+        assert "merge refused" in land(world)
+        assert local_branches(world.repo) == ["main"]
+        world.gh(create_ok=False)
+        _write(world.repo, "ra", 9)
+        _write(world.repo, "fa", 9)
+        assert "no data PR was opened" in land(world)
+        assert local_branches(world.repo) == ["main"]
+        assert data_is_clean(world.repo)
+
+    def test_a_rerun_after_a_failed_run_takes_a_suffixed_branch(self, world):
+        world.gh(checks=[TESTS_FAIL])
+        assert land(world).startswith("ABORTED: data PR #42 left open")
+        assert git(world.origin, "rev-parse", "--verify", f"refs/heads/{BRANCH}").returncode == 0
+        assert data_is_clean(world.repo)
+        _write(world.repo, "ra", 9)
+        _write(world.repo, "fa", 9)
+        gh = world.gh()
+        landed = {}
+        line = land(world, landed=landed)
+        assert line == "committed + merged 2 parquet file(s) via data PR #42"
+        create = gh.calls[0]
+        assert create[create.index("--head") + 1] == f"{BRANCH}-2"
+        assert origin_main_subject(world.origin) == TITLE
+        assert local_branches(world.repo) == ["main"]
+        assert data_is_clean(world.repo)
+        assert len(pd.read_parquet(world.repo / "data" / "ra.parquet")) == 9
+
+    def test_a_stale_local_branch_is_not_reused_or_touched(self, world):
+        git(world.repo, "branch", BRANCH)
+        gh = world.gh()
+        assert land(world).startswith("committed + merged")
+        assert gh.head == f"{BRANCH}-2"
+        assert BRANCH in local_branches(world.repo)
+        assert data_is_clean(world.repo)
+
+    def test_the_suffix_keeps_counting_while_names_are_taken(self, world):
+        git(world.repo, "branch", BRANCH)
+        git(world.repo, "branch", f"{BRANCH}-2")
+        git(world.repo, "push", "-q", "origin", f"main:refs/heads/{BRANCH}-3")
+        gh = world.gh()
+        land(world)
+        assert gh.head == f"{BRANCH}-4"
+
+    def test_a_branch_that_cannot_be_made_puts_data_back_to_head(self, world, monkeypatch):
+        gh = world.gh()
+        monkeypatch.setattr(rp, "_free_branch", lambda stem, cwd: "main")
+        line = land(world)
+        assert line.startswith("ABORTED: could not create branch main")
+        assert gh.calls == []
+        assert data_is_clean(world.repo)
+        assert len(pd.read_parquet(world.repo / "data" / "ra.parquet")) == 5
+        assert git(world.repo, "diff", "--cached", "--name-only").stdout == ""
+        assert branch_now(world.repo) == "main"
+
+
+class TestLandedSha:
+    def test_a_missing_merge_commit_is_read_again_once(self, world):
+        gh = world.gh(missing_reads=1)
+        landed = {}
+        line = land(world, landed=landed)
+        assert line == "committed + merged 2 parquet file(s) via data PR #42"
+        assert gh.verbs().count("pr view") == 2
+        assert landed["sha"] == git(world.origin, "rev-parse", "main").stdout.strip()
+
+    def test_still_missing_takes_origin_main_and_says_so(self, world):
+        gh = world.gh(missing_reads=2)
+        landed = {}
+        line = land(world, landed=landed)
+        assert line == ("committed + merged 2 parquet file(s) via data PR #42; "
+                        "landed sha taken from origin/main")
+        assert gh.verbs().count("pr view") == 2
+        assert landed["sha"] == git(world.origin, "rev-parse", "main").stdout.strip()
+        assert rl.final_status(0, line) == "published"
+
+
+class TestFastForward:
+    def test_a_failed_local_pull_is_in_the_line_and_the_run_stays_published(self, world, monkeypatch):
+        world.gh()
+        real = rp._git
+
+        def flaky(*args, **kwargs):
+            if "--ff-only" in args:
+                return subprocess.CompletedProcess(args, 1, "", "fatal: Not possible to fast-forward")
+            return real(*args, **kwargs)
+        monkeypatch.setattr(rp, "_git", flaky)
+        landed = {}
+        line = land(world, landed=landed)
+        assert line == ("committed + merged 2 parquet file(s) via data PR #42; "
+                        "local main not fast-forwarded, run git pull")
+        assert rl.final_status(0, line) == "published"
+        assert landed["sha"] == git(world.origin, "rev-parse", "main").stdout.strip()
 
 
 class TestTimeout:

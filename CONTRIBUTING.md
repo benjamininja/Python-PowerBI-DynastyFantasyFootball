@@ -21,7 +21,8 @@ tracked parquet of the Chains that passed their steps and Gate checks (ADR-0008
 amendment, #115), restores a held Chain's parquet from `HEAD`, verifies every
 staged path matches `data/*.parquet` (aborts otherwise) and skips the commit
 entirely when nothing changed. It then commits to a new branch
-`data/<date>-<phase>-wk<NN>`, rebases it on `origin/main`, pushes the branch and
+`data/<date>-<phase>-wk<NN>` (with a `-2`, `-3` suffix when an earlier run's
+branch still exists), rebases it on `origin/main`, pushes the branch and
 opens a PR titled `data: pipeline refresh <date> (<phase>, wk <NN>)`. It polls
 the PR for `pii-scan`, `tests` and `bot-tests` for up to 30 minutes, then merges
 with `gh pr merge --rebase --delete-branch`. The run log reads `published` only

@@ -335,6 +335,15 @@ def _wait_for_checks(pr: int, cwd: Path, timeout_s: float, poll_s: float) -> tup
         time.sleep(poll_s)
 
 
+def _pr_view(pr: int, cwd: Path) -> dict:
+    view = _gh("pr", "view", str(pr), "--json", "state,mergeCommit", cwd=cwd)
+    try:
+        info = json.loads(view.stdout or "{}")
+    except ValueError:
+        return {}
+    return info if isinstance(info, dict) else {}
+
+
 def _pr_body(staged: list[str], run_id: str | None, rows: dict | None) -> str:
     lines = ["Machine-generated parquet refresh via scripts/run_pipeline.py "
              "(allowlisted data-only commit). Opened and merged by the pipeline "
@@ -344,6 +353,27 @@ def _pr_body(staged: list[str], run_id: str | None, rows: dict | None) -> str:
         table = Path(path).stem
         lines.append(f"- {table}: {(rows or {}).get(table, 'rows unknown')}")
     return "\n".join(lines)
+
+
+def _free_branch(stem: str, cwd: Path) -> str:
+    """`stem`, or `stem-2`, `stem-3`, ... : the first name no local branch and
+    no origin branch holds (an earlier run's PR may still be open)."""
+    for n in range(1, 100):
+        name = stem if n == 1 else f"{stem}-{n}"
+        local = _git("rev-parse", "--verify", "--quiet", f"refs/heads/{name}", cwd=cwd).returncode == 0
+        remote = _git("ls-remote", "--exit-code", "--heads", "origin", name, cwd=cwd).returncode == 0
+        if not (local or remote):
+            return name
+    return stem
+
+
+def _drop_branch(name: str, cwd: Path) -> subprocess.CompletedProcess:
+    """Back to main, then delete the local data branch: its commit is on the
+    remote PR, or is not wanted, and main must stay the checked-out branch."""
+    back = _git("switch", "main", cwd=cwd)
+    if back.returncode == 0:
+        _git("branch", "-D", name, cwd=cwd)
+    return back
 
 
 def commit_data(phase: str, week: str, push: bool, publish: list[str],
@@ -392,16 +422,16 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     data_branch = None
     if push:
         wk = re.sub(r"[^A-Za-z0-9._-]", "", week)
-        data_branch = f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}"
+        data_branch = _free_branch(f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}", cwd)
         s = _git("switch", "-c", data_branch, cwd=cwd)
         if s.returncode != 0:
             _git("reset", cwd=cwd)
+            _git("checkout", "HEAD", "--", *sorted(tracked), cwd=cwd)
             return f"ABORTED: could not create branch {data_branch}: {s.stderr.strip()[:200]}"
     c = _git("commit", "-m", msg, cwd=cwd)
     if c.returncode != 0:
         if data_branch:
-            _git("switch", "main", cwd=cwd)
-            _git("branch", "-D", data_branch, cwd=cwd)
+            _drop_branch(data_branch, cwd)
         return f"ABORTED: commit failed: {c.stderr.strip()[:200]}"
     if not data_branch:
         return f"committed {len(staged)} file(s), push skipped (--no-push)"
@@ -410,23 +440,23 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     r = _git("-c", "rebase.autostash=true", "pull", "--rebase", "origin", "main", cwd=cwd)
     if r.returncode != 0:
         _git("rebase", "--abort", cwd=cwd)
-        _git("switch", "main", cwd=cwd)
+        _drop_branch(data_branch, cwd)
         return f"ABORTED: rebase conflict — resolve manually: {r.stderr.strip()[:200]}"
     p = _git("push", "-u", "origin", data_branch, cwd=cwd)
     if p.returncode != 0:
-        _git("switch", "main", cwd=cwd)
+        _drop_branch(data_branch, cwd)
         return f"ABORTED: push failed: {p.stderr.strip()[:200]}"
     made = _gh("pr", "create", "--base", "main", "--head", data_branch, "--title", title,
                "--body", _pr_body(staged, run_id, rows), cwd=cwd)
     found = re.search(r"/pull/(\d+)", made.stdout) if made.returncode == 0 else None
     if not found:
-        _git("switch", "main", cwd=cwd)
+        _drop_branch(data_branch, cwd)
         return (f"ABORTED: {data_branch} pushed but no data PR was opened: "
                 f"{(made.stderr or made.stdout).strip()[:200]}")
     pr = int(found.group(1))
     state, names = _wait_for_checks(pr, cwd, checks_timeout_s, poll_s)
     # Whatever the checks say, data/ goes back to main's files until the PR lands.
-    back = _git("switch", "main", cwd=cwd)
+    back = _drop_branch(data_branch, cwd)
     if back.returncode != 0:
         return f"ABORTED: data PR #{pr} left open, could not switch back to main"
     if state == "failed":
@@ -435,21 +465,27 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
         return (f"ABORTED: data PR #{pr} left open, checks not done after "
                 f"{int(checks_timeout_s // 60)} min (waiting on {', '.join(names)})")
     merge = _gh("pr", "merge", str(pr), "--rebase", "--delete-branch", cwd=cwd)
-    view = _gh("pr", "view", str(pr), "--json", "state,mergeCommit", cwd=cwd)
-    try:
-        info = json.loads(view.stdout or "{}")
-    except ValueError:
-        info = {}
+    info = _pr_view(pr, cwd)
     if info.get("state") != "MERGED":
         return (f"ABORTED: data PR #{pr} left open, merge refused "
                 f"({' '.join((merge.stderr or merge.stdout).split())[:200]})")
-    if landed is not None:
-        landed.update(pr=pr, sha=(info.get("mergeCommit") or {}).get("oid"))
+    _git("branch", "-D", data_branch, cwd=cwd)
+    sha = (info.get("mergeCommit") or {}).get("oid")
+    if not sha:
+        sha = (_pr_view(pr, cwd).get("mergeCommit") or {}).get("oid")
+    notes = []
     pulled = _git("-c", "merge.autostash=true", "pull", "--ff-only", "origin", "main", cwd=cwd)
     if pulled.returncode != 0:
         print(f"[warn] data PR #{pr} merged but local main did not fast-forward: "
               f"{pulled.stderr.strip()[:200]}")
-    return f"committed + merged {len(staged)} parquet file(s) via data PR #{pr}"
+        notes.append("local main not fast-forwarded, run git pull")
+    if not sha:
+        sha = _git("rev-parse", "origin/main", cwd=cwd).stdout.strip() or None
+        notes.append("landed sha taken from origin/main" if sha else "landed sha unknown")
+    if landed is not None:
+        landed.update(pr=pr, sha=sha)
+    return (f"committed + merged {len(staged)} parquet file(s) via data PR #{pr}"
+            + "".join(f"; {n}" for n in notes))
 
 
 def storage_is_postgres() -> bool:
