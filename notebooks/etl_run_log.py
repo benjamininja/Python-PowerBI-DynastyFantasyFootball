@@ -19,7 +19,11 @@ PAUSED_HINT = "The Supabase project may be paused; resume it from the dashboard.
 INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git_sha) "
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
-          "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s WHERE run_id = %s")
+          "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s, "
+          "cadence = %s::jsonb WHERE run_id = %s")
+STEPS_DONE = ("SELECT DISTINCT d FROM ops.etl_run_log, "
+              "jsonb_array_elements_text(cadence -> 'done') AS d "
+              "WHERE cadence ->> 'week_key' = %s AND status <> 'running'")
 COUNT_STALE = ("SELECT count(*) FROM ops.etl_run_log WHERE status = 'running' "
                "AND finished_at IS NULL AND started_at < now() - interval '6 hours'")
 
@@ -73,6 +77,25 @@ def _count(sql: str) -> int:
     with _connect() as conn:
         conn.execute(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}")
         return int(conn.execute(sql).fetchone()[0])
+
+
+def _rows(sql: str, params: tuple) -> list[tuple]:
+    with _connect() as conn:
+        conn.execute(f"SET LOCAL statement_timeout = {int(STATEMENT_TIMEOUT_MS)}")
+        return list(conn.execute(sql, params).fetchall())
+
+
+def steps_done(week_key: str) -> set[str] | None:
+    """The close_day steps an earlier run finished for `week_key`, from the
+    `cadence` column. None when the log is off or cannot be read: the caller
+    then has no record and must not guess one. Never raises."""
+    if not enabled():
+        return None
+    try:
+        return {row[0] for row in _rows(STEPS_DONE, (week_key,))}
+    except Exception as exc:
+        print(f"[warn] close_day record not read: {first_line(exc)}")
+        return None
 
 
 def _secrets() -> list[str]:
@@ -174,13 +197,15 @@ class RunLog:
             print(f"[warn] {self.warning}")
 
     def finish(self, status: str, snapshot_commit_sha: str | None = None,
-               rows_written: dict | None = None, error: str | None = None) -> None:
+               rows_written: dict | None = None, error: str | None = None,
+               cadence: dict | None = None) -> None:
         if self.run_id is None:
             return
         rows = None if rows_written is None else json.dumps(rows_written)
+        cad = None if cadence is None else json.dumps(cadence)
         try:
             _write(UPDATE, (datetime.now(timezone.utc), status, snapshot_commit_sha,
-                            rows, error, self.run_id))
+                            rows, error, cad, self.run_id))
         except Exception as exc:
             self._failed(exc)
             return

@@ -1,1 +1,7 @@
 zensical==0.1.0
+# scripts/build_schedule_page.py imports run_pipeline (and so etl_helpers and
+# etl_checks) to read build_steps. These are what that import needs beyond the
+# trade-bud backend requirements the workflows already install.
+pyyaml>=6
+requests>=2.31
+thefuzz>=0.20
