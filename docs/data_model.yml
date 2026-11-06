@@ -1208,6 +1208,7 @@ other_tables:
       - { name: snapshot_commit_sha, sql_type: text }
       - { name: rows_written, sql_type: jsonb }
       - { name: error, sql_type: text }
+      - { name: cadence, sql_type: jsonb }
 
   - name: change_poll_state
     schema: ops

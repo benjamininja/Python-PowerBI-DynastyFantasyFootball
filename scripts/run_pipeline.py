@@ -20,6 +20,11 @@ Phase model (derived from 04a's week label + the season calendar):
   OFFSEASON  everything else (fixes the "February clamps to week 18" edge:
              derive_week_label alone would keep saying 18 forever)
 
+Cadence (ADR-0020): each step is `daily` or `close_day`. A close_day step runs
+on its Close Day, or on the first run after it with no success for that week
+in ops.etl_run_log; `--cadence all` runs every step. The week is
+(season, period) in season and the ISO week off season.
+
 NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
 03-group rookie chain (manual Excel gates), and review applies (03z,
 apply_fantrax_crosswalk_review). Nothing here writes to Fantrax: the one
@@ -43,6 +48,10 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
+from zoneinfo import ZoneInfo
+
+import pandas as pd
 
 REPO = Path(__file__).resolve().parent.parent
 VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
@@ -54,9 +63,15 @@ CHECKS_TIMEOUT_S = 1800
 CHECKS_POLL_S = 30
 
 sys.path.insert(0, str(NB))
-import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
+import etl_cap  # noqa: E402  (notebooks/ on the path, like the notebooks do)
+import etl_checks  # noqa: E402
 import etl_helpers  # noqa: E402
 import etl_run_log  # noqa: E402
+
+CLOSE_DAY_STEPS = frozenset({"03a_fantasypros", "03b_walterfootball", "03c_ktc_rookie",
+                             "03d_draftsharks_rookie", "04b_ktc_dynasty"})
+CADENCES = ("due", "all")
+ONE_DAY = timedelta(days=1)
 
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
@@ -166,8 +181,13 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
+        # Logged-in transaction history (04a's session, like 04v): the raw
+        # capture 02d builds the ledger from. If it fails, 02d is skipped and
+        # the Chain is held.
+        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "chain": "fantrax_core", "group": "regular_season"},
+        {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         # Dead Money from the ledger's drops (no network). 02e's cap summary
         # reads it, so it sits between the ledger and the roster.
         {"name": "02f_dead_money", "cmd": _script("02f_fact_dead_money.py"),
@@ -204,7 +224,109 @@ def build_steps(profile: str | None) -> list[dict]:
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
              "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "chain": "dynasty_profile", "group": "pre_season"},
         ]
+    for s in steps:
+        s["cadence"] = "close_day" if s["name"] in CLOSE_DAY_STEPS else "daily"
     return steps
+
+
+def _selected(s: dict, phase: str, only: set[str] | None, groups: set[str] | None) -> bool:
+    if phase not in s["phases"] or (only and s["name"] not in only):
+        return False
+    return not (groups and s.get("group") not in groups)
+
+
+def league_today() -> date:
+    return datetime.now(ZoneInfo(etl_cap.LEAGUE_TZ)).date()
+
+
+def close_day_state(periods: pd.DataFrame | None, today: date, weekday: int) -> dict:
+    """The week the close_day steps owe on `today` (a day on the Eastern clock).
+
+    In season, while `today` is inside the calendar of `periods`
+    (dim_scoring_period), the week is the latest period whose Close Day, its
+    end_date + 1, is on or before `today`: key `<season_id>-p<NN>`; before the
+    first Close Day it is None. Outside the calendar the Close Day is the
+    latest `weekday` (Monday = 0) on or before `today`, and the key is that
+    day's ISO week `<year>-W<NN>`."""
+    rows = []
+    if periods is not None and len(periods):
+        rows = sorted((pd.Timestamp(r.start_date).date(), pd.Timestamp(r.end_date).date(),
+                       str(r.season_id), int(r.period), bool(r.is_playoff))
+                      for r in periods.itertuples())
+    if rows and rows[0][0] <= today <= rows[-1][1] + ONE_DAY:
+        closed = [r for r in rows if r[1] + ONE_DAY <= today]
+        if not closed:
+            return {"mode": "period", "week_key": None, "close_day": None, "is_playoff": False}
+        _, end, season, period, playoff = closed[-1]
+        return {"mode": "period", "week_key": f"{season}-p{period:02d}",
+                "close_day": end + ONE_DAY, "is_playoff": playoff}
+    day = today - timedelta(days=(today.weekday() - weekday) % 7)
+    year, week, _ = day.isocalendar()
+    return {"mode": "weekday", "week_key": f"{year}-W{week:02d}",
+            "close_day": day, "is_playoff": False}
+
+
+def load_periods() -> pd.DataFrame | None:
+    try:
+        return etl_helpers.read_table("dim_scoring_period")
+    except Exception as exc:
+        print(f"[warn] dim_scoring_period not read ({type(exc).__name__}): "
+              f"Close Day taken from the weekday")
+        return None
+
+
+def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
+                  groups: set[str] | None, cadence: str, state: dict, today: date,
+                  done_for: Callable[[str], set[str] | None]) -> tuple[list[dict], dict]:
+    """Drop the close_day steps that are not due. Only a close_day step that
+    phase, --steps and --group would otherwise run counts as ran or deferred.
+    A step is due when `cadence` is "all", or when the week in `state` has no
+    record of it in `done_for(week_key)`; with no record to read (None) it is
+    due on its Close Day only. Returns (steps to run, the cadence report)."""
+    kept, ran, deferred = [], [], []
+    record: list = []
+    for s in steps:
+        if s.get("cadence", "daily") != "close_day" or not _selected(s, phase, only, groups):
+            kept.append(s)
+            continue
+        if cadence == "all":
+            due = True
+        elif state["week_key"] is None:
+            due = False
+        else:
+            if not record:
+                record.append(done_for(state["week_key"]))
+            due = (today == state["close_day"]) if record[0] is None else s["name"] not in record[0]
+        if due:
+            kept.append(s)
+            ran.append(s["name"])
+        else:
+            deferred.append(s["name"])
+    return kept, {"filter": cadence, "week_key": state["week_key"],
+                  "close_day": state["close_day"].isoformat() if state["close_day"] else None,
+                  "mode": state["mode"], "is_playoff": state["is_playoff"],
+                  "ran": ran, "deferred": deferred}
+
+
+def close_steps_done(report: dict, results: list[dict], steps: list[dict], plan: dict | None,
+                     commit_line: str) -> list[str]:
+    """The close_day steps of this run that count as a success for its week: ok,
+    their Chain passed and was not withheld, and the data was not aborted or
+    left uncommitted."""
+    landed = etl_run_log.data_committed(commit_line) or commit_line.startswith("no data changes")
+    if not plan or not landed:
+        return []
+    chain_of = {s["name"]: s["chain"] for s in steps}
+    good = set(plan["passed"]) - set(plan.get("unpublished", ()))
+    return [r["name"] for r in results if r["name"] in report["ran"]
+            and r["status"] == "ok" and chain_of[r["name"]] in good]
+
+
+def cadence_line(report: dict) -> str:
+    when = f"week {report['week_key']}, Close Day {report['close_day']}" if report["week_key"] \
+        else "no Close Day yet"
+    return (f"filter={report['filter']} ({when}); close_day ran: "
+            f"{', '.join(report['ran']) or 'none'}; deferred: {', '.join(report['deferred']) or 'none'}")
 
 
 def run_steps(steps: list[dict], phase: str, only: set[str] | None,
@@ -214,9 +336,7 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     env = {**os.environ, "PYTHONUTF8": "1"}
     for s in steps:
         name = s["name"]
-        if phase not in s["phases"] or (only and name not in only):
-            continue
-        if groups and s.get("group") not in groups:
+        if not _selected(s, phase, only, groups):
             continue
         bad_dep = next((d for d in s["needs"] if status.get(d) in ("failed", "skipped")), None)
         if bad_dep:
@@ -598,8 +718,10 @@ def notify(text: str) -> None:
 
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
-              filed: dict | None = None) -> str:
+              filed: dict | None = None, cadence: dict | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
+    if cadence:
+        lines.append(f"🗓️ {cadence_line(cadence)}")
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
@@ -665,6 +787,10 @@ def main() -> int:
     ap.add_argument("--group", help="comma-separated groups to run "
                     "(pre_season,rookie,regular_season,injury) — orthogonal "
                     "to --phase, combines with AND")
+    ap.add_argument("--cadence", choices=CADENCES, default="due",
+                    help="due (default): a close_day step runs on its Close Day "
+                         "or the first run after it that has no success for "
+                         "the week; all: every step runs whatever the day")
     ap.add_argument("--profile", choices=["dynasty"],
                     help="extra chain: dynasty = 04b -> 04c -> 04y "
                          "(run after refreshing the 04x manual Excel)")
@@ -700,6 +826,11 @@ def main() -> int:
         steps = build_steps(args.profile)
         only = set(args.steps.split(",")) if args.steps else None
         groups = set(args.group.split(",")) if args.group else None
+        today = league_today()
+        state = close_day_state(load_periods(), today, etl_helpers.CFG.close_day_weekday)
+        steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
+                                       today, etl_run_log.steps_done)
+        print(f"[cadence] {cadence_line(cadence)}")
         results = run_steps(steps, phase, only, args.dry_run, groups)
 
         plan, filed = None, None
@@ -742,6 +873,8 @@ def main() -> int:
             r["status"] not in ("ok", "dry-run") for r in results)
         code = 1 if failed or commit_line.startswith("ABORTED") else 0
 
+        cadence["done"] = [] if args.no_commit else close_steps_done(
+            cadence, results, steps, plan, commit_line)
         if runlog.run_id:
             runlog.finish(
                 etl_run_log.final_status(code, commit_line),
@@ -751,14 +884,15 @@ def main() -> int:
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
                 error=(etl_run_log.failure_summary(results, plan, commit_line)
-                       if code else None))
+                       if code else None),
+                cadence=cadence)
     except BaseException as exc:
         runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
         if runlog.warning and not args.dry_run:
             notify(f"{runlog.warning}\nThe pipeline raised {type(exc).__name__} before it finished.")
         raise
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
     if runlog.warning:
         summary = f"{runlog.warning}\n{summary}"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
