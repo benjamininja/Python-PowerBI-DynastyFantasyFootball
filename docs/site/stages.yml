@@ -118,6 +118,7 @@ manual:
   - {name: 03y, summary: "Backfills the player alias table from past reviews."}
   - {name: 03z, summary: "Applies the owner's decisions on uncertain player matches."}
   - {name: 04x, summary: "Loads dynasty rankings that arrive as Excel files."}
+  - {name: 04y, summary: "Builds the Composite dynasty values from the ranking sources. Setting COMPOSITE_REBUILD_HISTORY=1 also recomputes past weeks' Composite; it is off by default and the owner runs it by hand."}
   - {name: 04d, summary: "Builds the draft pick value curve for the trade tool."}
   - {name: 04e, summary: "Builds the position ceiling table for the trade tool."}
   - {name: 04f, summary: "Pulls both DraftSharks ranking trees, dynasty and rookie."}
