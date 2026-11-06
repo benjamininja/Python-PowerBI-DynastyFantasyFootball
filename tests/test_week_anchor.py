@@ -120,9 +120,8 @@ class TestAnchorOffSeason:
         assert late_sunday.tz_convert("UTC").date() == date(2027, 2, 15)
         assert etl.week_anchor(late_sunday, PERIODS) == date(2027, 2, 14)
 
-    def test_no_table_is_off_season(self, no_tables):
+    def test_no_table_places_no_period(self, no_tables):
         assert etl.scoring_period_on(date(2026, 9, 16)) is None
-        assert etl.week_anchor(date(2026, 9, 16)) == date(2026, 9, 20)
 
     def test_the_anchor_is_always_a_sunday_off_season(self):
         day = date(2027, 1, 8)
@@ -156,6 +155,7 @@ def reference_close_day_state(periods, today, weekday):
 
 THURSDAY = 3
 NO_PERIODS = PERIODS.iloc[0:0]
+SHORT = PERIODS.iloc[:1]
 
 
 class TestWeek:
@@ -193,7 +193,7 @@ class TestWeek:
         (date(2027, 1, 4), "2027-W01", date(2027, 1, 10)),
     ])
     def test_the_iso_year_comes_from_the_iso_week(self, day, key, anchor):
-        week = etl.week_of(day, NO_PERIODS)
+        week = etl.week_of(day, SHORT)
         assert (week.key, week.anchor, week.mode) == (key, anchor, "weekday")
 
     def test_the_anchor_is_week_anchor(self):
@@ -201,9 +201,8 @@ class TestWeek:
         assert etl.week_anchor(day, PERIODS) == etl.week_of(day, PERIODS).anchor
         assert etl.week_anchor(date(2027, 2, 10), PERIODS) == etl.week_of(date(2027, 2, 10), PERIODS).anchor
 
-    def test_no_table_is_an_off_season_week(self, no_tables):
-        week = etl.week_of(date(2026, 9, 16))
-        assert (week.key, week.mode) == ("2026-W38", "weekday")
+    def test_no_table_is_no_week(self, no_tables):
+        assert etl.week_of(date(2026, 9, 16)) is None
 
     def test_the_week_is_read_from_the_stored_table(self, stored_periods):
         assert etl.week_of(date(2026, 9, 16)).key == "2026-2027-p01"
@@ -235,28 +234,102 @@ class TestClosedWeek:
         assert etl.closed_week(date(2027, 2, 15), PERIODS).key == "2027-W06"
         assert etl.closed_week(date(2027, 2, 18), PERIODS).key == "2027-W07"
 
-    def test_no_calendar_uses_the_weekday(self):
-        week = etl.closed_week(date(2026, 9, 22), NO_PERIODS)
-        assert week.mode == "weekday"
-
-    def test_the_keys_match_run_pipelines_on_every_day(self):
+    @pytest.mark.parametrize("periods", [PERIODS, SHORT])
+    def test_the_keys_match_run_pipelines_on_every_day_but_the_handover(self, periods):
+        last_close = pd.Timestamp(periods["end_date"].iloc[-1]).date() + timedelta(days=1)
+        covered = 0
         day = date(2026, 8, 1)
         while day <= date(2027, 3, 1):
-            ref = reference_close_day_state(PERIODS, day, THURSDAY)
-            got = etl.closed_week(day, PERIODS, THURSDAY)
+            ref = reference_close_day_state(periods, day, THURSDAY)
+            got = etl.close_state(day, periods, THURSDAY)
             if ref is None:
-                assert got is None, day
+                assert (got.week, got.reason) == (None, "not_yet"), day
+            elif ref[0] == "weekday" and day > last_close and ref[2] <= last_close:
+                assert (got.week, got.reason) == (None, "covered"), day
+                covered += 1
             else:
-                assert (got.mode, got.key, got.close_day, got.is_playoff) == ref, day
+                assert got.reason == "owed", day
+                assert (got.week.mode, got.week.key, got.week.close_day, got.week.is_playoff) == ref, day
             day += timedelta(days=1)
+        assert covered > 0
 
-    def test_the_keys_match_run_pipelines_with_no_calendar(self):
+    def test_before_the_calendar_the_weekday_week_is_owed_with_no_cover_rule(self):
+        got = etl.close_state(date(2026, 8, 13), PERIODS, THURSDAY)
+        assert (got.reason, got.week.key, got.week.close_day) == ("owed", "2026-W33", date(2026, 8, 13))
+        assert etl.close_state(date(2026, 9, 3), PERIODS, THURSDAY).reason == "owed"
+
+
+class TestSeasonEndHandover:
+    """The last period's Close Day is 2027-01-08, so 2027-W01 (Close Day
+    2027-01-07) is covered by its run (owner, 2026-11-06)."""
+
+    def test_the_last_periods_close_day_runs_it(self):
+        got = etl.close_state(date(2027, 1, 8), PERIODS, THURSDAY)
+        assert (got.reason, got.week.key, got.week.close_day) == ("owed", "2026-2027-p17", date(2027, 1, 8))
+
+    @pytest.mark.parametrize("day", [date(2027, 1, 9), date(2027, 1, 10), date(2027, 1, 11),
+                                     date(2027, 1, 12), date(2027, 1, 13)])
+    def test_the_days_after_it_owe_no_close_day_step(self, day):
+        got = etl.close_state(day, PERIODS, THURSDAY)
+        assert (got.week, got.reason) == (None, "covered")
+        assert etl.closed_week(day, PERIODS, THURSDAY) is None
+
+    def test_the_first_off_season_close_day_is_the_following_thursday(self):
+        got = etl.close_state(date(2027, 1, 14), PERIODS, THURSDAY)
+        assert (got.reason, got.week.key, got.week.close_day, got.week.mode) == (
+            "owed", "2027-W02", date(2027, 1, 14), "weekday")
+        assert etl.close_state(date(2027, 1, 15), PERIODS, THURSDAY).week.key == "2027-W02"
+
+    def test_a_week_whose_close_day_is_after_the_last_close_day_is_not_covered(self):
+        got = etl.close_state(date(2027, 1, 21), PERIODS, THURSDAY)
+        assert (got.reason, got.week.key, got.week.close_day) == ("owed", "2027-W03", date(2027, 1, 21))
+        assert etl.close_state(date(2027, 1, 20), PERIODS, THURSDAY).week.key == "2027-W02"
+
+    def test_the_cover_follows_the_configured_weekday(self):
+        monday = etl.close_state(date(2027, 1, 11), PERIODS, 0)
+        assert (monday.reason, monday.week.key, monday.week.close_day) == ("owed", "2027-W02", date(2027, 1, 11))
+        assert etl.close_state(date(2027, 1, 10), PERIODS, 0).reason == "covered"
+
+    def test_a_short_calendar_is_covered_the_same_way(self):
+        assert etl.close_state(date(2026, 9, 19), SHORT, THURSDAY).reason == "covered"
+        assert etl.close_state(date(2026, 9, 25), SHORT, THURSDAY).week.key == "2026-W39"
+
+
+class TestUnreadableCalendar:
+    """dim_scoring_period cannot be read: no week and no ISO guess (owner,
+    2026-11-06). The caller runs its daily steps, skips close_day steps and
+    warns in its summary; catch-up runs them once the calendar reads."""
+
+    def test_a_missing_table_is_no_week_with_a_reason_and_a_warning(self, no_tables, capsys):
+        got = etl.close_state(date(2026, 9, 22), None, THURSDAY)
+        assert (got.week, got.reason) == (None, "unreadable")
+        assert "[warn] dim_scoring_period not read (TableNotFound)" in capsys.readouterr().out
+
+    def test_a_read_error_is_unreadable_too(self, monkeypatch, capsys):
+        def broken(name, columns=None):
+            raise OSError("disk read failed")
+        monkeypatch.setattr(etl, "read_table", broken)
+        assert etl.close_state(date(2026, 9, 22), None, THURSDAY) == etl.Owed(None, "unreadable")
+        assert "[warn] dim_scoring_period not read (OSError): disk read failed" in capsys.readouterr().out
+
+    def test_an_empty_calendar_is_unreadable(self):
+        assert etl.close_state(date(2026, 9, 22), NO_PERIODS, THURSDAY) == etl.Owed(None, "unreadable")
+
+    def test_it_never_guesses_an_iso_key_on_any_day(self, no_tables):
         day = date(2026, 8, 1)
         while day <= date(2027, 3, 1):
-            ref = reference_close_day_state(None, day, THURSDAY)
-            got = etl.closed_week(day, NO_PERIODS, THURSDAY)
-            assert (got.mode, got.key, got.close_day, got.is_playoff) == ref, day
+            assert etl.close_state(day, None, THURSDAY).week is None, day
+            assert etl.week_of(day) is None, day
             day += timedelta(days=1)
+
+    def test_the_stored_table_is_read_once_per_call(self, stored_periods):
+        assert etl.close_state(date(2026, 9, 25)).reason == "owed"
+
+    def test_a_snapshot_is_never_keyed_on_a_guess(self, no_tables):
+        with pytest.raises(etl.CalendarUnreadable):
+            etl.week_anchor(date(2026, 9, 22))
+        with pytest.raises(etl.CalendarUnreadable):
+            etl.week_anchor(date(2026, 9, 22), NO_PERIODS)
 
     def test_a_week_closes_into_itself_on_its_close_day(self):
         day = date(2026, 9, 10)
@@ -358,6 +431,128 @@ class TestNotebooksWriteTheAnchor:
         code = code_of("04y_composite_dynasty_metrics.ipynb")
         assert "date.today" not in code and "etl.TODAY" not in code
         assert 'groupby(["snapshot_date", "format", "gsis_id"])' in code
+
+
+S1, S2, S3 = (pd.Timestamp(d).as_unit("us") for d in ("2026-09-17", "2026-09-24", "2026-10-01"))
+FACT = "fact_dynasty_ranking_metrics"
+COMPOSITE_CELLS = ("8c565462", "e468dc6d", "e2cad8c9", "9e5c69c0")
+
+
+def notebook_cell(notebook: str, cell_id: str) -> str:
+    import json
+    cells = json.loads((REPO / "notebooks" / notebook).read_text(encoding="utf-8"))["cells"]
+    return "".join(next(c for c in cells if c.get("id") == cell_id)["source"])
+
+
+def fixture_fact() -> pd.DataFrame:
+    """Three weeks of KTC and DynastySharks ADP, and a Composite slice (77.0
+    everywhere, a value the notebook never computes) for the first two."""
+    rows = []
+
+    def add(snap, source, key, pid, gsis, num):
+        rows.append({"snapshot_date": snap, "source_name": source, "source_player_id": pid,
+                     "format": "SF", "source_uid": f"{source}|{pid}", "gsis_id": gsis,
+                     "metric_key": key, "metric_num": num, "metric_text": None})
+    for snap in (S1, S2, S3):
+        for pid, gsis, ktc, ds in (("1", "g1", 1.0, 1.05), ("2", "g2", 2.0, 2.05), ("3", "g3", 3.0, 3.05)):
+            add(snap, "KTC", "ktc_adp", pid, gsis, ktc)
+            add(snap, "DynastySharks", "ds_adp", pid, gsis, ds)
+    for snap in (S1, S2):
+        for gsis in ("g1", "g2", "g3"):
+            for key in ("composite_adp", "sources_count"):
+                add(snap, "Composite", key, gsis, gsis, 77.0)
+    frame = pd.DataFrame(rows)
+    frame["snapshot_date"] = frame["snapshot_date"].astype("datetime64[us]")
+    return frame
+
+
+class CompositeStore:
+    """fact_dynasty_ranking_metrics in a throwaway parquet file, read and
+    written through the seam's own parquet writer."""
+
+    def __init__(self, tmp_path, monkeypatch, anchor):
+        self.path = tmp_path / "fact.parquet"
+        self.entry = etl._table_entry(FACT)
+        etl._write_parquet(self.path, fixture_fact(), "replace", None, None, self.entry)
+        monkeypatch.setattr(etl, "read_table", lambda name, columns=None: pd.read_parquet(self.path))
+        monkeypatch.setattr(etl, "write_table", self.write)
+        monkeypatch.setattr(etl, "week_anchor", lambda *a, **k: anchor)
+
+    def write(self, name, df, *, mode="replace", keys=None, partition=None):
+        assert name == FACT
+        return len(etl._write_parquet(self.path, df, mode, keys, partition, self.entry))
+
+    def rows(self, source=None, before=None):
+        out = pd.read_parquet(self.path)
+        if source:
+            out = out[out["source_name"] == source]
+        if before is not None:
+            out = out[out["snapshot_date"] < before]
+        return out.sort_values(etl.table_grain(self.entry)).reset_index(drop=True)
+
+    def run(self):
+        ns = {"__name__": "composite_nb"}
+        for cell_id in COMPOSITE_CELLS:
+            exec(compile(notebook_cell("04y_composite_dynasty_metrics.ipynb", cell_id), cell_id, "exec"), ns)
+        return ns
+
+
+def parquet_bytes(frame: pd.DataFrame) -> bytes:
+    import io
+    buf = io.BytesIO()
+    frame.to_parquet(buf, index=False)
+    return buf.getvalue()
+
+
+class TestCompositeFreezesPastWeeks:
+    def test_a_run_leaves_earlier_snapshots_byte_identical(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 1))
+        before = store.rows(before=S3)
+        store.run()
+        after = store.rows(before=S3)
+        pd.testing.assert_frame_equal(before, after)
+        assert parquet_bytes(before) == parquet_bytes(after)
+        assert set(after[after["source_name"] == "Composite"]["metric_num"]) == {77.0}
+
+    def test_the_current_week_gets_its_composite_slice(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 1))
+        store.run()
+        current = store.rows(source="Composite")
+        current = current[current["snapshot_date"] == S3]
+        assert len(current) == 6
+        ranks = current[current["metric_key"] == "composite_adp"].set_index("gsis_id")["metric_num"]
+        assert sorted(ranks) == [1.0, 2.0, 3.0]
+
+    def test_a_second_run_in_the_week_rewrites_only_that_slice(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 1))
+        store.run()
+        once = store.rows()
+        store.run()
+        pd.testing.assert_frame_equal(once, store.rows())
+
+    def test_rebuilding_history_is_opt_in(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("COMPOSITE_REBUILD_HISTORY", "1")
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 1))
+        store.run()
+        past = store.rows(source="Composite", before=S3)
+        assert 77.0 not in set(past["metric_num"])
+        assert set(past["snapshot_date"]) == {S1, S2}
+
+    def test_off_by_default(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 1))
+        assert store.run()["REBUILD_HISTORY"] is False
+
+    def test_a_week_with_no_adp_rows_fails_loudly_and_writes_nothing(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
+        store = CompositeStore(tmp_path, monkeypatch, date(2026, 10, 8))
+        before = store.rows()
+        with pytest.raises(RuntimeError, match="no ADP rows at the current week's snapshot_date 2026-10-08"):
+            store.run()
+        pd.testing.assert_frame_equal(before, store.rows())
 
 
 def load_04a():

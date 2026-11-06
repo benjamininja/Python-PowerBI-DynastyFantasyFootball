@@ -942,11 +942,19 @@ def league_date(day=None) -> date:
     return stamp.date()
 
 
+class CalendarUnreadable(RuntimeError):
+    """dim_scoring_period cannot be read, so no week can be named."""
+
+
 def stored_scoring_periods() -> pd.DataFrame | None:
-    """`dim_scoring_period` as stored, or None where there is no such table."""
+    """`dim_scoring_period` as stored, or None where it cannot be read (no
+    table, or a read error). A warning line says why; the caller decides what
+    an unreadable calendar means (ADR-0020: no week, no guess)."""
     try:
         return read_table("dim_scoring_period")
-    except TableNotFound:
+    except Exception as exc:
+        first = (str(exc).splitlines() or [""])[0]
+        print(f"[warn] dim_scoring_period not read ({type(exc).__name__}): {first}")
         return None
 
 
@@ -1011,13 +1019,18 @@ def _iso_week(day: date, weekday: int) -> Week:
 
 
 def week_of(day=None, periods: pd.DataFrame | None = None,
-            close_day_weekday: int | None = None) -> Week:
+            close_day_weekday: int | None = None) -> Week | None:
     """The week `day` falls in, placed as `scoring_period_on` places it: the
     Scoring Period holding it in season, else its ISO week. `day` None is now.
     `periods` and `close_day_weekday` default to the stored table and
-    `CFG.close_day_weekday`."""
+    `CFG.close_day_weekday`.
+
+    None when the calendar cannot be read (no table, or an empty one): the
+    helper never guesses an ISO week then (owner, 2026-11-06)."""
     if periods is None:
         periods = stored_scoring_periods()
+    if periods is None or periods.empty:
+        return None
     hit = scoring_period_on(day, periods)
     if hit is not None:
         return _period_week(hit)
@@ -1025,34 +1038,64 @@ def week_of(day=None, periods: pd.DataFrame | None = None,
     return _iso_week(league_date(day), weekday)
 
 
-def closed_week(day=None, periods: pd.DataFrame | None = None,
-                close_day_weekday: int | None = None) -> Week | None:
-    """The week whose Close Day is the latest on or before `day`: the week the
-    close_day steps owe on `day`.
+OWED, NOT_YET, COVERED, UNREADABLE = "owed", "not_yet", "covered", "unreadable"
 
-    While `day` is inside the calendar of `periods` (the first start through
-    the last Close Day) it is the latest period whose end date + 1 is on or
-    before `day`, None before the first. Outside the calendar it is the ISO
-    week of the latest `close_day_weekday` (Monday = 0) on or before `day`."""
+
+class Owed(NamedTuple):
+    """What the close_day steps owe on a day: the `week`, or no week and the
+    `reason` (not_yet, covered or unreadable) so the caller can tell a quiet
+    day from a calendar it must warn about."""
+    week: Week | None
+    reason: str
+
+
+def close_state(day=None, periods: pd.DataFrame | None = None,
+                close_day_weekday: int | None = None) -> Owed:
+    """The week whose Close Day is the latest on or before `day`: the week the
+    close_day steps owe on `day`, or why none is.
+
+    - unreadable: no calendar (no table, an empty one). No week, no ISO guess.
+    - Inside the calendar (the first start through the last Close Day): the
+      latest period whose end date + 1 is on or before `day`; not_yet before
+      the first.
+    - Before the calendar: the ISO week of the latest `close_day_weekday`
+      (Monday = 0) on or before `day`. Going into preseason needs no rule.
+    - After the calendar: the same ISO week, unless its Close Day falls on or
+      before the last period's Close Day. That week is covered by the last
+      period's run (owner, 2026-11-06): no week, reason covered."""
     today = league_date(day)
     if periods is None:
         periods = stored_scoring_periods()
-    if periods is not None and len(periods):
-        rows = periods.sort_values(["start_date", "end_date"])
-        first = pd.Timestamp(rows["start_date"].iloc[0]).date()
-        last_close = pd.Timestamp(rows["end_date"].iloc[-1]).date() + ONE_DAY
-        if first <= today <= last_close:
-            closed = rows[rows["end_date"].map(lambda d: pd.Timestamp(d).date() + ONE_DAY) <= today]
-            return None if closed.empty else _period_week(closed.iloc[-1])
+    if periods is None or periods.empty:
+        return Owed(None, UNREADABLE)
+    rows = periods.sort_values(["start_date", "end_date"])
+    first = pd.Timestamp(rows["start_date"].iloc[0]).date()
+    last_close = pd.Timestamp(rows["end_date"].iloc[-1]).date() + ONE_DAY
+    if first <= today <= last_close:
+        closed = rows[rows["end_date"].map(lambda d: pd.Timestamp(d).date() + ONE_DAY) <= today]
+        return Owed(None, NOT_YET) if closed.empty else Owed(_period_week(closed.iloc[-1]), OWED)
     weekday = CFG.close_day_weekday if close_day_weekday is None else close_day_weekday
-    return _iso_week(today - timedelta(days=(today.weekday() - weekday) % 7), weekday)
+    week = _iso_week(today - timedelta(days=(today.weekday() - weekday) % 7), weekday)
+    if today > last_close and week.close_day <= last_close:
+        return Owed(None, COVERED)
+    return Owed(week, OWED)
+
+
+def closed_week(day=None, periods: pd.DataFrame | None = None,
+                close_day_weekday: int | None = None) -> Week | None:
+    """`close_state(...).week`: the week the close_day steps owe, else None."""
+    return close_state(day, periods, close_day_weekday).week
 
 
 def week_anchor(day=None, periods: pd.DataFrame | None = None) -> date:
     """The `snapshot_date` of the week `day` falls in (`week_of(...).anchor`).
     Every run of a week gets the same date, so `replace_partition` on it
-    overwrites the week's slice in place."""
-    return week_of(day, periods).anchor
+    overwrites the week's slice in place. Raises CalendarUnreadable where
+    there is no week to name: a snapshot is never keyed on a guess."""
+    week = week_of(day, periods)
+    if week is None:
+        raise CalendarUnreadable("dim_scoring_period cannot be read: no week anchor for the snapshot")
+    return week.anchor
 
 
 DROPPED_STATUS = "DROPPED"
