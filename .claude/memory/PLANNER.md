@@ -11,7 +11,16 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000. **NEWEST: 2026-11-05 late night, early cadence start. Overrides everything below; read 000000000000000000000000000000 next for resume details.**
+00000000000000000000000000000000. **NEWEST: 2026-11-06 early. Overrides everything below; read 0000000000000000000000000000000 and 000000000000000000000000000000 next.**
+- #374 (docs shell) merged by PR #381 as `5819501`, with Pages live (/docs/ 200). I verified it and closed #374. #380 (README row and generated schedule page) is blocked by #372 and not dispatched.
+- PR #382 (#372) passed CI and the supabase-auditor found nothing blocking. It adds a nullable `cadence` jsonb on ops.etl_run_log, which I approved. PR #383 (#378) passed CI; the re-proof is pending. Both are held until #336 closes.
+- Merge order: #383 first, because its etl_helpers `Week` helper (week_of, closed_week, week_anchor) is the only week definition. Keys look like `2026-2027-p09` or ISO `YYYY-Www`. Then #382 switches `close_day_state` to the helper and is re-proved. Then #373, then #380.
+- #382 merge gates: the migration is applied first, then the owner runs --check-only (an Action at merge time), then the next run. The owner's --dry-run proof is taken after the first daily run records the week, since that run re-runs the close_day steps once.
+- Owner decisions, 2026-11-06, recorded on #378: the season-end handover is "Covered"; an unreadable calendar is "Defer"; 04y freezes past weeks behind an opt-in `--rebuild-history` flag. All three go into PR #383 before merge.
+- Notebook form in #383: normalize to the list-of-lines form with a final newline through an already-allowed command, otherwise accept as is. A repo-wide notebook normalize ticket is still to be written (not yet ticketed).
+- Plugin-side ticket skills-plugins-hooks-agents#80 covers the builder denials (the #370 pytest run, and the #374 docs lookups). The carry-over about it is done.
+
+0000000000000000000000000000000. **2026-11-05 late night, early cadence start. Overrides everything below; read 000000000000000000000000000000 next for resume details.**
 - The owner approved in planner chat: "approved, start 372, 378 and the 374 shell now". Recorded on #372, #378, #374 and map #375, and relayed to the manager word for word for dispatch from `aaa01ec`.
 - #372 and #378 may reach Green but **must not merge** until the 2026-11-12 06:00 run passes and #336 closes.
 - #374 was split: it is now the site shell, not blocked, and merges as usual (it touches no runner file). New #380 (low) is the generated schedule page, blocked by #372 and #374.
