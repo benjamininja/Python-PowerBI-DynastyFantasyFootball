@@ -1,0 +1,124 @@
+# The stages of the scheduled run, for the Refresh schedule page (#380).
+# scripts/build_schedule_page.py reads this file and build_steps in
+# scripts/run_pipeline.py. This file holds names, plain-language text, which
+# step sits in which stage, and the tables a stage lands. Cadence, phase and
+# login come from build_steps, never from here.
+# tests/test_schedule_page.py: every scheduled step is in exactly one stage,
+# every step named here exists, every stage has a description.
+
+stages:
+  - id: season_league
+    name: Season and league
+    description: >-
+      Sets the calendar the rest of the run hangs from: which season it is,
+      when each Scoring Period starts and ends, and what each team's roster
+      looked like. Owners see it as the dates on every deadline and the
+      lineups behind every score.
+    tables: [dim_season, dim_scoring_period, dim_division, fact_roster_state]
+    steps:
+      - {name: 01f_dim_season, summary: "Seeds the season calendar."}
+      - {name: 04p_league_info, summary: "Reads the league's scoring periods and divisions from Fantrax's public page."}
+      - {name: 04r_roster_state, summary: "Reads every team's roster for each period that has started and is not closed."}
+
+  - id: nflverse
+    name: nflverse
+    description: >-
+      Brings in the NFL side of the picture: who the players are, how
+      prospects tested at the combine, and in season their snap counts and
+      injury status. Owners see it as the player facts behind every rankings
+      and trade screen.
+    tables: [dim_nfl_players, fact_nfl_combine_pro_day_metrics, fact_nfl_snap_counts, fact_nfl_injuries]
+    steps:
+      - {name: 01e_dim_nfl_players, summary: "Rebuilds the NFL player list."}
+      - {name: 02a_combine_metrics, summary: "Rebuilds the combine and pro-day measurements."}
+      - {name: 02g_nflverse_inseason, summary: "Loads snap counts and the injury report during the season."}
+
+  - id: fantrax_pulls
+    name: Fantrax pulls
+    description: >-
+      Collects what only the league's Fantrax account can show: the player
+      grid with salaries and ADP, who is minors-eligible, and the full
+      transaction history. Owners see it as the contracts and moves that the
+      cap and roster screens are built from.
+    tables: [fact_fantrax_adp, dim_fantrax_crosswalk, fact_minor_eligibility]
+    steps:
+      - {name: 04a_scrape, summary: "Signs in to Fantrax and reads the Players grid."}
+      - {name: 04z_crosswalk, summary: "Matches Fantrax player ids to the NFL player list."}
+      - {name: 04a_backfill_gp, summary: "Fills in games played for the season so far."}
+      - {name: 04v_minor_contracts, summary: "Reads who Fantrax says is minors-eligible."}
+      - {name: 04t_txn_history, summary: "Captures the transaction history that the ledger is built from."}
+
+  - id: scoring
+    name: Scoring
+    description: >-
+      Records what each team scored and who it played once the games are
+      final. Owners see it as the weekly results and standings. It records a
+      period once its games are final and refreshes it while the period is
+      closing.
+    tables: [fact_period_scoring, fact_matchup]
+    steps:
+      - {name: 04s_scoring, summary: "Reads period scoring and matchups for every period whose games are final."}
+
+  - id: derive
+    name: Derive
+    description: >-
+      Turns the raw pulls into the league's books: the ledger of roster moves,
+      dead money, each team's roster and each team's cap. Owners see it as
+      the numbers they check before every trade, drop or signing.
+    tables: [fact_roster_transactions, fact_trade_log, fact_draft_pick, dim_roster_asset, fact_dead_money, fact_fantasy_teams, fact_team_cap]
+    steps:
+      - {name: 02d_ledger, summary: "Builds the ledger of roster moves and trades."}
+      - {name: 02f_dead_money, summary: "Works out dead money from the ledger's drops."}
+      - {name: 02e_derive, summary: "Derives each team's roster from the ledger."}
+      - {name: 02h_team_cap, summary: "Builds the cap table for each team and season."}
+
+  - id: rookie
+    name: Rookie rankings
+    description: >-
+      Refreshes the public rookie rankings from four ranking sites so the
+      draft board reflects the latest consensus. Owners see it as the
+      prospect order they draft from. These steps run on each Close Day.
+    tables: [fact_rookie_rankings]
+    steps:
+      - {name: 03a_fantasypros, summary: "Reads FantasyPros rookie rankings."}
+      - {name: 03b_walterfootball, summary: "Reads WalterFootball rookie rankings."}
+      - {name: 03c_ktc_rookie, summary: "Reads KeepTradeCut rookie values."}
+      - {name: 03d_draftsharks_rookie, summary: "Reads DraftSharks rookie rankings."}
+
+  - id: dynasty
+    name: Dynasty
+    description: >-
+      Refreshes dynasty player values from KeepTradeCut in the offseason, when
+      long-term value matters most. Owners see it as the long-term values the
+      trade tool weighs. It runs on each Close Day.
+    tables: [fact_dynasty_ranking_metrics]
+    steps:
+      - {name: 04b_ktc_dynasty, summary: "Reads KeepTradeCut dynasty values."}
+
+publish:
+  name: Publish
+  description: >-
+    Checks the day's tables and lands the ones that pass, so Power BI, the
+    bot and the trade tool only ever see good data. A table group that fails
+    its checks is held back and the others still publish. This part runs
+    after every run.
+  items:
+    - {name: Checks, summary: "Runs the table checks on every group that ran."}
+    - {name: Publish gate, summary: "Holds back any group with a failed or skipped step or a failed check."}
+    - {name: Postgres publish and parquet export, summary: "Writes the passing tables to the database, then exports the published snapshot."}
+    - {name: Data PR, summary: "Opens a pull request with the snapshot, waits for the required checks and merges it."}
+    - {name: Run log, summary: "Records what ran, so a missed Close Day step catches up."}
+    - {name: Discord, summary: "Posts a summary to a private channel."}
+
+manual:
+  - {name: 04w, summary: "Captures the live startup-draft results from Fantrax."}
+  - {name: 04u, summary: "Reads future draft pick ownership from Fantrax's public API."}
+  - {name: 01c, summary: "Seeds the team list from the league's Google Sheet."}
+  - {name: 03x, summary: "Loads rankings that arrive as Excel files."}
+  - {name: 03y, summary: "Backfills the player alias table from past reviews."}
+  - {name: 03z, summary: "Applies the owner's decisions on uncertain player matches."}
+  - {name: 04x, summary: "Loads dynasty rankings that arrive as Excel files."}
+  - {name: 04d, summary: "Builds the draft pick value curve for the trade tool."}
+  - {name: 04e, summary: "Builds the position ceiling table for the trade tool."}
+  - {name: 04f, summary: "Pulls both DraftSharks ranking trees, dynasty and rookie."}
+  - {name: 05a, summary: "Prints the startup draft board."}
