@@ -67,6 +67,7 @@ sources:
         - "8.7 bars showing its information on another website without authorization"
         - "path to compliance: spike #428, fallback #429 (owner, Q13)"
       evidence:
+        - { url: "https://www.fantrax.com/terms-of-service", archive: null }
         - { url: "https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/421#issuecomment-6710339213", archive: null }
       licence: site terms
       attribution: null
@@ -135,7 +136,21 @@ sources:
   - id: fantrax_public_fxea
     name: "Fantrax — public fxea API (getDraftPicks)"
     status: live
-    terms: { <<: *fantrax_terms, access: public_get }
+    terms: &fantrax_fxea_terms
+      <<: *fantrax_terms
+      access: public_get
+      how:
+        - "terms read in a browser by the planner; the page shows no date"
+        - "8.6(c) allows published interfaces only (fxea is one; fxpa/req is not)"
+        - "8.6(a) bars non-public areas"
+        - "8.6(g) bars crawling and scraping"
+        - "8.7 bars showing its information on another website without authorization"
+        - "path to compliance: spike #428, fallback #429 (owner, Q13)"
+        - "fxea calls documented at fantrax.com/developer (API v1.8, beta)"
+      evidence:
+        - { url: "https://www.fantrax.com/terms-of-service", archive: null }
+        - { url: "https://www.fantrax.com/developer", archive: null }
+        - { url: "https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/421#issuecomment-6710339213", archive: null }
     locator: "https://www.fantrax.com/fxea/general/getDraftPicks?leagueId=v744203wmmvjqzv6"
     purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades)"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
@@ -147,7 +162,7 @@ sources:
   - id: fantrax_public_league_info
     name: "Fantrax — public fxea API (getLeagueInfo)"
     status: live
-    terms: { <<: *fantrax_terms, access: public_get }
+    terms: *fantrax_fxea_terms
     locator: "https://www.fantrax.com/fxea/general/getLeagueInfo?leagueId=v744203wmmvjqzv6"
     purpose: "The season's 17 Scoring Periods with their exact bounds (`scoringPeriods`, `playoffs`) and each team's division (`teamInfo`). Feeds the period dim, with the Update-Set state of each regular-season period, and the Division name per Conference (ADR-0016 amendment decisions 2, 12, 14). Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
@@ -160,7 +175,7 @@ sources:
   - id: fantrax_public_rosters
     name: "Fantrax — public fxea API (getTeamRosters per period)"
     status: live
-    terms: { <<: *fantrax_terms, access: public_get }
+    terms: *fantrax_fxea_terms
     locator: "https://www.fantrax.com/fxea/general/getTeamRosters?leagueId=v744203wmmvjqzv6&period=N"
     purpose: "The Roster State of each regular-season Scoring Period: every player copy's Roster Slot (`status`), salary and contract, per team (ADR-0016 decision 3 and its amendment). A call with no period returns the current one and echoes its number. A past period returns its roster as it stood at that period's lineup lock; a FUTURE period returns the current roster under the future number, so 04r never asks past the current period. One call per period that has started and is not closed. The season comes from a getLeagueInfo call, so a league id carried into a new season cannot write under the old one"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"

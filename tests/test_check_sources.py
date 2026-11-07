@@ -183,6 +183,15 @@ def test_real_manifest_starting_values():
         assert by_id[sid]["status"] == "unresolved", sid
         assert by_id[sid]["checked"] == date(2026, 11, 7), sid
         assert by_id[sid]["access"] == access, sid
+    fantrax = {sid: t for sid, t in by_id.items() if sid.startswith("fantrax_")}
+    assert len(fantrax) == 10
+    for sid, t in fantrax.items():
+        urls = [e["url"] for e in t["evidence"]]
+        assert "https://www.fantrax.com/terms-of-service" in urls, sid
+        assert (
+            "https://www.fantrax.com/developer" in urls
+        ) == sid.startswith("fantrax_public_"), sid
+        assert any("fantrax.com/developer" in h for h in t["how"]) == sid.startswith("fantrax_public_"), sid
     assert by_id["collegefootballdata"]["status"] == "permitted"
     assert by_id["collegefootballdata"]["checked"] == date(2026, 11, 7)
     assert by_id["fantrax_draftpicks_go"]["checked"] == date(2026, 11, 7)
