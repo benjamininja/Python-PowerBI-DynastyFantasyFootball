@@ -53,6 +53,8 @@
 | FantasyPros | `rejected` | #401, #415 |
 | KeepTradeCut | `rejected` (terms last updated 2025-11-11 bar automated collection, use on any other website, redistribution and derivatives) | #423 |
 | nflverse | `permitted` (CC BY 4.0 data, MIT nflreadpy) | #416 |
+| Fantrax, each entry | `unresolved`, checked 2026-11-07 (read in a browser; the page shows no date). 8.6(c) allows published interfaces only (`fxea` is one; `fxpa/req` is not), 8.6(a) bars non-public areas, 8.6(g) bars crawling and scraping, 8.7 bars showing its information on another website without authorization. The path to compliance is #428, with #429 as the fallback. | #421 (owner, Q13) |
+| CollegeFootballData | `permitted` for derived outputs, checked 2026-11-07 (terms effective 2026-08-12). It allows publishing analyses, models and rankings and displaying reasonable portions; it bars redistributing raw API data as a dataset and scraping. The key never goes in a public repository. Attribution is appreciated, not required. A new `planned` entry, recorded for #422. | #421 (owner, Q13) |
 | Every other source | `unresolved`, `checked: null` | none |
 
 Researching the unchecked sources' terms is a later spike. This ADR records no verdict beyond the table.

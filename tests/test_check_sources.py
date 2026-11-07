@@ -174,11 +174,19 @@ def test_real_manifest_starting_values():
     }.items():
         assert by_id[sid]["status"] == status, sid
         assert by_id[sid]["checked"] == date(2026, 11, 7), sid
-    assert by_id["fantrax_playerstats_grid"] == {
-        "status": "unresolved",
-        "checked": None,
-        "access": "owner_login",
-    }
+    for sid, access in {
+        "fantrax_playerstats_grid": "owner_login",
+        "fantrax_inseason_scoring": "owner_login",
+        "fantrax_public_fxea": "public_get",
+        "fantrax_public_rosters": "public_get",
+    }.items():
+        assert by_id[sid]["status"] == "unresolved", sid
+        assert by_id[sid]["checked"] == date(2026, 11, 7), sid
+        assert by_id[sid]["access"] == access, sid
+    assert by_id["collegefootballdata"]["status"] == "permitted"
+    assert by_id["collegefootballdata"]["checked"] == date(2026, 11, 7)
+    assert by_id["fantrax_draftpicks_go"]["checked"] == date(2026, 11, 7)
+    assert by_id["dynastysharks"] == {"status": "unresolved", "checked": None, "access": "manual_file"}
 
 
 def test_real_manifest_render_is_current():
