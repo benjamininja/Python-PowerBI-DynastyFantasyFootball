@@ -18,6 +18,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Close Days fall on Fridays** (Nov 6, 13, 20); each period ends on a Thursday. The first Weekly Final check is Fri 11-20 (recorded on #375). The 11-12 Thursday 06:00 run is still the #336 proof.
 - #374 is closed (PR #381, Pages /docs/ live at benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/). The owner is reviewing the schedule for changes through map #375.
 - 04y history rebuild is opt-in through `COMPOSITE_REBUILD_HISTORY=1`. `week_anchor` raises `CalendarUnreadable`, and nothing is keyed on a guess.
+- Before a clear, 2026-11-06: the state batch PR #387 (docs/state-2026-11-05 to main) is open. Merge it (squash) only on the owner's approval, then start a new state branch from main. Resume prompt: "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 000000000000000000000000000000000 first, then 00000000000000000000000000000000. Use worktree ps1103 on docs/state-2026-11-05..."
 - Plugin ticket skills-plugins-hooks-agents#80 now lists five builder denials: the #370 pytest run, the #374 lookups, `nb_edit.py`, `gh pr edit` and `git rm --cached`.
 
 00000000000000000000000000000000. **2026-11-06 early. Overrides everything below; read 0000000000000000000000000000000 and 000000000000000000000000000000 next.**
