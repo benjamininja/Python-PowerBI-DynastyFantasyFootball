@@ -79,6 +79,12 @@ itself. Nothing is pushed to `main`, nothing is bypassed. The workflow's path
 trigger still fires, now on the merge. See the data-PR exception in
 CONTRIBUTING.md.*
 
+*Noted 2026-11-05 (#374, #375): Pages also serves the project's docs site
+under `/docs/`, built by the same `pages.yml` into `_site/docs/` after
+`export_static.py` has written `_site/`. Trade-bud keeps the root URL and
+nothing in the exporter changes. Like `_site/`, the docs output is generated and
+never committed.*
+
 **Nothing generated is committed** (`_site/` is gitignored). The site rebuilds
 from parquet on every deploy, so it cannot drift from the data the way a
 checked-in artifact could.

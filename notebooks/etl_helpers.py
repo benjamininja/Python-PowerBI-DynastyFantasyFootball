@@ -25,9 +25,9 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Collection, Literal, Mapping, Sequence
+from typing import Collection, Literal, Mapping, NamedTuple, Sequence
 
 import pandas as pd
 import requests
@@ -928,6 +928,174 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
         return pg.write(entry, df, mode, keys, partition)
     except pg.WriteRefused as exc:
         raise StorageError(f"{name}: {exc}") from exc
+
+
+LEAGUE_TZ = "America/New_York"
+
+
+def league_date(day=None) -> date:
+    """`day` as a day on the league's Eastern clock. A tz-aware stamp is
+    converted, a plain date or naive stamp is taken as is, None is now."""
+    stamp = pd.Timestamp.now(tz="UTC") if day is None else pd.Timestamp(day)
+    if stamp.tzinfo is not None:
+        stamp = stamp.tz_convert(LEAGUE_TZ).tz_localize(None)
+    return stamp.date()
+
+
+class CalendarUnreadable(RuntimeError):
+    """dim_scoring_period cannot be read, so no week can be named."""
+
+
+def stored_scoring_periods() -> pd.DataFrame | None:
+    """`dim_scoring_period` as stored, or None where it cannot be read (no
+    table, or a read error). A warning line says why; the caller decides what
+    an unreadable calendar means (ADR-0020: no week, no guess)."""
+    try:
+        return read_table("dim_scoring_period")
+    except Exception as exc:
+        first = (str(exc).splitlines() or [""])[0]
+        print(f"[warn] dim_scoring_period not read ({type(exc).__name__}): {first}")
+        return None
+
+
+def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Series | None:
+    """The `dim_scoring_period` row holding `day`, or None off season.
+
+    A tz-aware stamp (and None, which is now) is placed by the exact bounds,
+    `start_at <= t < end_at`. A plain date is placed by Eastern days,
+    `start_date <= day <= end_date`, and the turnover Thursday, which is the
+    end of one period and the start of the next, belongs to the one ending:
+    a morning run that day still sees it in play. `periods` is a frame to
+    place the day in; without it the stored table is read, and a missing or
+    empty table is off season."""
+    if periods is None:
+        periods = stored_scoring_periods()
+    if periods is None or periods.empty:
+        return None
+    stamp = pd.Timestamp.now(tz="UTC") if day is None else pd.Timestamp(day)
+    if stamp.tzinfo is not None:
+        hit = periods[(periods["start_at"] <= stamp) & (stamp < periods["end_at"])]
+    else:
+        stamp = stamp.normalize()
+        hit = periods[(periods["start_date"] <= stamp) & (stamp <= periods["end_date"])]
+    if hit.empty:
+        return None
+    return hit.sort_values(["start_date", "period"]).iloc[0]
+
+
+class Week(NamedTuple):
+    """One week of the league's calendar, defined once (ADR-0020 decisions 2,
+    4 and 7).
+
+    key        `<season_id>-p<NN>` in season (a playoff period too), the ISO
+               week `<year>-W<NN>` off season. Stored in ops.etl_run_log.
+    anchor     the `snapshot_date` the week's rows carry: the period's end date
+               in season, the ISO week's Sunday off season.
+    close_day  the day after the period ends in season; off season the
+               `close_day_weekday` of the ISO week.
+    mode       "period" or "weekday".
+    """
+    key: str
+    anchor: date
+    close_day: date
+    mode: str
+    is_playoff: bool
+
+
+ONE_DAY = timedelta(days=1)
+
+
+def _period_week(row) -> Week:
+    end = pd.Timestamp(row["end_date"]).date()
+    return Week(f"{row['season_id']}-p{int(row['period']):02d}", end, end + ONE_DAY,
+                "period", bool(row["is_playoff"]))
+
+
+def _iso_week(day: date, weekday: int) -> Week:
+    year, number, _ = day.isocalendar()
+    monday = day - timedelta(days=day.weekday())
+    return Week(f"{year}-W{number:02d}", monday + timedelta(days=6),
+                monday + timedelta(days=weekday), "weekday", False)
+
+
+def week_of(day=None, periods: pd.DataFrame | None = None,
+            close_day_weekday: int | None = None) -> Week | None:
+    """The week `day` falls in, placed as `scoring_period_on` places it: the
+    Scoring Period holding it in season, else its ISO week. `day` None is now.
+    `periods` and `close_day_weekday` default to the stored table and
+    `CFG.close_day_weekday`.
+
+    None when the calendar cannot be read (no table, or an empty one): the
+    helper never guesses an ISO week then (owner, 2026-11-06)."""
+    if periods is None:
+        periods = stored_scoring_periods()
+    if periods is None or periods.empty:
+        return None
+    hit = scoring_period_on(day, periods)
+    if hit is not None:
+        return _period_week(hit)
+    weekday = CFG.close_day_weekday if close_day_weekday is None else close_day_weekday
+    return _iso_week(league_date(day), weekday)
+
+
+OWED, NOT_YET, COVERED, UNREADABLE = "owed", "not_yet", "covered", "unreadable"
+
+
+class Owed(NamedTuple):
+    """What the close_day steps owe on a day: the `week`, or no week and the
+    `reason` (not_yet, covered or unreadable) so the caller can tell a quiet
+    day from a calendar it must warn about."""
+    week: Week | None
+    reason: str
+
+
+def close_state(day=None, periods: pd.DataFrame | None = None,
+                close_day_weekday: int | None = None) -> Owed:
+    """The week whose Close Day is the latest on or before `day`: the week the
+    close_day steps owe on `day`, or why none is.
+
+    - unreadable: no calendar (no table, an empty one). No week, no ISO guess.
+    - Inside the calendar (the first start through the last Close Day): the
+      latest period whose end date + 1 is on or before `day`; not_yet before
+      the first.
+    - Before the calendar: the ISO week of the latest `close_day_weekday`
+      (Monday = 0) on or before `day`. Going into preseason needs no rule.
+    - After the calendar: the same ISO week, unless its Close Day falls on or
+      before the last period's Close Day. That week is covered by the last
+      period's run (owner, 2026-11-06): no week, reason covered."""
+    today = league_date(day)
+    if periods is None:
+        periods = stored_scoring_periods()
+    if periods is None or periods.empty:
+        return Owed(None, UNREADABLE)
+    rows = periods.sort_values(["start_date", "end_date"])
+    first = pd.Timestamp(rows["start_date"].iloc[0]).date()
+    last_close = pd.Timestamp(rows["end_date"].iloc[-1]).date() + ONE_DAY
+    if first <= today <= last_close:
+        closed = rows[rows["end_date"].map(lambda d: pd.Timestamp(d).date() + ONE_DAY) <= today]
+        return Owed(None, NOT_YET) if closed.empty else Owed(_period_week(closed.iloc[-1]), OWED)
+    weekday = CFG.close_day_weekday if close_day_weekday is None else close_day_weekday
+    week = _iso_week(today - timedelta(days=(today.weekday() - weekday) % 7), weekday)
+    if today > last_close and week.close_day <= last_close:
+        return Owed(None, COVERED)
+    return Owed(week, OWED)
+
+
+def closed_week(day=None, periods: pd.DataFrame | None = None,
+                close_day_weekday: int | None = None) -> Week | None:
+    """`close_state(...).week`: the week the close_day steps owe, else None."""
+    return close_state(day, periods, close_day_weekday).week
+
+
+def week_anchor(day=None, periods: pd.DataFrame | None = None) -> date:
+    """The `snapshot_date` of the week `day` falls in (`week_of(...).anchor`).
+    Every run of a week gets the same date, so `replace_partition` on it
+    overwrites the week's slice in place. Raises CalendarUnreadable where
+    there is no week to name: a snapshot is never keyed on a guess."""
+    week = week_of(day, periods)
+    if week is None:
+        raise CalendarUnreadable("dim_scoring_period cannot be read: no week anchor for the snapshot")
+    return week.anchor
 
 
 DROPPED_STATUS = "DROPPED"

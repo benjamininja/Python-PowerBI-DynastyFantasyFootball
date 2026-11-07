@@ -23,8 +23,9 @@
 # carries the session cookies, so we call the JSON API directly — no DOM scrape.
 #
 # **Schedule:** runs as a step of `scripts/run_pipeline.py` (Task Scheduler via
-# `run_weekly.ps1`, Thursday ~06:00 CT). The run date maps to the just-completed
-# NFL week (override with CFG.snapshot_week if needed). `--backfill-gp` pulls
+# `run_weekly.ps1`, Thursday ~06:00 CT). From the ADR-0020 switch date the run
+# date maps to its Scoring Period (see derive_week_label; earlier rows carry the
+# Monday-turnover label). Override with CFG.snapshot_week. `--backfill-gp` pulls
 # getPlayerStats YTD actuals (incl. GP) into the season's "YTD" partition.
 #
 # **Outputs:**
@@ -167,20 +168,26 @@ YTD_SEASON_CODES = {
 def derive_week_label(cfg: LeagueConfig, run_dt: date | None = None) -> str:
     """
     Map a run date to a week LABEL: cfg.preseason_label ("PRE") for any run
-    before Week 1 completes, else zero-padded "01".."18".
+    before the Monday after Week 1's Thursday, else the zero-padded Scoring
+    Period holding the run, from dim_scoring_period (ADR-0020 decision 8).
 
-    A regular week is 'complete' once its Monday-night slate is done. Week 1's
-    Monday is (week1_thursday + 4 days). Before that first Monday the league is
-    in preseason -> "PRE". Override with cfg.snapshot_week ("PRE" or an int).
+    From the switch date on the label is the Scoring Period, which turns over
+    on a Thursday evening, not the Monday turnover earlier rows carry. Where
+    no period holds the run (the table is missing, or the season is over) it
+    falls back to that Monday count, "01".."18". The PRE cutoff is unchanged,
+    so run_pipeline.derive_phase gives the same phase for every date.
+    Override with cfg.snapshot_week ("PRE" or an int).
     """
     if cfg.snapshot_week is not None:
         wk = cfg.snapshot_week
         return wk if isinstance(wk, str) else f"{wk:02d}"
-    run_dt = run_dt or date.today()
     week1_monday = datetime.strptime(cfg.week1_thursday, "%Y-%m-%d").date() + timedelta(days=4)
-    if run_dt < week1_monday:
+    if (run_dt or etl.league_date()) < week1_monday:
         return cfg.preseason_label
-    weeks = (run_dt - week1_monday).days // 7 + 1
+    period = etl.scoring_period_on(run_dt)
+    if period is not None:
+        return f"{int(period['period']):02d}"
+    weeks = ((run_dt or etl.league_date()) - week1_monday).days // 7 + 1
     return f"{max(1, min(18, weeks)):02d}"
 
 

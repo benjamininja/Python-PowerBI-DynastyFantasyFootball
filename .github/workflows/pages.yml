@@ -1,4 +1,6 @@
-# Publishes mouserat_trade-bud to GitHub Pages as a fully static site.
+# Publishes mouserat_trade-bud to GitHub Pages as a fully static site, with the
+# project's docs site beside it under /docs/ (built from mkdocs.yml and
+# docs/site/ after the trade-bud export, so trade-bud keeps the root URL).
 #
 # The app has no backend in production: export_static.py precomputes every GET
 # endpoint to JSON by calling the FastAPI router functions directly, so the
@@ -19,6 +21,8 @@ on:
       - 'data/**.parquet'          # scheduled pipeline commits refresh the site for free
       - 'mouserat_trade-bud/**'
       - '.github/workflows/pages.yml'
+      - 'docs/site/**'             # the docs site, served under /docs/
+      - 'mkdocs.yml'
   workflow_dispatch:
 
 permissions:
@@ -41,13 +45,21 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-          cache-dependency-path: mouserat_trade-bud/backend/requirements.txt
+          cache-dependency-path: |
+            mouserat_trade-bud/backend/requirements.txt
+            docs/site/requirements.txt
 
       - name: Install backend dependencies
         run: pip install -r mouserat_trade-bud/backend/requirements.txt
 
+      - name: Install the docs generator
+        run: pip install -r docs/site/requirements.txt
+
       - name: Build static site
         run: python mouserat_trade-bud/export_static.py --out _site
+
+      - name: Build the docs site into _site/docs
+        run: zensical build --clean
 
       - uses: actions/upload-pages-artifact@v3
         with:
