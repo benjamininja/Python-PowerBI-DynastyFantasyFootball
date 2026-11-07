@@ -548,17 +548,19 @@ sources:
         - "allows publishing analyses, models and rankings, and displaying reasonable portions"
         - "bars redistributing raw API data as a dataset, and scraping"
         - "the API key may never go in a public repository"
+        - "owner, Q20 (#421 issuecomment-6710726461): derived outputs only, raw API data never published, key held only in a secret, credit given anyway; details on #432"
       evidence:
         - { url: "https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/421#issuecomment-6710339213", archive: null }
+        - { url: "https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/421#issuecomment-6710726461", archive: null }
       licence: site terms
-      attribution: "Appreciated, not required"
+      attribution: "Given anyway (CollegeFootballData appreciates it but does not require it)"
       share_alike: false
       upstream: []
       access: api_key
       permission: null
     locator: "https://collegefootballdata.com (API)"
     purpose: "College football stats for the rookie work in #422. Not ingested yet. Terms permit derived outputs (analyses, models, rankings) only; raw API data is never republished"
-    auth: "API key, env-stored; never committed, never in a public repository"
+    auth: "API key held only in a secret; never committed, never in a public repository"
     cadence: "TBD (#422)"
     feeds: []
     match: []
