@@ -254,7 +254,8 @@ def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
                   done_for: Callable[[str], set[str] | None]) -> tuple[list[dict], dict]:
     """Drop the close_day steps that are not due. Only a close_day step that
     phase, --steps and --group would otherwise run counts as ran or deferred.
-    A step is due when `cadence` is "all", or when the week in `state` has no
+    With an unreadable calendar (`state["reason"]`) no step is due, whatever
+    `cadence` says. Otherwise a step is due when `cadence` is "all", or when the week in `state` has no
     record of it in `done_for(week_key)`; with no record to read (None) it is
     due on its Close Day only. Returns (steps to run, the cadence report)."""
     kept, ran, deferred = [], [], []
@@ -263,7 +264,9 @@ def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
         if s.get("cadence", "daily") != "close_day" or not _selected(s, phase, only, groups):
             kept.append(s)
             continue
-        if cadence == "all":
+        if state["reason"] == "unreadable":
+            due = False
+        elif cadence == "all":
             due = True
         elif state["week_key"] is None:
             due = False
@@ -313,9 +316,6 @@ def cadence_warning(report: dict) -> str | None:
     guessed week."""
     if report.get("reason") != "unreadable":
         return None
-    if report["ran"]:
-        return ("⚠️ dim_scoring_period could not be read: close_day steps ran by "
-                "--cadence all with no week to record")
     return ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
             f"({', '.join(report['deferred']) or 'none selected'}); they run once the calendar reads")
 
@@ -783,7 +783,8 @@ def main() -> int:
     ap.add_argument("--cadence", choices=CADENCES, default="due",
                     help="due (default): a close_day step runs on its Close Day "
                          "or the first run after it that has no success for "
-                         "the week; all: every step runs whatever the day")
+                         "the week; all: every step runs whatever the day "
+                         "(close_day steps still wait for a readable calendar)")
     ap.add_argument("--profile", choices=["dynasty"],
                     help="extra chain: dynasty = 04b -> 04c -> 04y "
                          "(run after refreshing the 04x manual Excel)")

@@ -175,10 +175,21 @@ class TestUnreadableCalendar:
         assert "04b_ktc_dynasty" not in kept
         assert report["deferred"] == ["04b_ktc_dynasty"] + ROOKIE
 
-    def test_cadence_all_still_runs_them_and_the_warning_says_so(self):
+    def test_cadence_all_skips_them_too_and_the_warning_stays(self):
         kept, report = plan("INSEASON", date(2026, 9, 25), set(), cadence="all", table=periods().iloc[0:0])
-        assert report["ran"] == ROOKIE
-        assert "ran by --cadence all with no week to record" in rp.cadence_warning(report)
+        assert not set(kept) & set(ROOKIE)
+        assert (report["ran"], report["deferred"], report["filter"]) == ([], ROOKIE, "all")
+        assert "04a_scrape" in kept and "04t_txn_history" in kept
+        assert "close_day steps skipped" in rp.cadence_warning(report)
+
+    def test_cadence_all_off_season_skips_04b_too(self):
+        kept, report = plan("OFFSEASON", date(2027, 2, 11), set(), cadence="all", table=periods().iloc[0:0])
+        assert "04b_ktc_dynasty" not in kept and not set(kept) & set(ROOKIE)
+        assert report["deferred"] == ["04b_ktc_dynasty"] + ROOKIE
+
+    def test_cadence_all_on_a_quiet_day_with_a_readable_calendar_still_runs_them(self):
+        _, report = plan("INSEASON", date(2026, 9, 14), set(), cadence="all")
+        assert report["ran"] == ROOKIE and rp.cadence_warning(report) is None
 
     def test_the_warning_names_the_skipped_steps(self):
         _, report = plan("INSEASON", date(2026, 9, 25), set(), table=periods().iloc[0:0])
@@ -440,6 +451,18 @@ class TestMain:
         assert not any(f"[step] {n} " in out for n in ROOKIE)
         assert all(f"[step] {n} " in out for n in ("04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"))
         assert "calendar unreadable, no week" in out
+        warning = ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
+                   f"({', '.join(ROOKIE)}); they run once the calendar reads")
+        assert warning in (tmp_path / "pipeline_summary.md").read_text(encoding="utf-8").splitlines()
+
+    def test_cadence_all_with_an_unreadable_calendar_skips_the_close_day_steps_and_warns(
+            self, run, monkeypatch, tmp_path):
+        monkeypatch.setattr(etl_helpers, "stored_scoring_periods", lambda: None)
+        monkeypatch.setattr(rl, "steps_done", lambda key: pytest.fail("a week was guessed"))
+        out = run(date(2026, 9, 25), "--cadence", "all")
+        assert "filter=all" in out
+        assert not any(f"[step] {n} " in out for n in ROOKIE)
+        assert all(f"[step] {n} " in out for n in ("04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"))
         warning = ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
                    f"({', '.join(ROOKIE)}); they run once the calendar reads")
         assert warning in (tmp_path / "pipeline_summary.md").read_text(encoding="utf-8").splitlines()
