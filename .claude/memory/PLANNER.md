@@ -5,13 +5,26 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-11-05, before a clear)
+## START HERE (state 2026-11-07, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000. **NEWEST: 2026-11-07 afternoon, the domain grill is done. Overrides everything below; read 00000000000000000000000000000000000 next.**
+0000000000000000000000000000000000000. **NEWEST: before a clear, 2026-11-07. Overrides everything below; read 000000000000000000000000000000000000 next.**
+- **Resume:** worktree ps1103, on local branch `docs/state-2026-11-06` (cut from main e0b7734). `git pull --rebase origin docs/state-2026-11-06` before reading. Push with a standalone `git push origin HEAD:docs/state-2026-11-06`. The manager shares this branch. Peers, found with ListAgents by name: `dynastyFantasyFootball-central-builder-manager`; builders b372-cadence, b380-schedule and b385-nbform.
+- **Dispatch relayed:** the owner answered "(c) start #390, #398 and all three spikes now" in the queue pane at 2026-11-07 08:18, then said "RELAY TO MANAGER IS FINE". It's recorded on #390, #398, #400, #401 and #402, and relayed to the manager with tiers #390 low, #398 medium, #400/#401/#402 low. #402 does no logged-in probe before the `.env` Action. The spikes report as findings and are reviewed with the owner together; the manager tells me when all three are in.
+- **Main** is 2a83cee (#383 merged); #336, #361, #362, #370 and #378 are closed. In flight:
+  - #382: b372 is pushing 922b50f with `git push -u origin ...` (the allowed form), then the `--cadence all` ruling commit, the re-proof, the migration and the owner's --check-only.
+  - #385: b385 is working; the owner pasted the hook block.
+  - Then #384 (b380 merges #382's branch first), then #373, #386 (the owner runs `git rm --cached` by hand), #355, #352 (after #355, both seam), #354.
+- **Open, owner-side, in the queue:** the PFF `.env` Action (#402); "Delete merged remote branches" (worktree-b378-weeks); remove the b380 merge rule after #380 merges; the later script-rule removal; the Dead Money PBI check; the Actions cutover (later); "Review the refresh schedule on map #375" (largely settled by the grill; it can be ticked when the owner agrees).
+- **#359** closes as a real Fantrax change once one more logged 04v pull agrees with the server totals (issuecomment-6707126802).
+- **Lessons this session:** queue every owner item in the same turn (see 00000000000000000000000000000000000). In PowerShell, `gh --jq .body` returns a list of lines, so edit issue bodies with Python through Bash. When the manager is unreachable, post the relay on the PR or ticket and tell the owner; never tell a builder something was relayed before the send succeeds.
+- **Batch PR** for docs/state-2026-11-06: opened before this clear (see below). Merge it (squash) only on the owner's word, then cut a new state branch from main.
+- **Resume prompt:** "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 0000000000000000000000000000000000000 first, then 000000000000000000000000000000000000. Use worktree ps1103 on local branch docs/state-2026-11-06; git pull --rebase origin docs/state-2026-11-06 before reading, and push with a standalone `git push origin HEAD:docs/state-2026-11-06`. The state batch PR for that branch is open; merge only on the owner's word, then cut a new state branch from main. Find the manager with ListAgents and send by name."
+
+000000000000000000000000000000000000. **2026-11-07 afternoon, the domain grill is done. Overrides everything below; read 00000000000000000000000000000000000 next.**
 - The #375 grill is finished: Q1-Q35 all answered in planner chat. Map #375 is rewritten with the agreed map (Domains, Cadences, Tasks).
 - New milestone #6 "Domains and step registry", with tickets #390-#403. **None is dispatched; the owner reviews the list first.**
   - #390 docs (ADR-0021, the ADR-0020 capture amendment, CONTEXT.md terms; low; not blocked).
