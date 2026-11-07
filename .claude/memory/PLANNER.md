@@ -11,7 +11,16 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000. **NEWEST: 2026-11-06 early. Overrides everything below; read 0000000000000000000000000000000 and 000000000000000000000000000000 next.**
+000000000000000000000000000000000. **NEWEST: 2026-11-06, all held for #336. Overrides everything below; read 00000000000000000000000000000000 next.**
+- Nothing is in flight. Three PRs are green and held until #336 closes, and merge in this order: PR #383 (#378 week keys; `etl_helpers.close_state` / `Week`), then PR #382 (#372 cadence, which first switches `close_day_state` to the helper and merges main), then PR #384 (#380 schedule page with stage cards and the README row; it merges #382's branch in again). The manager's state is 670c2a6 (MANAGER.md).
+- #382 gates: the migration is applied first, then the owner runs --check-only (an Action), then the next run. After #384 merges, the owner removes the one-off merge rule (an Action in the queue).
+- Parked on the owner's word: #373 (PC daily task, after #382 and #383), #385 (notebook-normalize pre-commit hook, after #383), #386 (docs follow-ups, after #384).
+- **Close Days fall on Fridays** (Nov 6, 13, 20); each period ends on a Thursday. The first Weekly Final check is Fri 11-20 (recorded on #375). The 11-12 Thursday 06:00 run is still the #336 proof.
+- #374 is closed (PR #381, Pages /docs/ live at benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/). The owner is reviewing the schedule for changes through map #375.
+- 04y history rebuild is opt-in through `COMPOSITE_REBUILD_HISTORY=1`. `week_anchor` raises `CalendarUnreadable`, and nothing is keyed on a guess.
+- Plugin ticket skills-plugins-hooks-agents#80 now lists five builder denials: the #370 pytest run, the #374 lookups, `nb_edit.py`, `gh pr edit` and `git rm --cached`.
+
+00000000000000000000000000000000. **2026-11-06 early. Overrides everything below; read 0000000000000000000000000000000 and 000000000000000000000000000000 next.**
 - #374 (docs shell) merged by PR #381 as `5819501`, with Pages live (/docs/ 200). I verified it and closed #374. #380 (README row and generated schedule page) is blocked by #372 and not dispatched.
 - PR #382 (#372) passed CI and the supabase-auditor found nothing blocking. It adds a nullable `cadence` jsonb on ops.etl_run_log, which I approved. PR #383 (#378) passed CI; the re-proof is pending. Both are held until #336 closes.
 - Merge order: #383 first, because its etl_helpers `Week` helper (week_of, closed_week, week_anchor) is the only week definition. Keys look like `2026-2027-p09` or ISO `YYYY-Www`. Then #382 switches `close_day_state` to the helper and is re-proved. Then #373, then #380.
