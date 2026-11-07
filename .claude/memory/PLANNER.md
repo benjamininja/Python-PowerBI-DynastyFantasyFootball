@@ -18,7 +18,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   2. **Grill #407's findings** (issuecomment-6708697291; recommended C: A, lock in place in 02g, then B, a capture-keyed snapshot via #355 and #397; 8 open questions). Then rewrite #398 and #399.
   3. On the owner's word, grill #415 (FantasyPros removal) and #412 (review queues and the work queue on the site).
 - **In flight:** b93-daily (#93 brief 1, medium; it edits run_pipeline.py only after #355 merges); b355 (#355, with my `column_changes` column ruling); b406-rework (PR #406: `rejected` status, drop the PFF .env.example lines); #386 (PR #410, CI). The owner's queue has the GitHub App Action, the #372 dry-run Action (after the first Actions run), the #397 pre-game Decision, the #93 raw-read Decision, the #416/#417 dispatch Decision, and the Actions cutover Action.
-- **Dispatch words pending:** #414 (after #406 merges; the manager asks), #416 and #417 (queued Decision).
+- **Dispatch words pending:** #414 (after #406 merges; the manager asks). #416 and #417 were answered (a), dispatch both now (pane 09:44), and relayed to the manager.
+- **Pane, 09:02 to 09:44:**
+  - #397: (a), a Pre-Game capture finishing after kickoff counts; the body is amended.
+  - **#372's dry-run is today** (the owner's Notes, recorded in issuecomment-6709262824): `--dry-run --cadence all` now; plain `--dry-run` after today's first good run (Actions at the cutover, or a hand PC run if the cutover slips). The manager rewrites the entry.
+  - The owner asked that pane comments be staged and sent with Submit, not at once (the README says they go out at once, `plugins/owner-queue/README.md:48`). My issue create on skills-plugins-hooks-agents was **denied** (External System Writes). The text is in the scratchpad (`t-oq.md`) for the owner to open. Don't retry without the owner's say-so.
 - **New today:** #407, #408, #412, #413, #414, #415, #416 and #417. Closed today: #373 (not planned), #380, #385, #390, #400, #401 and #402. #354 is resolved.
 - **Lessons:**
   - Before telling the owner which secrets exist, check RESUME.md's records. `gh secret list` is denied, and workflow files show only what each environment's workflow names.
