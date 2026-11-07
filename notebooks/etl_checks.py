@@ -547,11 +547,31 @@ def private_table(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFram
         raise NotComparable(f"{name} is not in this store") from None
 
 
-def overrides_errors(overrides: pd.DataFrame) -> list[str]:
-    """04z matches nothing by hand while the decisions table is empty."""
-    if len(overrides):
-        return []
-    return [f"dim_fantrax_crosswalk_override holds no rows -- run {LOADER} once"]
+def overrides_errors(overrides: pd.DataFrame, players: pd.DataFrame | None = None,
+                     links: pd.DataFrame | None = None) -> list[str]:
+    """The decisions table (#93, planner ruling 4): not empty; every gsis_id is
+    in dim_nfl_players (or is an old id dim_gsis_link maps on) or is `new`; no
+    gsis_id is claimed by two scorer_ids. No fixed count: #431 adds rows."""
+    if not len(overrides):
+        return [f"dim_fantrax_crosswalk_override holds no rows -- run {LOADER} once"]
+    errs = []
+    real = overrides[overrides["gsis_id"] != "new"]
+    if players is not None:
+        known = set(players["gsis_id"]) | (set(links["old_gsis_id"]) if links is not None else set())
+        unknown = int((~real["gsis_id"].isin(known)).sum())
+        if unknown:
+            errs.append(f"{unknown} override(s) hold a gsis_id that is neither in dim_nfl_players nor new")
+    twice = int((real.groupby("gsis_id")["scorer_id"].nunique() > 1).sum())
+    if twice:
+        errs.append(f"{twice} gsis_id(s) are claimed by more than one scorer_id")
+    return errs
+
+
+def _optional(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFrame | None:
+    try:
+        return load(name)
+    except TableNotFound:
+        return None
 
 
 def draft_copy_errors(slots: pd.DataFrame) -> list[str]:
@@ -606,7 +626,8 @@ DOMAIN_CHECKS = [
                                                load("dim_contract"))),
     DomainCheck("overrides_present", "gate", "dim_fantrax_crosswalk",
                 lambda load: overrides_errors(
-                    private_table(load, "dim_fantrax_crosswalk_override"))),
+                    private_table(load, "dim_fantrax_crosswalk_override"),
+                    load("dim_nfl_players"), _optional(load, "dim_gsis_link"))),
     DomainCheck("draft_copy", "gate", "fact_draft_pick",
                 lambda load: draft_copy_errors(
                     private_table(load, "fact_startup_draft_slot"))),

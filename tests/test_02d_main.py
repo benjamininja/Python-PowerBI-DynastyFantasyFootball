@@ -451,6 +451,24 @@ class TestRawDir:
         assert sorted(p.name for p in elsewhere.iterdir()) == ["fantrax_txn_history_2026.json"]
 
 
+class TestCaptured02d:
+    """The owner's comparison runs 02d in capture mode: nothing reaches the store."""
+
+    def test_a_captured_run_writes_nothing_and_gives_the_tables_a_real_run_gives(self, data, tmp_path):
+        before = {p.name: p.read_bytes() for p in data.glob("*.parquet")}
+        folder = tmp_path / "captured"
+        folder.mkdir()
+        with rt.etl.capturing(folder):
+            rt.main()
+        assert {p.name: p.read_bytes() for p in data.glob("*.parquet")} == before
+        assert not any(getattr(rt, name).exists() for name in OUTPUTS)
+        rt.main()
+        for name in OUTPUTS:
+            table = Path(getattr(rt, name)).stem
+            pd.testing.assert_frame_equal(pd.read_parquet(rt.etl.captured_path(table, folder)),
+                                          pd.read_parquet(getattr(rt, name)), obj=table)
+
+
 class TestDraftFromTable:
     """#93 brief 6: the Startup draft comes from the private slot table, and a
     checkout with no data/raw runs the same ledger."""

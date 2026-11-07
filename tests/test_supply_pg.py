@@ -95,6 +95,56 @@ class TestLoaderThroughTheSeam:
             etl.write_table("dim_fantrax_crosswalk_override", bad)
 
 
+def counts(url):
+    import psycopg
+    with psycopg.connect(url) as conn:
+        return {t: conn.execute(f"SELECT count(*) FROM ops.{t}").fetchone()[0]
+                for t in (*loader.TABLES, "etl_run_log", "review_check")}
+
+
+class TestAllOrNothing:
+    def frames(self):
+        from test_supply_private_tables import TestTheLoaderWritesAllOrNothing
+        return TestTheLoaderWritesAllOrNothing().frames()
+
+    def test_a_refusal_on_the_last_table_leaves_every_target_empty(self, db):
+        frames = self.frames()
+        frames[loader.OVERRIDE_TABLE] = frames[loader.OVERRIDE_TABLE].assign(origin="elsewhere")
+        with pytest.raises(etl.StorageError):
+            etl.write_tables_once(frames)             # the CHECK on origin refuses the last insert
+        assert [counts(db)[t] for t in loader.TABLES] == [0, 0, 0]
+
+    def test_the_already_holds_rows_check_runs_inside_the_transaction(self, db):
+        frames = self.frames()
+        etl.write_table(loader.SLOT_TABLE, frames[loader.SLOT_TABLE])
+        with pytest.raises(etl.StorageError, match="already hold rows"):
+            etl.write_tables_once(frames)
+        got = counts(db)
+        assert got[loader.SCORER_TABLE] == 0 and got[loader.OVERRIDE_TABLE] == 0
+
+    def test_a_clean_write_fills_all_three(self, db):
+        done = etl.write_tables_once(self.frames())
+        assert done == {t: counts(db)[t] for t in done} and all(done.values())
+
+
+class TestTheComparisonWritesNothing:
+    def test_a_read_only_session_refuses_a_write_and_a_capture_changes_no_count(self, db, tmp_path):
+        frames = TestAllOrNothing().frames()
+        etl.write_tables_once(frames)
+        before = counts(db)
+        extra = frames[loader.OVERRIDE_TABLE].assign(scorer_id="zz")
+        with pg.session_read_only():
+            with pytest.raises(etl.StorageError):
+                etl.write_table(loader.OVERRIDE_TABLE, extra, mode="upsert")
+            folder = tmp_path / "cap"
+            folder.mkdir()
+            with etl.capturing(folder):
+                etl.write_table(loader.OVERRIDE_TABLE, extra, mode="upsert")
+                assert len(etl.read_table(loader.OVERRIDE_TABLE)) == 2
+            assert len(etl.read_stored(loader.OVERRIDE_TABLE)) == 1
+        assert counts(db) == before                  # every private table, the run log and the review queue
+
+
 class TestTheReadersSeeTheSameInput:
     def test_02d_gets_the_slots_the_parquet_route_gets(self, db, raw, tmp_path, monkeypatch):
         assert run_loader(raw)[0] == 0

@@ -19,6 +19,7 @@ Import pattern (notebooks run with CWD = repo root):
 Paths (DATA, REVIEW, ALIAS) are anchored to the repo root via LeagueConfig.__post_init__,
 so notebooks write to <repo>/data regardless of the CWD they run from.
 """
+import contextlib
 import hashlib
 import json
 import os
@@ -850,9 +851,58 @@ def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
     return df
 
 
+_capture_dir: Path | None = None
+
+
+@contextlib.contextmanager
+def capturing(directory):
+    """Capture mode (#93, the owner's comparison check): inside it `write_table`
+    writes nothing to the store. It applies the write, in the mode asked, to a
+    parquet copy in `directory` (seeded from the stored table for a merge
+    mode), and `read_table` / `table_exists` see that copy once it exists, so a
+    step reads back what it wrote. `read_stored` still reads the store. Leaving
+    the block ends the mode; the files stay for the caller to read."""
+    global _capture_dir
+    if _capture_dir is not None:
+        raise StorageError("capture mode is already on")
+    _capture_dir = Path(directory)
+    try:
+        yield _capture_dir
+    finally:
+        _capture_dir = None
+
+
+def captured_path(name: str, directory=None) -> Path:
+    return Path(directory if directory is not None else _capture_dir) / f"{name}.parquet"
+
+
+def read_captured(name: str, directory) -> pd.DataFrame:
+    """The table `name` as a capture left it in `directory`, cast to the registry."""
+    return _coerce(pd.read_parquet(captured_path(name, directory)), _table_entry(name))
+
+
+def _captured(name: str) -> bool:
+    return _capture_dir is not None and captured_path(name).exists()
+
+
+def _capture_write(name: str, df: pd.DataFrame, mode: str, keys, partition, entry: dict) -> int:
+    _check_write_args(mode, keys, partition)
+    path = captured_path(name)
+    if mode != "replace" and not path.exists():
+        try:
+            stored = read_stored(name)
+        except TableNotFound:
+            stored = None
+        if stored is not None and len(stored):
+            _write_parquet(path, _coerce(stored, entry), "replace", None, None, entry)
+    return len(_write_parquet(path, df, mode, keys, partition, entry))
+
+
 def table_exists(name: str) -> bool:
     """Is the declared table `name` there to read?"""
     entry = _table_entry(name)
+    if _captured(name):
+        return True
     pg = _backend()
     if pg is not None:
         try:
@@ -868,6 +918,9 @@ def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
     Under Postgres the rows come ordered by primary key, the columns in
     registry order, and a table with no rows holds no data."""
     entry = _table_entry(name)
+    if _captured(name):
+        df = pd.read_parquet(captured_path(name), columns=list(columns) if columns is not None else None)
+        return _coerce(df, entry)
     pg = _backend()
     if pg is not None:
         try:
@@ -928,6 +981,8 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
                          grain); other rows untouched.
     """
     entry = _table_entry(name)
+    if _capture_dir is not None:
+        return _capture_write(name, df, mode, keys, partition, entry)
     pg = _backend()
     if pg is None:
         return len(_write_parquet(_table_path(name), df, mode, keys, partition, entry))
@@ -939,6 +994,39 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
         return pg.write(entry, df, mode, keys, partition)
     except pg.WriteRefused as exc:
         raise StorageError(f"{name}: {exc}") from exc
+
+
+def write_tables_once(frames: Mapping[str, pd.DataFrame]) -> dict[str, int]:
+    """First fill of several empty tables, all or nothing (#93, the one-time
+    loader). Each batch is checked against the registry first. Under Postgres
+    every insert, and the check that no target holds a row, run in ONE
+    transaction with the tables locked; a refusal anywhere leaves every table
+    empty. Under parquet the files written so far are removed on a failure.
+    Raises StorageError, naming the tables that hold rows. Returns the rows
+    each table holds."""
+    batches = {}
+    for name, df in frames.items():
+        entry = _table_entry(name)
+        batches[name] = (entry, _check_batch(df, entry))
+    pg = _backend()
+    if pg is not None:
+        try:
+            return pg.write_all_empty(batches)
+        except pg.WriteRefused as exc:
+            raise StorageError(str(exc)) from exc
+    held = [name for name in batches if _table_path(name).exists()]
+    if held:
+        raise StorageError(f"{', '.join(held)} already hold rows")
+    written = []
+    try:
+        for name, (entry, df) in batches.items():
+            _write_parquet(_table_path(name), df, "replace", None, None, entry)
+            written.append(name)
+    except BaseException:
+        for name in written:
+            _table_path(name).unlink(missing_ok=True)
+        raise
+    return {name: len(df) for name, (_, df) in batches.items()}
 
 
 LEAGUE_TZ = "America/New_York"
@@ -1126,11 +1214,13 @@ def referenced_ids(name: str, key: str = "gsis_id") -> set:
     """Every id held by a stored table, other than `name`, in any registry
     column whose name contains the stem of `key` (`gsis` for `gsis_id`, so
     `new_gsis_id` counts too). Found from the registry, read through the
-    seam; a declared table with no data holds nothing."""
+    seam; a declared table with no data holds nothing. A private table is not
+    walked: it is no fact, every id it holds already reaches a published table,
+    and the overrides table also holds the literal `new`."""
     stem = key.removesuffix("_id")
     ids: set = set()
     for other, entry in _registry().items():
-        if other == name or not table_exists(other):
+        if other == name or is_private(entry) or not table_exists(other):
             continue
         cols = [c["name"] for c in entry.get("columns", []) if stem in c["name"]]
         if cols:

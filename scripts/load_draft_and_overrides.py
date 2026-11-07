@@ -230,8 +230,15 @@ def load(raw_dir: Path, *, check_only: bool = False, decisions: dict | None = No
     if check_only:
         out("checks passed; nothing was written (--check)")
         return 0
-    for name, frame in ((SCORER_TABLE, scorers), (SLOT_TABLE, slots), (OVERRIDE_TABLE, overrides)):
-        out(f"wrote {name}: {etl.write_table(name, frame)} row(s)")
+    try:
+        counts = etl.write_tables_once({SCORER_TABLE: scorers, SLOT_TABLE: slots,
+                                        OVERRIDE_TABLE: overrides})
+    except etl.StorageError as exc:
+        out(f"stopped: {(str(exc).splitlines() or [''])[0]}")
+        out("nothing was written (one transaction, rolled back)")
+        return 1
+    for name, count in counts.items():
+        out(f"wrote {name}: {count} row(s)")
     return 0
 
 

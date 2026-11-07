@@ -276,9 +276,34 @@ class TestPrivateTablesStayPrivate:
 
 
 class TestGates:
+    PLAYERS = pd.DataFrame({"gsis_id": ["G1", "G2"]})
+    LINKS = pd.DataFrame({"old_gsis_id": ["OLD"], "new_gsis_id": ["G2"]})
+
+    def overrides(self, *pairs):
+        return pd.DataFrame(pairs, columns=["scorer_id", "gsis_id"])
+
     def test_an_empty_decisions_table_is_a_gate_error_naming_the_loader(self):
         assert "load_draft_and_overrides" in ec.overrides_errors(pd.DataFrame())[0]
-        assert ec.overrides_errors(pd.DataFrame({"scorer_id": ["a"]})) == []
+
+    def test_the_overrides_gate_has_no_fixed_count(self):
+        # 33 today; #431 adds rows, and one more must not fail the Gate.
+        players = pd.DataFrame({"gsis_id": [f"G{i}" for i in range(40)]})
+        many = self.overrides(*[(f"s{i}", f"G{i}") for i in range(40)])
+        assert ec.overrides_errors(many, players) == []
+        assert ec.overrides_errors(pd.concat([many, self.overrides(("extra", "new"))]), players) == []
+
+    def test_new_and_a_registry_id_and_a_linked_old_id_pass(self):
+        ok = self.overrides(("a", "G1"), ("b", "new"), ("c", "new"), ("d", "OLD"))
+        assert ec.overrides_errors(ok, self.PLAYERS, self.LINKS) == []
+
+    def test_an_id_that_is_neither_registered_nor_new_fails(self):
+        bad = self.overrides(("a", "G1"), ("b", "NOWHERE"))
+        errs = ec.overrides_errors(bad, self.PLAYERS, self.LINKS)
+        assert len(errs) == 1 and "neither in dim_nfl_players nor new" in errs[0]
+
+    def test_a_gsis_id_claimed_by_two_scorers_fails_but_two_new_do_not(self):
+        twice = self.overrides(("a", "G1"), ("b", "G1"))
+        assert ec.overrides_errors(twice, self.PLAYERS) == ["1 gsis_id(s) are claimed by more than one scorer_id"]
 
     def test_the_draft_copy_must_hold_980_slots_with_5_unmade(self):
         ok = pd.DataFrame({"scorer_id": [None] * 5 + ["s"] * 975})
@@ -305,14 +330,123 @@ class TestCompareLoaderOutput:
     def test_equal_frames_have_nothing_apart(self):
         a = pd.DataFrame({"k": [1, 2], "v": ["x", None]})
         assert compare.compare(a, a.copy(), self.ENTRY) == {
-            "store_rows": 2, "snapshot_rows": 2, "only_store": 0, "only_snapshot": 0,
+            "live_rows": 2, "new_rows": 2, "only_live": 0, "only_new": 0,
             "differing": 0, "columns_apart": 0}
 
     def test_keys_and_cells_that_differ_are_counted_not_shown(self):
-        store = pd.DataFrame({"k": [1, 2, 3], "v": ["x", "y", "z"]})
-        snapshot = pd.DataFrame({"k": [2, 3, 4], "v": ["y", "CHANGED", "w"]})
-        got = compare.compare(store, snapshot, self.ENTRY)
-        assert (got["only_store"], got["only_snapshot"], got["differing"]) == (1, 1, 1)
+        live = pd.DataFrame({"k": [1, 2, 3], "v": ["x", "y", "z"]})
+        new = pd.DataFrame({"k": [2, 3, 4], "v": ["y", "CHANGED", "w"]})
+        got = compare.compare(live, new, self.ENTRY)
+        assert (got["only_live"], got["only_new"], got["differing"]) == (1, 1, 1)
+
+    def test_the_report_prints_counts_only_and_reads_the_store_read_only(self, store, monkeypatch):
+        reg = {"tables": [{"name": "dim_t", "type": "dim", "grain": "k", "pk": ["k"],
+                           "columns": [{"name": "k", "dtype": "int64"}, {"name": "v", "dtype": "str"}]}]}
+        path = store / "registry.yml"
+        path.write_text(yaml.safe_dump(reg), encoding="utf-8")
+        monkeypatch.setattr(etl, "REGISTRY_PATH", path)
+        etl.write_table("dim_t", pd.DataFrame({"k": [1, 2], "v": ["SECRETVALUE", "b"]}))
+        cap = store / "cap"
+        cap.mkdir()
+        with etl.capturing(cap):
+            etl.write_table("dim_t", pd.DataFrame({"k": [1, 2], "v": ["OTHERVALUE", "b"]}))
+        lines = []
+        assert compare.report(cap, tables=("dim_t",), out=lines.append) == 1
+        text = "\n".join(lines)
+        assert "keys with differing cells 1" in text and "VALUE" not in text
+
+    def test_the_comparison_opens_the_store_read_only_and_writes_review_files_elsewhere(self):
+        source = (REPO / "scripts" / "compare_loader_output.py").read_text(encoding="utf-8")
+        assert "pg.session_read_only()" in source and "etl.capturing(" in source
+        assert "run_pipeline" not in source.split('"""', 2)[2]      # no run-log, no review rows
+
+
+class TestCaptureMode:
+    def test_a_capture_applies_every_write_mode_to_a_copy_and_leaves_the_store(self, store, monkeypatch):
+        reg = {"tables": [{"name": "dim_t", "type": "dim", "grain": "k", "pk": ["k"],
+                           "columns": [{"name": "k", "dtype": "int64"}, {"name": "v", "dtype": "str"}]}]}
+        path = store / "registry.yml"
+        path.write_text(yaml.safe_dump(reg), encoding="utf-8")
+        monkeypatch.setattr(etl, "REGISTRY_PATH", path)
+        etl.write_table("dim_t", pd.DataFrame({"k": [1, 2], "v": ["a", "b"]}))
+        before = (store / "dim_t.parquet").read_bytes()
+        cap = store / "cap"
+        cap.mkdir()
+        with etl.capturing(cap):
+            assert etl.write_table("dim_t", pd.DataFrame({"k": [2, 3], "v": ["B", "c"]}), mode="upsert") == 3
+            assert etl.read_table("dim_t")["v"].tolist() == ["a", "B", "c"]       # reads see the capture
+            assert etl.read_stored("dim_t")["v"].tolist() == ["a", "b"]           # the store is untouched
+        assert (store / "dim_t.parquet").read_bytes() == before
+        assert etl.read_table("dim_t")["v"].tolist() == ["a", "b"]                # mode off again
+
+    def test_capture_mode_does_not_nest(self, store):
+        with etl.capturing(store):
+            with pytest.raises(etl.StorageError):
+                with etl.capturing(store):
+                    pass
+
+
+class TestReferencedIdsSkipPrivateTables:
+    @pytest.fixture
+    def tables(self, store, monkeypatch):
+        reg = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        override = next(t for t in reg["tables"] if t["name"] == "dim_fantrax_crosswalk_override")
+        people = {"name": "dim_nfl_players", "type": "dim", "grain": "gsis_id", "pk": ["gsis_id"],
+                  "columns": [{"name": "gsis_id", "dtype": "str"}, {"name": "status", "dtype": "str"}]}
+        path = store / "registry.yml"
+        path.write_text(yaml.safe_dump({"tables": [people, override]}), encoding="utf-8")
+        monkeypatch.setattr(etl, "REGISTRY_PATH", path)
+        etl.write_table("dim_fantrax_crosswalk_override", pd.DataFrame({
+            "scorer_id": ["a", "b"], "gsis_id": ["ONLYOVERRIDE", "new"], "note": [None, None],
+            "recorded_at": [pd.Timestamp("2026-11-07", tz="UTC")] * 2, "origin": ["csv", "csv"]}))
+        etl.write_table("dim_nfl_players", pd.DataFrame({"gsis_id": ["ONLYOVERRIDE", "FRESH"],
+                                                         "status": ["ACT", "ACT"]}))
+
+    def test_new_is_never_a_referenced_id(self, tables):
+        assert "new" not in etl.referenced_ids("dim_nfl_players")
+        assert etl.referenced_ids("dim_nfl_players") == set()
+
+    def test_a_gsis_id_only_the_overrides_table_holds_is_not_kept(self, tables):
+        fresh = pd.DataFrame({"gsis_id": ["FRESH"], "status": ["ACT"]})
+        assert etl.keep_dropped_ids("dim_nfl_players", fresh)["gsis_id"].tolist() == ["FRESH"]
+
+
+class TestTheLoaderWritesAllOrNothing:
+    def frames(self):
+        scorers = loader.scorers_from_payloads([payload([], [scorer("s1")])])
+        slots = loader.slots_from_payloads([payload(grid())])
+        overrides, _ = loader.overrides_from(
+            pd.DataFrame({"scorer_id": ["a"], "gsis_id": ["G1"], "note": [None]}), {},
+            pd.Timestamp("2026-11-07", tz="UTC"))
+        return {loader.SCORER_TABLE: scorers, loader.SLOT_TABLE: slots, loader.OVERRIDE_TABLE: overrides}
+
+    def test_a_failure_on_the_last_write_leaves_every_target_empty(self, store, monkeypatch):
+        real, calls = etl._write_parquet, []
+
+        def fail_third(*args, **kwargs):
+            calls.append(1)
+            if len(calls) == 3:
+                raise OSError("disk full")
+            return real(*args, **kwargs)
+
+        monkeypatch.setattr(etl, "_write_parquet", fail_third)
+        with pytest.raises(OSError):
+            etl.write_tables_once(self.frames())
+        assert not any(etl.table_exists(t) for t in PRIVATE)
+
+    def test_a_table_that_already_holds_rows_refuses_the_whole_write(self, store):
+        frames = self.frames()
+        etl.write_table(loader.SLOT_TABLE, frames[loader.SLOT_TABLE])
+        with pytest.raises(etl.StorageError, match="already hold rows"):
+            etl.write_tables_once(frames)
+        assert not etl.table_exists(loader.SCORER_TABLE) and not etl.table_exists(loader.OVERRIDE_TABLE)
+
+    def test_a_batch_that_breaks_a_table_writes_nothing(self, store):
+        frames = self.frames()
+        frames[loader.OVERRIDE_TABLE] = frames[loader.OVERRIDE_TABLE].drop(columns="origin")
+        with pytest.raises(etl.StorageError):
+            etl.write_tables_once(frames)
+        assert not any(etl.table_exists(t) for t in PRIVATE)
 
 
 class TestOnlyThePrivateTablesAreLoaded:

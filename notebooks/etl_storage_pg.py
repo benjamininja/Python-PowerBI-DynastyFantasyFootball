@@ -43,12 +43,32 @@ def _db_errors():
         raise WriteRefused(lines[0] if lines else type(exc).__name__) from exc
 
 
+_READ_ONLY = False
+
+
+@contextlib.contextmanager
+def session_read_only():
+    """Every connection this module opens inside the block is read-only: each
+    transaction starts as BEGIN READ ONLY, so any write raises (psycopg
+    `Connection.read_only`, which works through a pooler too). The owner's
+    comparison check runs in it (#93)."""
+    global _READ_ONLY
+    was, _READ_ONLY = _READ_ONLY, True
+    try:
+        yield
+    finally:
+        _READ_ONLY = was
+
+
 def _connect():
     url = os.environ.get(URL_ENV)
     if not url:
         raise RuntimeError(f"ETL_STORAGE=postgres needs {URL_ENV} set")
     psycopg, _ = _psycopg()
-    return psycopg.connect(url, prepare_threshold=None)
+    conn = psycopg.connect(url, prepare_threshold=None)
+    if _READ_ONLY:
+        conn.read_only = True
+    return conn
 
 
 def _state() -> dict:
@@ -245,6 +265,35 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
                     _keys_delete(cur, spec, columns, df, keys)
                 count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
     return int(count)
+
+
+def write_all_empty(batches: dict) -> dict:
+    """Insert every batch (`{name: (registry entry, checked frame)}`) into its
+    table in ONE transaction. The tables are locked first, and a table that
+    already holds a row refuses the whole write inside that same transaction;
+    any other refusal rolls every insert back. Returns the row count each
+    table holds, counted before the commit."""
+    _, sql = _psycopg()
+    specs = {name: _spec(entry) for name, (entry, _) in batches.items()}
+    with _db_errors(), _connect() as conn:
+        with conn.transaction():
+            conn.execute("SET LOCAL lock_timeout = '10s'")
+            for name in sorted(specs):
+                conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(_table(specs[name])))
+            conn.execute("SET LOCAL lock_timeout = 0")
+            held = [name for name in sorted(specs)
+                    if conn.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM {})")
+                                    .format(_table(specs[name]))).fetchone()[0]]
+            if held:
+                raise WriteRefused(f"{', '.join(held)} already hold rows")
+            for name, (entry, df) in batches.items():
+                columns = _check_columns(entry, specs[name])
+                with conn.cursor() as cur:
+                    staged = stage(cur, specs[name], columns, df)
+                    insert_staged(cur, specs[name], columns, staged)
+            return {name: int(conn.execute(sql.SQL("SELECT count(*) FROM {}")
+                                           .format(_table(spec))).fetchone()[0])
+                    for name, spec in specs.items()}
 
 
 # ---- The backfill: load the published tables, read them back, compare (#135, B3) ----
