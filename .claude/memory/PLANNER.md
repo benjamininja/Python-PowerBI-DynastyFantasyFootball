@@ -11,7 +11,12 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000. **NEWEST: 2026-11-06 evening, new state branch. Overrides everything below; read 000000000000000000000000000000000 next.**
+00000000000000000000000000000000000. **NEWEST: 2026-11-07, queue fix. Overrides everything below; read 0000000000000000000000000000000000 next.**
+- **Lesson (owner, 2026-11-07, a regression):** every item that waits on the owner goes to NEEDS-OWNER.md as a ready entry sent to the manager, in the same turn I find it. A chat "your call" or "waiting on your go-ahead" is not a queue entry. Before I end a turn, I check that each owner item I name has an entry.
+- The owner approved #373, #385 and #386 (manager chat, 2026-11-07, "#373, #385 and #386 are approved to go", timing "On blocker merge"). Order after 11-12: merge #383, then dispatch #385; merge #382, then dispatch #373; merge #384, then dispatch #386. All at low.
+- Sent the manager ready entries: Decision on dispatching #352, #354 and #355; Decision on #386's `git rm --cached` step; Action to delete the remote `docs/state-2026-11-05`; Action for the 11-12 Discord notice; Action to review the schedule on map #375.
+
+0000000000000000000000000000000000. **2026-11-06 evening, new state branch. Overrides everything below; read 000000000000000000000000000000000 next.**
 - The state batch PR #387 was squash-merged as `e0b7734` on the owner's word ("merge 387", relayed by the manager). Main is at `e0b7734`.
 - New state branch: worktree ps1103 is on local `docs/state-2026-11-06`, cut from `e0b7734` with no upstream. Push with a standalone `git push origin HEAD:docs/state-2026-11-06`. It's shared with the manager, and the batch PR opens at the end of a day.
 - The remote `docs/state-2026-11-05` still exists (merged, harmless). My `git push origin --delete` was denied as Git Destructive, so the owner deletes it or leaves it.
