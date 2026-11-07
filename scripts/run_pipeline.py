@@ -51,7 +51,16 @@ from pathlib import Path
 from typing import Callable
 
 REPO = Path(__file__).resolve().parent.parent
-VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
+
+
+def _find_python(repo: Path) -> Path:
+    for candidate in (repo / ".venv" / "Scripts" / "python.exe", repo / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return candidate
+    return Path(sys.executable)
+
+
+VENV_PY = _find_python(REPO)
 NB = REPO / "notebooks"
 OUT_DIR = REPO / "data" / "outputs"
 STEP_TIMEOUT_S = 1800
@@ -64,8 +73,7 @@ import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
 import etl_helpers  # noqa: E402
 import etl_run_log  # noqa: E402
 
-CLOSE_DAY_STEPS = frozenset({"03a_fantasypros", "03b_walterfootball", "03c_ktc_rookie",
-                             "03d_draftsharks_rookie", "04b_ktc_dynasty"})
+CLOSE_DAY_STEPS = frozenset({"03b_walterfootball", "03d_draftsharks_rookie"})
 CADENCES = ("due", "all")
 
 # Review queues surfaced (never blocking): file -> the action that drains it.
@@ -170,17 +178,18 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "injury"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+        # Logged-in transaction history (04a's session, like 04v): the raw
+        # capture 02d builds the ledger from and 04z reads for scorers seen
+        # only in a trade or claim. If it fails, 02d is skipped and the Chain
+        # is held.
+        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
+        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04a_backfill_gp", "cmd": _script("04a_fantrax_weekly_scrape.py", "--backfill-gp"),
          "phases": {"INSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
-        # Logged-in transaction history (04a's session, like 04v): the raw
-        # capture 02d builds the ledger from. If it fails, 02d is skipped and
-        # the Chain is held.
-        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         # Dead Money from the ledger's drops (no network). 02e's cap summary
@@ -193,29 +202,20 @@ def build_steps(profile: str | None) -> list[dict]:
         # and each season's row carries only that season's Dead Money.
         {"name": "02h_team_cap", "cmd": _script("02h_fact_team_cap.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02f_dead_money", "02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04b_ktc_dynasty", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-         "phases": {"OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
-        # Rookie chain (auto-safe scrapes only): 03a-03d ingest expert sources
-        # directly. Deliberately stops here — 03x (manual Excel), 03y/03z
+        # Rookie chain (auto-safe scrapes only): 03b and 03d ingest expert
+        # sources directly. Deliberately stops here — 03x (manual Excel), 03y/03z
         # (fuzzy-review + apply) need a human in the loop, per
         # notebooks/README.md, and are never added to this orchestrator.
-        {"name": "03a_fantasypros", "cmd": _nbconvert("03a_fantasypros_rankings.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
         {"name": "03b_walterfootball", "cmd": _nbconvert("03b_walterfootball_rankings.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
-        {"name": "03c_ktc_rookie", "cmd": _nbconvert("03c_ktc_rankings.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
         {"name": "03d_draftsharks_rookie", "cmd": _nbconvert("03d_draftsharks_rankings.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
     ]
     if profile == "dynasty":
-        # After the user refreshes the 04x manual Excel. 04b re-runs even if
-        # the phase already included it (idempotent).
+        # After the user refreshes the 04x manual Excel.
         steps += [
-            {"name": "04b_ktc_dynasty_p", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
             {"name": "04c_dim_dynasty_metric", "cmd": _nbconvert("04c_dim_dynasty_metric.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04b_ktc_dynasty_p"], "chain": "dynasty_profile", "group": "pre_season"},
+             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
              "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "chain": "dynasty_profile", "group": "pre_season"},
         ]

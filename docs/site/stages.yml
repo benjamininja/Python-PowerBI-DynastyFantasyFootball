@@ -75,25 +75,14 @@ stages:
   - id: rookie
     name: Rookie rankings
     description: >-
-      Refreshes the public rookie rankings from four ranking sites so the
-      draft board reflects the latest consensus. Owners see it as the
-      prospect order they draft from. These steps run on each Close Day.
+      Refreshes the public rookie rankings from two ranking sites,
+      WalterFootball and DraftSharks, so the draft board reflects the latest
+      consensus. Owners see it as the prospect order they draft from. These
+      steps run on each Close Day.
     tables: [fact_rookie_rankings]
     steps:
-      - {name: 03a_fantasypros, summary: "Reads FantasyPros rookie rankings."}
       - {name: 03b_walterfootball, summary: "Reads WalterFootball rookie rankings."}
-      - {name: 03c_ktc_rookie, summary: "Reads KeepTradeCut rookie values."}
       - {name: 03d_draftsharks_rookie, summary: "Reads DraftSharks rookie rankings."}
-
-  - id: dynasty
-    name: Dynasty
-    description: >-
-      Refreshes dynasty player values from KeepTradeCut in the offseason, when
-      long-term value matters most. Owners see it as the long-term values the
-      trade tool weighs. It runs on each Close Day.
-    tables: [fact_dynasty_ranking_metrics]
-    steps:
-      - {name: 04b_ktc_dynasty, summary: "Reads KeepTradeCut dynasty values."}
 
 publish:
   name: Publish

@@ -26,7 +26,8 @@
    - Change Poll: every 10 min in INSEASON/PRESEASON (`3,13,…,53`), hourly in OFFSEASON; the phase check is inside the run.
    - Both share `concurrency: group: etl`, `cancel-in-progress: false`. Actions queues them, so runs never overlap.
    - **Gated by a spike**: a headless Fantrax login from a runner. If a runner is challenged, every datacenter host fails the same way; the fallback is a residential host. No CAPTCHA workarounds.
-2. **The home PC is the test and fallback runner.** Both runners call one Linux-capable `run_pipeline.py` entrypoint. The Thursday task stays until cutover, then a one-week parallel run, then it is unregistered.
+2. ~~**The home PC is the test and fallback runner.** Both runners call one Linux-capable `run_pipeline.py` entrypoint. The Thursday task stays until cutover, then a one-week parallel run, then it is unregistered.~~
+   - *Amended 2026-11-07 (#93): the owner struck this point. The first Actions run is started by hand while the owner watches. If it is good, the cron goes on the same day and the owner unregisters the PC task, so two runners never land data on one day.*
 3. **Reliability requirements.**
    - A **dead-man's switch**: each successful run pings an external check; a missed ping (~26 h) alerts.
    - The daily run **re-enables its own workflows** via the Actions API (`PUT …/actions/workflows/{id}/enable`, `actions: write`), so the 60-day timer never fires. No filler commits, no third-party keepalive action.
