@@ -14,7 +14,14 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 00000000000000000000000000000000000000000. **NEWEST: before a clear, 2026-11-07 ~11:45 (session cbf95079). Overrides everything below; read 0000000000000000000000000000000000000000 next.**
 - **Resume:** worktree ps1103, local branch `docs/state-2026-11-07`. `git pull --rebase origin docs/state-2026-11-07` before reading. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`. Find the manager with ListAgents (`dynastyFantasyFootball-central-builder-manager`; it restarts often, so a "new session under a previously used name" note is normal) and send by name. **Tools-central-planner** is the planner for skills-plugins-hooks-agents (the owner made it 2026-11-07); send it that repo's work. **No state batch PR is open**; open one at the end of the day, and merge only on the owner's word.
 - **Cutover critical path (#93, today):**
-  1. **PR #433 = brief 6** (b93-supply; the 02d/04z supply: two unpublished tables, a one-time PC loader, and 02d/04z reading Postgres). The supabase-auditor and CI are on it. The manager added two guards: no data/raw reads in any checkout (synthetic fixtures), and an owner comparison check.
+  1. **PR #433 = brief 6** (b93-supply; the 02d/04z supply: two unpublished tables, a one-time PC loader, and 02d/04z reading Postgres). The manager added two guards: no data/raw reads in any checkout (synthetic fixtures), and an owner comparison check.
+     - **HELD after the auditor's PASS WITH NOTES. My rulings are #93 issuecomment-6710775215:**
+       - The comparison is read-only and compares with live Postgres; no run-log or review rows.
+       - The loader runs in one transaction.
+       - referenced_ids skips the private tables.
+       - The overrides Gate isn't a fixed 26 and 7 (#431 adds rows).
+       - No etl_reader grant on the private tables if cheap.
+     - The manager relays these, then re-proves.
   2. When the manager has re-proved it and merged, line up the owner's hand steps in order: (1) the migrate run, (2) the loader on the PC, (3) the comparison check.
   3. Then **PR #419** (brief 1, b93-daily) merges. It holds the four parts, the Q11 commit (03a, 03c, 04b and 04b_p out of the schedule and CLOSE_DAY_STEPS; stages.yml Rookie text "two ranking sites, WalterFootball and DraftSharks"; the Dynasty stage deleted; 04c needs []), and the 04t order commit (04t after 04a; 04t needs 04a; 04z needs 04a and 04t; an acyclic test; #93 issuecomment-6710348695).
   4. The hand-started first Actions run, with the owner watching. Then the cron goes on, and the owner unregisters the PC task.
