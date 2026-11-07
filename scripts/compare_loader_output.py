@@ -20,6 +20,8 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "notebooks"))
 import etl_helpers as etl  # noqa: E402
 import etl_storage_pg as pg  # noqa: E402
+sys.path.insert(0, str(REPO / "scripts"))
+import load_draft_and_overrides as loader  # noqa: E402
 
 TABLES = ("fact_roster_transactions", "dim_roster_asset", "fact_draft_pick",
           "dim_fantrax_crosswalk")
@@ -70,8 +72,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--snapshot", type=Path, default=etl.DATA,
                     help="folder holding the published parquet files (default: data/)")
+    args = ap.parse_args(argv)
     try:
-        return run(ap.parse_args(argv).snapshot)
+        print(f"storage: {loader.use_env_file()}")
+        return run(args.snapshot)
     except Exception as exc:
         print(f"stopped: {type(exc).__name__} (no detail printed: it may hold a value)")
         return 1

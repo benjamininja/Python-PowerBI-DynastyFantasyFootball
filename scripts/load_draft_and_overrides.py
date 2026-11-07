@@ -235,12 +235,25 @@ def load(raw_dir: Path, *, check_only: bool = False, decisions: dict | None = No
     return 0
 
 
+def use_env_file(env_file: Path | None = None) -> str:
+    """ETL_STORAGE and SUPABASE_DB_URL from the environment, else from .env
+    (as run_pipeline.py resolves them). Returns the storage kind."""
+    import etl_run_log
+    for key in ("ETL_STORAGE", etl_run_log.URL_ENV):
+        if not os.environ.get(key):
+            value = etl_run_log.env_value(key, REPO / ".env" if env_file is None else env_file)
+            if value:
+                os.environ[key] = value
+    return os.environ.get("ETL_STORAGE") or "parquet"
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--check", action="store_true", help="run the checks, write nothing")
     ap.add_argument("--raw-dir", type=Path, default=etl.DATA / "raw",
                     help="folder holding the raw captures (default: data/raw)")
     args = ap.parse_args(argv)
+    use_env_file()
     try:
         return load(args.raw_dir, check_only=args.check)
     except etl.StorageError as exc:
