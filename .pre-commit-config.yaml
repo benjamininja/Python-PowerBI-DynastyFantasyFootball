@@ -13,6 +13,11 @@ repos:
         name: block owner PII (email-shaped strings) in a public repo
         entry: ./.venv/Scripts/python.exe scripts/check_pii.py
         language: system
+      - id: normalize-notebooks
+        name: normalize notebook source form (list of lines, indent=1, final newline)
+        entry: ./.venv/Scripts/python.exe scripts/normalize_notebooks.py
+        language: system
+        files: ^notebooks/[^/]+\.ipynb$      
       - id: check-sources
         name: validate docs/sources.yml manifest
         entry: ./.venv/Scripts/python.exe scripts/check_sources.py
