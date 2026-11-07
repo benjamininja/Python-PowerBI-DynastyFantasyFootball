@@ -236,6 +236,15 @@ team's roster present, every Starter scored, team totals matching Fantrax.
 Until it passes, the Update-Set stays closing.
 _Avoid_: final check, freeze check
 
+**Terms check**:
+The dated record of a Source's terms or licence: the verdict (unresolved,
+permitted or rejected), when it was last checked, what was done and the URLs
+read. We judge a Source by the terms of the place we read it from, not of a site
+upstream of it. A Source is re-checked at least every 6 months. One never
+checked, or past its next check, is counted in one advisory line and never
+fails a run.
+_Avoid_: licence review, compliance check
+
 ### Flows
 
 **Domain**:
