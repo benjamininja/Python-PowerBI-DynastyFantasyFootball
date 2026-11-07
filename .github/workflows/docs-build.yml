@@ -43,6 +43,9 @@ jobs:
       - name: Record trade-bud's index.html
         run: sha256sum _site/index.html | tee trade-bud-index.sha256
 
+      - name: Generate the refresh schedule page
+        run: python scripts/build_schedule_page.py
+
       - name: Build the docs site into _site/docs
         run: zensical build --clean
 
