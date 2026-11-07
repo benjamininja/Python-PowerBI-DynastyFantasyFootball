@@ -649,7 +649,7 @@ class TestGolden:
             pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(c, entry))
 
     def test_every_published_table_is_declared(self):
-        assert set(TABLES) == set(etl._registry())
+        assert set(TABLES) == set(etl.published_names())
 
     @pytest.mark.parametrize("table", TABLES)
     def test_write_then_read_gives_the_table_back(self, table, tmp_path, monkeypatch):
