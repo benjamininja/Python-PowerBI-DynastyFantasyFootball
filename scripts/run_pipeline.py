@@ -51,7 +51,16 @@ from pathlib import Path
 from typing import Callable
 
 REPO = Path(__file__).resolve().parent.parent
-VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
+
+
+def _find_python(repo: Path) -> Path:
+    for candidate in (repo / ".venv" / "Scripts" / "python.exe", repo / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return candidate
+    return Path(sys.executable)
+
+
+VENV_PY = _find_python(REPO)
 NB = REPO / "notebooks"
 OUT_DIR = REPO / "data" / "outputs"
 STEP_TIMEOUT_S = 1800
