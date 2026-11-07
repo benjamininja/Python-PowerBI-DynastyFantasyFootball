@@ -16,6 +16,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - The owner approved #373, #385 and #386 (manager chat, 2026-11-07, "#373, #385 and #386 are approved to go", timing "On blocker merge"). Order after 11-12: merge #383, then dispatch #385; merge #382, then dispatch #373; merge #384, then dispatch #386. All at low.
 - Sent the manager ready entries: Decision on dispatching #352, #354 and #355; Decision on #386's `git rm --cached` step; Action to delete the remote `docs/state-2026-11-05`; Action for the 11-12 Discord notice; Action to review the schedule on map #375.
 - The owner's Note, 06:27, asked whether "this test" could run today. I read it as the #336 proof. Sent the manager a Decision: (a) `Start-ScheduledTask` today counts as the proof (recommended; it skips only the timer, which #373 replaces); (b) wait for 11-12. The task has never run (267011). On (a), record it on #336 and amend its Done-when.
+- **Owner answered (a), 06:32:38.** Recorded on #336 (issuecomment-6706993008), and #336's Done-when is amended. Relayed to the manager, who queues the owner's start Action and checks the run. Next: the run passes, then #361, #362, #370 and #336 close, then the merges #383, #382 and #384, then the dispatches.
+- Lesson: in PowerShell, `gh ... --jq .body` returns an array of lines, and `.Replace` on it flattened #336's body. I restored it from userContentEdits through the Bash tool. Edit issue bodies with Python through Bash.
 
 0000000000000000000000000000000000. **2026-11-06 evening, new state branch. Overrides everything below; read 000000000000000000000000000000000 next.**
 - The state batch PR #387 was squash-merged as `e0b7734` on the owner's word ("merge 387", relayed by the manager). Main is at `e0b7734`.
