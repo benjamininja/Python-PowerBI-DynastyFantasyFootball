@@ -110,7 +110,7 @@ credit owed, share-alike, upstream, access, permission) is in
 | **FantasyPros** | live | rejected | 2026-11-07 | 2027-05-07 | site terms | public_get | #401, #415 |
 | **WalterFootball** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #417 (issuecomment-6709451916) |
 | **DraftSharks** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DynastySharks** | live | unresolved | never | — | — | manual_file | — |
+| **DynastySharks** | live | unresolved | 2026-11-07 | 2027-05-07 | none | manual_file | #400 |
 | **Manual Excel — misc rankings** | live | unresolved | never | — | — | manual_file | — |
 | **Fantrax — draftPicks.go** | planned | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
 | **Fantrax — commissioner admin** | planned | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |

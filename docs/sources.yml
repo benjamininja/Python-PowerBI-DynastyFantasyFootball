@@ -353,7 +353,7 @@ sources:
   - id: dynastysharks
     name: "DynastySharks"
     status: live
-    terms: { status: unresolved, checked: null, access: manual_file }
+    terms: { <<: *draftsharks_terms, access: manual_file }
     locator: "Manual extraction -> data/raw/DynastyRankings_2026_ManualExtraction.xlsx"
     purpose: "Dynasty 1/3/5/10-yr fantasy-point projections + 3D value (SF/TEPP)"
     auth: "Manual file placement (no creds)"

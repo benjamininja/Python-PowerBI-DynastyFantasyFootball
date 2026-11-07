@@ -186,7 +186,16 @@ def test_real_manifest_starting_values():
     assert by_id["collegefootballdata"]["status"] == "permitted"
     assert by_id["collegefootballdata"]["checked"] == date(2026, 11, 7)
     assert by_id["fantrax_draftpicks_go"]["checked"] == date(2026, 11, 7)
-    assert by_id["dynastysharks"] == {"status": "unresolved", "checked": None, "access": "manual_file"}
+    assert by_id["dynastysharks"]["status"] == "unresolved"
+    assert by_id["dynastysharks"]["checked"] == date(2026, 11, 7)
+    assert by_id["dynastysharks"]["checked_in"] == "#400"
+    assert by_id["dynastysharks"]["access"] == "manual_file"
+    assert by_id["dynastysharks"]["evidence"] == by_id["draftsharks"]["evidence"]
+    assert cs.terms_due(cs.load_yaml()["sources"], date(2026, 11, 7))["never"] == [
+        "google_sheet_team_manifest",
+        "manual_excel_misc",
+        "google_sheet_manifest_write",
+    ]
 
 
 def test_real_manifest_render_is_current():

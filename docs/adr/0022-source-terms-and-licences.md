@@ -48,7 +48,7 @@
 | Source | Terms status | Evidence |
 |---|---|---|
 | WalterFootball | `unresolved`, checked 2026-11-07 | #417 |
-| DraftSharks, and each DraftSharks list entry | `unresolved`, checked 2026-11-07 | #400, #414 |
+| DraftSharks, each DraftSharks list entry, and DynastySharks (the hand-saved sheets, read from the same site) | `unresolved`, checked 2026-11-07 | #400, #414 |
 | PFF | `rejected` | #402 |
 | FantasyPros | `rejected` | #401, #415 |
 | KeepTradeCut | `rejected` (terms last updated 2025-11-11 bar automated collection, use on any other website, redistribution and derivatives) | #423 |
