@@ -132,9 +132,9 @@ and the code that fills the column; nothing else by hand. After the migration
 is on the project, the next run exports each table from the database
 (`export_published`). If the table's snapshot has other columns than the
 registry, the export treats that as an intended change: the snapshot is
-written in the registry's shape and the run log (`ops.etl_run_log.cadence`,
-key `column_changes`) and the run summary list the column names added and
-dropped, never a value. A rename shows as one dropped and one added name, as
+written in the registry's shape and the run log
+(`ops.etl_run_log.column_changes`) and the run summary list the column names
+added and dropped, never a value. A rename shows as one dropped and one added name, as
 the registry marks no rename. A frame that is not the registry's columns is
 drift: the export raises, the run aborts and the database is reloaded from
 the snapshot at HEAD. Between the merge and the next run the snapshot keeps

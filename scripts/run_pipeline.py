@@ -874,8 +874,6 @@ def main() -> int:
 
         cadence["done"] = [] if args.no_commit or not cadence["week_key"] else close_steps_done(
             cadence, results, steps, plan, commit_line)
-        if plan and plan.get("column_changes") and not commit_line.startswith("ABORTED"):
-            cadence["column_changes"] = plan["column_changes"]
         if runlog.run_id:
             runlog.finish(
                 etl_run_log.final_status(code, commit_line),
@@ -886,7 +884,9 @@ def main() -> int:
                               else etl_run_log.row_counts(plan["publish"])),
                 error=(etl_run_log.failure_summary(results, plan, commit_line)
                        if code else None),
-                cadence=cadence)
+                cadence=cadence,
+                column_changes=(plan or {}).get("column_changes")
+                if not commit_line.startswith("ABORTED") else None)
     except BaseException as exc:
         runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
         if runlog.warning and not args.dry_run:
