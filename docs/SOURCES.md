@@ -81,3 +81,47 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 |---|---|---|---|---|---|
 | **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public | None; not ingested | — | Never (rejected) |
 <!-- END GENERATED sources-table:rejected -->
+
+## Terms and licences (every source, re-checked every 6 months)
+
+Each source's terms verdict, when it was last checked, and the ticket that holds
+the evidence. `unresolved` means no clear terms were found or none were looked
+for, and is never read as cleared. A source with no check date is counted as
+due by `scripts/check_sources.py`, as is one past its next check; the count is
+advisory and never fails a run. The full block (how it was checked, URLs read,
+credit owed, share-alike, upstream, access, permission) is in
+[`sources.yml`](sources.yml). See [ADR-0022](adr/0022-source-terms-and-licences.md).
+
+<!-- BEGIN GENERATED sources-table:terms — regen: python scripts/check_sources.py --render -->
+| Source | Manifest status | Terms | Checked | Next check | Licence | Access | Evidence |
+|---|---|---|---|---|---|---|---|
+| **Fantrax — getPlayerStats (Players grid)** | live | unresolved | never | — | — | owner_login | — |
+| **Fantrax — getPlayerStats (MINOR_FANTASY filters)** | live | unresolved | never | — | — | owner_login | — |
+| **Fantrax — getDraftResults** | live | unresolved | never | — | — | owner_login | — |
+| **Fantrax — getTransactionDetailsHistory** | live | unresolved | never | — | — | owner_login | — |
+| **Fantrax — public fxea API (getDraftPicks)** | live | unresolved | never | — | — | public_get | — |
+| **Fantrax — public fxea API (getLeagueInfo)** | live | unresolved | never | — | — | public_get | — |
+| **Fantrax — public fxea API (getTeamRosters per period)** | live | unresolved | never | — | — | public_get | — |
+| **Fantrax — getLiveScoringStats + getStandings (per Scoring Period)** | live | unresolved | never | — | — | owner_login | — |
+| **Google Sheet — team manifest** | live | unresolved | never | — | — | public_get | — |
+| **nflverse (via nflreadpy)** | live | permitted | 2026-11-07 | 2027-05-07 | CC-BY-4.0 | public_get | #416 (issuecomment-6709476183) |
+| **KeepTradeCut (KTC)** | live | rejected | 2026-11-07 | 2027-05-07 | site terms | public_get | #423 |
+| **FantasyPros** | live | rejected | 2026-11-07 | 2027-05-07 | site terms | public_get | #401, #415 |
+| **WalterFootball** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #417 (issuecomment-6709451916) |
+| **DraftSharks** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DynastySharks** | live | unresolved | never | — | — | manual_file | — |
+| **Manual Excel — misc rankings** | live | unresolved | never | — | — | manual_file | — |
+| **Fantrax — draftPicks.go** | planned | unresolved | never | — | — | owner_login | — |
+| **Fantrax — commissioner admin** | planned | unresolved | never | — | — | owner_login | — |
+| **PFF (Pro Football Focus)** | rejected | rejected | 2026-11-07 | 2027-05-07 | site terms | none | #402 |
+| **DraftSharks — preseason rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — best ball rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — dynasty rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — weekly rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — rest of season rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — keeper rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — auction values** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — ADP market indexes** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **DraftSharks — trade value charts** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
+| **Google Sheet — manifest sync (write)** | planned | unresolved | never | — | — | api_key | — |
+<!-- END GENERATED sources-table:terms -->

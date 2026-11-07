@@ -11,6 +11,10 @@
 #                                             contains >=1 match token (OR)
 #   - reverse-drift (WARN)                  : notebook external hosts not registered
 #                                             here and not in ignore_hosts
+#   - terms block (all sources)             : required and shape-checked (ADR-0022);
+#                                             one ADVISORY count for sources never
+#                                             checked or past next_check (never a
+#                                             failure)
 #
 # Field notes:
 #   id       : stable slug, primary key (never rendered)
@@ -21,6 +25,18 @@
 #   feeds    : list of {notebook, table}; lint asserts token in EACH notebook
 #   match    : token(s) the lint searches for in feed notebooks (case-insensitive
 #              substring, OR across the list). Internal — never rendered.
+#   terms    : the source's terms and licence record (ADR-0022). Its `status`
+#              (unresolved | permitted | rejected) is the terms verdict, separate
+#              from the manifest `status` above.
+#                status, checked, access      always. checked is a date or null.
+#                checked_in, how, evidence,   required once checked is a date.
+#                licence, share_alike         evidence is a list of {url, archive}
+#                                             (archive: a web.archive.org copy or null).
+#                attribution, upstream,       optional. upstream is a list of source ids
+#                permission                   or names; permission is null (never asked)
+#                                             or {asked, given, link}.
+#              access: public_get | api_key | owner_login | manual_file | none.
+#              next_check = checked + 6 months, computed, never typed.
 
 # Hosts that legitimately appear in notebooks but are NOT data sources.
 # The reverse-drift check subtracts these (plus registered source hosts).
@@ -39,6 +55,7 @@ sources:
   - id: fantrax_playerstats_grid
     name: "Fantrax — getPlayerStats (Players grid)"
     status: live
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats; getDraftRanks retired 2026-07-31)"
     purpose: "Full active-roster universe: FPts, FP/G, GP, ADP, %D, salary. Codes: `PROJECTION_0_23l_SEASON` (preseason), `SEASON_23l_YEAR_TO_DATE` (in-season / YTD), `SEASON_23l_BY_DATE` + ISO startDate/endDate (rebuild a missed week, `--rebuild-week`)"
     auth: "Fantrax account login, env-stored (FANTRAX_EMAIL/FANTRAX_PASSWORD); persistent Playwright profile (data/.pw_profile/)"
@@ -53,6 +70,7 @@ sources:
   - id: fantrax_minor_contracts
     name: "Fantrax — getPlayerStats (MINOR_FANTASY filters)"
     status: live
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN)"
     purpose: "Minors eligibility (read-only): the site's own verdict on who is minors-eligible (GP<=19). 02d reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from the public getTeamRosters entry below, not from here"
     auth: "Same Fantrax session as the Players-grid source (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
@@ -70,6 +88,7 @@ sources:
   - id: fantrax_getdraftresults
     name: "Fantrax — getDraftResults"
     status: live
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getDraftResults + getFantasyLeagueInfo + getRefObject FantasyDraftPickType; one call per division)"
     purpose: "Live-draft made-pick attribution: every slot of the startup draft board per division -> `startup_draft` events in the event-sourced ledger, the pick grid and the asset bridge (ADR-0003/0004)"
     auth: "Same Fantrax session as the Players-grid source (04w imports 04a's scraper: env-stored login + persistent Playwright profile)"
@@ -84,6 +103,7 @@ sources:
   - id: fantrax_transaction_history
     name: "Fantrax — getTransactionDetailsHistory"
     status: live
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getTransactionDetailsHistory; team=ALL, views TRADE + CLAIM_DROP, all pages)"
     purpose: "Roster Moves log (trade legs, claims, drops) -> ledger `trade` / `trade_away` / `claim` / `drop` events + the per-asset trade log (players and picks). No public fxea equivalent exists"
     auth: "Same Fantrax session as the Players-grid source (04t imports 04a's scraper: env-stored login + persistent Playwright profile)"
@@ -97,6 +117,7 @@ sources:
   - id: fantrax_public_fxea
     name: "Fantrax — public fxea API (getDraftPicks)"
     status: live
+    terms: { status: unresolved, checked: null, access: public_get }
     locator: "https://www.fantrax.com/fxea/general/getDraftPicks?leagueId=v744203wmmvjqzv6"
     purpose: "Real per-pick ownership of every future rookie-draft pick (`futureDraftPicks`, incl. executed pick-for-pick trades)"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
@@ -108,6 +129,7 @@ sources:
   - id: fantrax_public_league_info
     name: "Fantrax — public fxea API (getLeagueInfo)"
     status: live
+    terms: { status: unresolved, checked: null, access: public_get }
     locator: "https://www.fantrax.com/fxea/general/getLeagueInfo?leagueId=v744203wmmvjqzv6"
     purpose: "The season's 17 Scoring Periods with their exact bounds (`scoringPeriods`, `playoffs`) and each team's division (`teamInfo`). Feeds the period dim, with the Update-Set state of each regular-season period, and the Division name per Conference (ADR-0016 amendment decisions 2, 12, 14). Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
@@ -120,6 +142,7 @@ sources:
   - id: fantrax_public_rosters
     name: "Fantrax — public fxea API (getTeamRosters per period)"
     status: live
+    terms: { status: unresolved, checked: null, access: public_get }
     locator: "https://www.fantrax.com/fxea/general/getTeamRosters?leagueId=v744203wmmvjqzv6&period=N"
     purpose: "The Roster State of each regular-season Scoring Period: every player copy's Roster Slot (`status`), salary and contract, per team (ADR-0016 decision 3 and its amendment). A call with no period returns the current one and echoes its number. A past period returns its roster as it stood at that period's lineup lock; a FUTURE period returns the current roster under the future number, so 04r never asks past the current period. One call per period that has started and is not closed. The season comes from a getLeagueInfo call, so a league id carried into a new season cannot write under the old one"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
@@ -131,6 +154,7 @@ sources:
   - id: fantrax_inseason_scoring
     name: "Fantrax — getLiveScoringStats + getStandings (per Scoring Period)"
     status: live
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getLiveScoringStats {period, playerViewType:'2'} and getStandings {view:'SCHEDULE'}; plus the plain getStandings {view:'COMBINED'} per period, captured raw only)"
     purpose: "Period Scoring and Matchups (ADR-0016 amendment decisions 1, 5, 9, 15). Live scoring with the bench view lists every rostered player with an entry, Starters under `ACTIVE` and Bench, IR and Minors under `BENCH`, each with points per stat; 04s sums them by Unit. The schedule view gives every week's matchups and Team Scores. A period loads once `allEventsFinished` is true. Live scoring echoes no period, and answers for a period that has not started with 28 teams and no entries. Errors come back as HTTP 200 with a `pageError`. The plain COMBINED standings ignore `period`: every reply is the current standings. It is saved raw and never loaded. No standings table is built (ADR-0016 amendment decision 11): rank is derived from `fact_matchup`, % Playoffs is dropped, and the reply's Salary Remaining is #97's to parse from the raw files"
     auth: "Same Fantrax session as the Players-grid source (04s imports 04a's scraper: env-stored login + persistent Playwright profile). `--from-raw` loads from the saved raw files with no browser and no login"
@@ -145,6 +169,7 @@ sources:
   - id: google_sheet_team_manifest
     name: "Google Sheet — team manifest"
     status: live
+    terms: { status: unresolved, checked: null, access: public_get }
     locator: "https://docs.google.com/spreadsheets/d/1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc (gid 178660131), read via export?format=csv"
     purpose: "Owner/team roster manifest: team name, abbrev, manager emails, division, Team ID, Fantrax-TeamId"
     auth: "Published CSV export (link-readable, no creds) for read"
@@ -158,6 +183,22 @@ sources:
   - id: nflverse
     name: "nflverse (via nflreadpy)"
     status: live
+    terms:
+      status: permitted
+      checked: 2026-11-07
+      checked_in: "#416 (issuecomment-6709476183)"
+      how:
+        - "nflverse-data licence read: CC BY 4.0"
+        - "nflreadpy licence read: MIT"
+      evidence:
+        - { url: "https://github.com/nflverse/nflverse-data", archive: null }
+        - { url: "https://github.com/nflverse/nflreadpy", archive: null }
+      licence: CC-BY-4.0
+      attribution: "Credit nflverse as the data source (CC BY 4.0)"
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
     locator: "nflreadpy package (nflverse release data)"
     purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id), in-season snap counts and injury report"
     auth: "None (public package)"
@@ -173,6 +214,24 @@ sources:
   - id: keeptradecut
     name: "KeepTradeCut (KTC)"
     status: live
+    terms:
+      status: rejected
+      checked: 2026-11-07
+      checked_in: "#423"
+      how:
+        - "terms read (last updated 2025-11-11)"
+        - "2.1 bars any form of automated data collection"
+        - "2.2 bars use on any other website, derivative works and redistribution"
+        - "5 grants a personal, non-commercial licence only"
+        - "robots.txt allows crawling, which grants no licence"
+      evidence:
+        - { url: "https://keeptradecut.com/terms-and-conditions", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
     locator: "https://keeptradecut.com (embedded-HTML / JSON scrape)"
     purpose: "Dynasty trade value, tiers, trends, startup ADP/auction; rookie consensus"
     auth: "None (public scrape)"
@@ -185,6 +244,24 @@ sources:
   - id: fantasypros
     name: "FantasyPros"
     status: live
+    terms:
+      status: rejected
+      checked: 2026-11-07
+      checked_in: "#401, #415"
+      how:
+        - "terms read (effective July 1, 2010; no later date)"
+        - "6 bars copying, modifying and republishing without prior written permission"
+        - "19 bars use for commercial purposes"
+        - "robots.txt read: ranking pages allowed, Crawl-delay 5"
+      evidence:
+        - { url: "https://www.fantasypros.com/about/legal/", archive: null }
+        - { url: "https://www.fantasypros.com/robots.txt", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
     locator: "https://www.fantasypros.com (scrape) + manual Excel for IDP/SF"
     purpose: "Rookie PPR + Superflex consensus (scrape); dynasty SF/IDP best/worst/avg/stddev (manual)"
     auth: "None (scrape); manual file (Excel)"
@@ -197,6 +274,26 @@ sources:
   - id: walterfootball
     name: "WalterFootball"
     status: live
+    terms:
+      status: unresolved
+      checked: 2026-11-07
+      checked_in: "#417 (issuecomment-6709451916)"
+      how:
+        - "terms.php and termsofuse.php return 404"
+        - "home page footer links Privacy Policy only"
+        - "privacy page cites a Terms of Use it does not contain"
+        - "robots.txt allows all"
+      evidence:
+        - { url: "https://walterfootball.com/robots.txt", archive: null }
+        - { url: "https://walterfootball.com/privacy.php", archive: null }
+        - { url: "https://walterfootball.com/terms.php", archive: null }
+        - { url: "https://walterfootball.com/termsofuse.php", archive: null }
+      licence: none
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
     locator: "https://walterfootball.com (scrape)"
     purpose: "Rookie positional rankings"
     auth: "None (public scrape)"
@@ -208,6 +305,25 @@ sources:
   - id: draftsharks
     name: "DraftSharks"
     status: live
+    terms: &draftsharks_terms
+      status: unresolved
+      checked: 2026-11-07
+      checked_in: "#400"
+      how:
+        - "terms-of-use, site/terms-of-use and site/terms-and-conditions return 404"
+        - "footer Terms of Use and Cookie Policy links are dead anchors"
+        - "robots.txt allows all (empty Disallow)"
+        - "only site/privacy-policy exists; not read"
+      evidence:
+        - { url: "https://www.draftsharks.com/robots.txt", archive: null }
+        - { url: "https://www.draftsharks.com/terms-of-use", archive: null }
+        - { url: "https://www.draftsharks.com/site/privacy-policy/", archive: null }
+      licence: none
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
     locator: "https://www.draftsharks.com (scrape)"
     purpose: "Rookie top-90 board"
     auth: "None (public scrape)"
@@ -219,6 +335,7 @@ sources:
   - id: dynastysharks
     name: "DynastySharks"
     status: live
+    terms: { status: unresolved, checked: null, access: manual_file }
     locator: "Manual extraction -> data/raw/DynastyRankings_2026_ManualExtraction.xlsx"
     purpose: "Dynasty 1/3/5/10-yr fantasy-point projections + 3D value (SF/TEPP)"
     auth: "Manual file placement (no creds)"
@@ -230,6 +347,7 @@ sources:
   - id: manual_excel_misc
     name: "Manual Excel — misc rankings"
     status: live
+    terms: { status: unresolved, checked: null, access: manual_file }
     locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP)"
     purpose: "Supplemental rookie/dynasty expert ranks not available via scrape"
     auth: "Manual file placement (no creds)"
@@ -247,6 +365,7 @@ sources:
   - id: fantrax_draftpicks_go
     name: "Fantrax — draftPicks.go"
     status: planned
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "Fantrax draftPicks.go page (league v744203wmmvjqzv6; per division — capture pending)"
     purpose: "Pick-ownership SSOT per ADR-0006 (current + forward). Not captured; forward-pick ownership comes from the public fxea getDraftPicks (04u) today"
     auth: "Same Fantrax session as the Players-grid source (Fantrax login + Playwright profile)"
@@ -257,6 +376,7 @@ sources:
   - id: fantrax_commissioner_admin
     name: "Fantrax — commissioner admin"
     status: planned
+    terms: { status: unresolved, checked: null, access: owner_login }
     locator: "Fantrax commissioner pages (league v744203wmmvjqzv6)"
     purpose: "Contract/cap reconciliation, manual corrections"
     auth: "Commissioner-account login (env-stored)"
@@ -267,6 +387,25 @@ sources:
   - id: pff
     name: "PFF (Pro Football Focus)"
     status: rejected
+    terms:
+      status: rejected
+      checked: 2026-11-07
+      checked_in: "#402"
+      how:
+        - "terms read (Last Updated October 12, 2026)"
+        - "1.5(h) and 1.5(j) bar scrapers, bots and automated browsers"
+        - "personal, non-commercial use only; no commercial or editorial licence offered"
+        - "robots.txt read: login pages disallowed"
+      evidence:
+        - { url: "https://www.pff.com/terms", archive: null }
+        - { url: "https://www.pff.com/robots.txt", archive: null }
+        - { url: "https://www.pff.com/subscribe", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: none
+      permission: null
     locator: "https://www.pff.com (paid subscription; spike #402)"
     purpose: "Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public"
     auth: "None; not ingested"
@@ -281,6 +420,7 @@ sources:
   - id: draftsharks_preseason_rankings
     name: "DraftSharks — preseason rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/rankings/{pos}/{format} (base /rankings/{format}; formats: non-PPR, half-ppr, ppr, te-premium and the superflex versions; positions QB RB WR TE K DEF DL LB DB IDP)"
     purpose: "Redraft season-long ranks with floor/consensus/DS/ceiling projections, 3D Value and tiers, with IDP (DL LB DB) pages. For this league: IDP and superflex cross-check against the dynasty ranks. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows are in the page HTML without login; the rest load by script after 'Loading remaining rows...' (call not seen in one GET). An Insider upsell banner shows; whether rows past 25 are gated is unconfirmed"
@@ -291,6 +431,7 @@ sources:
   - id: draftsharks_best_ball_rankings
     name: "DraftSharks — best ball rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/best-ball-rankings/{pos} (positions QB RB WR TE FLEX; no format variants)"
     purpose: "Best-ball ranks set to Underdog scoring, with Underdog ADP, projections and 3D Value. Low fit for this league (no best ball, no IDP); catalogued for completeness. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows in the page HTML, remainder loaded by script (call not seen); Insider upsell banner shown"
@@ -301,6 +442,7 @@ sources:
   - id: draftsharks_dynasty_rankings
     name: "DraftSharks — dynasty rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/dynasty-rankings/{pos}/{format} (rookies: /dynasty-rankings/{pos}/rookies/{format}; formats non-PPR, half-ppr, ppr, te-premium and superflex versions; positions QB RB WR TE K DL LB DB IDP)"
     purpose: "Dynasty 1/3/5/10-yr projections, 3D Value+, ADP and DS Analysis, incl. IDP and rookie pages: the page the hand-saved DynastySharks sheets copy (04x). For this league: dynasty, IDP, rookies. The Close Day pull is #413. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None: first 25 rows in the page HTML; the rest from an htmx GET /dynasty-rankings/load-table (query pprSuperflexSlug, fantasyPosition, researchDepth, playerGroup, sort, selectedTeam, playerSearchTerm); one call returned 250 rows as HTML with no login (#400)"
@@ -311,6 +453,7 @@ sources:
   - id: draftsharks_weekly_rankings
     name: "DraftSharks — weekly rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/weekly-rankings/{pos|format} and /weekly-rankings/{week}/{format} (positions QB RB WR TE IDP DEF FLEX; formats half-ppr, ppr, te-premium, superflex)"
     purpose: "Per-week start/sit ranks with matchup, SOS and floor/consensus/ceiling projections, incl. IDP. For this league: in-season lineup help, no dynasty value. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows in the page HTML, remainder loaded by script (call not seen); Insider upsell banner shown"
@@ -321,6 +464,7 @@ sources:
   - id: draftsharks_ros_rankings
     name: "DraftSharks — rest of season rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/ros-rankings/{pos}/{format} (bases /ros-rankings and /ros-rankings/{format}; formats non-PPR, half-ppr, ppr, te-premium, no superflex; positions QB RB WR TE K DEF DL LB DB IDP FLEX)"
     purpose: "Rest-of-season ranks with projections, trend and injury risk, incl. IDP. For this league: in-season trade timing and contender/future stance checks. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows in the page HTML, remainder loaded by script (call not seen); Insider upsell banner shown"
@@ -331,6 +475,7 @@ sources:
   - id: draftsharks_keeper_rankings
     name: "DraftSharks — keeper rankings"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/keeper-rankings/{pos} (positions QB RB WR TE FLEX, plus /keeper-rankings/superflex)"
     purpose: "Keeper-value ranks with 1/3/5-yr projections and age; close to dynasty value for offense only (no IDP pages listed). DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows in the page HTML, remainder loaded by script (call not seen); Insider upsell banner shown"
@@ -341,6 +486,7 @@ sources:
   - id: draftsharks_auction_values
     name: "DraftSharks — auction values"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/auction-values/{pos} (positions QB RB WR TE FLEX; no format variants)"
     purpose: "Dollar values (DS Auction Value, Auction Market Value) on a fixed full-PPR, 200-dollar, standard-roster basis. For this league: an auction cross-check only; the league's cap and roster differ, so values need rescaling. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: first 25 rows in the page HTML, remainder loaded by script (call not seen); Insider upsell banner shown"
@@ -351,6 +497,7 @@ sources:
   - id: draftsharks_adp_market_index
     name: "DraftSharks — ADP market indexes"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/adp/{slug} (slugs: underdog, espn, yahoo, sleeper, ffpc, dynasty, dynasty/superflex, rookie, superflex, ppr, half-ppr, best-ball, qb, rb, wr, te)"
     purpose: "Average draft position per market and format, with trend and age; the dynasty, superflex and rookie slugs are the useful ones for this league (market ADP beside expert ranks). DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "None seen: one GET shows only a template with no rows, so the table loads client-side by a call not seen; filters are league type, platform, position, league size; Insider upsell banner shown"
@@ -361,6 +508,7 @@ sources:
   - id: draftsharks_trade_value_chart
     name: "DraftSharks — trade value charts"
     status: planned
+    terms: *draftsharks_terms
     locator: "https://www.draftsharks.com/trade-value-chart/{format} (variants ppr, half-ppr, superflex, ppr-superflex, dynasty, dynasty/ppr, dynasty/superflex, dynasty/ppr-superflex, dynasty-startup)"
     purpose: "Player and pick trade values, dynasty and startup versions. For this league: a cross-check on the trade-bud valuation. DraftSharks has no terms page found (#400), so terms are unresolved"
     auth: "Not determined: one GET of the superflex dynasty page failed on size (over 10 MB), so how it is read and any gate are unknown"
@@ -371,6 +519,7 @@ sources:
   - id: google_sheet_manifest_write
     name: "Google Sheet — manifest sync (write)"
     status: planned
+    terms: { status: unresolved, checked: null, access: api_key }
     locator: "Same sheet as the team manifest (write-back)"
     purpose: "Sync Fantrax-owned fields back into the Sheet mirror (ADR-0005)"
     auth: "Sheets API OAuth / service account — owner-set-up; external write + PII gate"
