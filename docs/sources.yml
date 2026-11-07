@@ -266,11 +266,11 @@ sources:
 
   - id: pff
     name: "PFF (Pro Football Focus)"
-    status: planned
+    status: rejected
     locator: "https://www.pff.com (paid subscription; spike #402)"
-    purpose: "Player grades and projections; what is worth taking and whether terms allow a scheduled pull is the spike's finding"
-    auth: "PFF account login, env-stored (PFF_EMAIL/PFF_PASSWORD); login needed, every logged-in run needs the owner's word until approved for the schedule"
-    cadence: "TBD (spike #402)"
+    purpose: "Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public"
+    auth: "None; not ingested"
+    cadence: "Never (rejected)"
     feeds: []
     match: []
 
