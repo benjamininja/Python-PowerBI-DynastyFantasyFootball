@@ -6,7 +6,7 @@ network, no database. Dates: 2026-09-10 is a Thursday; period 1 runs
 is the day after a period ends: 09-18, 09-25, 10-02 (Fridays).
 """
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,6 +17,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "notebooks"))
 
+import etl_helpers  # noqa: E402
 import etl_run_log as rl  # noqa: E402
 import run_pipeline as rp  # noqa: E402
 
@@ -35,7 +36,7 @@ def periods():
 def plan(phase, today, record, cadence="due", only=None, groups=None, table=None):
     """What apply_cadence decides on `today`; `record` is the set steps_done
     returns for any week (None: the log cannot be read)."""
-    state = rp.close_day_state(periods() if table is None else table, today, THURSDAY)
+    state = rp.close_day_state(today, periods() if table is None else table, THURSDAY)
     asked = []
 
     def done_for(key):
@@ -81,50 +82,122 @@ class TestStepTable:
         assert held["failed"] == {"fantrax_core": ["step 04t_txn_history failed", "step 02d_ledger skipped"]}
 
 
+def _day_by_day(table, weekday=THURSDAY):
+    day = date(2026, 8, 1)
+    while day <= date(2027, 3, 1):
+        yield day, rp.close_day_state(day, table, weekday), etl_helpers.close_state(day, table, weekday)
+        day += timedelta(days=1)
+
+
 class TestCloseDay:
+    """run_pipeline.close_day_state is etl_helpers.close_state in the shape
+    apply_cadence reads; the week is defined there and nowhere else."""
+
     def test_a_day_inside_a_period_is_not_a_close_day(self):
-        state = rp.close_day_state(periods(), date(2026, 9, 22), THURSDAY)
-        assert (state["mode"], state["week_key"], state["close_day"]) == (
-            "period", "2026-2027-p01", date(2026, 9, 18))
+        state = rp.close_day_state(date(2026, 9, 22), periods(), THURSDAY)
+        assert (state["reason"], state["mode"], state["week_key"], state["close_day"]) == (
+            "owed", "period", "2026-2027-p01", date(2026, 9, 18))
 
     def test_the_day_after_a_period_ends_is_its_close_day(self):
-        state = rp.close_day_state(periods(), date(2026, 9, 25), THURSDAY)
+        state = rp.close_day_state(date(2026, 9, 25), periods(), THURSDAY)
         assert (state["week_key"], state["close_day"]) == ("2026-2027-p02", date(2026, 9, 25))
 
     def test_the_evening_a_period_ends_is_not_yet_its_close_day(self):
-        assert rp.close_day_state(periods(), date(2026, 9, 17), THURSDAY)["week_key"] is None
+        state = rp.close_day_state(date(2026, 9, 17), periods(), THURSDAY)
+        assert (state["week_key"], state["close_day"], state["reason"]) == (None, None, "not_yet")
 
     def test_before_the_first_close_day_no_week_is_owed(self):
-        state = rp.close_day_state(periods(), date(2026, 9, 14), THURSDAY)
-        assert (state["mode"], state["week_key"], state["close_day"]) == ("period", None, None)
+        state = rp.close_day_state(date(2026, 9, 14), periods(), THURSDAY)
+        assert (state["mode"], state["week_key"], state["reason"]) == (None, None, "not_yet")
 
     def test_a_playoff_period_has_a_close_day_too(self):
-        state = rp.close_day_state(periods(), date(2026, 10, 2), THURSDAY)
+        state = rp.close_day_state(date(2026, 10, 2), periods(), THURSDAY)
         assert (state["week_key"], state["close_day"], state["is_playoff"]) == (
             "2026-2027-p03", date(2026, 10, 2), True)
 
     def test_off_season_it_is_the_config_weekday_and_the_iso_week(self):
-        thursday = rp.close_day_state(periods(), date(2027, 2, 11), THURSDAY)
+        thursday = rp.close_day_state(date(2027, 2, 11), periods(), THURSDAY)
         assert (thursday["mode"], thursday["week_key"], thursday["close_day"]) == (
             "weekday", "2027-W06", date(2027, 2, 11))
-        assert rp.close_day_state(periods(), date(2027, 2, 15), THURSDAY)["week_key"] == "2027-W06"
-        assert rp.close_day_state(periods(), date(2027, 2, 18), THURSDAY)["week_key"] == "2027-W07"
+        assert rp.close_day_state(date(2027, 2, 15), periods(), THURSDAY)["week_key"] == "2027-W06"
+        assert rp.close_day_state(date(2027, 2, 18), periods(), THURSDAY)["week_key"] == "2027-W07"
 
     def test_the_weekday_comes_from_the_argument_not_from_the_code(self):
-        state = rp.close_day_state(None, date(2027, 2, 11), 0)
+        state = rp.close_day_state(date(2027, 2, 11), periods(), 0)
         assert state["close_day"] == date(2027, 2, 8)
 
-    def test_before_the_first_period_and_after_the_last_close_day_use_the_weekday(self):
-        assert rp.close_day_state(periods(), date(2026, 9, 3), THURSDAY)["mode"] == "weekday"
-        assert rp.close_day_state(periods(), date(2026, 10, 3), THURSDAY)["mode"] == "weekday"
-
-    def test_an_empty_or_missing_calendar_uses_the_weekday(self):
-        assert rp.close_day_state(None, date(2026, 9, 22), THURSDAY)["mode"] == "weekday"
-        assert rp.close_day_state(periods().iloc[0:0], date(2026, 9, 22), THURSDAY)["mode"] == "weekday"
+    def test_the_week_after_the_last_close_day_is_covered_by_its_run(self):
+        state = rp.close_day_state(date(2026, 10, 3), periods(), THURSDAY)
+        assert (state["week_key"], state["reason"]) == (None, "covered")
 
     def test_the_default_weekday_is_thursday(self):
-        import etl_helpers
         assert etl_helpers.CFG.close_day_weekday == THURSDAY == date(2026, 9, 10).weekday()
+        assert rp.close_day_state(date(2027, 2, 11), periods())["close_day"] == date(2027, 2, 11)
+
+    def test_it_matches_close_state_on_every_day(self):
+        for day, got, owed in _day_by_day(periods()):
+            week = owed.week
+            assert got == {"week_key": week and week.key, "close_day": week and week.close_day,
+                           "mode": week and week.mode, "is_playoff": bool(week and week.is_playoff),
+                           "reason": owed.reason}, day
+
+    def test_the_stored_table_is_read_when_none_is_given(self, monkeypatch):
+        monkeypatch.setattr(etl_helpers, "stored_scoring_periods", periods)
+        state = rp.close_day_state(date(2026, 9, 25))
+        assert (state["reason"], state["week_key"]) == ("owed", "2026-2027-p02")
+
+    def test_run_pipeline_holds_no_week_arithmetic_of_its_own(self):
+        source = (REPO / "scripts" / "run_pipeline.py").read_text(encoding="utf-8")
+        for needle in ("isocalendar", "ONE_DAY", "load_periods", "itertuples", "closed[-1]"):
+            assert needle not in source, needle
+
+
+class TestUnreadableCalendar:
+    """No calendar, no week and no ISO guess: the daily steps run, the
+    close_day steps are skipped and the summary warns."""
+
+    @pytest.mark.parametrize("table", [None, periods().iloc[0:0]])
+    def test_there_is_no_week_and_no_guess_on_any_day(self, table, monkeypatch):
+        monkeypatch.setattr(etl_helpers, "stored_scoring_periods", lambda: None)
+        for day in (date(2026, 9, 22), date(2026, 9, 25), date(2027, 2, 11), date(2027, 2, 14)):
+            state = rp.close_day_state(day, table, THURSDAY)
+            assert (state["week_key"], state["close_day"], state["reason"]) == (None, None, "unreadable"), day
+
+    def test_the_daily_steps_run_and_the_close_day_steps_are_skipped(self):
+        kept, report = plan("INSEASON", date(2026, 9, 25), set(), table=periods().iloc[0:0])
+        assert not set(kept) & set(ROOKIE)
+        assert {"04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"} <= set(kept)
+        assert (report["ran"], report["deferred"], report["reason"]) == ([], ROOKIE, "unreadable")
+        assert report["asked"] == []
+
+    def test_off_season_it_skips_04b_too(self):
+        kept, report = plan("OFFSEASON", date(2027, 2, 11), set(), table=periods().iloc[0:0])
+        assert "04b_ktc_dynasty" not in kept
+        assert report["deferred"] == ["04b_ktc_dynasty"] + ROOKIE
+
+    def test_cadence_all_still_runs_them_and_the_warning_says_so(self):
+        kept, report = plan("INSEASON", date(2026, 9, 25), set(), cadence="all", table=periods().iloc[0:0])
+        assert report["ran"] == ROOKIE
+        assert "ran by --cadence all with no week to record" in rp.cadence_warning(report)
+
+    def test_the_warning_names_the_skipped_steps(self):
+        _, report = plan("INSEASON", date(2026, 9, 25), set(), table=periods().iloc[0:0])
+        warning = rp.cadence_warning(report)
+        assert warning.startswith("⚠️ dim_scoring_period could not be read: close_day steps skipped")
+        assert all(n in warning for n in ROOKIE)
+
+    @pytest.mark.parametrize("reason_day", [date(2026, 9, 14), date(2026, 10, 3), date(2026, 9, 25)])
+    def test_a_quiet_day_is_not_a_warning(self, reason_day):
+        _, report = plan("INSEASON", reason_day, set(ROOKIE))
+        assert rp.cadence_warning(report) is None
+
+    def test_the_cadence_line_says_why_no_week(self):
+        for day, text in ((date(2026, 9, 14), "no Close Day yet"),
+                          (date(2026, 10, 3), "week covered by the last period's run")):
+            _, report = plan("INSEASON", day, set(ROOKIE))
+            assert text in rp.cadence_line(report)
+        _, report = plan("INSEASON", date(2026, 9, 25), set(), table=periods().iloc[0:0])
+        assert "calendar unreadable, no week" in rp.cadence_line(report)
 
 
 class TestInSeason:
@@ -155,7 +228,7 @@ class TestInSeason:
         def done_for(key):
             keys.append(key)
             return set(ROOKIE) if key == "2026-2027-p01" else set()
-        state = rp.close_day_state(periods(), date(2026, 9, 25), THURSDAY)
+        state = rp.close_day_state(date(2026, 9, 25), periods(), THURSDAY)
         _, report = rp.apply_cadence(rp.build_steps(None), "INSEASON", None, None, "due",
                                      state, date(2026, 9, 25), done_for)
         assert keys == ["2026-2027-p02"] and report["ran"] == ROOKIE
@@ -322,7 +395,7 @@ class TestMain:
         monkeypatch.setattr(rp, "_load_04a", lambda: SimpleNamespace(
             CFG=None, derive_week_label=lambda cfg: "03"))
         monkeypatch.setattr(rp, "derive_phase", lambda: "INSEASON")
-        monkeypatch.setattr(rp, "load_periods", periods)
+        monkeypatch.setattr(etl_helpers, "stored_scoring_periods", periods)
         monkeypatch.setattr(rp, "review_counts", lambda: {})
         monkeypatch.setattr(rp, "OUT_DIR", tmp_path)
         monkeypatch.setattr(rp, "resolve_storage_env", lambda env_file=None: "parquet")
@@ -358,6 +431,18 @@ class TestMain:
     def test_the_summary_carries_the_cadence_line(self, run, tmp_path):
         run(date(2026, 9, 25))
         assert "🗓️ filter=due (week 2026-2027-p02" in (tmp_path / "pipeline_summary.md").read_text(encoding="utf-8")
+
+    def test_an_unreadable_calendar_runs_the_daily_steps_skips_the_close_day_steps_and_warns(
+            self, run, monkeypatch, tmp_path):
+        monkeypatch.setattr(etl_helpers, "stored_scoring_periods", lambda: None)
+        monkeypatch.setattr(rl, "steps_done", lambda key: pytest.fail("a week was guessed"))
+        out = run(date(2026, 9, 25))
+        assert not any(f"[step] {n} " in out for n in ROOKIE)
+        assert all(f"[step] {n} " in out for n in ("04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"))
+        assert "calendar unreadable, no week" in out
+        warning = ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
+                   f"({', '.join(ROOKIE)}); they run once the calendar reads")
+        assert warning in (tmp_path / "pipeline_summary.md").read_text(encoding="utf-8").splitlines()
 
     def test_a_bad_cadence_is_refused(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--cadence", "weekly"])

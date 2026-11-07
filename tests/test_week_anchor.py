@@ -133,26 +133,6 @@ class TestAnchorOffSeason:
         assert etl.week_anchor() is not None
 
 
-def reference_close_day_state(periods, today, weekday):
-    """The week key and Close Day as run_pipeline.close_day_state (#372, PR
-    #382) builds them, kept here so the keys already stored stay valid."""
-    one_day = timedelta(days=1)
-    rows = []
-    if periods is not None and len(periods):
-        rows = sorted((pd.Timestamp(r.start_date).date(), pd.Timestamp(r.end_date).date(),
-                       str(r.season_id), int(r.period), bool(r.is_playoff))
-                      for r in periods.itertuples())
-    if rows and rows[0][0] <= today <= rows[-1][1] + one_day:
-        closed = [r for r in rows if r[1] + one_day <= today]
-        if not closed:
-            return None
-        _, end, season, period, playoff = closed[-1]
-        return ("period", f"{season}-p{period:02d}", end + one_day, playoff)
-    day = today - timedelta(days=(today.weekday() - weekday) % 7)
-    year, week, _ = day.isocalendar()
-    return ("weekday", f"{year}-W{week:02d}", day, False)
-
-
 THURSDAY = 3
 NO_PERIODS = PERIODS.iloc[0:0]
 SHORT = PERIODS.iloc[:1]
@@ -233,25 +213,6 @@ class TestClosedWeek:
         assert etl.closed_week(date(2027, 2, 11), PERIODS).key == "2027-W06"
         assert etl.closed_week(date(2027, 2, 15), PERIODS).key == "2027-W06"
         assert etl.closed_week(date(2027, 2, 18), PERIODS).key == "2027-W07"
-
-    @pytest.mark.parametrize("periods", [PERIODS, SHORT])
-    def test_the_keys_match_run_pipelines_on_every_day_but_the_handover(self, periods):
-        last_close = pd.Timestamp(periods["end_date"].iloc[-1]).date() + timedelta(days=1)
-        covered = 0
-        day = date(2026, 8, 1)
-        while day <= date(2027, 3, 1):
-            ref = reference_close_day_state(periods, day, THURSDAY)
-            got = etl.close_state(day, periods, THURSDAY)
-            if ref is None:
-                assert (got.week, got.reason) == (None, "not_yet"), day
-            elif ref[0] == "weekday" and day > last_close and ref[2] <= last_close:
-                assert (got.week, got.reason) == (None, "covered"), day
-                covered += 1
-            else:
-                assert got.reason == "owed", day
-                assert (got.week.mode, got.week.key, got.week.close_day, got.week.is_playoff) == ref, day
-            day += timedelta(days=1)
-        assert covered > 0
 
     def test_before_the_calendar_the_weekday_week_is_owed_with_no_cover_rule(self):
         got = etl.close_state(date(2026, 8, 13), PERIODS, THURSDAY)

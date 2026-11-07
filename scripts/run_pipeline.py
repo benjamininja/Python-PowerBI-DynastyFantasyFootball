@@ -49,9 +49,6 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
-from zoneinfo import ZoneInfo
-
-import pandas as pd
 
 REPO = Path(__file__).resolve().parent.parent
 VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
@@ -63,15 +60,13 @@ CHECKS_TIMEOUT_S = 1800
 CHECKS_POLL_S = 30
 
 sys.path.insert(0, str(NB))
-import etl_cap  # noqa: E402  (notebooks/ on the path, like the notebooks do)
-import etl_checks  # noqa: E402
+import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
 import etl_helpers  # noqa: E402
 import etl_run_log  # noqa: E402
 
 CLOSE_DAY_STEPS = frozenset({"03a_fantasypros", "03b_walterfootball", "03c_ktc_rookie",
                              "03d_draftsharks_rookie", "04b_ktc_dynasty"})
 CADENCES = ("due", "all")
-ONE_DAY = timedelta(days=1)
 
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
@@ -236,43 +231,22 @@ def _selected(s: dict, phase: str, only: set[str] | None, groups: set[str] | Non
 
 
 def league_today() -> date:
-    return datetime.now(ZoneInfo(etl_cap.LEAGUE_TZ)).date()
+    return etl_helpers.league_date()
 
 
-def close_day_state(periods: pd.DataFrame | None, today: date, weekday: int) -> dict:
-    """The week the close_day steps owe on `today` (a day on the Eastern clock).
-
-    In season, while `today` is inside the calendar of `periods`
-    (dim_scoring_period), the week is the latest period whose Close Day, its
-    end_date + 1, is on or before `today`: key `<season_id>-p<NN>`; before the
-    first Close Day it is None. Outside the calendar the Close Day is the
-    latest `weekday` (Monday = 0) on or before `today`, and the key is that
-    day's ISO week `<year>-W<NN>`."""
-    rows = []
-    if periods is not None and len(periods):
-        rows = sorted((pd.Timestamp(r.start_date).date(), pd.Timestamp(r.end_date).date(),
-                       str(r.season_id), int(r.period), bool(r.is_playoff))
-                      for r in periods.itertuples())
-    if rows and rows[0][0] <= today <= rows[-1][1] + ONE_DAY:
-        closed = [r for r in rows if r[1] + ONE_DAY <= today]
-        if not closed:
-            return {"mode": "period", "week_key": None, "close_day": None, "is_playoff": False}
-        _, end, season, period, playoff = closed[-1]
-        return {"mode": "period", "week_key": f"{season}-p{period:02d}",
-                "close_day": end + ONE_DAY, "is_playoff": playoff}
-    day = today - timedelta(days=(today.weekday() - weekday) % 7)
-    year, week, _ = day.isocalendar()
-    return {"mode": "weekday", "week_key": f"{year}-W{week:02d}",
-            "close_day": day, "is_playoff": False}
-
-
-def load_periods() -> pd.DataFrame | None:
-    try:
-        return etl_helpers.read_table("dim_scoring_period")
-    except Exception as exc:
-        print(f"[warn] dim_scoring_period not read ({type(exc).__name__}): "
-              f"Close Day taken from the weekday")
-        return None
+def close_day_state(today: date, periods=None, weekday: int | None = None) -> dict:
+    """What the close_day steps owe on `today`, from `etl_helpers.close_state`,
+    which alone defines the week (ADR-0020). `week_key` and `close_day` are
+    None when no week is owed; `reason` says why: owed, not_yet or covered (a
+    quiet day), unreadable (the calendar could not be read: no week, no guess).
+    `periods` and `weekday` default to the stored table and the config."""
+    owed = etl_helpers.close_state(today, periods, weekday)
+    week = owed.week
+    return {"week_key": week.key if week else None,
+            "close_day": week.close_day if week else None,
+            "mode": week.mode if week else None,
+            "is_playoff": week.is_playoff if week else False,
+            "reason": owed.reason}
 
 
 def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
@@ -305,7 +279,7 @@ def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
     return kept, {"filter": cadence, "week_key": state["week_key"],
                   "close_day": state["close_day"].isoformat() if state["close_day"] else None,
                   "mode": state["mode"], "is_playoff": state["is_playoff"],
-                  "ran": ran, "deferred": deferred}
+                  "reason": state["reason"], "ran": ran, "deferred": deferred}
 
 
 def close_steps_done(report: dict, results: list[dict], steps: list[dict], plan: dict | None,
@@ -322,11 +296,28 @@ def close_steps_done(report: dict, results: list[dict], steps: list[dict], plan:
             and r["status"] == "ok" and chain_of[r["name"]] in good]
 
 
+NO_WEEK = {"not_yet": "no Close Day yet", "covered": "week covered by the last period's run",
+           "unreadable": "calendar unreadable, no week"}
+
+
 def cadence_line(report: dict) -> str:
     when = f"week {report['week_key']}, Close Day {report['close_day']}" if report["week_key"] \
-        else "no Close Day yet"
+        else NO_WEEK.get(report.get("reason"), "no week owed")
     return (f"filter={report['filter']} ({when}); close_day ran: "
             f"{', '.join(report['ran']) or 'none'}; deferred: {', '.join(report['deferred']) or 'none'}")
+
+
+def cadence_warning(report: dict) -> str | None:
+    """A run-summary warning when the calendar could not be read: close_day
+    steps are skipped (their catch-up runs once it reads), never keyed on a
+    guessed week."""
+    if report.get("reason") != "unreadable":
+        return None
+    if report["ran"]:
+        return ("⚠️ dim_scoring_period could not be read: close_day steps ran by "
+                "--cadence all with no week to record")
+    return ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
+            f"({', '.join(report['deferred']) or 'none selected'}); they run once the calendar reads")
 
 
 def run_steps(steps: list[dict], phase: str, only: set[str] | None,
@@ -722,6 +713,8 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
     if cadence:
         lines.append(f"🗓️ {cadence_line(cadence)}")
+        if cadence_warning(cadence):
+            lines.append(cadence_warning(cadence))
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
@@ -827,7 +820,7 @@ def main() -> int:
         only = set(args.steps.split(",")) if args.steps else None
         groups = set(args.group.split(",")) if args.group else None
         today = league_today()
-        state = close_day_state(load_periods(), today, etl_helpers.CFG.close_day_weekday)
+        state = close_day_state(today)
         steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
                                        today, etl_run_log.steps_done)
         print(f"[cadence] {cadence_line(cadence)}")
@@ -873,7 +866,7 @@ def main() -> int:
             r["status"] not in ("ok", "dry-run") for r in results)
         code = 1 if failed or commit_line.startswith("ABORTED") else 0
 
-        cadence["done"] = [] if args.no_commit else close_steps_done(
+        cadence["done"] = [] if args.no_commit or not cadence["week_key"] else close_steps_done(
             cadence, results, steps, plan, commit_line)
         if runlog.run_id:
             runlog.finish(
