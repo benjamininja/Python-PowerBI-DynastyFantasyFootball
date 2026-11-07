@@ -11,7 +11,42 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000. **NEWEST: 2026-11-07, after the compact (session cbf95079). Overrides everything below; read 000000000000000000000000000000000000000 next.**
+00000000000000000000000000000000000000000. **NEWEST: before a clear, 2026-11-07 ~11:45 (session cbf95079). Overrides everything below; read 0000000000000000000000000000000000000000 next.**
+- **Resume:** worktree ps1103, local branch `docs/state-2026-11-07`. `git pull --rebase origin docs/state-2026-11-07` before reading. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`. Find the manager with ListAgents (`dynastyFantasyFootball-central-builder-manager`; it restarts often, so a "new session under a previously used name" note is normal) and send by name. **Tools-central-planner** is the planner for skills-plugins-hooks-agents (the owner made it 2026-11-07); send it that repo's work. **No state batch PR is open**; open one at the end of the day, and merge only on the owner's word.
+- **Cutover critical path (#93, today):**
+  1. **PR #433 = brief 6** (b93-supply; the 02d/04z supply: two unpublished tables, a one-time PC loader, and 02d/04z reading Postgres). The supabase-auditor and CI are on it. The manager added two guards: no data/raw reads in any checkout (synthetic fixtures), and an owner comparison check.
+  2. When the manager has re-proved it and merged, line up the owner's hand steps in order: (1) the migrate run, (2) the loader on the PC, (3) the comparison check.
+  3. Then **PR #419** (brief 1, b93-daily) merges. It holds the four parts, the Q11 commit (03a, 03c, 04b and 04b_p out of the schedule and CLOSE_DAY_STEPS; stages.yml Rookie text "two ranking sites, WalterFootball and DraftSharks"; the Dynasty stage deleted; 04c needs []), and the 04t order commit (04t after 04a; 04t needs 04a; 04z needs 04a and 04t; an acyclic test; #93 issuecomment-6710348695).
+  4. The hand-started first Actions run, with the owner watching. Then the cron goes on, and the owner unregisters the PC task.
+  5. Then #372's plain `--dry-run`.
+  - **App:** the etl environment holds the variable ETL_APP_CLIENT_ID and the secret ETL_APP_PRIVATE_KEY; create-github-app-token v3.3.0 is pinned at 64ab729. ETL_STORAGE=postgres is a repository variable.
+- **Owner rulings since the last item (all recorded):**
+  - **#93 round 2:** Q3 (a), Q5 yes, Q6 (a) (brief 6, issuecomment-6710310484). Q4 re-asked, then (a): an Actions form (**#431**, medium, after #433 merges; the dispatch word is given).
+  - **Q11 and Q12 yes.** Q13 yes ("figure out how we can get compliant": Fantrax `unresolved` in #421). Q14 yes (**#428** Fantrax fxea spike: the owner chose a one-time rules paste; its Action "Add the #428 rules" waits for his tick, then the manager dispatches). Q15 yes (**#429**: the data-use statement and a Fantrax request; the DynastyProcess request dropped).
+  - **Q16 and Q17:** routed to Tools-central-planner, which opened skills-plugins-hooks-agents #82 (rules, low) and #83 (builder permission profiles, with the standing research profile, high). **#424 waits for #83.** The owner chose (d) on #424 at 11:34 (issuecomment-6710733645). Q17 is the manager's standing practice: briefs name hosts, a probe keeps ALLOWED_HOSTS, and the manager reads it at closeout.
+  - **Q18 yes:** grill **#432**, in-house baselines for IDP and offense, our own age curve, Fantrax position of record with no override. **Q19 yes:** the yardstick (recorded on #432). **Q20 yes:** CollegeFootballData `permitted` for derived outputs only; the raw data is never published and the key lives only in a secret.
+  - **#422 closed**, with the rulings (issuecomment-6710665948): DynastyProcess `unresolved` but its repo may be cited if its methods hold up; a weekly from ffopportunity with wide attribution, share-alike. **#430**: later looks at cbratkovics, ffopportunity and a historical-sleepers spike.
+  - Owner-queue staged comments: skills-plugins-hooks-agents #81.
+- **Running:** b421-terms (#421 Part 1, medium; Part 2 is low after #419 and Closes #421). b93-supply (#433). b93-daily (#419, waiting).
+  - Done and waiting for the owner's `claude rm`: b416, b417, b422, b352.
+  - b372-cadence's folder is stuck (OneDrive).
+- **Open, for after the cutover, in order:**
+  1. #423 and #415 together (remove KTC and FantasyPros: what comes out, derived values, Postgres and git history, coverage).
+  2. #432 (the baselines).
+  3. #429 (the data-use statement).
+  4. #407 (injury status at a point in time; then rewrite #398 and #399).
+  5. #412 (the review queue).
+  6. #417 Q2 and Q3.
+  - Dispatch words to get: #425 (medium, after #433) and #426 (low).
+- **Tickets opened this session:** #421 to #426 and #428 to #432 (#427 is b421's PR). #433 is brief 6's PR.
+- **Lessons:**
+  - Check the step table and `needs` before ruling on order. My 04z-needs-04t ruling made a cycle.
+  - Reference a new ticket's number only after creating it (#428 briefly pointed at itself).
+  - A web-fetch agent can't read JavaScript pages; use the built-in browser and javascript_tool. It read Fantrax and CFBD.
+  - The owner wants decision context (why it matters, pros and cons) with every question, not bare options.
+- **Resume prompt:** "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 00000000000000000000000000000000000000000 first, then 0000000000000000000000000000000000000000. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading, and push with a standalone `git push origin HEAD:docs/state-2026-11-07`. No state batch PR is open; open one at the end of a day and merge only on the owner's word. Find the manager with ListAgents and send by name; Tools-central-planner owns skills-plugins-hooks-agents."
+
+0000000000000000000000000000000000000000. **2026-11-07, after the compact (session cbf95079). Overrides everything below; read 000000000000000000000000000000000000000 next.**
 - **Resume:** as below (ps1103, `docs/state-2026-11-07`, standalone push). The manager restarted mid-session; find it with ListAgents by name, and resend anything that failed (`scratchpad/m-unsent.md` was resent).
 - **Waiting on the owner, in priority order:**
   1. **#93 round 2, Q3 to Q6** (the critical path for the cutover), re-put with decision context. Q3: one PC loader command after the migrate run (980 slots, 5 unmade; 33 overrides; prints counts; refuses to reload). Q4: the apply script writes the new decisions table (today it writes the crosswalk directly, so the next 04z rebuild drops a fix not in the CSV). Q5: neither table is published. Q6: a new medium builder with its own PR, now. All four recommended yes. When answered: record them on #93, write the supply brief and send it to the manager.
