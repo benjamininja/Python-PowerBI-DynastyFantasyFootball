@@ -5,13 +5,73 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-11-05, before a clear)
+## START HERE (state 2026-11-07, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000. **NEWEST: 2026-11-06, all held for #336. Overrides everything below; read 00000000000000000000000000000000 next.**
+0000000000000000000000000000000000000. **NEWEST: before a clear, 2026-11-07. Overrides everything below; read 000000000000000000000000000000000000 next.**
+- **Resume:** worktree ps1103, on local branch `docs/state-2026-11-06` (cut from main e0b7734). `git pull --rebase origin docs/state-2026-11-06` before reading. Push with a standalone `git push origin HEAD:docs/state-2026-11-06`. The manager shares this branch. Peers, found with ListAgents by name: `dynastyFantasyFootball-central-builder-manager`; builders b372-cadence, b380-schedule and b385-nbform.
+- **Dispatch relayed:** the owner answered "(c) start #390, #398 and all three spikes now" in the queue pane at 2026-11-07 08:18, then said "RELAY TO MANAGER IS FINE". It's recorded on #390, #398, #400, #401 and #402, and relayed to the manager with tiers #390 low, #398 medium, #400/#401/#402 low. #402 does no logged-in probe before the `.env` Action. The spikes report as findings and are reviewed with the owner together; the manager tells me when all three are in.
+- **Main** is 2a83cee (#383 merged); #336, #361, #362, #370 and #378 are closed. In flight:
+  - #382: b372 is pushing 922b50f with `git push -u origin ...` (the allowed form), then the `--cadence all` ruling commit, the re-proof, the migration and the owner's --check-only.
+  - #385: b385 is working; the owner pasted the hook block.
+  - Then #384 (b380 merges #382's branch first), then #373, #386 (the owner runs `git rm --cached` by hand), #355, #352 (after #355, both seam), #354.
+- **Open, owner-side, in the queue:** the PFF `.env` Action (#402); "Delete merged remote branches" (worktree-b378-weeks); remove the b380 merge rule after #380 merges; the later script-rule removal; the Dead Money PBI check; the Actions cutover (later); "Review the refresh schedule on map #375" (largely settled by the grill; it can be ticked when the owner agrees).
+- **#359** closes as a real Fantrax change once one more logged 04v pull agrees with the server totals (issuecomment-6707126802).
+- **Lessons this session:** queue every owner item in the same turn (see 00000000000000000000000000000000000). In PowerShell, `gh --jq .body` returns a list of lines, so edit issue bodies with Python through Bash. When the manager is unreachable, post the relay on the PR or ticket and tell the owner; never tell a builder something was relayed before the send succeeds.
+- **Batch PR #404** for docs/state-2026-11-06: opened before this clear, and queued as an owner Decision through the manager. Merge it (squash) only on the owner's word, then cut a new state branch from main.
+- **Resume prompt:** "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 0000000000000000000000000000000000000 first, then 000000000000000000000000000000000000. Use worktree ps1103 on local branch docs/state-2026-11-06; git pull --rebase origin docs/state-2026-11-06 before reading, and push with a standalone `git push origin HEAD:docs/state-2026-11-06`. The state batch PR for that branch is open; merge only on the owner's word, then cut a new state branch from main. Find the manager with ListAgents and send by name."
+
+000000000000000000000000000000000000. **2026-11-07 afternoon, the domain grill is done. Overrides everything below; read 00000000000000000000000000000000000 next.**
+- The #375 grill is finished: Q1-Q35 all answered in planner chat. Map #375 is rewritten with the agreed map (Domains, Cadences, Tasks).
+- New milestone #6 "Domains and step registry", with tickets #390-#403. **None is dispatched; the owner reviews the list first.**
+  - #390 docs (ADR-0021, the ADR-0020 capture amendment, CONTEXT.md terms; low; not blocked).
+  - #391 registry (after #382, #384 and the six builders).
+  - #392 rename and archive (after #391).
+  - #393 draft archive (after #355 and #392).
+  - #394 future-pick owners (after #393).
+  - #395 04u annual (after #392); #396 its February 2027 date (owner-led).
+  - #397 KTC two-shot (after #355 and #392).
+  - #398 injury flags in the bot and trade-bud (not blocked); #399 in Power BI.
+  - #400 DynastySharks, #401 FantasyPros and #402 PFF spikes (not blocked; reviewed with the owner together).
+  - #403 FA Auction spike (July 2027).
+- Key rulings:
+  - Drafts, auctions and trades are transactions, and future picks belong to teams, so all are Rosters.
+  - KTC Pre-Game and Post-Game Runs come from the NFL schedule (KTC only for now; others may be added).
+  - The ranking fact keys on `capture`.
+  - The five skipped Startup picks are recorded as skipped.
+  - The FA Auction runs on Fantrax after the Rookie draft (late July to mid August) and gets its own table.
+  - DynastySharks is free; PFF is paid.
+- PFF `.env` Action (`PFF_EMAIL`, `PFF_PASSWORD`, ticket #402) sent to the manager for the queue, as the owner asked.
+- The manager restarted. b372 is waiting on its push form for 922b50f and on my `--cadence all` ruling (PR #382 issuecomment-6707530607), both relayed to the restarted manager.
+
+00000000000000000000000000000000000. **2026-11-07, queue fix. Overrides everything below; read 0000000000000000000000000000000000 next.**
+- **Lesson (owner, 2026-11-07, a regression):** every item that waits on the owner goes to NEEDS-OWNER.md as a ready entry sent to the manager, in the same turn I find it. A chat "your call" or "waiting on your go-ahead" is not a queue entry. Before I end a turn, I check that each owner item I name has an entry.
+- The owner approved #373, #385 and #386 (manager chat, 2026-11-07, "#373, #385 and #386 are approved to go", timing "On blocker merge"). Order after 11-12: merge #383, then dispatch #385; merge #382, then dispatch #373; merge #384, then dispatch #386. All at low.
+- Sent the manager ready entries: Decision on dispatching #352, #354 and #355; Decision on #386's `git rm --cached` step; Action to delete the remote `docs/state-2026-11-05`; Action for the 11-12 Discord notice; Action to review the schedule on map #375.
+- The owner's Note, 06:27, asked whether "this test" could run today. I read it as the #336 proof. Sent the manager a Decision: (a) `Start-ScheduledTask` today counts as the proof (recommended; it skips only the timer, which #373 replaces); (b) wait for 11-12. The task has never run (267011). On (a), record it on #336 and amend its Done-when.
+- **Owner answered (a), 06:32:38.** Recorded on #336 (issuecomment-6706993008), and #336's Done-when is amended. Relayed to the manager, who queues the owner's start Action and checks the run. Next: the run passes, then #361, #362, #370 and #336 close, then the merges #383, #382 and #384, then the dispatches.
+- **Owner answered (a) on #352, #354 and #355, 06:34:** dispatch all three after #382, #383 and #384 merge, #355 first. Recorded on each ticket and relayed to the manager. #355 and #352 run one after the other because both touch the seam.
+- Proof run started by the owner. Owner: "discord message landed" (relayed to the manager for #336 and #362). The manager's other checks are pending.
+- **#336 is CLOSED (2026-11-07), and so are #361, #362 and #370.** Proof run: data PR #388 merged by the pipeline as `70776c9`; run log a2212ed1 is `published` with that sha; storage: postgres; the Discord notice was confirmed (manager evidence issuecomment-6707110930). The manager now merges #383, then #382, then #384, then dispatches #385, #373, #386, #355, #352 and #354. #359 is open; its first logged pull was complete (3028/3028). It closes as a real Fantrax change after one more logged pull agrees (issuecomment-6707126802). #384 merges as is if categories aren't settled; any category change comes as a follow-up ticket.
+- **#383 merged as `2a83cee`; #378 closed.** #385 dispatched (b385-nbform). b372 is merging main for #382. The remote worktree-b378-weeks is folded into the owner's "Delete merged remote branches" Action.
+- **Grill in progress (grill-with-docs), owner direction 2026-11-07:** drop the step convention; five domains: League Maintenance; Team Rosters and Salary; Players and Season Stats; Rookies; Trade Bud and Discord Bot (I proposed "Apps"). Every flow gets a domain and a cadence (manual and annual included). 04w draft results get archived into a table, captured automatically (35-round startup with no gaps, then 5-round rookie drafts). Archive 05a. Round 1 is open: Q1-Q16 asked in planner chat with my recommendations.
+  - Facts: startup complete, 490/490 per division. 5 slots skipped on Fantrax (A03 ×3, A08 ×2, rounds 28–33; blank in Fantrax's own CSV too). fact_draft_pick has no player column; 02d reads the hard-coded 2026 files and replace_partitions; raw JSON is gitignored.
+  - Archive candidates: 00_fantasy_etl_flow, 02c, the 03y notebook. Not candidates: 04d, 04e, 04f, runner_spike (until #93).
+  - After the answers: next round on the new file names (if Q1 is yes), then write up #375, the tickets (draft archive after #355; the rename after the six builders) and CONTEXT.md terms.
+- **Superseded by the grill above: step categorization for map #375.** I gave the owner definitions of every step in planner chat. The Stage column mixes source and job, and Chain is the publish unit, so I suggested separate Source and Job columns. Awaiting the owner's categories. Then: update #375 and send a brief update to #380 / PR #384 (stage cards). b380-schedule has been told, through the manager, not to rework the cards yet.
+- Lesson: in PowerShell, `gh ... --jq .body` returns an array of lines, and `.Replace` on it flattened #336's body. I restored it from userContentEdits through the Bash tool. Edit issue bodies with Python through Bash.
+
+0000000000000000000000000000000000. **2026-11-06 evening, new state branch. Overrides everything below; read 000000000000000000000000000000000 next.**
+- The state batch PR #387 was squash-merged as `e0b7734` on the owner's word ("merge 387", relayed by the manager). Main is at `e0b7734`.
+- New state branch: worktree ps1103 is on local `docs/state-2026-11-06`, cut from `e0b7734` with no upstream. Push with a standalone `git push origin HEAD:docs/state-2026-11-06`. It's shared with the manager, and the batch PR opens at the end of a day.
+- The remote `docs/state-2026-11-05` still exists (merged, harmless). My `git push origin --delete` was denied as Git Destructive, so the owner deletes it or leaves it.
+- Nothing has changed since 000000000000000000000000000000000: #383, #382 and #384 are held for #336 (the 11-12 06:00 run). #373, #385 and #386 are parked on the owner's word.
+- Resume prompt: "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 0000000000000000000000000000000000 first. Use worktree ps1103 on local branch docs/state-2026-11-06; git pull --rebase origin docs/state-2026-11-06 before reading (once it exists on origin), and push with a standalone `git push origin HEAD:docs/state-2026-11-06`. Find the manager with ListAgents and send by name."
+
+000000000000000000000000000000000. **2026-11-06, all held for #336. Overrides everything below; read 00000000000000000000000000000000 next.**
 - Nothing is in flight. Three PRs are green and held until #336 closes, and merge in this order: PR #383 (#378 week keys; `etl_helpers.close_state` / `Week`), then PR #382 (#372 cadence, which first switches `close_day_state` to the helper and merges main), then PR #384 (#380 schedule page with stage cards and the README row; it merges #382's branch in again). The manager's state is 670c2a6 (MANAGER.md).
 - #382 gates: the migration is applied first, then the owner runs --check-only (an Action), then the next run. After #384 merges, the owner removes the one-off merge rule (an Action in the queue).
 - Parked on the owner's word: #373 (PC daily task, after #382 and #383), #385 (notebook-normalize pre-commit hook, after #383), #386 (docs follow-ups, after #384).
