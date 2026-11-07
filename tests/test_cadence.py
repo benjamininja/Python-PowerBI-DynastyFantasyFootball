@@ -21,7 +21,8 @@ import etl_helpers  # noqa: E402
 import etl_run_log as rl  # noqa: E402
 import run_pipeline as rp  # noqa: E402
 
-ROOKIE = ["03a_fantasypros", "03b_walterfootball", "03c_ktc_rookie", "03d_draftsharks_rookie"]
+ROOKIE = ["03b_walterfootball", "03d_draftsharks_rookie"]
+REJECTED = ["03a_fantasypros", "03c_ktc_rookie", "04b_ktc_dynasty", "04b_ktc_dynasty_p"]
 THURSDAY = 3
 
 
@@ -51,9 +52,26 @@ def plan(phase, today, record, cadence="due", only=None, groups=None, table=None
 class TestStepTable:
     STEPS = rp.build_steps(None)
 
-    def test_close_day_steps_are_the_rookie_scrapes_and_04b(self):
+    def test_close_day_steps_are_the_two_kept_rookie_scrapes(self):
         close = {s["name"] for s in self.STEPS if s["cadence"] == "close_day"}
-        assert close == set(ROOKIE) | {"04b_ktc_dynasty"}
+        assert close == set(ROOKIE)
+
+    def test_the_rejected_sites_are_in_no_step_in_any_profile(self):
+        for profile in (None, "dynasty"):
+            names = {s["name"] for s in rp.build_steps(profile)}
+            assert not names & set(REJECTED), profile
+        assert not rp.CLOSE_DAY_STEPS & set(REJECTED)
+
+    @pytest.mark.parametrize("phase", ["INSEASON", "PRESEASON", "OFFSEASON"])
+    @pytest.mark.parametrize("day", [date(2026, 9, 22), date(2026, 9, 25), date(2027, 2, 11)])
+    @pytest.mark.parametrize("profile", [None, "dynasty"])
+    def test_cadence_all_lists_none_of_the_rejected_steps(self, phase, day, profile):
+        state = rp.close_day_state(day, periods(), THURSDAY)
+        kept, report = rp.apply_cadence(rp.build_steps(profile), phase, None, None,
+                                        "all", state, day, lambda key: set())
+        listed = {s["name"] for s in kept if rp._selected(s, phase, None, None)}
+        assert not listed & set(REJECTED)
+        assert not set(report["ran"] + report["deferred"]) & set(REJECTED)
 
     def test_every_step_has_a_cadence_in_both_profiles(self):
         for profile in (None, "dynasty"):
@@ -170,10 +188,10 @@ class TestUnreadableCalendar:
         assert (report["ran"], report["deferred"], report["reason"]) == ([], ROOKIE, "unreadable")
         assert report["asked"] == []
 
-    def test_off_season_it_skips_04b_too(self):
+    def test_off_season_it_skips_the_same_steps(self):
         kept, report = plan("OFFSEASON", date(2027, 2, 11), set(), table=periods().iloc[0:0])
         assert "04b_ktc_dynasty" not in kept
-        assert report["deferred"] == ["04b_ktc_dynasty"] + ROOKIE
+        assert report["deferred"] == ROOKIE
 
     def test_cadence_all_skips_them_too_and_the_warning_stays(self):
         kept, report = plan("INSEASON", date(2026, 9, 25), set(), cadence="all", table=periods().iloc[0:0])
@@ -182,10 +200,10 @@ class TestUnreadableCalendar:
         assert "04a_scrape" in kept and "04t_txn_history" in kept
         assert "close_day steps skipped" in rp.cadence_warning(report)
 
-    def test_cadence_all_off_season_skips_04b_too(self):
+    def test_cadence_all_off_season_skips_them_too(self):
         kept, report = plan("OFFSEASON", date(2027, 2, 11), set(), cadence="all", table=periods().iloc[0:0])
         assert "04b_ktc_dynasty" not in kept and not set(kept) & set(ROOKIE)
-        assert report["deferred"] == ["04b_ktc_dynasty"] + ROOKIE
+        assert report["deferred"] == ROOKIE
 
     def test_cadence_all_on_a_quiet_day_with_a_readable_calendar_still_runs_them(self):
         _, report = plan("INSEASON", date(2026, 9, 14), set(), cadence="all")
@@ -229,9 +247,9 @@ class TestInSeason:
         assert report["ran"] == ROOKIE and [n for n in kept if n in ROOKIE] == ROOKIE
 
     def test_a_catch_up_runs_only_what_has_no_success_for_the_week(self):
-        _, report = plan("INSEASON", date(2026, 9, 27), {"03a_fantasypros", "03c_ktc_rookie"})
-        assert report["ran"] == ["03b_walterfootball", "03d_draftsharks_rookie"]
-        assert report["deferred"] == ["03a_fantasypros", "03c_ktc_rookie"]
+        _, report = plan("INSEASON", date(2026, 9, 27), {"03b_walterfootball"})
+        assert report["ran"] == ["03d_draftsharks_rookie"]
+        assert report["deferred"] == ["03b_walterfootball"]
 
     def test_a_success_in_an_earlier_week_does_not_count(self):
         keys = []
@@ -267,20 +285,20 @@ class TestInSeason:
 class TestOffSeason:
     THURSDAY_OFF = date(2027, 2, 11)
 
-    def test_a_thursday_runs_04b_and_never_04s(self):
+    def test_a_thursday_runs_the_rookie_scrapes_and_never_04s_or_04b(self):
         kept, report = plan("OFFSEASON", self.THURSDAY_OFF, set())
-        assert "04b_ktc_dynasty" in kept and "04s_scoring" not in kept
-        assert report["ran"] == ["04b_ktc_dynasty"] + ROOKIE
+        assert "04b_ktc_dynasty" not in kept and "04s_scoring" not in kept
+        assert report["ran"] == ROOKIE
         assert report["week_key"] == "2027-W06" and report["mode"] == "weekday"
 
     def test_another_weekday_with_the_week_done_runs_none(self):
-        kept, report = plan("OFFSEASON", date(2027, 2, 13), set(ROOKIE) | {"04b_ktc_dynasty"})
-        assert not set(kept) & (set(ROOKIE) | {"04b_ktc_dynasty"})
+        kept, report = plan("OFFSEASON", date(2027, 2, 13), set(ROOKIE))
+        assert not set(kept) & set(ROOKIE)
         assert report["ran"] == []
 
     def test_a_missed_thursday_is_caught_up_on_a_later_day(self):
-        _, report = plan("OFFSEASON", date(2027, 2, 14), {"04b_ktc_dynasty"})
-        assert report["ran"] == ROOKIE and report["deferred"] == ["04b_ktc_dynasty"]
+        _, report = plan("OFFSEASON", date(2027, 2, 14), {"03b_walterfootball"})
+        assert report["ran"] == ["03d_draftsharks_rookie"] and report["deferred"] == ["03b_walterfootball"]
 
 
 class TestOverrides:
@@ -291,16 +309,16 @@ class TestOverrides:
         every = {s["name"] for s in rp.build_steps(None) if "INSEASON" in s["phases"]}
         assert set(kept) == every
 
-    def test_cadence_all_off_season_runs_04b_too(self):
+    def test_cadence_all_off_season_runs_the_rookie_scrapes(self):
         _, report = plan("OFFSEASON", date(2027, 2, 12), set(ROOKIE), cadence="all")
-        assert report["ran"] == ["04b_ktc_dynasty"] + ROOKIE
+        assert report["ran"] == ROOKIE
 
     def test_steps_combine_with_the_cadence_by_and(self):
         kept, report = plan("INSEASON", date(2026, 9, 22), set(ROOKIE),
-                            only={"03a_fantasypros", "04a_scrape"})
-        assert kept == ["04a_scrape"] and report["deferred"] == ["03a_fantasypros"]
-        _, due = plan("INSEASON", date(2026, 9, 25), set(), only={"03a_fantasypros", "04a_scrape"})
-        assert due["ran"] == ["03a_fantasypros"] and due["deferred"] == []
+                            only={"03b_walterfootball", "04a_scrape"})
+        assert kept == ["04a_scrape"] and report["deferred"] == ["03b_walterfootball"]
+        _, due = plan("INSEASON", date(2026, 9, 25), set(), only={"03b_walterfootball", "04a_scrape"})
+        assert due["ran"] == ["03b_walterfootball"] and due["deferred"] == []
 
     def test_group_combines_with_the_cadence_by_and(self):
         kept, report = plan("INSEASON", date(2026, 9, 25), set(), groups={"regular_season"})
@@ -368,8 +386,8 @@ class TestStepsDone:
         seen = []
         monkeypatch.setattr(rl, "enabled", lambda: True)
         monkeypatch.setattr(rl, "_rows", lambda sql, params: seen.append((sql, params)) or
-                            [("03a_fantasypros",), ("03b_walterfootball",)])
-        assert rl.steps_done("2026-2027-p01") == {"03a_fantasypros", "03b_walterfootball"}
+                            [("03d_draftsharks_rookie",), ("03b_walterfootball",)])
+        assert rl.steps_done("2026-2027-p01") == {"03d_draftsharks_rookie", "03b_walterfootball"}
         assert seen == [(rl.STEPS_DONE, ("2026-2027-p01",))]
         assert "status <> 'running'" in rl.STEPS_DONE
 
@@ -386,10 +404,10 @@ class TestStepsDone:
         monkeypatch.setattr(rl, "_write", lambda sql, params: sent.append((sql, params)))
         log = rl.RunLog("daily")
         log.run_id = "r"
-        log.finish("published", cadence={"filter": "due", "done": ["03a_fantasypros"]})
+        log.finish("published", cadence={"filter": "due", "done": ["03d_draftsharks_rookie"]})
         sql, params = sent[0]
         assert "cadence = %s::jsonb" in sql
-        assert params[-3] == '{"filter": "due", "done": ["03a_fantasypros"]}' and params[-1] == "r"
+        assert params[-3] == '{"filter": "due", "done": ["03d_draftsharks_rookie"]}' and params[-1] == "r"
         assert params[-2] is None
 
     def test_finish_without_cadence_writes_null(self, monkeypatch):
