@@ -128,11 +128,14 @@ class TestFantraxPublicGet:
     @pytest.fixture
     def reply(self, monkeypatch):
         calls = []
+        sent_headers = []
+        self.sent_headers = sent_headers
 
         def install(response):
             class Session:
-                def get(self, url, params=None, timeout=None):
+                def get(self, url, params=None, timeout=None, headers=None):
                     calls.append((url, params, timeout))
+                    sent_headers.append(headers)
                     if isinstance(response, Exception):
                         raise response
                     return response
@@ -147,6 +150,12 @@ class TestFantraxPublicGet:
         url, params, timeout = calls[0]
         assert url.endswith("/fxea/general/getTeamRosters")
         assert params == {"leagueId": "LG", "period": 3} and timeout == 30
+
+    def test_sends_the_program_user_agent(self, reply):
+        reply(_FakeResponse(body={"rosters": {}}))
+        etl.fantrax_public_get("getTeamRosters", "LG")
+        assert self.sent_headers == [{"User-Agent": etl.FANTRAX_PUBLIC_UA}]
+        assert etl.FANTRAX_PUBLIC_UA.startswith("MouseratDynastyETL/1.0 (+https://github.com/")
 
     def test_non_200_raises(self, reply):
         reply(_FakeResponse(status_code=503, body={}))

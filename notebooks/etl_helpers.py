@@ -214,6 +214,8 @@ def _make_session(timeout_sec: int = 30, retries: int = 3, backoff: float = 2.0)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
+FANTRAX_PUBLIC_UA = ("MouseratDynastyETL/1.0 "
+                     "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
 
 
 def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
@@ -224,6 +226,7 @@ def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
     try:
         resp = _make_session().get(f"{FANTRAX_PUBLIC_API}/{method}",
                                    params={"leagueId": league_id, **params},
+                                   headers={"User-Agent": FANTRAX_PUBLIC_UA},
                                    timeout=timeout_sec)
     except requests.RequestException as e:
         raise RuntimeError(f"Fantrax public {method}: request failed ({type(e).__name__}: {e})") from e
