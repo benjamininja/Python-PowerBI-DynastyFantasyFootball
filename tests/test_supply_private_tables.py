@@ -173,6 +173,56 @@ class TestOverrides:
         assert changed == ["overrides: scorer_id b gsis_id differs from the crosswalk"]
 
 
+class TestOverridesThroughLinks:
+    WHEN = pd.Timestamp("2026-11-07", tz="UTC")
+    LINKS = pd.DataFrame({"old_gsis_id": ["OLD1"], "new_gsis_id": ["G1"]})
+
+    def build(self, csv_ids, decisions=None, links=LINKS):
+        csv = pd.DataFrame({"scorer_id": ["a"] * len(csv_ids), "gsis_id": csv_ids, "note": None})
+        return loader.overrides_from(csv, decisions or {}, self.WHEN, links)
+
+    def test_an_old_id_linked_to_the_crosswalk_id_passes_and_is_stored_as_written(self, monkeypatch):
+        monkeypatch.setattr(loader, "MANUAL", 1)
+        monkeypatch.setattr(loader, "NEW", 0)
+        out, problems = self.build(["OLD1"])
+        assert problems == [] and out["gsis_id"].tolist() == ["OLD1"]
+        assert loader.crosswalk_problems(out, crosswalk([("a", "G1")]), self.LINKS) == []
+
+    def test_an_id_that_resolves_to_a_different_id_still_stops(self, monkeypatch):
+        monkeypatch.setattr(loader, "MANUAL", 1)
+        monkeypatch.setattr(loader, "NEW", 0)
+        out, _ = self.build(["OLD1"])
+        assert loader.crosswalk_problems(out, crosswalk([("a", "G2")]), self.LINKS) == [
+            "overrides: scorer_id a gsis_id differs from the crosswalk"]
+
+    def test_an_id_with_no_link_still_stops(self, monkeypatch):
+        monkeypatch.setattr(loader, "MANUAL", 1)
+        monkeypatch.setattr(loader, "NEW", 0)
+        out, _ = self.build(["OLD9"])
+        assert loader.crosswalk_problems(out, crosswalk([("a", "G1")]), self.LINKS)
+
+    def test_the_crosswalk_holding_the_old_id_passes_against_the_current_one(self, monkeypatch):
+        monkeypatch.setattr(loader, "MANUAL", 1)
+        monkeypatch.setattr(loader, "NEW", 0)
+        out, _ = self.build(["G1"])
+        assert loader.crosswalk_problems(out, crosswalk([("a", "OLD1")]), self.LINKS) == []
+
+    def test_csv_old_id_against_decisions_current_id_is_one_player(self):
+        assert self.build(["OLD1"], {"a": "G1"})[1] == []
+        assert self.build(["OLD1"], {"a": "G2"})[1] == [
+            "overrides: scorer_id a differs between the CSV and DECISIONS"]
+
+    def test_two_csv_rows_old_and_current_of_one_player_are_one_answer(self):
+        out, problems = self.build(["OLD1", "G1"])
+        assert problems == [] and out["gsis_id"].tolist() == ["G1"]
+        assert self.build(["OLD1", "G2"])[1] == ["overrides: scorer_id a has two answers in the CSV"]
+
+    @pytest.mark.parametrize("links", [None, pd.DataFrame(columns=["old_gsis_id", "new_gsis_id"])])
+    def test_no_links_is_todays_behaviour(self, links):
+        assert self.build(["OLD1"], {"a": "G1"}, links)[1] == [
+            "overrides: scorer_id a differs between the CSV and DECISIONS"]
+
+
 def crosswalk_has_no_names(problems):
     return all("Pat" not in p and "Invented" not in p for p in problems)
 

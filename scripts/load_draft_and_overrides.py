@@ -129,7 +129,13 @@ def read_overrides_csv(path: Path) -> pd.DataFrame:
     return raw[keep].reindex(columns=["scorer_id", "gsis_id", "note"])
 
 
-def overrides_from(csv: pd.DataFrame | None, decisions: dict, recorded_at) -> tuple[pd.DataFrame, list[str]]:
+def resolved(ids: pd.Series, links: pd.DataFrame | None) -> pd.Series:
+    """`ids` through dim_gsis_link, for comparing only; with no links, as they are."""
+    return ids.copy() if links is None else etl.current_gsis(ids, links)
+
+
+def overrides_from(csv: pd.DataFrame | None, decisions: dict, recorded_at,
+                   links: pd.DataFrame | None = None) -> tuple[pd.DataFrame, list[str]]:
     """The decisions table's rows and the problems found building them.
 
     The CSV is what 04z reads today, so its rows go in as origin `csv`; a
@@ -142,14 +148,15 @@ def overrides_from(csv: pd.DataFrame | None, decisions: dict, recorded_at) -> tu
         if len(blank):
             problems.append(f"overrides: {len(blank)} CSV row(s) with no scorer_id or gsis_id")
         csv = csv.dropna(subset=["scorer_id", "gsis_id"])
-        split = csv.groupby("scorer_id")["gsis_id"].nunique()
+        split = resolved(csv["gsis_id"], links).groupby(csv["scorer_id"]).nunique()
         for sid in sorted(split[split > 1].index):
             problems.append(f"overrides: scorer_id {sid} has two answers in the CSV")
         for r in csv.drop_duplicates("scorer_id", keep="last").itertuples(index=False):
             rows[r.scorer_id] = {"scorer_id": r.scorer_id, "gsis_id": r.gsis_id,
                                  "note": None if pd.isna(r.note) else r.note, "origin": "csv"}
     for sid, gsis in decisions.items():
-        if sid in rows and rows[sid]["gsis_id"] != gsis:
+        if sid in rows and resolved(pd.Series([rows[sid]["gsis_id"]]), links).iat[0] \
+                != resolved(pd.Series([gsis]), links).iat[0]:
             problems.append(f"overrides: scorer_id {sid} differs between the CSV and DECISIONS")
         elif sid not in rows:
             rows[sid] = {"scorer_id": sid, "gsis_id": gsis, "note": None, "origin": "apply_script"}
@@ -159,7 +166,8 @@ def overrides_from(csv: pd.DataFrame | None, decisions: dict, recorded_at) -> tu
     return frame[["scorer_id", "gsis_id", "note", "recorded_at", "origin"]], problems
 
 
-def crosswalk_problems(overrides: pd.DataFrame, crosswalk: pd.DataFrame) -> list[str]:
+def crosswalk_problems(overrides: pd.DataFrame, crosswalk: pd.DataFrame,
+                       links: pd.DataFrame | None = None) -> list[str]:
     """How the overrides differ from the crosswalk's `manual` and `new` rows,
     by count and scorer_id only."""
     problems = []
@@ -176,9 +184,10 @@ def crosswalk_problems(overrides: pd.DataFrame, crosswalk: pd.DataFrame) -> list
         for sid in sorted(theirs - mine):
             problems.append(f"crosswalk: scorer_id {sid} is a {method} row with no override")
     manual = overrides[overrides["gsis_id"] != NEW_MARK]
-    for r in manual.itertuples(index=False):
+    xw_now = resolved(xw["gsis_id"], links)
+    for r, mine_now in zip(manual.itertuples(index=False), resolved(manual["gsis_id"], links)):
         if r.scorer_id in xw.index and xw.at[r.scorer_id, "match_method"] == "manual" \
-                and xw.at[r.scorer_id, "gsis_id"] != r.gsis_id:
+                and xw_now.at[r.scorer_id] != mine_now:
             problems.append(f"overrides: scorer_id {r.scorer_id} gsis_id differs from the crosswalk")
     return problems
 
@@ -206,12 +215,13 @@ def load(raw_dir: Path, *, check_only: bool = False, decisions: dict | None = No
     slots = slots_from_payloads(read_payloads(sorted(files, key=lambda f: f.stat().st_mtime)))
     scorers = scorers_from_payloads(read_payloads(sorted(files)))
     decisions = decisions_from_script() if decisions is None else decisions
+    links = etl.read_table(etl.GSIS_LINK_TABLE) if etl.table_exists(etl.GSIS_LINK_TABLE) else None
     overrides, problems = overrides_from(
         read_overrides_csv(csv_path), decisions,
-        pd.Timestamp.now(tz="UTC").floor("us") if now is None else now)
+        pd.Timestamp.now(tz="UTC").floor("us") if now is None else now, links)
     problems = draft_problems(slots, scorers) + problems
     xw = etl.read_table(CROSSWALK_TABLE) if crosswalk is None else crosswalk
-    problems += crosswalk_problems(overrides, xw)
+    problems += crosswalk_problems(overrides, xw, links)
     for name, frame in ((SCORER_TABLE, scorers), (SLOT_TABLE, slots), (OVERRIDE_TABLE, overrides)):
         try:
             etl._check_batch(frame, etl._table_entry(name))
