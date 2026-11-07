@@ -513,9 +513,9 @@ def cell(notebook_cell):
 
 
 class Test04zReadsThePrivateTables:
-    ADP = pd.DataFrame({"season": [2026], "week": ["DRAFT"], "scorer_id": ["known"],
-                        "player_name": ["Known Person"], "position_raw": ["WR"],
-                        "nfl_team": ["DAL"], "is_rookie": [False]})
+    ADP = pd.DataFrame({"season": [2026], "week": ["DRAFT"], "capture_date": ["2026-06-01"],
+                        "scorer_id": ["known"], "player_name": ["Known Person"],
+                        "position_raw": ["WR"], "nfl_team": ["DAL"], "is_rookie": [False]})
 
     @pytest.fixture
     def tables(self, store, monkeypatch):
@@ -580,6 +580,36 @@ class Test04zReadsThePrivateTables:
         self.put(scorers=False)
         with pytest.raises(etl.TableNotFound, match="load_draft_and_overrides"):
             self.run(tables)
+
+    def latest_team(self, tables, rows):
+        self.put()
+        frame = pd.DataFrame(rows, columns=["season", "week", "capture_date", "nfl_team"])
+        frame["scorer_id"] = "known"
+        frame["player_name"] = "Known Person"
+        frame["position_raw"] = "WR"
+        frame["is_rookie"] = False
+        etl.write_table("fact_fantrax_adp", frame[self.ADP.columns])
+        ns = self.run(tables)
+        latest = ns["fact_latest"]
+        assert list(latest.columns) == list(self.ADP.columns)
+        return latest.set_index("scorer_id").loc["known", "nfl_team"]
+
+    def test_a_numbered_week_beats_an_earlier_pre_row(self, tables):
+        rows = [(2026, "PRE", "2026-07-10", "JULY"), (2026, "04", "2026-10-05", "OCT")]
+        assert self.latest_team(tables, rows) == "OCT"
+
+    def test_ytd_beats_a_numbered_week_of_the_same_capture_date(self, tables):
+        rows = [(2026, "08", "2026-11-01", "WEEK"), (2026, "YTD", "2026-11-01", "YTD")]
+        assert self.latest_team(tables, rows) == "YTD"
+
+    def test_a_later_season_draft_row_beats_an_earlier_season_ytd_row(self, tables):
+        rows = [(2025, "YTD", "2026-02-01", "OLD"), (2026, "DRAFT", "2026-06-01", "NEW")]
+        assert self.latest_team(tables, rows) == "NEW"
+
+    def test_an_unknown_week_value_stops_the_run_naming_it(self, tables):
+        rows = [(2026, "PRE", "2026-07-10", "A"), (2026, "BYE", "2026-10-05", "B")]
+        with pytest.raises(ValueError, match="BYE"):
+            self.latest_team(tables, rows)
 
     def test_the_cell_reads_no_raw_override_or_draft_file(self):
         source = cell("253b3f55")
