@@ -178,17 +178,18 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "injury"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+        # Logged-in transaction history (04a's session, like 04v): the raw
+        # capture 02d builds the ledger from and 04z reads for scorers seen
+        # only in a trade or claim. If it fails, 02d is skipped and the Chain
+        # is held.
+        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
+        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04a_backfill_gp", "cmd": _script("04a_fantrax_weekly_scrape.py", "--backfill-gp"),
          "phases": {"INSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
-        # Logged-in transaction history (04a's session, like 04v): the raw
-        # capture 02d builds the ledger from. If it fails, 02d is skipped and
-        # the Chain is held.
-        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         # Dead Money from the ledger's drops (no network). 02e's cap summary

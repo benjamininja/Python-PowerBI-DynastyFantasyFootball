@@ -84,11 +84,31 @@ class TestStepTable:
     def test_04t_runs_before_02d_which_needs_it(self):
         names = [s["name"] for s in self.STEPS]
         txn, ledger = (self.STEPS[names.index(n)] for n in ("04t_txn_history", "02d_ledger"))
-        assert names.index("04v_minor_contracts") < names.index("04t_txn_history") < names.index("02d_ledger")
+        assert names.index("04t_txn_history") < names.index("02d_ledger")
         assert "04t_txn_history" in ledger["needs"]
         assert (txn["cadence"], txn["chain"]) == ("daily", "fantrax_core")
         assert txn["phases"] == {"INSEASON", "PRESEASON", "OFFSEASON"}
         assert txn["cmd"][-1].endswith("04t_fantrax_transaction_history.py")
+
+    def test_04z_sees_the_same_run_transaction_capture(self):
+        names = [s["name"] for s in self.STEPS]
+        by_name = {s["name"]: s for s in self.STEPS}
+        assert names.index("04a_scrape") < names.index("04t_txn_history") < names.index("04z_crosswalk")
+        assert names.index("04z_crosswalk") < names.index("04v_minor_contracts") < names.index("02d_ledger")
+        assert by_name["04t_txn_history"]["needs"] == ["04a_scrape"]
+        assert by_name["04z_crosswalk"]["needs"] == ["04a_scrape", "04t_txn_history"]
+        assert by_name["04v_minor_contracts"]["needs"] == ["04z_crosswalk"]
+        assert by_name["02d_ledger"]["needs"] == ["04v_minor_contracts", "04t_txn_history"]
+
+    @pytest.mark.parametrize("profile", [None, "dynasty"])
+    def test_needs_are_acyclic_and_every_dependency_is_earlier(self, profile):
+        steps = rp.build_steps(profile)
+        position = {s["name"]: i for i, s in enumerate(steps)}
+        assert len(position) == len(steps)
+        for s in steps:
+            for dep in s["needs"]:
+                assert dep in position, f"{s['name']} needs {dep}, which is not a step"
+                assert position[dep] < position[s["name"]], f"{s['name']} needs {dep}, which runs later"
 
     def test_a_failed_04t_skips_02d_and_holds_its_chain(self):
         steps = [s for s in self.STEPS if s["name"] in ("04t_txn_history", "02d_ledger")]
