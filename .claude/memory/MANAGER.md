@@ -34,7 +34,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
     - **PR #419** (b93-daily, resumed session 9bb3b1a9, head `c7810f3`): main merged; 1e5b038, 753a672 and 64d13fd are in its history; 1975 tests passed. HOLD until loaded. Then re-prove CI and merge with `--match-head-commit`.
     - **t82-rules** (tools #82): it was told to run build_catalog and `git diff --exit-code -- CATALOG.md` as separate calls; still no PR at the save (SKILL.md edited, uncommitted). Nudge it; re-prove under PROJECT-RULES Green; merge; queue the live-clone pull.
   - **After the first good Actions run:** #425 (medium), #426 (low) and #434 Part 2 (low docs) in one batch; #431 (medium, supabase-auditor) after #419; #421 Part 2 (low) after #419; #413 after #419.
-  - **Waiting on the tools planner:** ready owner entries for the real profiles file (research, probe), the research base file and the new deny rules. Then #424 dispatches with `-Profile research`. From now on dispatch with each ticket's Profile: line and read builder-state/probe.py at closeout.
+  - **Builder profiles (queued, owner):** three Actions, "Builder profiles 1/2/3 of 3":
+    - 1: four new deny rules in dynasty builders/managers and tools builders.settings.json;
+    - 2: dynasty `.claude/research.settings.json` (I checked it holds all 36 shared denies plus the 4 new ones);
+    - 3: dynasty `.claude/builder-profiles.json` plus `buildersProfiles` in dispatch.json.
+
+    The text is the Tools-central-planner's, from its scratchpad. When the owner says "profiles added": run `dispatch.ps1 -Profile research` as a dry run in dynasty (expect the profile, the base file and no refusal), then dispatch #424 with Profile: research.
+  - **Tools #85** (low, Profile: none; the template's research base gets Skill) is ready to dispatch. The tools main checkout is BEHIND origin (`b2d3f8a` vs `2a105af`) and dispatch.ps1 branches from it. Fast-forward it first (or ask the owner, per PROJECT-RULES), and leave the uncommitted PLAN.md edit alone. From now on dispatch with each ticket's Profile: line and read builder-state/probe.py at closeout.
   - **#83 test result:** --allowedTools ADDS to --settings; a deny wins; relative Edit(...) anchors at the cwd (tools #83 issuecomment-6710894252).
   - **Done, awaiting the owner's claude rm:** b428, b421, b93-supply, t83-profiles (plus the earlier list).
   - **Lessons:**
