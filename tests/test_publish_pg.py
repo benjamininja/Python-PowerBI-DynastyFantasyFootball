@@ -214,7 +214,7 @@ class TestTheExport:
     def test_a_failed_export_reloads_the_database_and_aborts(self, world, frames, monkeypatch):
         drop_first_row("fact_rookie_rankings")
 
-        def refuse(names, data_dir):
+        def refuse(names, data_dir, changes=None):
             raise RuntimeError("cannot write 'secret-cell'")
 
         monkeypatch.setattr(pg, "export_published", refuse)
