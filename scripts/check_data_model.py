@@ -216,6 +216,11 @@ def validate(data: dict) -> int:
     # column-drift check: declared columns vs real parquet schema
     for t in tables:
         name = t.get("name")
+        if etl_helpers.is_private(t):
+            if t.get("chain"):
+                errors.append(f"[{name}] a private table (schema {t.get('schema')}) has no chain: "
+                              f"it is never published")
+            continue
         try:
             stored = etl_helpers.read_stored(name, etl_helpers.DATA)   # snapshot, uncast: the drift check
         except FileNotFoundError:

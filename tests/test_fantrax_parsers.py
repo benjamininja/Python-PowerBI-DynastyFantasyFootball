@@ -18,6 +18,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import pandas as pd
 import pytest
@@ -408,6 +409,11 @@ def _team_lut(team_ids):
     return {t: f"T{i:02d}" for i, t in enumerate(sorted(set(team_ids)), 1)}
 
 
+def _slot_table(payloads):
+    """The slot table the loader makes from `getDraftResults` payloads."""
+    return importlib.import_module("load_draft_and_overrides").slots_from_payloads(payloads)
+
+
 class TestDraftResults:
     @pytest.fixture
     def raw(self):
@@ -419,10 +425,10 @@ class TestDraftResults:
 
     def _grid(self, raw):
         lut = _team_lut(p["teamId"] for p in self._slots(raw))
-        return rt.build_draft_picks(rt.parse_draft_results([raw]), lut, "2026-2027")
+        return rt.build_draft_picks(rt.parse_draft_results(_slot_table([raw])), lut, "2026-2027")
 
     def test_slots(self, raw):
-        picks = rt.parse_draft_results([raw])
+        picks = rt.parse_draft_results(_slot_table([raw]))
         assert len(picks) == 28                               # rounds 1-2, 14 teams
         assert sorted(picks["overall_slot"]) == list(range(1, 29))
         slot = picks[(picks["round"] == 2) & (picks["pickNumber"] == 3)]
@@ -431,7 +437,7 @@ class TestDraftResults:
     def test_dedupe_keeps_latest_capture(self, raw):
         later = copy.deepcopy(raw)
         self._slots(later)[0]["teamId"] = "recaptured"
-        picks = rt.parse_draft_results([raw, later])          # oldest first
+        picks = rt.parse_draft_results(_slot_table([raw, later]))          # oldest first
         assert len(picks) == 28
         first = picks[(picks["round"] == 1) & (picks["pickNumber"] == 1)]
         assert first["teamId"].tolist() == ["recaptured"]

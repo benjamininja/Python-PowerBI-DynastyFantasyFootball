@@ -90,7 +90,8 @@ def refuse_unless_throwaway(url):
     except Exception:
         parts = {}
     hosts = [h for key in ("host", "hostaddr") for h in str(parts.get(key) or "").split(",") if h]
-    local = bool(parts.get("host")) and not parts.get("hostaddr") and all(h in LOCAL_HOSTS for h in hosts)
+    redirected = bool(parts.get("hostaddr")) or bool(os.environ.get("PGHOSTADDR"))
+    local = bool(parts.get("host")) and not redirected and all(h in LOCAL_HOSTS for h in hosts)
     if not local and not os.environ.get(OPT_IN_NONLOCAL):
         pytest.fail(f"TEST_DATABASE_URL host is not localhost or 127.0.0.1; "
                     f"set {OPT_IN_NONLOCAL} only for a throwaway database", pytrace=False)
@@ -377,6 +378,12 @@ class TestGuards:
             with pytest.raises(pytest.fail.Exception, match="not localhost"):
                 refuse_unless_throwaway(url)
 
+    def test_a_hostaddr_in_the_environment_is_not_a_local_database(self, monkeypatch):
+        monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
+        monkeypatch.setenv("PGHOSTADDR", "10.0.0.5")
+        with pytest.raises(pytest.fail.Exception, match="not localhost"):
+            refuse_unless_throwaway("postgresql://u:p@localhost:5432/d")
+
     def test_the_opt_in_lets_another_host_through(self, monkeypatch):
         monkeypatch.setenv(OPT_IN_NONLOCAL, "1")
         refuse_unless_throwaway("postgresql://u:p@db.example.com/d")
@@ -642,7 +649,7 @@ class TestGolden:
             pd.testing.assert_frame_equal(pg.text_flavour_free(a, entry), pg.text_flavour_free(c, entry))
 
     def test_every_published_table_is_declared(self):
-        assert set(TABLES) == set(etl._registry())
+        assert set(TABLES) == set(etl.published_names())
 
     @pytest.mark.parametrize("table", TABLES)
     def test_write_then_read_gives_the_table_back(self, table, tmp_path, monkeypatch):

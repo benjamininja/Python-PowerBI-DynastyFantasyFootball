@@ -156,7 +156,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     try:
         if args.print_sql:
-            print(checksum_sql(sorted(etl._registry())))
+            print(checksum_sql(etl.published_names()))
             return 0
         url = os.environ.get(pg.TEST_URL_ENV)
         if not url:

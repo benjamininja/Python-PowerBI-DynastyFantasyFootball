@@ -541,7 +541,7 @@ class TestStartupRows:
     MADE = pd.DataFrame({
         "scorerId": ["p1", "p2"], "teamId": ["tA", "tA"], "divisionId": ["d1", "d1"],
         "round": [1, 2], "pickNumber": [1, 14], "overall_slot": [1, 28],
-        "modifiedDate": [1781138250000, 1781138250000],      # 2026-06-11 UTC
+        "pickedAt": pd.to_datetime([1781138250000, 1781138250000], unit="ms", utc=True),  # 2026-06-11 UTC
     })
 
     # The pool at the draft, and after Fantrax re-priced it.

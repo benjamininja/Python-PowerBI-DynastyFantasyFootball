@@ -521,6 +521,75 @@ tables:
       (ADR-0006 decision 2, #109). An asset_id is minted at first sight and
       never re-derived.
 
+  # Private tables (#93 brief 6). A `tables` entry whose `schema` is not
+  # football is private: read and written through the seam like any other,
+  # but never published. It has no `chain`, no row in the snapshot export or
+  # the commit allowlist, and no data/*.parquet in git (the drift check, the
+  # suite default, the backfill and the restore drill skip it). Parquet files
+  # of a private table written by a local run are git-ignored.
+  - name: dim_fantrax_crosswalk_override
+    type: resolver
+    schema: ops
+    grain: scorer_id
+    pk: [scorer_id]
+    required_keys: [scorer_id, gsis_id, recorded_at, origin]
+    checks:
+      - "origin IN ('csv', 'apply_script')"
+    columns:
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: note, dtype: str, sql_type: text }
+      - { name: recorded_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+      - { name: origin, dtype: str, sql_type: text }
+    edges: []
+    notes: >
+      Hand-kept decisions, one row per Fantrax scorer_id: a registry gsis_id,
+      or the literal new (not in the registry yet). 04z reads it first in
+      match_one. Private because a note can name a player. Loaded once from
+      the overrides CSV and the apply script's DECISIONS by
+      scripts/load_draft_and_overrides.py; the pattern of dim_player_alias.
+
+  - name: fact_startup_draft_slot
+    type: fact
+    schema: ops
+    grain: "(division_id, round, pick_in_round)"
+    pk: [division_id, round, pick_in_round]
+    required_keys: [division_id, round, pick_in_round]
+    columns:
+      - { name: division_id, dtype: str, sql_type: text }
+      - { name: round, dtype: int64, sql_type: integer }
+      - { name: pick_in_round, dtype: int64, sql_type: integer }
+      - { name: team_id, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: picked_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+    edges: []
+    notes: >
+      The finished 2026 Startup draft, cut down to what 02d reads: one row per
+      slot (980, 975 made, 5 unmade with a null scorer_id and picked_at).
+      team_id is Fantrax's own id, the key 02d maps to team_key. Holds no team
+      name, short name, commissioner flag, account or user id, division name,
+      logo or league message. Loaded once; #393 replaces it with the record
+      fact_draft_pick keeps and drops it.
+
+  - name: dim_startup_draft_scorer
+    type: dim
+    schema: ops
+    grain: scorer_id
+    pk: [scorer_id]
+    required_keys: [scorer_id]
+    columns:
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: position_raw, dtype: str, sql_type: text }
+      - { name: nfl_team, dtype: str, sql_type: text }
+      - { name: is_rookie, dtype: bool, sql_type: boolean }
+    edges: []
+    notes: >
+      The players the Startup draft capture names, as 04z matches them by
+      name: scorer_id, name, position short names (markup stripped), team
+      short name, rookie flag. Fills 04z's draft-only scorer_ids (players in
+      no ADP capture). Loaded once beside fact_startup_draft_slot.
+
   # --------------------------------------------------------------- facts
   - name: fact_nfl_combine_pro_day_metrics
     type: fact

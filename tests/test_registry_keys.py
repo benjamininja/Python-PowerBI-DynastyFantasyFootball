@@ -29,9 +29,13 @@ BY_NAME = {t["name"]: t for t in TABLES + OTHERS}
 INT_MIN, INT_MAX = -(2 ** 31), 2 ** 31 - 1
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-FKS = [(t["name"], fk) for t in TABLES for fk in t.get("fk") or []]
-INTEGERS = [(t["name"], c["name"]) for t in TABLES for c in t["columns"] if c["sql_type"] == "integer"]
-DATES = [(t["name"], c["name"]) for t in TABLES for c in t["columns"] if c["sql_type"] == "date"]
+# A `tables` entry outside the football schema is private (#93 brief 6): it has no snapshot file.
+PUBLISHED = [t for t in TABLES if (t.get("schema") or "football") == "football"]
+PRIVATE = [t for t in TABLES if t not in PUBLISHED]
+
+FKS = [(t["name"], fk) for t in PUBLISHED for fk in t.get("fk") or []]
+INTEGERS = [(t["name"], c["name"]) for t in PUBLISHED for c in t["columns"] if c["sql_type"] == "integer"]
+DATES = [(t["name"], c["name"]) for t in PUBLISHED for c in t["columns"] if c["sql_type"] == "date"]
 
 
 @lru_cache(maxsize=None)
@@ -145,7 +149,7 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(TABLES) == 36
+        assert len(PUBLISHED) == 36 and len(PRIVATE) == 3
         for t in TABLES:
             assert t["pk"] == [c.strip() for c in t["grain"].strip("()").split(",")], t["name"]
 
@@ -194,7 +198,9 @@ class TestTheRegistry:
                          ("fact_fantasy_teams", "roster_captured_at"),
                          ("fact_fantasy_teams", "ledger_captured_at"),
                          ("fact_team_cap", "roster_captured_at"),
-                         ("fact_team_cap", "fantrax_captured_at")}
+                         ("fact_team_cap", "fantrax_captured_at"),
+                         ("dim_fantrax_crosswalk_override", "recorded_at"),
+                         ("fact_startup_draft_slot", "picked_at")}
         for t in TABLES:
             for c in t["columns"]:
                 if (t["name"], c["name"]) in aware:
@@ -204,7 +210,7 @@ class TestTheRegistry:
 
 
 class TestThePublishedTables:
-    @pytest.mark.parametrize("table", [t["name"] for t in TABLES])
+    @pytest.mark.parametrize("table", [t["name"] for t in PUBLISHED])
     def test_the_pk_has_no_null_and_no_repeat(self, table):
         pk = BY_NAME[table]["pk"]
         df = published(table)
