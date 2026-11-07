@@ -12,6 +12,8 @@ on:
     paths:
       - 'docs/site/**'
       - 'mkdocs.yml'
+      - 'scripts/run_pipeline.py'
+      - 'docs/sources.yml'
       - '.github/workflows/docs-build.yml'
       - '.github/workflows/pages.yml'
 
