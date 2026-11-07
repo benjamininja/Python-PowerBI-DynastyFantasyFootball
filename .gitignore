@@ -53,6 +53,12 @@ Prompts.txt
 # workflow on every deploy) — never committed, so it cannot drift from data/.
 mouserat_trade-bud/_site/
 
+# ── Pages build output (trade-bud at the root, docs site under /docs/) ────────
+# Built by .github/workflows/pages.yml and checked by docs-build.yml; the
+# generator's cache folder is local only.
+/_site/
+/.cache/
+
 # ── Power BI project (PBIP) local artifacts ───────────────────────────────────
 **/.pbi/
 *.abf
