@@ -1039,12 +1039,15 @@ tables:
     edges:
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
-      Dated 2026-11-05 (ADR-0020 decision 8, #378). From the first Daily Run
-      after #378 merges, `week` is the Scoring Period holding the run (two
-      digits, from dim_scoring_period; PRE, YTD and DRAFT keep their meaning).
-      Rows written before that carry the Monday-turnover label (week 01 starts
-      on the Monday after Week 1's Thursday) and are not relabelled. The
-      switch is a label change only: the grain and the columns are the same.
+      Dated 2026-11-05 (ADR-0020 decision 8, #378). From the first pipeline
+      run after #383 merged (2026-11-07), `week` is the Scoring Period holding
+      the run (two digits, from dim_scoring_period; PRE, YTD and DRAFT keep
+      their meaning). Rows written before that carry the Monday-turnover label
+      (week 01 starts on the Monday after Week 1's Thursday) and are not
+      relabelled. The last run with the Monday-turnover label is run a2212ed1
+      (2026-11-07 06:32, week 08); ops.etl_run_log's git_sha tells the two
+      apart. The switch is a label change only: the grain and the columns are
+      the same.
 
   - name: fact_nfl_snap_counts
     type: fact
@@ -1166,12 +1169,15 @@ tables:
       - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
       - { to: dim_rookie_prospect, via: dim_fantrax_crosswalk, on: scorer_id }
     notes: >
-      Dated 2026-11-05 (ADR-0020 decision 8, #378). From the first Daily Run
-      after #378 merges, `week` is the Scoring Period holding the run (two
-      digits, from dim_scoring_period; PRE, YTD and DRAFT keep their meaning).
-      Rows written before that carry the Monday-turnover label (week 01 starts
-      on the Monday after Week 1's Thursday) and are not relabelled. The
-      switch is a label change only: the grain and the columns are the same.
+      Dated 2026-11-05 (ADR-0020 decision 8, #378). From the first pipeline
+      run after #383 merged (2026-11-07), `week` is the Scoring Period holding
+      the run (two digits, from dim_scoring_period; PRE, YTD and DRAFT keep
+      their meaning). Rows written before that carry the Monday-turnover label
+      (week 01 starts on the Monday after Week 1's Thursday) and are not
+      relabelled. The last run with the Monday-turnover label is run a2212ed1
+      (2026-11-07 06:32, week 08); ops.etl_run_log's git_sha tells the two
+      apart. The switch is a label change only: the grain and the columns are
+      the same.
 
   - name: fact_dynasty_ranking_metrics
     type: fact
