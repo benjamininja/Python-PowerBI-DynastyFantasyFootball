@@ -11,7 +11,30 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000. **NEWEST: 2026-11-07, queue fix. Overrides everything below; read 0000000000000000000000000000000000 next.**
+000000000000000000000000000000000000. **NEWEST: 2026-11-07 afternoon, the domain grill is done. Overrides everything below; read 00000000000000000000000000000000000 next.**
+- The #375 grill is finished: Q1-Q35 all answered in planner chat. Map #375 is rewritten with the agreed map (Domains, Cadences, Tasks).
+- New milestone #6 "Domains and step registry", with tickets #390-#403. **None is dispatched; the owner reviews the list first.**
+  - #390 docs (ADR-0021, the ADR-0020 capture amendment, CONTEXT.md terms; low; not blocked).
+  - #391 registry (after #382, #384 and the six builders).
+  - #392 rename and archive (after #391).
+  - #393 draft archive (after #355 and #392).
+  - #394 future-pick owners (after #393).
+  - #395 04u annual (after #392); #396 its February 2027 date (owner-led).
+  - #397 KTC two-shot (after #355 and #392).
+  - #398 injury flags in the bot and trade-bud (not blocked); #399 in Power BI.
+  - #400 DynastySharks, #401 FantasyPros and #402 PFF spikes (not blocked; reviewed with the owner together).
+  - #403 FA Auction spike (July 2027).
+- Key rulings:
+  - Drafts, auctions and trades are transactions, and future picks belong to teams, so all are Rosters.
+  - KTC Pre-Game and Post-Game Runs come from the NFL schedule (KTC only for now; others may be added).
+  - The ranking fact keys on `capture`.
+  - The five skipped Startup picks are recorded as skipped.
+  - The FA Auction runs on Fantrax after the Rookie draft (late July to mid August) and gets its own table.
+  - DynastySharks is free; PFF is paid.
+- PFF `.env` Action (`PFF_EMAIL`, `PFF_PASSWORD`, ticket #402) sent to the manager for the queue, as the owner asked.
+- The manager restarted. b372 is waiting on its push form for 922b50f and on my `--cadence all` ruling (PR #382 issuecomment-6707530607), both relayed to the restarted manager.
+
+00000000000000000000000000000000000. **2026-11-07, queue fix. Overrides everything below; read 0000000000000000000000000000000000 next.**
 - **Lesson (owner, 2026-11-07, a regression):** every item that waits on the owner goes to NEEDS-OWNER.md as a ready entry sent to the manager, in the same turn I find it. A chat "your call" or "waiting on your go-ahead" is not a queue entry. Before I end a turn, I check that each owner item I name has an entry.
 - The owner approved #373, #385 and #386 (manager chat, 2026-11-07, "#373, #385 and #386 are approved to go", timing "On blocker merge"). Order after 11-12: merge #383, then dispatch #385; merge #382, then dispatch #373; merge #384, then dispatch #386. All at low.
 - Sent the manager ready entries: Decision on dispatching #352, #354 and #355; Decision on #386's `git rm --cached` step; Action to delete the remote `docs/state-2026-11-05`; Action for the 11-12 Discord notice; Action to review the schedule on map #375.
