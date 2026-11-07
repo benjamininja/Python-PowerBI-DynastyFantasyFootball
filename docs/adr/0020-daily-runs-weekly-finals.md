@@ -24,6 +24,7 @@
 5. **Each run overwrites the current week's rows in place,** in both Postgres and the parquet. There is no cleanup job.
 6. **A week's final is the last good run.** A failed run never overwrites it.
 7. **Tables keyed on `snapshot_date` take the week's anchor date:** the period end date in season, the ISO week's Sunday off season. No column changes.
+   - *Amended 2026-11-07 (#390, owner grill on #375): the Weekly Final is one snapshot per week **per capture**. The ranking fact's key gains `capture` (`weekly`, `pre_game`, `post_game`). Only KTC uses the two in-season shots, `pre_game` and `post_game`, for now.*
 8. **The week label becomes the Scoring Period** in `fact_fantrax_adp` and `fact_minor_eligibility`, from the next week on. Old rows are not relabelled; a dated registry note marks the switch.
 
 ## Alternatives considered

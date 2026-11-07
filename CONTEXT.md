@@ -148,6 +148,24 @@ never the calendar. Fantrax's own figure is **Salary Remaining**, which also
 charges IR salary.
 _Avoid_: remaining cap, cap space
 
+### Drafts
+
+**Draft**:
+A transaction that moves players to teams by pick: the Startup draft once, a
+Rookie draft each year.
+_Avoid_: auction (that's the FA Auction, by bid)
+
+**Skipped Pick**:
+A draft slot whose turn passed with no player.
+
+**Frozen Draft**:
+A completed draft, never rewritten.
+
+**FA Auction**:
+The annual Fantrax auction after the Rookie draft, where free agents are won by
+bid.
+_Avoid_: draft
+
 ### Results
 
 **Team Score**:
@@ -218,6 +236,39 @@ team's roster present, every Starter scored, team totals matching Fantrax.
 Until it passes, the Update-Set stays closing.
 _Avoid_: final check, freeze check
 
+### Flows
+
+**Domain**:
+One of five groups a flow belongs to: League, Rosters, Players, Rookies, Apps.
+League is the league's setup and reference data (calendar, periods, teams,
+contract types, positions, schools, NFL teams). Rosters is what teams hold, how
+players move to them (drafts, auctions, trades, claims, drops), and what teams
+pay (ledger, dead money, cap, future picks). Players is who players are, how
+they perform and how the market values them. Rookies is the incoming draft
+class. Apps is what is built on the Published Snapshot (trade-bud, the Discord
+bot, Power BI), plus the steps only they read.
+_Avoid_: area, layer
+
+**Source**:
+The outside system or systems a flow reads. _Derived_ when the flow reads only
+stored tables.
+_Avoid_: provider, feed
+
+**Depends On**:
+The flows that must finish before a flow runs.
+_Avoid_: needs
+
+**Run Tier**:
+0 for a flow that depends on nothing, otherwise one more than the highest tier
+it depends on. Computed from Depends On, never typed.
+_Avoid_: stage, level, order
+
+**Cadence**:
+How often a flow runs: Daily, Close Day, **Annual** (on a named league event,
+not a calendar date) or **Manual** (on demand by design, with the reason
+recorded), optionally within a season window.
+_Avoid_: schedule, frequency
+
 ### Time
 
 **Season** (`season_id`):
@@ -262,6 +313,17 @@ weekday off season.
 The one snapshot a week kept in history, from the last good run before the next
 Scoring Period (or week, off season) begins.
 _Avoid_: weekly snapshot, daily history
+
+**Pre-Game Run**:
+The Daily Run on the morning of the week's first NFL kickoff.
+
+**Post-Game Run**:
+The Daily Run on the morning after the week's last game.
+
+**Capture**:
+Which snapshot of a week a ranking is: `weekly`, `pre_game` or `post_game`. The
+Weekly Final is one snapshot per week per Capture.
+_Avoid_: snapshot type, version
 
 ### Teams & divisions
 
