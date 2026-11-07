@@ -11,7 +11,14 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000. **NEWEST: 2026-11-06, all held for #336. Overrides everything below; read 00000000000000000000000000000000 next.**
+0000000000000000000000000000000000. **NEWEST: 2026-11-06 evening, new state branch. Overrides everything below; read 000000000000000000000000000000000 next.**
+- The state batch PR #387 was squash-merged as `e0b7734` on the owner's word ("merge 387", relayed by the manager). Main is at `e0b7734`.
+- New state branch: worktree ps1103 is on local `docs/state-2026-11-06`, cut from `e0b7734` with no upstream. Push with a standalone `git push origin HEAD:docs/state-2026-11-06`. It's shared with the manager, and the batch PR opens at the end of a day.
+- The remote `docs/state-2026-11-05` still exists (merged, harmless). My `git push origin --delete` was denied as Git Destructive, so the owner deletes it or leaves it.
+- Nothing has changed since 000000000000000000000000000000000: #383, #382 and #384 are held for #336 (the 11-12 06:00 run). #373, #385 and #386 are parked on the owner's word.
+- Resume prompt: "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 0000000000000000000000000000000000 first. Use worktree ps1103 on local branch docs/state-2026-11-06; git pull --rebase origin docs/state-2026-11-06 before reading (once it exists on origin), and push with a standalone `git push origin HEAD:docs/state-2026-11-06`. Find the manager with ListAgents and send by name."
+
+000000000000000000000000000000000. **2026-11-06, all held for #336. Overrides everything below; read 00000000000000000000000000000000 next.**
 - Nothing is in flight. Three PRs are green and held until #336 closes, and merge in this order: PR #383 (#378 week keys; `etl_helpers.close_state` / `Week`), then PR #382 (#372 cadence, which first switches `close_day_state` to the helper and merges main), then PR #384 (#380 schedule page with stage cards and the README row; it merges #382's branch in again). The manager's state is 670c2a6 (MANAGER.md).
 - #382 gates: the migration is applied first, then the owner runs --check-only (an Action), then the next run. After #384 merges, the owner removes the one-off merge rule (an Action in the queue).
 - Parked on the owner's word: #373 (PC daily task, after #382 and #383), #385 (notebook-normalize pre-commit hook, after #383), #386 (docs follow-ups, after #384).
