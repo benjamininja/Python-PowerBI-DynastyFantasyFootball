@@ -672,8 +672,13 @@ def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str |
         return f"ABORTED: reload from the snapshot failed: {pg.describe(exc)}"
     if export and plan["publish"]:
         published = list(plan["publish"])
+        changes: dict = {}
         try:
-            pg.export_published(published, data)
+            pg.export_published(published, data, changes)
+            if changes:
+                plan["column_changes"] = changes
+                notes.append("snapshot columns changed (names only): " + "; ".join(
+                    f"{t} added {c['added']} dropped {c['dropped']}" for t, c in sorted(changes.items())))
         except Exception as exc:
             _withhold(plan)
             try:
@@ -879,7 +884,9 @@ def main() -> int:
                               else etl_run_log.row_counts(plan["publish"])),
                 error=(etl_run_log.failure_summary(results, plan, commit_line)
                        if code else None),
-                cadence=cadence)
+                cadence=cadence,
+                column_changes=(plan or {}).get("column_changes")
+                if not commit_line.startswith("ABORTED") else None)
     except BaseException as exc:
         runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
         if runlog.warning and not args.dry_run:

@@ -3105,6 +3105,11 @@
           "name": "cadence",
           "not_null": false,
           "sql_type": "jsonb"
+        },
+        {
+          "name": "column_changes",
+          "not_null": false,
+          "sql_type": "jsonb"
         }
       ],
       "fks": [],

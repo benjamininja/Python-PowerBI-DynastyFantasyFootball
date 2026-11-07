@@ -20,7 +20,7 @@ INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s, "
-          "cadence = %s::jsonb WHERE run_id = %s")
+          "cadence = %s::jsonb, column_changes = %s::jsonb WHERE run_id = %s")
 STEPS_DONE = ("SELECT DISTINCT d FROM ops.etl_run_log, "
               "jsonb_array_elements_text(cadence -> 'done') AS d "
               "WHERE cadence ->> 'week_key' = %s AND status <> 'running'")
@@ -198,14 +198,15 @@ class RunLog:
 
     def finish(self, status: str, snapshot_commit_sha: str | None = None,
                rows_written: dict | None = None, error: str | None = None,
-               cadence: dict | None = None) -> None:
+               cadence: dict | None = None, column_changes: dict | None = None) -> None:
         if self.run_id is None:
             return
         rows = None if rows_written is None else json.dumps(rows_written)
         cad = None if cadence is None else json.dumps(cadence)
+        changes = json.dumps(column_changes) if column_changes else None
         try:
             _write(UPDATE, (datetime.now(timezone.utc), status, snapshot_commit_sha,
-                            rows, error, cad, self.run_id))
+                            rows, error, cad, changes, self.run_id))
         except Exception as exc:
             self._failed(exc)
             return

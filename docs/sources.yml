@@ -264,6 +264,16 @@ sources:
     feeds: []
     match: []
 
+  - id: pff
+    name: "PFF (Pro Football Focus)"
+    status: rejected
+    locator: "https://www.pff.com (paid subscription; spike #402)"
+    purpose: "Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public"
+    auth: "None; not ingested"
+    cadence: "Never (rejected)"
+    feeds: []
+    match: []
+
   - id: google_sheet_manifest_write
     name: "Google Sheet — manifest sync (write)"
     status: planned

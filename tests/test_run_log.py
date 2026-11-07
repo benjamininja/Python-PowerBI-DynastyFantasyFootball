@@ -419,6 +419,19 @@ class TestPostgres:
         assert SENTINEL not in "".join(l for l in (shown.out + shown.err).splitlines()
                                        if "run log" in l)
 
+    def test_the_column_names_a_run_exported_land_in_column_changes_and_none_is_null(self, pg):
+        import psycopg
+        changes = {"dim_a": {"added": ["new_col"], "dropped": ["old_col"]}}
+        stored = []
+        for given in (changes, None):
+            log = rl.RunLog("manual")
+            log.start(HEAD)
+            log.finish("committed", column_changes=given)
+            with psycopg.connect(pg.url) as conn:
+                stored.append(conn.execute("SELECT column_changes, cadence FROM ops.etl_run_log "
+                                           "WHERE run_id = %s::uuid", (log.run_id,)).fetchone())
+        assert stored == [(changes, None), (None, None)]
+
     def test_a_crash_finishes_the_row_failed_and_raises(self, pipe, pg):
         pipe.results = RuntimeError(SENTINEL)
         with pytest.raises(RuntimeError):
