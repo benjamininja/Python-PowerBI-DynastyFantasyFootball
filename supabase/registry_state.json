@@ -1549,7 +1549,16 @@
           "to": "football.dim_dynasty_metric"
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_dynasty_ranking_metrics_gsis_id_idx",
+          "unique": false,
+          "where": null
+        }
+      ],
       "name": "fact_dynasty_ranking_metrics",
       "pk": [
         "snapshot_date",
@@ -2740,7 +2749,17 @@
           "to": "football.dim_season"
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "columns": [
+            "season_id",
+            "event_type"
+          ],
+          "name": "fact_roster_transactions_season_event_idx",
+          "unique": false,
+          "where": null
+        }
+      ],
       "name": "fact_roster_transactions",
       "pk": [
         "transaction_id",
