@@ -3081,6 +3081,11 @@
           "name": "error",
           "not_null": false,
           "sql_type": "text"
+        },
+        {
+          "name": "cadence",
+          "not_null": false,
+          "sql_type": "jsonb"
         }
       ],
       "fks": [],
