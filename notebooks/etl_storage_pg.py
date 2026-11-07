@@ -418,6 +418,7 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
                 for name in sorted(frames):
                     conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE")
                                  .format(sql.Identifier(SCHEMA, name)))
+                conn.execute("SET LOCAL lock_timeout = 0")
                 problems.extend(f"{SCHEMA}.{name} already holds rows; this run loads an empty schema "
                                 f"(--replace empties each table first)"
                                 for name in nonempty(conn, sorted(frames)))
