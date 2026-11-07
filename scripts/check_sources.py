@@ -33,7 +33,7 @@ SOURCES_MD = REPO / "docs" / "SOURCES.md"
 NOTEBOOK_DIR = REPO / "notebooks"
 
 REQUIRED_FIELDS = ("id", "name", "status", "locator", "purpose", "auth", "cadence", "feeds")
-VALID_STATUS = {"live", "planned"}
+VALID_STATUS = {"live", "planned", "rejected"}
 HOST_RE = re.compile(r"https?://([^/\s\"'\\)]+)", re.IGNORECASE)
 
 # --- markers ---------------------------------------------------------------
@@ -181,7 +181,7 @@ def _table(sources: list[dict], status: str) -> str:
 def render_md(data: dict, current: str) -> str:
     sources = data.get("sources", []) or []
     out = current
-    for group in ("live", "planned"):
+    for group in ("live", "planned", "rejected"):
         begin, end = _markers(group)
         block = f"{begin}\n{_table(sources, group)}\n{end}"
         pattern = re.compile(re.escape(begin) + r".*?" + re.escape(end), re.DOTALL)

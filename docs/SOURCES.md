@@ -64,3 +64,11 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | **Fantrax — commissioner admin** | Fantrax commissioner pages (league v744203wmmvjqzv6) | Contract/cap reconciliation, manual corrections | Commissioner-account login (env-stored) | — | Ad hoc |
 | **Google Sheet — manifest sync (write)** | Same sheet as the team manifest (write-back) | Sync Fantrax-owned fields back into the Sheet mirror (ADR-0005) | Sheets API OAuth / service account — owner-set-up; external write + PII gate | — | On owner-manifest change |
 <!-- END GENERATED sources-table:planned -->
+
+## Rejected sources (looked at, will not be ingested)
+
+<!-- BEGIN GENERATED sources-table:rejected — regen: python scripts/check_sources.py --render -->
+| Source | URL / locator | Purpose | Auth | Feeds (notebook → table) | Cadence |
+|---|---|---|---|---|---|
+| **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public | None; not ingested | — | Never (rejected) |
+<!-- END GENERATED sources-table:rejected -->
