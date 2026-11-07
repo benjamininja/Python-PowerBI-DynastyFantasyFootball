@@ -481,35 +481,82 @@ def like_snapshot(df: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
     extra = [c for c in df.columns if c not in snapshot.columns]
     if missing or extra:
         raise ValueError(f"columns differ from the snapshot: missing {missing}, extra {extra}")
-    out = df[list(snapshot.columns)].copy()
+    return _snapshot_flavour(df[list(snapshot.columns)].copy(), snapshot)
+
+
+def _snapshot_flavour(out: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
     for col in out.columns:
+        if col not in snapshot.columns:
+            continue
         was, want = str(out[col].dtype), str(snapshot[col].dtype)
         if was != want and was in _TEXT_DTYPES and want in _TEXT_DTYPES:
             out[col] = out[col].astype(snapshot[col].dtype)
     return out
 
 
-def export_published(names, data_dir) -> dict:
+def frame_drift(df: pd.DataFrame, entry: dict) -> None:
+    """Raise ValueError, naming columns only, unless `df` holds exactly the
+    columns the registry declares for the table. The frame comes from the
+    database through `read_on`, which has already refused unless the registry
+    and registry_state.json agree; this is the explicit check that what is
+    about to be written is the registry's shape, so a snapshot behind the
+    registry is the one thing an export may follow (`follow_registry`)."""
+    declared = [c["name"] for c in entry["columns"]]
+    missing = [c for c in declared if c not in df.columns]
+    extra = [c for c in df.columns if c not in declared]
+    if missing or extra or len(df.columns) != len(declared):
+        raise ValueError(f"{entry['name']}: columns differ from the registry: "
+                         f"missing {missing}, extra {extra}")
+
+
+def follow_registry(df: pd.DataFrame, snapshot: pd.DataFrame):
+    """`df` (already the registry's columns) for a snapshot that is behind the
+    registry: the snapshot's columns that remain, in its order, then the added
+    ones, in `df` order, with the snapshot's text flavour where it differs.
+    Returns the frame, the added column names and the dropped ones. A rename
+    is one dropped name and one added name: the registry marks none."""
+    added = [c for c in df.columns if c not in snapshot.columns]
+    dropped = [c for c in snapshot.columns if c not in df.columns]
+    kept = [c for c in snapshot.columns if c in df.columns]
+    return _snapshot_flavour(df[kept + added].copy(), snapshot), added, dropped
+
+
+def export_published(names, data_dir, changes=None) -> dict:
     """Write `<data_dir>/<name>.parquet` for each of `names` from the database
     and return the rows written per table. Rows are sorted by the table's
     primary key (Q1 of #135); columns and dtypes follow the snapshot already
-    in `data_dir`, if any. Every table is read before any file is written."""
+    in `data_dir`, if any. Every table is read before any file is written.
+    A frame that is not the registry's columns raises (`frame_drift`). A
+    snapshot whose columns differ from the registry's is behind an intended
+    change (#355): it is written in the registry's shape, and if `changes` is
+    a dict, `changes[name] = {"added": [...], "dropped": [...]}` is set once
+    every file is written, column names only."""
     import etl_helpers as etl
     data_dir = Path(data_dir)
-    frames = {}
+    frames, found = {}, {}
     with _db_errors(), _connect() as conn:
         for name in names:
             entry = etl._table_entry(name)
             got = read_on(conn, entry)
             df = etl.empty_frame(entry) if got is None else etl._coerce(got, entry)
             df = df.sort_values(etl.table_grain(entry), kind="stable").reset_index(drop=True)
+            frame_drift(df, entry)
             try:
-                df = like_snapshot(df, etl.read_stored(name, data_dir))
+                snapshot = etl.read_stored(name, data_dir)
             except etl.TableNotFound:
-                pass
+                snapshot = None
+            if snapshot is not None:
+                if set(snapshot.columns) == set(df.columns):
+                    df = like_snapshot(df, snapshot)
+                else:
+                    df, added, dropped = follow_registry(df, snapshot)
+                    found[name] = {"added": added, "dropped": dropped}
             frames[name] = (entry, df)
-    return {name: len(etl._write_parquet(data_dir / f"{name}.parquet", df, "replace", None, None, entry))
-            for name, (entry, df) in frames.items()}
+    written = {name: len(etl._write_parquet(data_dir / f"{name}.parquet", df, "replace", None, None, entry))
+               for name, (entry, df) in frames.items()}
+    if changes is not None:
+        changes.update(found)
+    return written
 
 
 def clear_published(url: str, names) -> None:
