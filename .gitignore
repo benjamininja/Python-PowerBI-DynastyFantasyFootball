@@ -4,6 +4,11 @@ data/.pw_profile/
 data/raw/
 data/review/
 data/outputs/
+# Private tables (docs/data_model.yml, schema not football): a local parquet-mode
+# copy is never committed or published (#93).
+data/dim_fantrax_crosswalk_override.parquet
+data/fact_startup_draft_slot.parquet
+data/dim_startup_draft_scorer.parquet
 skills/
 
 # ── Credentials ───────────────────────────────────────────────────────────────

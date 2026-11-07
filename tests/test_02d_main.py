@@ -16,11 +16,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "notebooks"))
+sys.path.insert(0, str(REPO / "scripts"))
 
 import pandas as pd
 import pytest
 
 rt = importlib.import_module("02d_fact_roster_transactions")
+loader = importlib.import_module("load_draft_and_overrides")
 
 FIXTURES = REPO / "tests" / "fixtures" / "fantrax"
 OUTPUTS = ("FACT_PATH", "ASSET_PATH", "PICK_PATH", "TRADE_LOG_PATH")
@@ -72,7 +74,8 @@ def _pool_salary(pick):
 def write_inputs(data: Path):
     raw = data / "raw"
     raw.mkdir()
-    shutil.copy(FIXTURES / "draft_results.json", raw / "fantrax_draftresults_2026.json")
+    loader.slots_from_payloads([_load("draft_results.json")]).to_parquet(
+        data / f"{rt.DRAFT_SLOT_TABLE}.parquet", index=False)
     shutil.copy(FIXTURES / "txn_history.json", raw / "fantrax_txn_history_2026.json")
     for dim in ("dim_contract", "dim_season"):
         shutil.copy(REPO / "data" / f"{dim}.parquet", data / f"{dim}.parquet")
@@ -430,21 +433,67 @@ class TestRawDir:
     def test_the_argument_is_read_as_a_folder(self, tmp_path):
         assert rt.parse_args(["--raw-dir", str(tmp_path)]).raw_dir == tmp_path
 
-    def test_both_globs_move_to_the_folder_and_keep_their_pattern(self, tmp_path, monkeypatch):
-        draft, txn = Path(rt.DRAFT_GLOB).name, Path(rt.TXN_GLOB).name
-        monkeypatch.setattr(rt, "DRAFT_GLOB", rt.DRAFT_GLOB)
+    def test_the_glob_moves_to_the_folder_and_keeps_its_pattern(self, tmp_path, monkeypatch):
+        txn = Path(rt.TXN_GLOB).name
         monkeypatch.setattr(rt, "TXN_GLOB", rt.TXN_GLOB)
         rt.use_raw_dir(tmp_path)
-        assert Path(rt.DRAFT_GLOB) == tmp_path / draft
         assert Path(rt.TXN_GLOB) == tmp_path / txn
+        assert not hasattr(rt, "DRAFT_GLOB")
 
-    def test_main_reads_the_captures_in_place_from_the_folder(self, data):
+    def test_main_reads_the_transaction_capture_in_place_from_the_folder(self, data):
         elsewhere = data / "elsewhere"
         (data / "raw").rename(elsewhere)
-        with pytest.raises(FileNotFoundError):
-            rt.main()
+        rt.main()
+        assert len(pd.read_parquet(rt.FACT_PATH)) == len(MADE)      # draft rows only
         rt.use_raw_dir(elsewhere)
         rt.main()
         assert len(pd.read_parquet(rt.FACT_PATH)) == 36
-        assert sorted(p.name for p in elsewhere.iterdir()) == [
-            "fantrax_draftresults_2026.json", "fantrax_txn_history_2026.json"]
+        assert sorted(p.name for p in elsewhere.iterdir()) == ["fantrax_txn_history_2026.json"]
+
+
+class TestDraftFromTable:
+    """#93 brief 6: the Startup draft comes from the private slot table, and a
+    checkout with no data/raw runs the same ledger."""
+
+    def test_no_raw_folder_gives_the_same_ledger_as_the_capture(self, data):
+        rt.main()
+        with_raw = outputs()
+        shutil.rmtree(data / "raw")
+        monkey_glob = str(data / "nowhere" / "fantrax_txn_history_*.json")
+        rt.TXN_GLOB = monkey_glob
+        try:
+            rt.main()
+        finally:
+            rt.TXN_GLOB = str(data / "raw" / "fantrax_txn_history_*.json")
+        again = outputs()
+        draft_rows = lambda t: t[t["event_type"] == rt.EVENT_TYPE].reset_index(drop=True)
+        pd.testing.assert_frame_equal(draft_rows(again["FACT_PATH"]), draft_rows(with_raw["FACT_PATH"]))
+        pd.testing.assert_frame_equal(again["PICK_PATH"], with_raw["PICK_PATH"])
+
+    def test_the_table_reproduces_what_the_raw_capture_gave(self, data):
+        # The pre-#93 route: the capture's own slots, parsed in 02d. The new
+        # route: the loader's slot table. Same picks, same pick day.
+        old = pd.DataFrame(SLOTS).rename(columns={"modifiedDate": "ms"})
+        got = rt.parse_draft_results(rt.load_draft())
+        assert len(got) == len(old)
+        key = ["divisionId", "round", "pickNumber"]
+        got, old = got.sort_values(key).reset_index(drop=True), old.sort_values(key).reset_index(drop=True)
+        assert got["scorerId"].tolist() == old["scorerId"].tolist()
+        assert got["teamId"].tolist() == old["teamId"].tolist()
+        assert [rt._pick_date(t) for t in got["pickedAt"]] == [
+            pd.Timestamp(ms, unit="ms", tz="UTC").date() for ms in old["ms"]]
+
+    def test_an_empty_table_names_the_loader(self, data):
+        (data / f"{rt.DRAFT_SLOT_TABLE}.parquet").unlink()
+        with pytest.raises(rt.etl.TableNotFound, match="load_draft_and_overrides"):
+            rt.main()
+
+    def test_an_unmade_slot_has_no_scorer_and_still_gets_its_row_in_the_grid(self, data):
+        path = data / f"{rt.DRAFT_SLOT_TABLE}.parquet"
+        slots = pd.read_parquet(path)
+        slots.loc[0, ["scorer_id", "picked_at"]] = [None, pd.NaT]
+        slots.to_parquet(path, index=False)
+        rt.main()
+        grid, ledger = pd.read_parquet(rt.PICK_PATH), pd.read_parquet(rt.FACT_PATH)
+        assert len(grid) == len(SLOTS) and int((~grid["is_made"]).sum()) == 1
+        assert int((ledger["event_type"] == rt.EVENT_TYPE).sum()) == len(MADE) - 1

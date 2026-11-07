@@ -41,7 +41,7 @@ import pyarrow.parquet as pq
 import yaml
 
 import etl_cap as cap
-from etl_helpers import DATA, REVIEW, read_stored
+from etl_helpers import DATA, REVIEW, TableNotFound, is_private, read_stored
 
 REPO = Path(__file__).resolve().parent.parent
 MODEL_YML = REPO / "docs" / "data_model.yml"
@@ -534,6 +534,40 @@ def salary_remaining_findings(table: pd.DataFrame,
     return out
 
 
+STARTUP_SLOTS, STARTUP_UNMADE = 980, 5   # the finished 2026 Startup draft
+LOADER = "scripts/load_draft_and_overrides.py"
+
+
+def private_table(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFrame:
+    """A private table (#93 brief 6) through the loader `load`. One this store
+    has no copy of (a snapshot folder holds none) is not compared."""
+    try:
+        return load(name)
+    except TableNotFound:
+        raise NotComparable(f"{name} is not in this store") from None
+
+
+def overrides_errors(overrides: pd.DataFrame) -> list[str]:
+    """04z matches nothing by hand while the decisions table is empty."""
+    if len(overrides):
+        return []
+    return [f"dim_fantrax_crosswalk_override holds no rows -- run {LOADER} once"]
+
+
+def draft_copy_errors(slots: pd.DataFrame) -> list[str]:
+    """02d reads the Startup draft from a private copy: every slot, the unmade
+    ones with no scorer_id."""
+    errs = []
+    if len(slots) != STARTUP_SLOTS:
+        errs.append(f"fact_startup_draft_slot holds {len(slots)} slot(s), "
+                    f"expected {STARTUP_SLOTS} -- run {LOADER} once")
+    unmade = int(slots["scorer_id"].isna().sum())
+    if unmade != STARTUP_UNMADE:
+        errs.append(f"fact_startup_draft_slot holds {unmade} unmade slot(s), "
+                    f"expected {STARTUP_UNMADE}")
+    return errs
+
+
 @dataclass(frozen=True)
 class DomainCheck:
     name: str
@@ -570,6 +604,12 @@ DOMAIN_CHECKS = [
                 lambda load: dead_money_errors(load("fact_dead_money"),
                                                load("fact_roster_transactions"),
                                                load("dim_contract"))),
+    DomainCheck("overrides_present", "gate", "dim_fantrax_crosswalk",
+                lambda load: overrides_errors(
+                    private_table(load, "dim_fantrax_crosswalk_override"))),
+    DomainCheck("draft_copy", "gate", "fact_draft_pick",
+                lambda load: draft_copy_errors(
+                    private_table(load, "fact_startup_draft_slot"))),
     DomainCheck("stintless_drop", "review", "fact_roster_transactions",
                 lambda load: stintless_drop_findings(load("fact_roster_transactions"),
                                                      load("fact_roster_state"))),
@@ -613,7 +653,8 @@ def run_suite(tables: Iterable[str] | None = None,
     registered table). Never raises on bad data — failures come back as
     Results."""
     registry = registry if registry is not None else load_registry()
-    tables = sorted(registry) if tables is None else sorted(set(tables))
+    tables = (sorted(n for n, e in registry.items() if not is_private(e))
+              if tables is None else sorted(set(tables)))
     accepted = set(accepted_shrink)
     cache: dict[str, pd.DataFrame] = {}
 

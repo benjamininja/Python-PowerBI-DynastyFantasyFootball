@@ -706,6 +706,17 @@ def _table_entry(name: str) -> dict:
     return entry
 
 
+def is_private(entry: dict) -> bool:
+    """A `tables` entry whose schema is not football is private (#93 brief 6):
+    the seam reads and writes it, nothing publishes it."""
+    return (entry.get("schema") or "football") != "football"
+
+
+def published_names() -> list[str]:
+    """The registry tables that make up the published snapshot."""
+    return sorted(name for name, entry in _registry().items() if not is_private(entry))
+
+
 def table_grain(entry: dict) -> list[str]:
     """A registry entry's key columns: `pk` once #108 adds it, else `grain`
     ("col" or "(a, b, c)")."""
