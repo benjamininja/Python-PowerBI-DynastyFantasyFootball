@@ -1,0 +1,5 @@
+-- registry_state sha256: 4c0a1d7a2f758f22c1d9f56c1ae5f7bdfc486b5bc1d2c8aa11541666368d9f4f
+
+CREATE INDEX fact_dynasty_ranking_metrics_gsis_id_idx ON football.fact_dynasty_ranking_metrics (gsis_id);
+
+CREATE INDEX fact_roster_transactions_season_event_idx ON football.fact_roster_transactions (season_id, event_type);
