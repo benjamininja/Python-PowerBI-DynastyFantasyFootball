@@ -151,7 +151,9 @@ the parquet alone.
 - **Editing `.ipynb` programmatically**: load JSON → mutate `cell["source"]`
   (`[l + "\n" for l in lines[:-1]] + lines[-1:]`) → `json.dump(nb, f,
   ensure_ascii=False, indent=1)`. Find cells by `cell["id"]`, never by index.
-  Prefer a full-cell rebuild over >3 stacked patches in one session.
+  Prefer a full-cell rebuild over >3 stacked patches in one session. The
+  `normalize-notebooks` pre-commit hook (`scripts/normalize_notebooks.py`)
+  rewrites that form on commit, so `NotebookEdit` is fine.
 - **Network calls**: wrap in try/except with descriptive errors;
   `etl._make_session()` gives retry/backoff. HTTP 200 ≠ success for JSON APIs
   — check the response body for logical errors.
