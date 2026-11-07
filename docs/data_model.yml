@@ -672,6 +672,8 @@ tables:
       - { columns: [contract_id], to: dim_contract, ref: [contract_id] }
       - { columns: [asset_id], to: dim_roster_asset, ref: [asset_id] }
       - { columns: [season_id], to: dim_season, ref: [season_id] }
+    indexes:
+      - { name: fact_roster_transactions_season_event_idx, columns: [season_id, event_type] }
     chain: fantrax_core
     required_keys: [transaction_id, scorer_id, team_key, event_type]
     columns:
@@ -1186,6 +1188,8 @@ tables:
     fk:
       - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
       - { columns: [metric_key], to: dim_dynasty_metric, ref: [metric_key] }
+    indexes:
+      - { name: fact_dynasty_ranking_metrics_gsis_id_idx, columns: [gsis_id] }
     checks:
       - "metric_num IS NOT NULL OR metric_text IS NOT NULL"
     chain: dynasty_profile
@@ -1228,6 +1232,7 @@ other_tables:
       - { name: snapshot_commit_sha, sql_type: text }
       - { name: rows_written, sql_type: jsonb }
       - { name: error, sql_type: text }
+      - { name: cadence, sql_type: jsonb }
 
   - name: change_poll_state
     schema: ops

@@ -58,6 +58,9 @@ jobs:
       - name: Build static site
         run: python mouserat_trade-bud/export_static.py --out _site
 
+      - name: Generate the refresh schedule page
+        run: python scripts/build_schedule_page.py
+
       - name: Build the docs site into _site/docs
         run: zensical build --clean
 
