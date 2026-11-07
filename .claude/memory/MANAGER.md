@@ -21,7 +21,27 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **CURRENT STATE (NEWEST, 2026-11-07 ~12:10 local, session `d5a02eae`, resumed after a CLEAR). This overrides everything below, including the ~12:05 ADDENDUM.** Dynasty main `66382f8` = origin/main; tools main `b2d3f8a` = origin/main.
+- **CURRENT STATE (NEWEST, 2026-11-07 ~12:45 local, session `d5a02eae`, before a COMPACT). This overrides everything below.** Dynasty main is `a12dbab` (= origin/main, local fast-forwarded). Tools origin/main and the live clone are at `2a105af` (the owner pulled). Reconcile: `git fetch origin`; `git rev-parse main` and `git rev-parse origin/main` (separately); `gh pr list --state open` in both repos; `claude agents --json --all`; NEEDS-OWNER.md (no open Decisions).
+  - **Merged this session:**
+    - #433 `64d13fd`: re-proof issuecomment-6711122464; migrate push 42399825464 success; live check issuecomment-6711156265 (3 ops tables, RLS, policies, etl_writer arwd / etl_reader r via relacl, no anon or authenticated access, 0/0/0).
+    - #427 `a12dbab` (Refs #421 Part 1; issuecomment-6711276196).
+    - Tools #84 `2a105af` (Closes #83, -Profile plus baseSettings plus the probe profile; issuecomment-6711301109).
+  - **Cutover path (#93 issuecomment-6711076882):** #437 merges, then the owner reruns the loader Action (`--check`, load, compare; expect `tables 4: differing 0`), then #419 and #435 merge, then the hand-started first Actions run (the existing Actions-cutover Action).
+    - The owner's first loader try STOPPED (nothing written): the overrides held old placeholder gsis_ids that dim_gsis_link maps (072jx, 07532, 075cs). The owner said go with the code fix. The planner ruled on #437 (store as written; resolve both sides at all 3 comparisons via etl.current_gsis).
+  - **Open PRs and builders:**
+    - **b437-loaderlink** (e2e1c809, low, #437): building. Re-prove: CI incl. storage-pg; only scripts/load_draft_and_overrides.py and tests/test_supply_private_tables.py touched; the stored id is as written. Then merge, and tell the owner to rerun the loader Action.
+    - **PR #436** (b435-useragent, 3be88b1c, #435 low, head b065b77): re-prove when it reports (etl_helpers constant plus headers=, one mocked test, no network). Merges with #419, after the owner says loaded.
+    - **PR #419** (b93-daily, resumed session 9bb3b1a9, head `c7810f3`): main merged; 1e5b038, 753a672 and 64d13fd are in its history; 1975 tests passed. HOLD until loaded. Then re-prove CI and merge with `--match-head-commit`.
+    - **t82-rules** (tools #82): it was told to run build_catalog and `git diff --exit-code -- CATALOG.md` as separate calls; still no PR at the save (SKILL.md edited, uncommitted). Nudge it; re-prove under PROJECT-RULES Green; merge; queue the live-clone pull.
+  - **After the first good Actions run:** #425 (medium), #426 (low) and #434 Part 2 (low docs) in one batch; #431 (medium, supabase-auditor) after #419; #421 Part 2 (low) after #419; #413 after #419.
+  - **Waiting on the tools planner:** ready owner entries for the real profiles file (research, probe), the research base file and the new deny rules. Then #424 dispatches with `-Profile research`. From now on dispatch with each ticket's Profile: line and read builder-state/probe.py at closeout.
+  - **#83 test result:** --allowedTools ADDS to --settings; a deny wins; relative Edit(...) anchors at the cwd (tools #83 issuecomment-6710894252).
+  - **Done, awaiting the owner's claude rm:** b428, b421, b93-supply, t83-profiles (plus the earlier list).
+  - **Lessons:**
+    - Tell the supabase-auditor to read diffs with `git show`/`git diff` and never check anything out (it detached the main checkout once; no harm done).
+    - Never write an `Answer:` line, even for a chat answer.
+    - Script inserts into NEEDS-OWNER.md anchor on the `## Actions` / `## Decisions` heading lines, never the first substring match (the header mentions both).
+- **CURRENT STATE (superseded, 2026-11-07 ~12:10 local, session `d5a02eae`, resumed after a CLEAR).** Dynasty main `66382f8` = origin/main; tools main `b2d3f8a` = origin/main.
   - **#433** (b93-supply, cd06bd41) has a new head, **`cba0279`**: rulings 1-4 and 6 built, ruling 5 is the fallback (standard etl_reader grant kept, generator unchanged, #412 note issuecomment-6710913487). b93-supply is out of turns and holding. **Re-proof in flight:** CI pending; the supabase-auditor is running against the rulings. Next: merge, check the migrate push, run the auditor's live SQL, then send the planner the owner's three hand steps in order, before the 2026-11-12 06:00 PC run.
   - **#427** (b421): the planner approved everything (PR #427 issuecomment-6710914818) with one change: dynastysharks takes the #400 record (unresolved, checked 2026-11-07, checked_in #400, access manual_file; a YAML merge key only if both readers read one); the advisory count becomes 3. Relayed. Merge on b421's new head plus a green storage-pg.
   - **#419**: after #433, b93-daily merges main, green, then merge; then dispatch #431 (medium, supabase-auditor at re-proof) and tell the planner.
