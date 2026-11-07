@@ -57,6 +57,15 @@ def test_every_action_is_pinned_to_a_sha():
         assert SHA.match(u), u
 
 
+def test_app_token_step_uses_client_id_and_private_key():
+    step = next(s for s in _job(_load())["steps"] if s.get("id") == "app-token")
+    assert step["uses"].startswith("actions/create-github-app-token@")
+    assert step["with"]["client-id"] == "${{ vars.ETL_APP_CLIENT_ID }}"
+    assert step["with"]["private-key"] == "${{ secrets.ETL_APP_PRIVATE_KEY }}"
+    assert "app-id" not in step["with"]
+    assert "ETL_APP_ID" not in WORKFLOW.read_text(encoding="utf-8")
+
+
 def test_checkout_keeps_history_and_no_credentials():
     checkout = next(s for s in _job(_load())["steps"] if s.get("uses", "").startswith("actions/checkout@"))
     assert checkout["with"]["fetch-depth"] == 0

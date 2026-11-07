@@ -3,8 +3,9 @@
 # the cron fires, but the job runs only when the repository variable
 # ETL_DAILY_ENABLED is the string true. workflow_dispatch always runs, from main.
 # The job reads the etl environment (limited to main). The data PR is opened and
-# merged with a short-lived GitHub App token, minted per run from ETL_APP_ID and
-# ETL_APP_PRIVATE_KEY, scoped to this repository. The repository is public, so
+# merged with a short-lived GitHub App token, minted per run from the etl
+# variable ETL_APP_CLIENT_ID and the etl secret ETL_APP_PRIVATE_KEY, scoped to
+# this repository. The repository is public, so
 # the run log is public too: no step echoes a secret or a row value.
 name: etl-daily
 
@@ -43,9 +44,9 @@ jobs:
 
       - name: Mint the data-PR token
         id: app-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
-          app-id: ${{ secrets.ETL_APP_ID }}
+          client-id: ${{ vars.ETL_APP_CLIENT_ID }}
           private-key: ${{ secrets.ETL_APP_PRIVATE_KEY }}
           repositories: ${{ github.event.repository.name }}
           permission-contents: write
