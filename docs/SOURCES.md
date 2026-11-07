@@ -62,5 +62,6 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 |---|---|---|---|---|---|
 | **Fantrax — draftPicks.go** | Fantrax draftPicks.go page (league v744203wmmvjqzv6; per division — capture pending) | Pick-ownership SSOT per ADR-0006 (current + forward). Not captured; forward-pick ownership comes from the public fxea getDraftPicks (04u) today | Same Fantrax session as the Players-grid source (Fantrax login + Playwright profile) | — | TBD (capture pending) |
 | **Fantrax — commissioner admin** | Fantrax commissioner pages (league v744203wmmvjqzv6) | Contract/cap reconciliation, manual corrections | Commissioner-account login (env-stored) | — | Ad hoc |
+| **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Player grades and projections; what is worth taking and whether terms allow a scheduled pull is the spike's finding | PFF account login, env-stored (PFF_EMAIL/PFF_PASSWORD); login needed, every logged-in run needs the owner's word until approved for the schedule | — | TBD (spike #402) |
 | **Google Sheet — manifest sync (write)** | Same sheet as the team manifest (write-back) | Sync Fantrax-owned fields back into the Sheet mirror (ADR-0005) | Sheets API OAuth / service account — owner-set-up; external write + PII gate | — | On owner-manifest change |
 <!-- END GENERATED sources-table:planned -->

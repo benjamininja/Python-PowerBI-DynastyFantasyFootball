@@ -264,6 +264,16 @@ sources:
     feeds: []
     match: []
 
+  - id: pff
+    name: "PFF (Pro Football Focus)"
+    status: planned
+    locator: "https://www.pff.com (paid subscription; spike #402)"
+    purpose: "Player grades and projections; what is worth taking and whether terms allow a scheduled pull is the spike's finding"
+    auth: "PFF account login, env-stored (PFF_EMAIL/PFF_PASSWORD); login needed, every logged-in run needs the owner's word until approved for the schedule"
+    cadence: "TBD (spike #402)"
+    feeds: []
+    match: []
+
   - id: google_sheet_manifest_write
     name: "Google Sheet — manifest sync (write)"
     status: planned
