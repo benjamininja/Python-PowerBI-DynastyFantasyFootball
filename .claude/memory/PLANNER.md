@@ -29,6 +29,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
     - Sent to the manager.
   - **#413:** `Profile: probe`, host www.draftsharks.com (I read its robots.txt: `*` with an empty Disallow, no Claude groups). The limits are in issuecomment-6724277828, and the committed fixture is trimmed. The manager dispatches it at medium.
   - **Merged and closed:** #458 (PR #460, d8fafb3; its live proof is 2026-11-13) and #421 (PR #461, 5c7783d).
+  - **#413 is dispatched:** b413-dsharkspull (fbb00ca7), medium, probe. It adds a live entry to `docs/sources.yml`.
+    - **The queue I set:** #454's A2 (header comment only) may run beside #413, and the later one merges origin/main and restates its counts.
+    - **The entry writers go one at a time:** #413, then #459's B6, then #454's C1.
+    - #413's entry uses today's shape (the DraftSharks anchor), and C1 re-cites it later.
   - **Map #375** is current for all of the above.
   - **Facts checked:**
     - 04c and 04y run only under `--profile dynasty`, never in the cron (`run_daily.sh`).
