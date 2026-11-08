@@ -11,7 +11,43 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:45Z (session 795b662a). It overrides the 45-zero item below where they differ; read that one for the resume steps, the lessons and the owner's waiting items.**
+00000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 18:30Z, before a compact (session 795b662a). Self-contained; overrides everything below. Read the 46-zero item only for #454's detail.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - The state batch PR is #455; it merges only on the owner's word.
+  - **The manager:** send to session id `local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274`, which is the one that replied today. Its name is `dynastyFantasyFootball-central-builder-manager`. Check with ListAgents if a send fails.
+  - **Tools-central-planner:** `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
+- **Done this session, all on GitHub:**
+  - **#454 is tiered** (issuecomment-6724169121; the 46-zero item has the detail). A1 (b454-a1, low) and B1 (b454-b1, medium) are dispatched. The Q8 install and Q3 Transparency Report Actions are queued.
+    - #462, #463 and #464 are new, Tier: unset.
+  - **#459 is tiered** (issuecomment-6724340325) from s459's briefs (issuecomment-6724208055).
+    - The owner's answers: "Keep the points fallback (Recommended)", so trade-bud values IDP by fpts; "Delete them (Recommended)", so empty Power BI visuals and pages go.
+    - **Tiers:** B5 and B10 medium; B1-B4, B6, B7a, B7b, B7c (new: 05a), B8, B9 and B12 low; B11 is the owner's hand.
+    - **Order:** the consumers (B1-B5, B7c) first, then B6, B7a, B7b, B8/B9, B10, B11 right after a cron run, and B12 before the next.
+    - **Rulings:** `export_tables.py --out DIR` writes into B12's worktree. If the `.env` login can't DELETE, it parks to me. At closeout the manager updates the three `.claude/memory` files and the user-level skill file. The CONTEXT terms are marked unused. Dead `ZERO_IS_MISSING` entries drop. The bot's IDP reply is `No IDP ranking source yet.` via `respond_with_embeds`.
+    - The body is amended: trade-bud's IDP line, and a 05a line.
+    - Sent to the manager.
+  - **#413:** `Profile: probe`, host www.draftsharks.com (I read its robots.txt: `*` with an empty Disallow, no Claude groups). The limits are in issuecomment-6724277828, and the committed fixture is trimmed. The manager dispatches it at medium.
+  - **Merged and closed:** #458 (PR #460, d8fafb3; its live proof is 2026-11-13) and #421 (PR #461, 5c7783d).
+  - **Map #375** is current for all of the above.
+  - **Facts checked:**
+    - 04c and 04y run only under `--profile dynasty`, never in the cron (`run_daily.sh`).
+    - `--no-commit` publishes to Postgres with no export (`run_pipeline.py` 867-871).
+    - CLAUDE.md's `_deliver_text` and `_deliver_embeds` names are stale: the helper is `delivery.respond_with_embeds`. That is a sweep gap, not ticketed.
+- **DO NEXT, in order:**
+  1. **The 2026-11-09 11:17Z cron run.** Get the manager's report: the run, the Discord post, #93's two body checks, and the new terms-due line from #421 Part 2.
+  2. **Builder PR reads, when asked:** #454 A1, B1 and A2 against issuecomment-6724169121; #459's consumers against issuecomment-6724340325; #413.
+  3. **#454 Q3:** when the five Transparency Report responses are posted, check their shape (`)]}'`, a 10-element array, `sb.ssr` first).
+  4. **#458's live proof:** the 2026-11-13 Close Day run. A block parks; it is never reverted.
+  5. **Grills:** #432 next, then #429, with #428 Q1-Q4 and #424 Q3-Q5. #429 also decides whether Claude-token robots lines bind #454's script.
+  6. A sweep, only on the owner's word. Its gaps include the stale CLAUDE.md delivery-helper names, and map #375's row line, which still calls 04c and 04y Close Day.
+- **Waiting on the owner:**
+  - The root push (`~/.claude` ahead 1 at 5987e1e).
+  - The DLF Action.
+  - The queued Actions: Q8 and Q3 for #454, then B11 for #459 later.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (47 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 (check ListAgents if it fails) and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents).
+
+0000000000000000000000000000000000000000000000. **2026-11-08, about 17:45Z (session 795b662a). It overrides the 45-zero item below where they differ; read that one for the resume steps, the lessons and the owner's waiting items.**
 - **Done this session, all on GitHub:**
   - **#459:** the owner said "Dispatch now (Recommended)" for its scoping session (planner chat, AskUserQuestion). I relayed it to the manager with the quote, plus the writer-queue notes (sources.yml, etl_helpers.py, run_pipeline.py).
   - **#454 is tiered:** A1 low, A2 medium, B1 to B5 medium each, C1 low. My comment is issuecomment-6724169121; it wins over the scoping briefs where they differ.
