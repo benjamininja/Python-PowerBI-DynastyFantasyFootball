@@ -11,7 +11,53 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:15Z, before a clear (session 8f091889). Self-contained; overrides everything below. Read the 44-zero item only for detail.**
+0000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:45Z (session 795b662a). It overrides the 45-zero item below where they differ; read that one for the resume steps, the lessons and the owner's waiting items.**
+- **Done this session, all on GitHub:**
+  - **#459:** the owner said "Dispatch now (Recommended)" for its scoping session (planner chat, AskUserQuestion). I relayed it to the manager with the quote, plus the writer-queue notes (sources.yml, etl_helpers.py, run_pipeline.py).
+  - **#454 is tiered:** A1 low, A2 medium, B1 to B5 medium each, C1 low. My comment is issuecomment-6724169121; it wins over the scoping briefs where they differ.
+    - **The owner's four answers**, each the recommended option:
+      - Claude lines stop the script until #429;
+      - a young host's confirmation is a `planned` entry in sources.yml;
+      - a render blocks unchecked hosts;
+      - the service hosts are a fixed list in code, robots-gated.
+    - **My rulings:**
+      - Q1: `next_check` is the 1st of the CFG month, with `today >` kept.
+      - `read_by: script`.
+      - `tls_failed`, and never a plain-http fallback.
+      - Each host is checked on its own.
+      - HSTS is read from the robots.txt response.
+      - Any other 4xx means no rules.
+      - A `Retry-After` over 600 s on a later read gives `rate_limited` at once.
+      - An RDAP with no answer gives `age_unknown`, held like a young domain.
+      - Each PR states its counts against its own base.
+    - **Body amended:** the done condition is Q14's, and the order line now names #459.
+    - **New tickets, all Tier: unset:** #462 (C2, the #424 candidates), #463 (the season run) and #464 (retire `evidence`).
+    - **Sent to the manager:** the tiers, the dispatch order (A1 now; B1 beside it, now that #458 has merged) and two Actions. The Actions are Q8, the protego install, and Q3, five raw Transparency Report responses. r453's notes don't hold them.
+  - **Map #375:**
+    - #454's line now has its tier and the three new sub-lines.
+    - #458, #440 and #451 are ticked. #458 is PR #460, merged as d8fafb3 at 16:39Z.
+    - #421 shows PR #461 open.
+    - #459 has the dispatch word.
+    - #93 says the cutover is complete.
+- **DO NEXT, in order:**
+  1. **The 2026-11-09 11:17Z cron run.** Get the manager's report: the run, the Discord post, and #93's two body checks.
+  2. **#459's scoping comment, when it lands.**
+     - Check its briefs against #459's body.
+     - Take its open questions to the owner, with context.
+     - Set the tiers, and tell the manager.
+     - Order it against #454's A2 and C1 on sources.yml, and A2 on etl_helpers.py.
+  3. **#454 builder PRs, when asked:** A1, then B1 and A2. Read them against issuecomment-6724169121.
+     - When the owner posts the Q3 responses, check that their shape matches the findings §2b: the `)]}'` prefix, a 10-element array, and `sb.ssr` first.
+  4. **Other PR reads, when asked:** #461 (#421 Part 2), then #413.
+  5. **#458's live proof:** the 2026-11-13 Close Day run of 03b and 03d. A block parks; it is never reverted.
+  6. **Grills:** #432 next, then #429, with #428 Q1-Q4 and #424 Q3-Q5. #429 also decides whether Claude-token robots lines bind the #454 script, which stops on them until then.
+  7. A sweep, only on the owner's word.
+- **Waiting on the owner:**
+  - The root push: `~/.claude` is still ahead 1 at 5987e1e.
+  - The DLF Action.
+  - The tools pull is done: the manager reports both tools checkouts at dcd351a.
+
+000000000000000000000000000000000000000000000. **2026-11-08, about 17:15Z, before a clear (session 8f091889). Self-contained except where the 46-zero item above overrides it. Read the 44-zero item only for detail.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading, and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
   - The state batch PR is #455; it merges only on the owner's word.
