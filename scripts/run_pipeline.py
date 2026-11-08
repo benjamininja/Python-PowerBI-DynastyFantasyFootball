@@ -712,6 +712,15 @@ def notify(text: str) -> None:
         print(f"[warn] webhook failed: {type(e).__name__}: {reason}")
 
 
+def terms_line() -> str:
+    try:
+        import check_sources
+        n = check_sources.terms_due_count(check_sources.load_yaml())
+    except Exception:
+        return "📜 Terms checks due: unavailable (docs/sources.yml could not be read)"
+    return f"📜 Terms checks due: {n}"
+
+
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
               filed: dict | None = None, cadence: dict | None = None) -> str:
@@ -737,6 +746,7 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
     if pending:
         lines.append("**Review queues:**")
         lines += [f"• {f}: {v['rows']} rows → {v['action']}" for f, v in pending.items()]
+    lines.append(terms_line())
     lines.append(f"📦 {commit_line}")
     return "\n".join(lines)
 

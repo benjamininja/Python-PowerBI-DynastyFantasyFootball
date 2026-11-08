@@ -1,9 +1,9 @@
 """The `rankings` command — a format-scoped, per-position dynasty board.
 
 Data grain reality (see the skill's data-model.md): no single format+source spans
-all positions. SF/TEPP hold offense (QB/RB/WR/TE); IDP holds defense
-(DE/DT/LB/CB/S, FantasyPros only). So the board is scoped to ONE format, and the
-source defaults to the primary one available for that format.
+all positions. SF/TEPP hold offense (QB/RB/WR/TE); IDP has no ranking source
+yet. So the board is scoped to ONE format, and the source defaults to the
+primary one available for that format.
 
 Layout/pagination and privacy delivery are shared (render.py / delivery.py); this
 module is just the query + column mapping.
@@ -28,18 +28,20 @@ _METRICS_PATH = "data/fact_dynasty_ranking_metrics.parquet"
 _PLAYERS_PATH = "data/dim_nfl_players.parquet"
 
 # Each dynasty source folds its positional rank into the single EAV fact under a
-# source-prefixed metric key (e.g. KTC -> "ktc_positional_rank").
-_SOURCE_PREFIX = {"KTC": "ktc", "DynastySharks": "ds", "FantasyPros": "fp"}
+# source-prefixed metric key (e.g. DynastySharks -> "ds_positional_rank").
+_SOURCE_PREFIX = {"DynastySharks": "ds"}
 
 # Display order. Grouping uses dim_nfl_players.position_group, which matches how
 # each source ranks within positions: offense QB/RB/WR/TE, IDP DL/LB/DB. Grouping
 # by the granular `position` instead fragments a source's single rank sequence
-# (e.g. FantasyPros' one DL list) across many fields with duplicate-looking #1s —
-# verified against the data. Anything unlisted is appended by _order_positions.
+# across many fields with duplicate-looking #1s — verified against the data. Anything unlisted is appended by _order_positions.
 _POSITION_ORDER = ["QB", "RB", "WR", "TE", "DL", "LB", "DB"]
 
 # Preferred source per format when the user doesn't specify one.
-_PREFERRED_SOURCE = {"SF": "KTC", "TEPP": "KTC", "IDP": "FantasyPros"}
+_PREFERRED_SOURCE = {"SF": "DynastySharks", "TEPP": "DynastySharks"}
+
+_IDP_FORMAT = "IDP"
+_IDP_MESSAGE = "No IDP ranking source yet."
 
 _DEFAULT_FORMAT = "SF"
 _DEFAULT_LIMIT = 10
@@ -91,7 +93,7 @@ def build_rankings_embeds(
     eav = fetch_parquet(_METRICS_PATH, cfg)
     players = fetch_parquet(_PLAYERS_PATH, cfg)
 
-    formats = sorted(eav["format"].dropna().unique())
+    formats = sorted(set(eav["format"].dropna().unique()) | {_IDP_FORMAT})
     if fmt not in formats:
         raise CommandError(f"Unknown format **{fmt}**. Available: {', '.join(formats)}.")
 
@@ -100,6 +102,8 @@ def build_rankings_embeds(
     rank_keys = {f"{p}_positional_rank" for p in _SOURCE_PREFIX.values()}
     ranks = eav[(eav["format"] == fmt) & (eav["metric_key"].isin(rank_keys))]
     if ranks.empty:
+        if fmt == _IDP_FORMAT:
+            raise CommandError(_IDP_MESSAGE)
         raise CommandError(f"No rankings found for **{fmt}** yet.")
 
     # Latest snapshot only — the fact is a manual-cadence time series.
@@ -135,7 +139,7 @@ def build_rankings_embeds(
         raise CommandError(f"No rankings to show for {fmt}/{src}.")
 
     # Re-rank 1..N within each displayed group. A source can rank sub-positions
-    # separately (FantasyPros ranks DE and DT on their own), which would show
+    # separately (e.g. DE and DT on their own), which would show
     # co-ranked #1s once merged into the registry's DL/LB/DB groups; ranking by
     # the source order within the group yields a clean sequence. No-op for offense.
     board["positional_rank"] = (
@@ -181,7 +185,7 @@ class Rankings(commands.Cog):
     @discord.app_commands.describe(
         fmt="League format: SF (default), TEPP, or IDP.",
         position="Filter to one position (e.g. QB, LB). Omit for all.",
-        source="Ranking source override (eg, KTC-DynastySharks-FantasyPros).",
+        source="Ranking source override (DynastySharks).",
         limit="Players per position (default 10, max 25).",
         share="Post the result publicly in the channel (default: private to you).",
     )
