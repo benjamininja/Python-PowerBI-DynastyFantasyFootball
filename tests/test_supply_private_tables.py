@@ -129,10 +129,15 @@ class TestDraftProblems:
 
 
 class TestOverrides:
-    def test_the_apply_script_decisions_are_read_without_running_it(self):
-        decisions = loader.decisions_from_script()
-        assert len(decisions) == loader.MANUAL + loader.NEW
-        assert sum(v == "new" for v in decisions.values()) == loader.NEW
+    def test_the_loader_reads_no_decisions_from_the_retired_apply_script(self):
+        source = (REPO / "scripts" / "load_draft_and_overrides.py").read_text(encoding="utf-8")
+        assert "decisions_from_script" not in source and "APPLY_SCRIPT" not in source
+        assert not hasattr(loader, "decisions_from_script")
+
+    def test_the_retired_apply_script_only_points_at_the_form(self):
+        result = subprocess.run([sys.executable, str(REPO / "scripts" / "apply_fantrax_crosswalk_review.py")],
+                                capture_output=True, text=True)
+        assert result.returncode != 0 and "Record a crosswalk override" in result.stderr
 
     def test_csv_rows_and_decisions_merge_with_their_origin(self):
         csv = pd.DataFrame({"scorer_id": ["a", "b"], "gsis_id": ["G1", "new"], "note": [NOTE, None]})
