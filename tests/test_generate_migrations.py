@@ -520,6 +520,153 @@ class TestDiffRefusals:
         assert gm.diff(old, model())["refusals"] == ["shared.other: drop of function"]
 
 
+OLD_IN = "status IN ('running', 'failed')"
+
+
+def run_log_checks(*exprs):
+    reg = fixture_registry()
+    table(reg, "run_log")["checks"] = list(exprs)
+    return reg
+
+
+def check_name(expr, tbl="run_log"):
+    return gm._check_name(tbl, expr)
+
+
+class TestCheckWidening:
+    def swap_sql(self, *new_exprs):
+        return gm.render(gm.diff(model(), model(run_log_checks(*new_exprs))))
+
+    def test_a_widening_drops_the_old_check_then_adds_the_new_one(self):
+        wide = "status IN ('running', 'failed', 'done')"
+        changes = gm.diff(model(), model(run_log_checks(wide)))
+        assert changes["refusals"] == []
+        assert changes["check_swaps"] == [("ops.run_log", OLD_IN, wide)]
+        sql = gm.render(changes)
+        drop = f"ALTER TABLE ops.run_log DROP CONSTRAINT {check_name(OLD_IN)};"
+        add = f"ALTER TABLE ops.run_log ADD CONSTRAINT {check_name(wide)} CHECK ({wide});"
+        assert sql.strip() == f"{drop}\n\n{add}"
+        assert check_name(OLD_IN) != check_name(wide)
+
+    def test_the_old_name_is_the_one_the_first_migration_created(self):
+        assert f"CONSTRAINT {check_name(OLD_IN)} CHECK ({OLD_IN})" in full_sql()
+
+    def test_a_reordered_list_is_a_widening(self):
+        reordered = "status IN ('failed', 'running')"
+        changes = gm.diff(model(), model(run_log_checks(reordered)))
+        assert changes["refusals"] == []
+        assert changes["check_swaps"] == [("ops.run_log", OLD_IN, reordered)]
+
+    def test_integers_and_any_spacing_are_accepted(self):
+        old = model(run_log_checks("status IN (1,2)"))
+        new = model(run_log_checks("status IN ( 2 ,1,  3 )"))
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == [] and len(changes["check_swaps"]) == 1
+
+    def test_the_swap_comes_right_before_the_plain_checks(self):
+        reg = run_log_checks("status IN ('running', 'failed', 'done')", "rows_written IS NOT NULL")
+        sql = gm.render(gm.diff(model(), model(reg)))
+        positions = [sql.index("DROP CONSTRAINT"), sql.index("ADD CONSTRAINT " + check_name(
+            "status IN ('running', 'failed', 'done')")), sql.index("rows_written IS NOT NULL")]
+        assert positions == sorted(positions)
+
+    def test_a_widening_beside_an_unrelated_new_check_keeps_both(self):
+        reg = run_log_checks("status IN ('running', 'failed', 'done')", "rows_written IS NOT NULL")
+        changes = gm.diff(model(), model(reg))
+        assert len(changes["check_swaps"]) == 1
+        assert changes["checks"] == [("ops.run_log", "rows_written IS NOT NULL")]
+
+    @pytest.mark.parametrize("new_check, why", [
+        ("status IN ('running')", "narrowing"),
+        ("status IN ('running', 'done')", "an old literal is gone"),
+        ("run_id IN ('running', 'failed', 'done')", "another column"),
+        ("status NOT IN ('running', 'failed', 'done')", "NOT IN"),
+        ("status IN ('running', 'failed') OR status IS NULL", "OR"),
+        ("status IN ('running', 'failed', 'done') OR status IS NULL", "OR on the wide side"),
+        ("status::text IN ('running', 'failed', 'done')", "a cast"),
+        ("lower(status) IN ('running', 'failed', 'done')", "a function"),
+        ("status IN (('running'), 'failed', 'done')", "nested parentheses"),
+        ("status IN ('running', 'failed', lower('DONE'))", "a function in the list"),
+        ("status IN ('running', 'failed', 'it''s')", "an escaped quote"),
+        ("status IN ('running' 'failed', 'done')", "a missing comma"),
+        ("status IN ('running', 'failed', 1.5)", "a decimal"),
+        ("status IN ()", "an empty list"),
+        ("status IN (SELECT 1)", "a subquery"),
+        ("status = 'running'", "not an IN list"),
+    ])
+    def test_a_check_that_is_not_a_pure_widening_is_refused(self, new_check, why):
+        refusals = gm.diff(model(), model(run_log_checks(new_check)))["refusals"]
+        assert refusals == [f"ops.run_log: drop of check {OLD_IN}"], why
+
+    def test_an_old_check_that_is_not_an_in_list_is_refused(self):
+        old = model(run_log_checks("rows_written IS NOT NULL"))
+        new = model(run_log_checks("rows_written IS NOT NULL AND status IN ('a')"))
+        assert gm.diff(old, new)["refusals"] == ["ops.run_log: drop of check rows_written IS NOT NULL"]
+
+    def test_a_check_that_is_not_an_in_list_on_either_side_stays_refused(self):
+        old = model(run_log_checks("status NOT IN ('a')"))
+        new = model(run_log_checks("status NOT IN ('a', 'b')"))
+        assert gm.diff(old, new)["refusals"] == ["ops.run_log: drop of check status NOT IN ('a')"]
+
+    def test_a_removed_check_with_no_partner_is_refused(self):
+        assert gm.diff(model(), model(run_log_checks()))["refusals"] == [
+            f"ops.run_log: drop of check {OLD_IN}"]
+
+    def test_a_removed_check_with_two_candidate_partners_is_refused(self):
+        reg = run_log_checks("status IN ('running', 'failed', 'a')", "status IN ('running', 'failed', 'b')")
+        changes = gm.diff(model(), model(reg))
+        assert changes["refusals"] == [f"ops.run_log: drop of check {OLD_IN}"]
+
+    def test_two_removed_checks_sharing_one_partner_are_both_refused(self):
+        old = model(run_log_checks("status IN ('a')", "status IN ('b')"))
+        new = model(run_log_checks("status IN ('a', 'b')"))
+        assert gm.diff(old, new)["refusals"] == [
+            "ops.run_log: drop of check status IN ('a')", "ops.run_log: drop of check status IN ('b')"]
+
+    def test_two_separate_widenings_each_pair_with_their_own_partner(self):
+        old = model(run_log_checks("status IN ('a')", "rows_written IN (1)"))
+        new = model(run_log_checks("status IN ('a', 'b')", "rows_written IN (1, 2)"))
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == [] and len(changes["check_swaps"]) == 2
+
+    def test_a_widening_alongside_another_refusal_is_still_refused(self):
+        reg = run_log_checks("status IN ('running', 'failed', 'done')")
+        table(reg, "dim_team")["columns"].remove(col("nickname"))
+        changes = gm.diff(model(), model(reg))
+        assert changes["refusals"] == ["football.dim_team: drop of column nickname"]
+
+    def test_the_round_trip_updates_the_state_and_a_second_run_writes_nothing(self, tmp_path, capsys):
+        run(tmp_path, fixture_registry())
+        wide = "status IN ('running', 'failed', 'done')"
+        assert run(tmp_path, run_log_checks(wide), now=LATER) == 0
+        files = migrations(tmp_path)
+        assert [f.name for f in files] == ["20261031120005_initial_schema.sql",
+                                           "20261101093000_registry_update.sql"]
+        second = files[1].read_text(encoding="utf-8")
+        assert f"DROP CONSTRAINT {check_name(OLD_IN)};" in second
+        assert f"ADD CONSTRAINT {check_name(wide)} CHECK ({wide});" in second
+        state_file = tmp_path / "supabase" / "registry_state.json"
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+        assert state["tables"]["ops.run_log"]["checks"] == [wide]
+        assert second.splitlines()[0] == f"-- registry_state sha256: {hashlib.sha256(state_file.read_bytes()).hexdigest()}"
+        before_state, before_files = state_file.read_bytes(), migrations(tmp_path)
+        capsys.readouterr()
+        assert run(tmp_path, run_log_checks(wide), now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert migrations(tmp_path) == before_files
+        assert state_file.read_bytes() == before_state
+        assert "no change" in capsys.readouterr().out
+
+    def test_a_narrowing_exits_1_and_writes_nothing(self, tmp_path, capsys):
+        run(tmp_path, fixture_registry())
+        state = tmp_path / "supabase" / "registry_state.json"
+        before_state, before_files = state.read_bytes(), migrations(tmp_path)
+        capsys.readouterr()
+        assert run(tmp_path, run_log_checks("status IN ('running')"), now=LATER) == 1
+        assert f"drop of check {OLD_IN}" in capsys.readouterr().err
+        assert migrations(tmp_path) == before_files
+        assert state.read_bytes() == before_state
+
+
 class TestMain:
     def test_the_first_run_writes_a_migration_and_the_state_file(self, tmp_path, capsys):
         assert run(tmp_path, fixture_registry()) == 0

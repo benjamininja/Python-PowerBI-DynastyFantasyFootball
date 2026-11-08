@@ -5,7 +5,11 @@
 `desired_model` reads the registry into a plain dict. `diff` compares it with
 `<out>/registry_state.json`, the record of what the migrations already hold.
 `render` turns the additions into SQL. A drop, a rename or a type change is
-refused: the script names it, exits 1 and writes nothing. No change writes
+refused: the script names it, exits 1 and writes nothing. The one exception
+(#443): a check `<col> IN (<literals>)` replaced by another on the same column
+whose list holds every old literal is a widening; it becomes DROP CONSTRAINT
+then ADD CONSTRAINT in one migration. Anything not exactly that form is
+refused as before. No change writes
 nothing and exits 0. A registry that breaks a rule exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
@@ -211,6 +215,25 @@ def _by_name(items):
     return {i["name"]: i for i in items}
 
 
+_LITERAL = r"'[^']*'|-?[0-9]+"
+_IN_LIST = re.compile(rf"([a-z][a-z0-9_]*) IN \(\s*((?:{_LITERAL})(?:\s*,\s*(?:{_LITERAL}))*)\s*\)")
+
+
+def _in_list(expr):
+    """(column, literals) when `expr` is exactly `<column> IN (<literals>)`, else None."""
+    found = _IN_LIST.fullmatch(expr)
+    if found is None:
+        return None
+    return found.group(1), re.findall(_LITERAL, found.group(2))
+
+
+def _widens(old_expr, new_expr):
+    """True when both are IN-lists on one column and the new holds every old literal."""
+    before, after = _in_list(old_expr), _in_list(new_expr)
+    return (before is not None and after is not None and before[0] == after[0]
+            and set(before[1]) <= set(after[1]))
+
+
 def _table_changes(key, old, new, out):
     refuse = out["refusals"]
     old_cols, new_cols = _by_name(old["columns"]), _by_name(new["columns"])
@@ -235,11 +258,19 @@ def _table_changes(key, old, new, out):
             refuse.append(f"{key}.{col['name']}: change of NOT NULL")
     if old["pk"] != new["pk"]:
         refuse.append(f"{key}: change of primary key from {old['pk']} to {new['pk']}")
-    for expr in old["checks"]:
-        if expr not in new["checks"]:
+    gone = [e for e in old["checks"] if e not in new["checks"]]
+    fresh = [e for e in new["checks"] if e not in old["checks"]]
+    partners = {e: [f for f in fresh if _widens(e, f)] for e in gone}
+    swapped = set()
+    for expr in gone:
+        match = partners[expr]
+        if len(match) == 1 and sum(match[0] in p for p in partners.values()) == 1:
+            out["check_swaps"].append((key, expr, match[0]))
+            swapped.add(match[0])
+        else:
             refuse.append(f"{key}: drop of check {expr}")
-    for expr in new["checks"]:
-        if expr not in old["checks"]:
+    for expr in fresh:
+        if expr not in swapped:
             out["checks"].append((key, expr))
     for kind, label in (("fks", "foreign key"), ("indexes", "index")):
         before, after = _by_name(old[kind]), _by_name(new[kind])
@@ -256,8 +287,8 @@ def _table_changes(key, old, new, out):
 def diff(old, new):
     """What `new` adds to `old`, and the changes it holds that a migration may
     not make (`refusals`)."""
-    out = {"schemas": [], "roles": [], "tables": [], "columns": [], "checks": [],
-           "fks": [], "indexes": [], "functions": [], "refusals": []}
+    out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
+           "checks": [], "fks": [], "indexes": [], "functions": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -312,6 +343,10 @@ def render(changes):
     for key, col in changes["columns"]:
         out.append(f"ALTER TABLE {key} ADD COLUMN {col['name']} {col['sql_type']}"
                    f"{' NOT NULL' if col['not_null'] else ''};")
+    for key, old_expr, new_expr in changes["check_swaps"]:
+        table_name = key.split(".")[1]
+        out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(table_name, old_expr)};")
+        out.append(f"ALTER TABLE {key} ADD CONSTRAINT {_check_name(table_name, new_expr)} CHECK ({new_expr});")
     for key, expr in changes["checks"]:
         out.append(f"ALTER TABLE {key} ADD CONSTRAINT {_check_name(key.split('.')[1], expr)} CHECK ({expr});")
     for key, fk in changes["fks"]:
