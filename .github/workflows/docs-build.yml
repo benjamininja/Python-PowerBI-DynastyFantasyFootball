@@ -1,7 +1,9 @@
 # Build-only check for the docs site (#374). Runs on pull requests, never
 # deploys: read-only token, no pages: write, no secrets. It proves the site
 # builds into _site/docs/ beside trade-bud's _site/index.html and leaves that
-# file untouched. The deploy is pages.yml, which runs only on main.
+# file untouched. It also runs on a change under mouserat_trade-bud/, so a
+# trade-bud PR gets a build of the static site. The deploy is pages.yml, which
+# runs only on main.
 #
 # Zensical is installed here from docs/site/requirements.txt only; it is not in
 # the root requirements.txt.
@@ -14,6 +16,7 @@ on:
       - 'mkdocs.yml'
       - 'scripts/run_pipeline.py'
       - 'docs/sources.yml'
+      - 'mouserat_trade-bud/**'
       - '.github/workflows/docs-build.yml'
       - '.github/workflows/pages.yml'
 
