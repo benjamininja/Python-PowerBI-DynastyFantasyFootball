@@ -21,6 +21,13 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~17:45Z (session `fab4616c`, just before the CLEAR; read with the block below):**
+  - Merged: **#469** (#459 B1) as `ae57608`; b459-b1-bot was told it is done. Dynasty main is now `ae57608`, equal to origin/main.
+  - Green PASS, not merged:
+    - **#468** (#459 B2): 2114 passed; export_static built 616 KB. One storage-pg CI job was still pending at the last read. Re-read the CI, then post a re-proof comment like rp469.md and merge with `--match-head-commit f29506bbf4793807807fe86366260b2f54cf9580`.
+    - **#466** (#454 B1): 2171 passed, including the real Protego tests. HOLD for the planner's OK on its seven readings.
+    - **#465:** still HOLD for the planner's read.
+  - **#470** (B3) Green was still running into `g470.txt`.
 - **CURRENT STATE (NEWEST, 2026-11-08 ~17:30Z, session `fab4616c`, before a CLEAR). This overrides everything below, including the FIRST AFTER THE COMPACT line, which is done.**
   - **Mains.** Dynasty main is `7313f71`, equal to origin/main: a pipeline data PR, 2026-11-08 inseason week 9, 6 data files, local fast-forwarded. Tools origin/main is `b9ccef6` (#100); both tools checkouts are at `cd1d95f`, and the owner pull Action is queued.
   - **Reconcile.** `git fetch origin`. `git rev-parse main` and `git rev-parse origin/main`, separately. `gh pr list --state open` in both repos. `claude agents --json --all`. NEEDS-OWNER.md.
