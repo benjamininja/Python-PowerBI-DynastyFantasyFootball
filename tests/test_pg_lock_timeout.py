@@ -173,7 +173,7 @@ class TestAHeldLockFailsEachStepWithinTheBound:
             error, seconds = waited(lambda: pg.write_all_empty({name: (entry, batch)}))
         expect_the_bound(error, seconds, f"football.{name}")
 
-    def test_the_foreign_key_check_fails_naming_the_parent_it_waited_on(self, db, frames):
+    def test_the_foreign_key_check_fails_naming_the_parent_it_waited_on(self, db, frames, monkeypatch):
         import psycopg
         assert pg.load_published(db, frames, replace=True).problems == []
         with psycopg.connect(db) as conn:
@@ -187,10 +187,32 @@ class TestAHeldLockFailsEachStepWithinTheBound:
                   and pg._outside(links, [c]) == [p]]
         assert usable, "no foreign key to one parent only, from a published table with rows"
         child, parent = usable[0]
+        marks = {}
+        real_orphans, real_where = pg.orphans, pg._fk_where
+
+        def orphans(conn):
+            found = real_orphans(conn)
+            marks["in_force"] = conn.execute("SHOW lock_timeout").fetchone()[0]
+            marks["waiting_from"] = time.monotonic()
+            return found
+
+        def fk_where(conn, loaded):
+            marks["gave_up"] = time.monotonic()
+            return real_where(conn, loaded)
+
+        monkeypatch.setattr(pg, "orphans", orphans)
+        monkeypatch.setattr(pg, "_fk_where", fk_where)
+        start = time.monotonic()
         with psycopg.connect(db) as holder:
             holder.execute(f'LOCK TABLE football."{parent}" IN EXCLUSIVE MODE')
             error, seconds = waited(lambda: pg.load_published(db, {child: frames[child]}, replace=True))
-        expect_the_bound(error, seconds, f"foreign-key check at commit on football.{parent}")
+        before, wait = marks["waiting_from"] - start, marks["gave_up"] - marks["waiting_from"]
+        assert f"foreign-key check at commit on football.{parent}" in str(error)
+        assert "waited 1s for a lock, gave up (lock_timeout); not retried" in str(error)
+        assert marks["in_force"] == "1s"
+        assert BOUND_MS / 1000 * 0.9 <= wait < BOUND_MS / 1000 + SLACK_S, (
+            f"the foreign-key check waited {wait:.1f}s; the load took {before:.1f}s before it and "
+            f"{seconds:.1f}s in all")
         with psycopg.connect(db) as conn:
             assert conn.execute(f'SELECT count(*) FROM football."{child}"').fetchone()[0] == len(frames[child])
 
