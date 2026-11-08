@@ -38,7 +38,7 @@ MODULE = "<module>"
 PG_MODULES = {
     "notebooks/etl_storage_pg.py": {
         "read_on", "breaks", "orphans", "login_facts", "nonempty", "has_rows",
-        "write", "write_all_empty", "_copy", "load_published"},
+        "write", "write_all_empty", "_copy", "load_published", "_fk_where"},
     "notebooks/etl_run_log.py": {"_count", "_rows"},
     "scripts/backfill_postgres.py": set(),
     "scripts/restore_drill.py": {"checksum_lines"},
