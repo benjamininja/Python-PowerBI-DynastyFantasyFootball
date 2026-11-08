@@ -157,6 +157,10 @@ class TestFantraxPublicGet:
         assert self.sent_headers == [{"User-Agent": etl.FANTRAX_PUBLIC_UA}]
         assert etl.FANTRAX_PUBLIC_UA.startswith("MouseratDynastyETL/1.0 (+https://github.com/")
 
+    def test_default_headers_user_agent_is_the_program_constant(self):
+        assert etl.DEFAULT_HEADERS["User-Agent"] == etl.ETL_USER_AGENT
+        assert etl.FANTRAX_PUBLIC_UA == etl.ETL_USER_AGENT
+
     def test_non_200_raises(self, reply):
         reply(_FakeResponse(status_code=503, body={}))
         with pytest.raises(RuntimeError, match="HTTP 503"):

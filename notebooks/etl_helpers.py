@@ -97,10 +97,11 @@ ALIAS  = DATA / "dim_player_alias.parquet"   # persistent name->player_key decis
 DATA.mkdir(exist_ok=True)
 REVIEW.mkdir(parents=True, exist_ok=True)
 
-# Default browser-like headers for scrapers (Chrome UA).
+ETL_USER_AGENT = ("MouseratDynastyETL/1.0 "
+                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
+
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent": ETL_USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
 }
@@ -214,8 +215,7 @@ def _make_session(timeout_sec: int = 30, retries: int = 3, backoff: float = 2.0)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
-FANTRAX_PUBLIC_UA = ("MouseratDynastyETL/1.0 "
-                     "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
+FANTRAX_PUBLIC_UA = ETL_USER_AGENT
 
 
 def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
