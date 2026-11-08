@@ -6,10 +6,9 @@ dim_nfl_players, dim_position) and produces a 250-player tiered board weighted
 to league scoring (SF + TE-premium + heavy IDP) and Benjamin's Year-1 tank plan.
 
 Composite score (0-100), weights in WEIGHTS below:
-  market value   35%  — KTC value + DS 3D Value+ + FP avg rank + Fantrax rank
-                        + drafted% + KTC startup ADP + startup auction %
-                        (mean of available; IDP has no KTC/DS, so FP + Fantrax
-                        rank + drafted% carry it)
+  market value   35%  — DS 3D Value+ + Fantrax rank + drafted% + startup ADP
+                        + startup auction % (mean of available; IDP has no DS,
+                        so Fantrax rank + drafted% carry it)
   production     20%  — trailing FP/G blended 60/40 with DS Proj 1-Yr, pct
                         within position_group
   window         25%  — positional age curve blended 70/30 with DS Proj 5-Yr
@@ -31,7 +30,7 @@ rule-generated flag strings. Missing file -> script writes a prefilled template.
 Output: data/outputs/startup_draft_board.xlsx
   "Offense" / "Defense" sheets — 250 each, per-side tier ladders + side Rank,
       with cross-side Score and Ovr Rank kept for comparison at the pick.
-      Defense drops the offense-only metric columns (ADP/KTC/DS projections).
+      Defense drops the offense-only metric columns (ADP/DS projections).
   "Data" sheet — full scored pool, flat, pivot/slicer-ready.
 
 Run from repo root or notebooks/:  python notebooks/05a_startup_draft_board.py
@@ -108,7 +107,6 @@ def load_pool() -> pd.DataFrame:
 # is derivable and not needed here. This map is pure board presentation: which
 # metrics the draft board surfaces and what it calls them, nothing about the registry.
 METRIC_MAP = {
-    "value": "ktc_value",
     "startup_adp": "startup_adp",
     "startup_avg_auction_pct": "startup_auction_pct",
     "std_liquidity": "liquidity",
@@ -117,16 +115,12 @@ METRIC_MAP = {
     "proj_3yr": "proj_3yr",
     "proj_5yr": "proj_5yr",
     "proj_10yr": "proj_10yr",
-    "avg": "fp_avg",
-    "best": "fp_best",
-    "worst": "fp_worst",
-    "stddev": "fp_stddev",
 }
 
 
 def load_dynasty_metrics() -> pd.DataFrame:
     """Per-gsis dynasty signals (latest SF snapshot per source): values, startup
-    market, FP consensus spread, DS multi-year projections (cumulative pts)."""
+    market, DS multi-year projections (cumulative pts)."""
     # The metrics EAV carries gsis_id directly (the old backbone fact is gone), so
     # key off it straight away — no separate rankings table to join through.
     m = read_table("fact_dynasty_ranking_metrics")
@@ -178,9 +172,7 @@ def score(pool: pd.DataFrame) -> pd.DataFrame:
 
     # Market: mean of available percentile signals. Rank metrics invert (low=good).
     sig = pd.DataFrame(index=df.index)
-    sig["ktc"] = pct(df["ktc_value"])
     sig["ds"] = pct(df["ds_value"])
-    sig["fp"] = pct(-df["fp_avg"])
     sig["fx"] = pct(-df["overall_rank"])
     sig["px"] = pct(df["percent_drafted"])      # cross-league demand; covers IDP
     sig["sadp"] = pct(-df["startup_adp"])       # actual startup market price
@@ -279,10 +271,10 @@ def rule_notes(row) -> tuple[str, str]:
     return arc, "; ".join(flags)
 
 
-def metric_suffix(row, liq_lo, liq_hi, sd_hi) -> str:
+def metric_suffix(row, liq_lo, liq_hi) -> str:
     """Data callouts appended to every board note (bespoke and rule-generated):
-    Yo-Yo runway, 5-yr projection window, expert consensus spread, KTC market
-    liquidity, startup-market price gap."""
+    Yo-Yo runway, 5-yr projection window, market liquidity,
+    startup-market price gap."""
     bits = []
     gl = row.get("ml_games_left")
     if pd.notna(gl) and gl > 0:
@@ -292,11 +284,6 @@ def metric_suffix(row, liq_lo, liq_hi, sd_hi) -> str:
         bits.append("Yo-Yo window closed")
     if pd.notna(row.get("proj_5yr")):
         bits.append(f"proj {row['proj_5yr']:,.0f} pts/5yr")
-    sd = row.get("fp_stddev")
-    if pd.notna(sd):
-        if sd >= sd_hi:
-            bits.append(f"experts split (FP {row['fp_best']:.0f}-{row['fp_worst']:.0f}, "
-                        f"σ{sd:.0f})")
     liq = row.get("liquidity")
     if pd.notna(liq):
         if liq >= liq_hi:
@@ -335,9 +322,8 @@ def apply_notes(df: pd.DataFrame) -> pd.DataFrame:
 
     # Metric callouts append to every board-row note, bespoke included.
     liq_lo, liq_hi = df["liquidity"].quantile([0.30, 0.70])
-    sd_hi = df["fp_stddev"].quantile(0.75)
     on_board = df["side_of_ball"].isin(["Offense", "Defense"]) & (df["side_rank"] <= BOARD_SIZE)
-    suffix = df[on_board].apply(metric_suffix, axis=1, args=(liq_lo, liq_hi, sd_hi))
+    suffix = df[on_board].apply(metric_suffix, axis=1, args=(liq_lo, liq_hi))
     has_sfx = suffix.str.len() > 0
     df.loc[on_board, "strategic_note"] = (
         df.loc[on_board, "strategic_note"].str.rstrip()
@@ -355,21 +341,20 @@ BOARD_COLS = {
     "draft_year": "Draft Year", "years_in_league": "Years In League",
     "overall_rank": "Fantrax Rank", "adp": "ADP", "startup_adp": "Startup ADP",
     "salary": "Salary", "fpts_per_game": "FP/G", "percent_drafted": "Ros%",
-    "ktc_value": "KTC Value", "proj_1yr": "Proj 1-Yr", "proj_5yr": "Proj 5-Yr",
+    "proj_1yr": "Proj 1-Yr", "proj_5yr": "Proj 5-Yr",
     "proj_10yr": "Proj 10-Yr",
-    "fp_stddev": "FP StdDev", "liquidity": "Liquidity",
+    "liquidity": "Liquidity",
     "ml_games_left": "ML Games Left", "composite": "Score",
     "arc_note": "Arc Note", "strategic_note": "Strategic Note",
 }
-# IDP has no Fantrax ADP / KTC / DS coverage — drop those columns on Defense.
-DEFENSE_DROP = ["adp", "startup_adp", "ktc_value", "proj_1yr", "proj_5yr",
+# IDP has no Fantrax ADP / DS coverage — drop those columns on Defense.
+DEFENSE_DROP = ["adp", "startup_adp", "proj_1yr", "proj_5yr",
                 "proj_10yr", "liquidity"]
 # Data sheet adds the rest of the metric block + pillar scores for pivots.
 DATA_EXTRA_COLS = {
     "side_of_ball": "Side of Ball", "ds_value": "DS 3D Value+",
     "proj_3yr": "Proj 3-Yr",
-    "proj_traj": "Proj Traj", "fp_avg": "FP Avg Rank", "fp_best": "FP Best Rank",
-    "fp_worst": "FP Worst Rank", "startup_auction_pct": "Startup Auction %",
+    "proj_traj": "Proj Traj", "startup_auction_pct": "Startup Auction %",
     "career_games": "Career Games", "ml_eligible": "ML Eligible",
     "adp_outlier": "ADP Outlier", "market_score": "Market Score",
     "production_score": "Production Score", "age_arc_score": "Window Score",
@@ -383,9 +368,9 @@ NUM_FMT = {"Salary": '"$"#,##0.0,,"M"', "ADP": "0.0", "FP/G": "0.0",
            "Ros%": '0.0"%"', "Age": "0", "Score": "0.0",
            "Draft Year": "0", "Years In League": "0", "Fantrax Rank": "0",
            "Rank": "0", "Ovr Rank": "0",
-           "Startup ADP": "0.0", "KTC Value": "#,##0", "Proj 1-Yr": "#,##0",
+           "Startup ADP": "0.0", "Proj 1-Yr": "#,##0",
            "Proj 5-Yr": "#,##0", "Proj 10-Yr": "#,##0",
-           "FP StdDev": "0.0", "Liquidity": "0.0",
+           "Liquidity": "0.0",
            "ML Games Left": "0"}
 COL_WIDTHS = {"Player": 24, "Position": 9, "Pos Group": 10,
               "Arc Note": 38, "Strategic Note": 80, "NFL Team": 9}
@@ -497,4 +482,9 @@ def main() -> pd.DataFrame:
 
 
 if __name__ == "__main__":
+    import argparse
+
+    argparse.ArgumentParser(
+        description="Build the tiered startup-draft Excel board from the published tables.",
+    ).parse_args()
     main()
