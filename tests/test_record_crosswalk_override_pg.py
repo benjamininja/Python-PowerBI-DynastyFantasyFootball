@@ -22,7 +22,7 @@ rec = importlib.import_module("record_crosswalk_override")
 pytestmark = pytest.mark.pg
 NOW = pd.Timestamp("2026-11-08 12:00:00.123456", tz="UTC")
 TABLE = rec.OVERRIDE_TABLE
-XW = pd.DataFrame({"scorer_id": ["aaaaa", "bbbbb"], "gsis_id": [None, "G2"]})
+XW = pd.DataFrame({"scorer_id": ["aaaaa", "bbbbb", "ccccc"], "gsis_id": [None, "G2", None]})
 PLAYERS = pd.DataFrame({"gsis_id": ["G1", "G2", "G3"]})
 
 
