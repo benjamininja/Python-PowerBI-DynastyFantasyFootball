@@ -1,7 +1,8 @@
 import socket
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
+from urllib.parse import quote, urlsplit
 
 import pytest
 
@@ -509,3 +510,406 @@ def test_retry_after_parses_seconds_and_dates():
     assert sc.retry_after_seconds({}) is None
     assert sc.retry_after_seconds({"retry-after": "soon"}) is None
     assert sc.retry_after_seconds({"retry-after": "Wed, 21 Oct 2015 07:28:00 GMT"}) == 0.0
+
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "source_checks"
+SERVICES = ("transparencyreport.google.com", "data.iana.org", "rdap.verisign.com", "hstspreload.org")
+RDAP_BASE = "https://rdap.verisign.com/com/v1/domain/"
+OLD = (TODAY - date(1999, 7, 9)).days
+MALWARE = sc.SB_CONTROLS["malware"]
+
+
+def fx(name):
+    return (FIXTURES / name).read_bytes()
+
+
+def raw(body, status=200, **headers):
+    return sc.Response(status, {k.replace("_", "-"): v for k, v in headers.items()}, body)
+
+
+def controls_bodies():
+    return {sc.SB_CONTROLS["malware"]: fx("sb_control_malware.txt"),
+            sc.SB_CONTROLS["phishing"]: fx("sb_control_phishing.txt"),
+            sc.SB_CONTROLS["unwanted"]: fx("sb_control_unwanted.txt")}
+
+
+def rdap_body(days_ago, today=TODAY):
+    registered = (today - timedelta(days=days_ago)).isoformat()
+    return fx("rdap_domain.json").replace(b"__REGISTERED__", registered.encode())
+
+
+class Dns:
+    def __init__(self, missing=()):
+        self.missing = set(missing)
+        self.calls = []
+
+    def __call__(self, host, port):
+        self.calls.append(host)
+        if host in self.missing:
+            raise socket.gaierror(socket.EAI_NONAME, "name not known")
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.0.2.1", port))]
+
+
+class Tls:
+    def __init__(self, today=TODAY, **override):
+        self.calls = []
+        self.answer = {"ok": True, "issuer": "Amazon", "not_after": today + timedelta(days=197),
+                       "version": "TLSv1.3"}
+        self.answer.update(override)
+
+    def __call__(self, host):
+        self.calls.append(host)
+        return dict(self.answer)
+
+
+class World:
+    def __init__(self, host="footballguys.com", *, sb=None, controls=None, days_ago=OLD,
+                 rdap=None, tls=None, dns=None, confirmed=(), today=TODAY, hsts="max-age=86400",
+                 preload=b'{"name": "footballguys.com", "status": "unknown"}', extra=None,
+                 service_robots=None):
+        self.host = host
+        self.today = today
+        routes = {f"https://{h}/robots.txt": resp(404) for h in SERVICES}
+        routes.update(service_robots or {})
+        for site, body in (controls or controls_bodies()).items():
+            routes[sc.safe_browsing_url(site)] = raw(body)
+        routes[sc.safe_browsing_url(host)] = raw(sb if sb is not None else fx("sb_footballguys.txt"))
+        routes[sc.IANA_BOOTSTRAP_URL] = raw(fx("iana_dns_bootstrap.json"))
+        labels = host.split(".")
+        for i in range(len(labels) - 1):
+            routes[RDAP_BASE + ".".join(labels[i:])] = rdap if rdap is not None else raw(rdap_body(days_ago, today))
+        routes[f"https://{host}/robots.txt"] = resp(404, strict_transport_security=hsts) if hsts else resp(404)
+        routes[sc.HSTS_PRELOAD_URL + quote(host, safe="")] = raw(preload)
+        routes.update(extra or {})
+        self.clock = Clock()
+        self.transport = FakeTransport(routes, self.clock)
+        self.fetcher = sc.Fetcher(self.transport, clock=self.clock, sleep=self.clock.sleep,
+                                  today=lambda: today)
+        self.dns = dns or Dns()
+        self.tls = tls or Tls(today)
+        self.confirmed = set(confirmed)
+        self.checker = sc.SecurityChecker(self.fetcher, resolver=self.dns, tls_probe=self.tls,
+                                          confirmed=self.confirmed, today=lambda: today)
+
+    def check(self, host=None):
+        return self.checker.check(host or self.host)
+
+    def host_requests(self, host=None):
+        host = host or self.host
+        return [u for u in self.transport.urls() if urlsplit(u).hostname == host]
+
+
+def test_fixtures_are_the_owners_five_reads():
+    readings = {name: sc.parse_safe_browsing(fx(name)) for name in (
+        "sb_control_malware.txt", "sb_control_phishing.txt", "sb_control_unwanted.txt",
+        "sb_footballguys.txt", "sb_google_code4.txt")}
+    assert [r.code for r in readings.values()] == [2, 2, 2, 1, 4]
+    assert readings["sb_footballguys.txt"].scan == date(2026, 11, 8)
+    assert readings["sb_google_code4.txt"].scan == date(2026, 10, 5)
+    assert fx("sb_footballguys.txt").replace(b"\r\n", b"\n").startswith(b")]}'\n\n[[")
+
+
+def test_all_three_controls_two_means_a_clean_host_is_possible():
+    w = World()
+    result = w.check()
+    assert result.controls == {"malware": 2, "phishing": 2, "unwanted": 2, "shape_ok": True}
+    assert w.checker.controls().passed
+    assert result.safe_browsing == {"via": "transparency_report", "code": 1,
+                                    "google_scan": date(2026, 11, 8)}
+    assert result.flags == []
+    assert result.readable and not result.held
+
+
+def test_footballguys_shaped_fixture_gives_no_flags():
+    w = World()
+    result = w.check()
+    assert result.flags == []
+    assert result.dns == "resolves"
+    assert result.tls == {"ok": True, "issuer": "Amazon", "not_after": TODAY + timedelta(days=197),
+                          "version": "TLSv1.3"}
+    assert result.hsts == {"max_age": 86400, "preloaded": False}
+    assert result.registered == date(1999, 7, 9)
+    assert "footballguys.com" in w.fetcher.secure_hosts
+    assert w.host_requests() == ["https://footballguys.com/robots.txt"]
+    for _, headers, _ in w.transport.calls:
+        assert headers == {"User-Agent": UA}
+
+
+def test_result_block_is_facts_and_flags_only():
+    block = World().check().block()
+    assert set(block) == {"checked", "host", "controls", "safe_browsing", "dns", "tls", "hsts",
+                          "registered", "flags"}
+    assert block["checked"] == TODAY and block["host"] == "footballguys.com"
+
+
+@pytest.mark.parametrize("which", ["malware", "phishing", "unwanted"])
+def test_any_control_not_two_means_controls_failed_and_no_host_reads_clean(which):
+    controls = controls_bodies()
+    controls[sc.SB_CONTROLS[which]] = fx("sb_footballguys.txt")
+    w = World(controls=controls)
+    first = w.check()
+    second = w.check("other.example")
+    for result in (first, second):
+        assert result.flags == ["controls_failed"]
+        assert result.safe_browsing["code"] is None
+        assert not result.readable
+    assert first.controls[which] == 1 and first.controls["shape_ok"] is True
+    assert sc.safe_browsing_url("footballguys.com") not in w.transport.urls()
+    assert w.dns.calls == [] and w.tls.calls == []
+    assert w.fetcher.secure_hosts == set()
+    for url in (sc.safe_browsing_url(site) for site in sc.SB_CONTROLS.values()):
+        assert w.transport.count(url) == 1
+
+
+MALFORMED = {
+    "wrong prefix": b'{"a": 1}\n[["sb.ssr",2,true,false,true,false,false,1794143672856,"x",false]]',
+    "no prefix": b'[["sb.ssr",2,true,false,true,false,false,1794143672856,"x",false]]',
+    "wrong length": b')]}\'\n\n[["sb.ssr",2,true,false,true,false,false,1794143672856,"x"]]',
+    "wrong first element": b')]}\'\n\n[["sb.xyz",2,true,false,true,false,false,1794143672856,"x",false]]',
+    "two rows": b')]}\'\n\n[["sb.ssr",2,true,false,true,false,false,1794143672856,"x",false],'
+                b'["sb.ssr",2,true,false,true,false,false,1794143672856,"y",false]]',
+    "not json": b")]}'\n\n<html>blocked</html>",
+    "code is text": b')]}\'\n\n[["sb.ssr","2",true,false,true,false,false,1794143672856,"x",false]]',
+    "empty": b"",
+}
+
+
+@pytest.mark.parametrize("name", list(MALFORMED))
+def test_a_malformed_control_response_means_controls_failed(name):
+    controls = controls_bodies()
+    controls[MALWARE] = MALFORMED[name]
+    w = World(controls=controls)
+    result = w.check()
+    assert result.flags == ["controls_failed"]
+    assert result.controls["shape_ok"] is False
+    assert result.controls["malware"] is None
+    assert not result.readable
+    assert sc.parse_safe_browsing(MALFORMED[name]) is None
+
+
+def test_a_malformed_response_for_a_host_is_controls_failed_for_that_host():
+    w = World(sb=MALFORMED["wrong length"])
+    result = w.check()
+    assert "controls_failed" in result.flags
+    assert result.safe_browsing["code"] is None
+    assert not result.readable
+    assert w.tls.calls == []
+
+
+def test_code_four_is_no_verdict_and_keeps_the_code():
+    w = World("google.com", sb=fx("sb_google_code4.txt"), today=date(2026, 10, 20),
+              preload=b'{"status": "unknown"}')
+    result = w.check()
+    assert result.safe_browsing == {"via": "transparency_report", "code": 4,
+                                    "google_scan": date(2026, 10, 5)}
+    assert result.flags == ["sb_no_verdict"]
+
+
+def test_an_old_scan_is_stale():
+    w = World("google.com", sb=fx("sb_google_code4.txt"), preload=b'{"status": "unknown"}')
+    result = w.check()
+    assert result.flags == ["sb_no_verdict", "sb_stale"]
+    assert result.safe_browsing["google_scan"] == date(2026, 10, 5)
+
+
+@pytest.mark.parametrize("today,stale", [(date(2026, 12, 8), False), (date(2026, 12, 9), True)])
+def test_stale_starts_after_thirty_days(today, stale):
+    w = World(today=today, controls=controls_bodies())
+    assert ("sb_stale" in w.check().flags) is stale
+
+
+def test_code_two_is_unsafe_and_nothing_is_opened():
+    w = World(sb=fx("sb_control_malware.txt"))
+    result = w.check()
+    assert result.flags == ["sb_unsafe"]
+    assert not result.readable
+    assert w.tls.calls == []
+    assert w.host_requests() == []
+    assert "footballguys.com" not in w.fetcher.secure_hosts
+
+
+def test_nxdomain_means_no_further_request():
+    w = World(dns=Dns(missing=["footballguys.com"]))
+    result = w.check()
+    assert result.flags == ["nxdomain"]
+    assert result.dns == "nxdomain"
+    assert not result.readable
+    assert w.tls.calls == []
+    assert w.host_requests() == []
+    assert sc.safe_browsing_url("footballguys.com") not in w.transport.urls()
+    assert not any(u.startswith(RDAP_BASE) for u in w.transport.urls())
+    assert sc.IANA_BOOTSTRAP_URL not in w.transport.urls()
+
+
+@pytest.mark.parametrize("days,flags", [(6, ["tls_expiring"]), (7, []), (0, ["tls_expiring"])])
+def test_tls_under_seven_days_is_expiring(days, flags):
+    w = World(tls=Tls(not_after=TODAY + timedelta(days=days)))
+    result = w.check()
+    assert result.flags == flags
+    assert result.readable
+
+
+@pytest.mark.parametrize("answer", [
+    {"ok": False, "not_after": None, "issuer": None, "version": None, "error": "hostname mismatch"},
+    {"not_after": TODAY - timedelta(days=1)},
+])
+def test_a_failed_or_expired_tls_is_tls_failed_and_no_request_follows(answer):
+    w = World(tls=Tls(**answer))
+    result = w.check()
+    assert result.flags == ["tls_failed"]
+    assert result.tls["ok"] is False
+    assert not result.readable
+    assert w.host_requests() == []
+    assert "footballguys.com" not in w.fetcher.secure_hosts
+    assert w.fetcher.get("https://footballguys.com/terms").outcome == "failed"
+
+
+def test_registered_300_days_ago_is_young_and_nothing_is_requested_before_confirmation():
+    w = World("young.example.com", days_ago=300,
+              preload=b'{"status": "unknown"}', extra={
+                  "https://young.example.com/terms": resp(200, "terms")})
+    before = w.check()
+    assert before.flags == ["young_domain"]
+    assert before.registered == TODAY - timedelta(days=300)
+    assert before.held and not before.readable
+    assert w.host_requests() == []
+    assert w.tls.calls == []
+    assert w.fetcher.get("https://young.example.com/terms").outcome == "failed"
+    assert w.host_requests() == []
+    assert before.hsts is None
+
+    w.confirmed.add("young.example.com")
+    after = w.check()
+    assert after.flags == ["young_domain"]
+    assert after.readable and not after.held
+    assert w.tls.calls == ["young.example.com"]
+    assert w.host_requests() == ["https://young.example.com/robots.txt"]
+    assert w.fetcher.get("https://young.example.com/terms").outcome == "ok"
+
+
+def test_a_year_old_domain_is_not_young():
+    assert World(days_ago=365).check().flags == []
+    assert World(days_ago=364).check().flags == ["young_domain"]
+
+
+@pytest.mark.parametrize("rdap", [
+    resp(404),
+    resp(500),
+    raw(b'{"objectClassName": "domain", "events": [{"eventAction": "expiration", "eventDate": "2030-01-01T00:00:00Z"}]}'),
+    raw(b"not json"),
+])
+def test_no_registration_answer_is_age_unknown_and_held(rdap):
+    w = World(rdap=rdap)
+    result = w.check()
+    assert result.flags == ["age_unknown"]
+    assert result.registered is None
+    assert result.held and not result.readable
+    assert w.host_requests() == []
+    w.confirmed.add("footballguys.com")
+    assert w.check().readable
+
+
+def test_rdap_tries_shorter_names_for_a_subdomain():
+    w = World("www.footballguys.com", extra={
+        RDAP_BASE + "www.footballguys.com": resp(404),
+        RDAP_BASE + "footballguys.com": raw(rdap_body(OLD)),
+        sc.safe_browsing_url("www.footballguys.com"): raw(fx("sb_footballguys.txt"))},
+        preload=b'{"status": "unknown"}')
+    result = w.check()
+    assert result.registered == date(1999, 7, 9)
+    assert w.transport.urls().count(RDAP_BASE + "www.footballguys.com") == 1
+    assert w.transport.urls().count(RDAP_BASE + "footballguys.com") == 1
+
+
+def test_rdap_server_comes_from_the_bootstrap_and_is_a_service_host():
+    w = World()
+    assert "rdap.verisign.com" not in w.fetcher.service_hosts
+    w.check()
+    assert "rdap.verisign.com" in w.fetcher.service_hosts
+    urls = w.transport.urls()
+    assert urls.index("https://rdap.verisign.com/robots.txt") < urls.index(RDAP_BASE + "footballguys.com")
+
+
+def test_a_tld_missing_from_the_bootstrap_is_age_unknown():
+    w = World("a.example.io", extra={sc.safe_browsing_url("a.example.io"): raw(fx("sb_footballguys.txt"))})
+    result = w.check()
+    assert result.flags == ["age_unknown"]
+    assert not any(u.startswith(RDAP_BASE) for u in w.transport.urls())
+
+
+def test_every_service_host_passes_its_robots_first():
+    w = World()
+    w.check()
+    urls = w.transport.urls()
+    for host in SERVICES:
+        own = [i for i, u in enumerate(urls) if urlsplit(u).hostname == host]
+        assert urls[own[0]] == f"https://{host}/robots.txt"
+        assert own == sorted(own)
+
+
+def test_a_service_host_that_disallows_us_stops_the_controls():
+    w = World(service_robots={"https://transparencyreport.google.com/robots.txt":
+                              resp(200, "User-agent: *\nDisallow: /\n")})
+    result = w.check()
+    assert result.flags == ["controls_failed"]
+    assert not any("safebrowsing" in u for u in w.transport.urls())
+
+
+def test_hsts_comes_from_the_robots_response_and_preload_from_hstspreload():
+    w = World(hsts="max-age=31536000; includeSubDomains; preload",
+              preload=b'{"name": "footballguys.com", "status": "preloaded"}')
+    result = w.check()
+    assert result.hsts == {"max_age": 31536000, "preloaded": True}
+    assert w.host_requests() == ["https://footballguys.com/robots.txt"]
+    assert result.flags == []
+
+
+def test_hsts_absent_and_preload_unavailable_are_null_and_never_a_flag():
+    w = World(hsts=None, preload=b"not json")
+    result = w.check()
+    assert result.hsts == {"max_age": None, "preloaded": None}
+    assert result.flags == []
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("max-age=86400", 86400), ("max-age=0", 0), ("MAX-AGE=10; includeSubDomains", 10),
+    ('max-age="300"', 300), ("includeSubDomains", None), (None, None), ("", None)])
+def test_hsts_max_age_parsing(value, expected):
+    assert sc.parse_hsts_max_age(value) == expected
+
+
+def test_tls_fields_reads_the_certificate_shape_ssl_returns():
+    cert = {"issuer": ((("countryName", "US"),), (("organizationName", "Amazon"),),
+                       (("commonName", "Amazon RSA 2048 M01"),)),
+            "notAfter": "May 17 23:59:59 2027 GMT"}
+    assert sc.tls_fields(cert, "TLSv1.3") == {"ok": True, "issuer": "Amazon",
+                                              "not_after": date(2027, 5, 17), "version": "TLSv1.3"}
+
+
+def test_read_robots_refuses_a_host_that_has_not_passed_the_check():
+    f, t, _ = build({A_ROBOTS: resp(404)}, secure=())
+    with pytest.raises(sc.RobotsNotRead):
+        f.read_robots("a.example")
+    assert t.calls == []
+
+
+def test_the_security_result_never_holds_status_or_confirmed():
+    result = World().check()
+    assert not hasattr(result, "status") and not hasattr(result, "confirmed")
+
+
+def test_confirmed_hosts_are_read_only_from_security_confirmed(tmp_path):
+    manifest = tmp_path / "sources.yml"
+    manifest.write_text(
+        "sources:\n"
+        "  - id: a\n    security: {host: Young.Example.com, confirmed: {by: owner, date: 2026-11-08}}\n"
+        "  - id: b\n    security: {host: b.example, confirmed: {by: owner, date: null}}\n"
+        "  - id: c\n    security: {host: c.example, confirmed: {by: null, date: 2026-11-08}}\n"
+        "  - id: d\n    security: {host: d.example}\n"
+        "  - id: e\n    terms: {status: unresolved}\n", encoding="utf-8")
+    assert sc.load_confirmed_hosts(manifest) == {"young.example.com"}
+
+
+def test_the_real_manifest_loads_as_a_set_of_hosts():
+    hosts = sc.load_confirmed_hosts()
+    assert isinstance(hosts, set) and all(isinstance(h, str) for h in hosts)
