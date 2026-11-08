@@ -13,115 +13,6 @@ table _Measures
 
 		annotation SynonymCollection = ["metric sum","total metric","sum of metrics","raw metric total"]
 
-	/// Count of times the player was cut in KeepTradeCut keep/trade/cut polling at the latest snapshot.
-	measure 'Number Times Cut' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "cut" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings
-		lineageTag: d7ea1fd4-00f6-4e49-a228-8c506bd336ec
-
-		annotation Synonyms = cut|cut count|times cut|drops|cut votes
-
-		annotation SynonymCollection = ["cut","cut count","times cut","drops","cut votes"]
-
-	/// Count of times the player was kept in KeepTradeCut keep/trade/cut polling at the latest snapshot.
-	measure 'Number Times Kept' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "kept" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings
-		lineageTag: 36ec6eb5-e8a4-4440-a6bd-ef669e5b9761
-
-		annotation Synonyms = kept|keep count|times kept|keepers|keep votes
-
-		annotation SynonymCollection = ["kept","keep count","times kept","keepers","keep votes"]
-
-	/// Count of times the player was traded in KeepTradeCut keep/trade/cut polling at the latest snapshot.
-	measure 'Number Times Traded' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "traded" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings
-		lineageTag: 071479af-4a91-47d9-b879-ab52c6616e77
-
-		annotation Synonyms = traded|trade count|times traded|trade votes
-
-		annotation SynonymCollection = ["traded","trade count","times traded","trade votes"]
-
-	/// Share of keep/trade/cut votes that were cuts at the latest snapshot. Higher means more managers cut the player.
-	measure 'Percent of Times Cut' =
-			VAR denom_KTC = [Number Times Kept] + [Number Times Traded] + [Number Times Cut]
-			RETURN
-			DIVIDE ( [Number Times Cut], denom_KTC )
-		formatString: 0.0%;-0.0%;0.0%
-		displayFolder: Dynasty Rankings
-		lineageTag: eac694cc-5cb7-4737-9b75-23f5850e0631
-
-		annotation Synonyms = cut rate|percent cut|cut percentage|cut share
-
-		annotation SynonymCollection = ["cut rate","percent cut","cut percentage","cut share"]
-
-	/// Share of keep/trade/cut votes that were keeps at the latest snapshot. Higher means more managers keep the player.
-	measure 'Percent of Times Kept' =
-			VAR denom_KTC = [Number Times Kept] + [Number Times Traded] + [Number Times Cut]
-			RETURN
-			DIVIDE ( [Number Times Kept], denom_KTC )
-		formatString: 0.0%;-0.0%;0.0%
-		displayFolder: Dynasty Rankings
-		lineageTag: c711a78f-dd1d-4d8b-9ce1-c9bcdca67299
-
-		annotation Synonyms = keep rate|percent kept|keep percentage|keep share
-
-		annotation SynonymCollection = ["keep rate","percent kept","keep percentage","keep share"]
-
-	/// Share of keep/trade/cut votes that were trades at the latest snapshot.
-	measure 'Percent of Times Traded' =
-			VAR denom_KTC = [Number Times Kept] + [Number Times Traded] + [Number Times Cut]
-			RETURN
-			DIVIDE ( [Number Times Traded], denom_KTC )
-		formatString: 0.0%;-0.0%;0.0%
-		displayFolder: Dynasty Rankings
-		lineageTag: 1cbfa551-a23a-431e-a0c0-6198274f22db
-
-		annotation Synonyms = trade rate|percent traded|trade percentage|trade share
-
-		annotation SynonymCollection = ["trade rate","percent traded","trade percentage","trade share"]
-
-	/// FantasyPros consensus average expert rank at the latest snapshot, averaged across formats. Lower rank is better.
-	measure 'FP Avg Rank' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "avg" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: 5b3e9cf6-3e3e-4457-a5e6-60181fe2b233
-
-		annotation Synonyms = average rank|consensus rank|expert rank|fp average|ecr
-
-		annotation SynonymCollection = ["average rank","consensus rank","expert rank","fp average","ecr"]
-
-	/// FantasyPros best (most optimistic) expert rank at the latest snapshot, averaged across formats. Lower is better.
-	measure 'FP Best Rank' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "best" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: 3384acce-b2a2-4506-ad82-3bfa78877961
-
-		annotation Synonyms = best rank|highest rank|ceiling rank|most optimistic|fp best
-
-		annotation SynonymCollection = ["best rank","highest rank","ceiling rank","most optimistic","fp best"]
-
-	/// FantasyPros worst (most pessimistic) expert rank at the latest snapshot, averaged across formats. Lower is better.
-	measure 'FP Worst Rank' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "worst" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: 9258e26e-a3d7-4813-96c2-e8dc4bf090bc
-
-		annotation Synonyms = worst rank|lowest rank|floor rank|most pessimistic|fp worst
-
-		annotation SynonymCollection = ["worst rank","lowest rank","floor rank","most pessimistic","fp worst"]
-
-	/// FantasyPros standard deviation of expert ranks at the latest snapshot, averaged across formats. Lower means more agreement.
-	measure 'FP Std Dev' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "stddev" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings
-		lineageTag: 3db94045-ef58-4d62-a46e-15c49834b8de
-
-		annotation Synonyms = std dev|standard deviation|rank spread|disagreement|consensus spread
-
-		annotation SynonymCollection = ["std dev","standard deviation","rank spread","disagreement","consensus spread"]
-
 	/// Base: selected metric_num at the latest snapshot, averaged across formats in context. Player-grain building block.
 	measure 'Metric Value' =
 			VAR _latest =
@@ -164,16 +55,6 @@ table _Measures
 
 		annotation PBI_FormatHint = {"isGeneralNumber":true}
 
-	/// KeepTradeCut superflex trade value at the latest snapshot, averaged across formats. Higher is better.
-	measure 'KTC Value' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "value" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings
-		lineageTag: f2366e35-07d3-4a97-bc60-10e5fc1601d0
-
-		annotation Synonyms = ktc|trade value|ktc value|dynasty value|market value
-
-		annotation SynonymCollection = ["ktc","trade value","ktc value","dynasty value","market value"]
-
 	/// DynastySharks 3D Value+ score at the latest snapshot, averaged across formats. Higher is better.
 	measure 'DS 3D Value+' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "ds_value" )
 		formatString: 0.0
@@ -183,26 +64,6 @@ table _Measures
 		annotation Synonyms = dynastysharks value|3d value|ds value|sharks value|dynasty value
 
 		annotation SynonymCollection = ["dynastysharks value","3d value","ds value","sharks value","dynasty value"]
-
-	/// Overall dynasty tier at the latest snapshot, averaged across formats. Lower tier number is better.
-	measure 'Overall Tier' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "overall_tier" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: e27061cf-f025-48c2-8598-c741376e2200
-
-		annotation Synonyms = tier|overall tier|value tier|dynasty tier|ranking tier
-
-		annotation SynonymCollection = ["tier","overall tier","value tier","dynasty tier","ranking tier"]
-
-	/// Positional dynasty tier at the latest snapshot, averaged across formats. Lower tier number is better.
-	measure 'Positional Tier' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "positional_tier" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: 13168eaf-13cc-4f01-973c-757d0fc08c38
-
-		annotation Synonyms = positional tier|position tier|pos tier|tier by position
-
-		annotation SynonymCollection = ["positional tier","position tier","pos tier","tier by position"]
 
 	/// DynastySharks 1-year fantasy point projection at the latest snapshot, averaged across formats. Higher is better.
 	measure 'Proj 1-Yr' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "proj_1yr" )
@@ -244,7 +105,7 @@ table _Measures
 
 		annotation SynonymCollection = ["10 year projection","ten year","proj 10yr","career projection","long term value"]
 
-	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Uses the blended Composite ADP across all dynasty sources (metric_key "composite_adp") -- fixed 2026-07-11, was filtering on "adp", a metric_key that doesn't exist in dim_dynasty_metric (real keys are ktc_adp/ds_adp/composite_adp/startup_adp), so this measure was always blank everywhere, not just alongside salary fields. IsRosterRow gate added 2026-07-11: Dim_Contract is an 11-row rule lookup (Minor/1st/2nd/.../FA) unrelated to Fact_DynastyRankingMetrics, so ADP ignores the Contract row filter and returns the same player value regardless of which contract row is in context. The 9999 sentinel used to fill in for every one of those 10 rows per player (not just their real contract), and a non-blank measure defeats the matrix's blank-row suppression -- so every player showed all 10 phantom contract combinations with blank salary fields next to a repeated ADP. Gating on COUNTROWS(Fact_FantasyTeams) > 0 restores blank on the 9 non-matching combos so they go back to being suppressed, and only fills 9999 on the one real roster row.
+	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Uses the blended Composite ADP across all dynasty sources (metric_key "composite_adp") -- fixed 2026-07-11, was filtering on "adp", a metric_key that doesn't exist in dim_dynasty_metric (real keys are ds_adp/composite_adp), so this measure was always blank everywhere, not just alongside salary fields. IsRosterRow gate added 2026-07-11: Dim_Contract is an 11-row rule lookup (Minor/1st/2nd/.../FA) unrelated to Fact_DynastyRankingMetrics, so ADP ignores the Contract row filter and returns the same player value regardless of which contract row is in context. The 9999 sentinel used to fill in for every one of those 10 rows per player (not just their real contract), and a non-blank measure defeats the matrix's blank-row suppression -- so every player showed all 10 phantom contract combinations with blank salary fields next to a repeated ADP. Gating on COUNTROWS(Fact_FantasyTeams) > 0 restores blank on the 9 non-matching combos so they go back to being suppressed, and only fills 9999 on the one real roster row.
 	measure ADP =
 			
 			VAR adp = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "composite_adp" )
@@ -263,96 +124,6 @@ table _Measures
 
 		annotation SynonymCollection = ["adp","average draft position","draft position","draft cost","redraft adp"]
 
-	/// Dynasty startup average draft position at the latest snapshot, averaged across formats. Lower means drafted earlier.
-	measure 'Startup ADP' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "startup_adp" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings
-		lineageTag: 687543b4-a2b0-4eb8-a861-e401ef7d43e3
-
-		annotation Synonyms = startup adp|startup draft position|dynasty adp|startup cost
-
-		annotation SynonymCollection = ["startup adp","startup draft position","dynasty adp","startup cost"]
-
-	/// Average auction value as a percent of budget at the latest snapshot, averaged across formats. Higher is more expensive.
-	measure 'Auction %' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "avg_auction_pct" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings
-		lineageTag: d99ebb12-1386-4b9f-acf8-768275b2bb3a
-
-		annotation Synonyms = auction value|auction percent|auction cost|budget percent|auction price
-
-		annotation SynonymCollection = ["auction value","auction percent","auction cost","budget percent","auction price"]
-
-	/// Dynasty startup auction value as a percent of budget at the latest snapshot, averaged across formats. Higher is pricier.
-	measure 'Startup Auction %' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "startup_avg_auction_pct" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings
-		lineageTag: 901e9d2a-4605-4389-935c-2ed5e6af28ab
-
-		annotation Synonyms = startup auction|startup auction percent|dynasty auction|startup price
-
-		annotation SynonymCollection = ["startup auction","startup auction percent","dynasty auction","startup price"]
-
-	/// Market liquidity score at the latest snapshot, averaged across formats. Higher means more frequently traded.
-	measure Liquidity = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "std_liquidity" )
-		formatString: 0
-		displayFolder: Dynasty Rankings
-		lineageTag: f42569eb-1725-45df-aa5b-264b675eeb9d
-
-		annotation Synonyms = liquidity|tradeability|market liquidity|trade frequency|marketability
-
-		annotation SynonymCollection = ["liquidity","tradeability","market liquidity","trade frequency","marketability"]
-
-	/// Overall value trend (change in trade value) at the latest snapshot, averaged across formats. Positive is rising.
-	measure 'Overall Trend' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "overall_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings
-		lineageTag: 44dce0c5-1886-4670-90c7-20a2dc0bb7a9
-
-		annotation Synonyms = trend|value trend|overall trend|momentum|value change
-
-		annotation SynonymCollection = ["trend","value trend","overall trend","momentum","value change"]
-
-	/// Positional value trend at the latest snapshot, averaged across formats. Positive means rising within position.
-	measure 'Pos. Trend' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "positional_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings
-		lineageTag: 3529f17f-b0e3-4c31-bb7c-9991f64a1fe0
-
-		annotation Synonyms = positional trend|position trend|pos trend|positional momentum
-
-		annotation SynonymCollection = ["positional trend","position trend","pos trend","positional momentum"]
-
-	/// 7-day overall value trend at the latest snapshot, averaged across formats. Positive is rising this week.
-	measure 'Overall Trend (7d)' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "overall_7day_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings
-		lineageTag: df3f2120-1f1e-4cd9-b7a2-c4f8b8d0c1bb
-
-		annotation Synonyms = 7 day trend|weekly trend|recent trend|7d momentum|short term trend
-
-		annotation SynonymCollection = ["7 day trend","weekly trend","recent trend","7d momentum","short term trend"]
-
-	/// 7-day positional value trend at the latest snapshot, averaged across formats. Positive is rising this week.
-	measure 'Pos. Trend (7d)' = CALCULATE ( [Metric Value], Dim_DynastyMetric[MetricKey] = "positional_7day_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings
-		lineageTag: 281a9bbb-ac3d-4592-b136-2cca860b56e2
-
-		annotation Synonyms = 7 day positional trend|weekly position trend|recent pos trend|7d position momentum
-
-		annotation SynonymCollection = ["7 day positional trend","weekly position trend","recent pos trend","7d position momentum"]
-
-	/// KeepTradeCut superflex trade value at the latest snapshot, averaged across formats. Higher is better. Subtotal-correct across players (averaged).
-	measure 'KTC Value (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "value" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: a21ba5ed-d651-4a01-8505-42c3bab69127
-
-		annotation Synonyms = ktc|trade value|ktc value|dynasty value|market value
-
-		annotation SynonymCollection = ["ktc","trade value","ktc value","dynasty value","market value"]
-
 	/// DynastySharks 3D Value+ score at the latest snapshot, averaged across formats. Higher is better. Subtotal-correct across players (averaged).
 	measure 'DS 3D Value+ (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "ds_value" )
 		formatString: 0.0
@@ -362,26 +133,6 @@ table _Measures
 		annotation Synonyms = dynastysharks value|3d value|ds value|sharks value|dynasty value
 
 		annotation SynonymCollection = ["dynastysharks value","3d value","ds value","sharks value","dynasty value"]
-
-	/// Overall dynasty tier at the latest snapshot, averaged across formats. Lower tier number is better. Subtotal-correct across players (averaged).
-	measure 'Overall Tier (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "overall_tier" )
-		formatString: 0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: d0046129-fdf3-4141-ac1b-0966a5703814
-
-		annotation Synonyms = tier|overall tier|value tier|dynasty tier|ranking tier
-
-		annotation SynonymCollection = ["tier","overall tier","value tier","dynasty tier","ranking tier"]
-
-	/// Positional dynasty tier at the latest snapshot, averaged across formats. Lower tier number is better. Subtotal-correct across players (averaged).
-	measure 'Positional Tier (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "positional_tier" )
-		formatString: 0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 2484fcea-f802-467f-aa6a-379585418998
-
-		annotation Synonyms = positional tier|position tier|pos tier|tier by position
-
-		annotation SynonymCollection = ["positional tier","position tier","pos tier","tier by position"]
 
 	/// DynastySharks 1-year fantasy point projection at the latest snapshot, averaged across formats. Higher is better. Subtotal-correct across players (averaged).
 	measure 'Proj 1-Yr (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "proj_1yr" )
@@ -423,46 +174,6 @@ table _Measures
 
 		annotation SynonymCollection = ["10 year projection","ten year","proj 10yr","career projection","long term value"]
 
-	/// FantasyPros consensus average expert rank at the latest snapshot, averaged across formats. Lower rank is better. Subtotal-correct across players (averaged).
-	measure 'FP Avg Rank (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "avg" )
-		formatString: 0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 47f5fcf3-4f29-4df0-a744-0f77a422fc8e
-
-		annotation Synonyms = average rank|consensus rank|expert rank|fp average|ecr
-
-		annotation SynonymCollection = ["average rank","consensus rank","expert rank","fp average","ecr"]
-
-	/// FantasyPros best (most optimistic) expert rank at the latest snapshot, averaged across formats. Lower is better. Subtotal-correct across players (averaged).
-	measure 'FP Best Rank (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "best" )
-		formatString: 0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 3d494f86-54f5-4263-b3f5-fc5679fb53ee
-
-		annotation Synonyms = best rank|highest rank|ceiling rank|most optimistic|fp best
-
-		annotation SynonymCollection = ["best rank","highest rank","ceiling rank","most optimistic","fp best"]
-
-	/// FantasyPros worst (most pessimistic) expert rank at the latest snapshot, averaged across formats. Lower is better. Subtotal-correct across players (averaged).
-	measure 'FP Worst Rank (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "worst" )
-		formatString: 0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: ec778a75-7b46-44e5-87b1-cb8b3fd1352a
-
-		annotation Synonyms = worst rank|lowest rank|floor rank|most pessimistic|fp worst
-
-		annotation SynonymCollection = ["worst rank","lowest rank","floor rank","most pessimistic","fp worst"]
-
-	/// FantasyPros standard deviation of expert ranks at the latest snapshot, averaged across formats. Lower means more agreement. Subtotal-correct across players (averaged).
-	measure 'FP Std Dev (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "stddev" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 0cb13fbf-d97a-4bd5-a3e6-cf819e65f10e
-
-		annotation Synonyms = std dev|standard deviation|rank spread|disagreement|consensus spread
-
-		annotation SynonymCollection = ["std dev","standard deviation","rank spread","disagreement","consensus spread"]
-
 	/// Average draft position at the latest snapshot, averaged across formats. Lower ADP means drafted earlier. Subtotal-correct across players (averaged). Same "composite_adp" fix as 'ADP' -- was filtering on a metric_key that doesn't exist.
 	measure 'ADP (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "composite_adp" )
 		formatString: 0.0
@@ -472,116 +183,6 @@ table _Measures
 		annotation Synonyms = adp|average draft position|draft position|draft cost|redraft adp
 
 		annotation SynonymCollection = ["adp","average draft position","draft position","draft cost","redraft adp"]
-
-	/// Dynasty startup average draft position at the latest snapshot, averaged across formats. Lower means drafted earlier. Subtotal-correct across players (averaged).
-	measure 'Startup ADP (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "startup_adp" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: d4e1c0bd-0cb2-4573-9185-09d9541f2988
-
-		annotation Synonyms = startup adp|startup draft position|dynasty adp|startup cost
-
-		annotation SynonymCollection = ["startup adp","startup draft position","dynasty adp","startup cost"]
-
-	/// Average auction value as a percent of budget at the latest snapshot, averaged across formats. Higher is more expensive. Subtotal-correct across players (averaged).
-	measure 'Auction % (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "avg_auction_pct" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: b224b583-c66d-481d-9849-e54bdf3ea04a
-
-		annotation Synonyms = auction value|auction percent|auction cost|budget percent|auction price
-
-		annotation SynonymCollection = ["auction value","auction percent","auction cost","budget percent","auction price"]
-
-	/// Dynasty startup auction value as a percent of budget at the latest snapshot, averaged across formats. Higher is pricier. Subtotal-correct across players (averaged).
-	measure 'Startup Auction % (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "startup_avg_auction_pct" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 35dd1d2f-ca00-46ee-871b-1b27325c1572
-
-		annotation Synonyms = startup auction|startup auction percent|dynasty auction|startup price
-
-		annotation SynonymCollection = ["startup auction","startup auction percent","dynasty auction","startup price"]
-
-	/// Market liquidity score at the latest snapshot, averaged across formats. Higher means more frequently traded. Subtotal-correct across players (averaged).
-	measure 'Liquidity (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "std_liquidity" )
-		formatString: 0.0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: e607ca0e-948a-4752-aa79-d71db3224e71
-
-		annotation Synonyms = liquidity|tradeability|market liquidity|trade frequency|marketability
-
-		annotation SynonymCollection = ["liquidity","tradeability","market liquidity","trade frequency","marketability"]
-
-	/// Overall value trend (change in trade value) at the latest snapshot, averaged across formats. Positive is rising. Subtotal-correct across players (averaged).
-	measure 'Overall Trend (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "overall_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: ed73dc4b-2675-4798-911f-6b743d763d4b
-
-		annotation Synonyms = trend|value trend|overall trend|momentum|value change
-
-		annotation SynonymCollection = ["trend","value trend","overall trend","momentum","value change"]
-
-	/// Positional value trend at the latest snapshot, averaged across formats. Positive means rising within position. Subtotal-correct across players (averaged).
-	measure 'Pos. Trend (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "positional_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 819ec1d7-0b66-4dc4-a5f3-622ed06baa3d
-
-		annotation Synonyms = positional trend|position trend|pos trend|positional momentum
-
-		annotation SynonymCollection = ["positional trend","position trend","pos trend","positional momentum"]
-
-	/// 7-day overall value trend at the latest snapshot, averaged across formats. Positive is rising this week. Subtotal-correct across players (averaged).
-	measure 'Overall Trend (7d) (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "overall_7day_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: a2fa08b2-2a65-4fe2-9b99-9e78863b44a1
-
-		annotation Synonyms = 7 day trend|weekly trend|recent trend|7d momentum|short term trend
-
-		annotation SynonymCollection = ["7 day trend","weekly trend","recent trend","7d momentum","short term trend"]
-
-	/// 7-day positional value trend at the latest snapshot, averaged across formats. Positive is rising this week. Subtotal-correct across players (averaged).
-	measure 'Pos. Trend (7d) (total)' = CALCULATE ( [Metric Value Total], Dim_DynastyMetric[MetricKey] = "positional_7day_trend" )
-		formatString: +0;-0;0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 35014fed-59a5-41c6-b12f-9b5be7d1e556
-
-		annotation Synonyms = 7 day positional trend|weekly position trend|recent pos trend|7d position momentum
-
-		annotation SynonymCollection = ["7 day positional trend","weekly position trend","recent pos trend","7d position momentum"]
-
-	/// Count of times the player was kept in KeepTradeCut keep/trade/cut polling at the latest snapshot. Subtotal-correct across players (summed).
-	measure 'Number Times Kept (total)' = CALCULATE ( [Metric Count Total], Dim_DynastyMetric[MetricKey] = "kept" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 794d1d75-02b4-47a5-ac45-6abbb5117e98
-
-		annotation Synonyms = kept|keep count|times kept|keepers|keep votes
-
-		annotation SynonymCollection = ["kept","keep count","times kept","keepers","keep votes"]
-
-	/// Count of times the player was traded in KeepTradeCut keep/trade/cut polling at the latest snapshot. Subtotal-correct across players (summed).
-	measure 'Number Times Traded (total)' = CALCULATE ( [Metric Count Total], Dim_DynastyMetric[MetricKey] = "traded" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 6fb274ad-0b71-49a5-9c51-eb2f1587f5a2
-
-		annotation Synonyms = traded|trade count|times traded|trade votes
-
-		annotation SynonymCollection = ["traded","trade count","times traded","trade votes"]
-
-	/// Count of times the player was cut in KeepTradeCut keep/trade/cut polling at the latest snapshot. Subtotal-correct across players (summed).
-	measure 'Number Times Cut (total)' = CALCULATE ( [Metric Count Total], Dim_DynastyMetric[MetricKey] = "cut" )
-		formatString: #,##0
-		displayFolder: Dynasty Rankings - extra
-		lineageTag: 843d4a44-7f86-41ff-bc04-add0895c7c6b
-
-		annotation Synonyms = cut|cut count|times cut|drops|cut votes
-
-		annotation SynonymCollection = ["cut","cut count","times cut","drops","cut votes"]
 
 	/// Latest-snapshot scouting/analysis blurb for the player (text). Source: DynastySharks.
 	measure Analysis =
@@ -595,13 +196,6 @@ table _Measures
 		annotation Synonyms = analysis|blurb|scouting report|notes|writeup
 
 		annotation SynonymCollection = ["analysis","blurb","scouting report","notes","writeup"]
-
-	measure 'Dynasty Ranking - KTC Latest Snapshot' =
-			
-			CALCULATE( MAX(Fact_DynastyRankingMetrics[SnapshotDate]), Dim_DynastyMetric[SourceName] = "KTC")
-		formatString: Short Date
-		displayFolder: Formatting & References
-		lineageTag: 94c88768-8fe5-46fc-9881-6c2e748bc131
 
 	/// Player's cap hit as a percent of their team's total starting cap. Live calc against Fact_FantasyTeams + Dim_FantasyTeams[OriginalCap] -- no ETL-frozen rollup.
 	measure 'Player Pct of Team Cap' =

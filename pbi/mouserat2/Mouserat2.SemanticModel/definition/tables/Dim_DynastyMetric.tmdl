@@ -18,7 +18,7 @@ table Dim_DynastyMetric
 
 		annotation SynonymCollection = ["metric","metric key","metric id","measure key","stat key"]
 
-	/// Human-readable metric name shown on report axes (e.g. KTC Value, FP Avg Rank, Pos. Trend).
+	/// Human-readable metric name shown on report axes (e.g. DS 3D Value+, DS Overall Rank, Proj 1-Yr).
 	column MetricLabel
 		dataType: string
 		lineageTag: 252c8564-d510-4c98-9c5a-bc6e13473369
@@ -87,7 +87,7 @@ table Dim_DynastyMetric
 
 		annotation SynonymCollection = ["direction","good direction","higher or lower","polarity","better"]
 
-	/// Ranking source that owns this metric (KTC, DynastySharks, FantasyPros), or Composite for derived cross-source blends. One source per metric_key.
+	/// Ranking source that owns this metric (DynastySharks), or Composite for derived cross-source blends. One source per metric_key.
 	column SourceName
 		dataType: string
 		lineageTag: c1dff62f-f6a9-418a-9bb4-0f48cf6c928b
