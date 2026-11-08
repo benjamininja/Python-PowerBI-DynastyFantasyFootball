@@ -11,7 +11,58 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 18:30Z, before a compact (session 795b662a). Self-contained; overrides everything below. Read the 46-zero item only for #454's detail.**
+000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 19:40Z, before a CLEAR (session 795b662a). Self-contained; overrides everything below. Read the 47-zero item only for the #454, #459 and #413 detail.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - The state batch PR is #455; it merges only on the owner's word.
+  - **The manager:** session id `local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274` (`dynastyFantasyFootball-central-builder-manager`). Check ListAgents if a send fails. My last two sends were queued, not confirmed read: the #413 writer order, and the #432 tickets.
+  - **Tools-central-planner:** `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
+  - **Read MANAGER.md's newest blocks first** (17:30Z to 17:50Z). They hold the asks below, which never reached this session.
+- **Done this session, all on GitHub:**
+  - **#432's grill is done with the owner** (rounds 1 to 5; the record is issuecomment-6724713427, which the owner confirmed as "Yes, prefix mrp_ (Recommended)"). In short:
+    - Fantrax's `scoringSystem` is stored by 04p, and nflverse counts are scored with it. A drift check runs against Fantrax's points. ADR-0017 is amended.
+    - Scored history is kept per player, season and scoring category (count and points), over 15 seasons plus the current one. Seven groups: Defense is split into tackles and big plays.
+    - The projection: three seasons' weighted points per game, shrunk toward the position's average, times a delta-method age curve. The output is projected points per game for each of the next three seasons, a rank, and each player's share of points by group.
+    - Rookies: draft pick and position first, with combine tests and CollegeFootballData as shrunk secondary terms. A drafted rookie gets rows in both facts.
+    - The source is `MouseRatPresents_Baseline` (keys `mrp_`). It recomputes daily when nflverse changes, and it is trade-bud's IDP fallback.
+    - The yardstick: 8+ games, Spearman per Fantrax position, and top-12 and top-24 hits, on a yearly docs page. The first page has a labelled 2026 back-test.
+  - **Tickets:**
+    - **#473** builds the baseline (high, scoping session first).
+    - **#474** is WalterFootball's 2027 class (medium; Profile: probe, host walterfootball.com; I read its robots.txt: `*` Allow /, with no Claude groups).
+    - **#475 to #478** are later tickets, Tier: unset: ffopportunity, snap share, trade-bud's boards, and projections by group.
+  - **Edits:** #432's body (grill done; it closes when #473's ADR draft is posted); #430 (ffopportunity moved to #475); #417 (a pointer); map #375 (rows, tasks, and a new "Not yet specified" line: rolling `CFG.draft_year` to 2027).
+  - **The manager was told:** dispatch #473's scoping session; #474 joins the `etl_helpers.py` queue after #454's A2 and #459's B7b, with #473's briefs after it; queue the CollegeFootballData key Action before #473's rookie brief.
+- **DO NEXT, in order:**
+  1. **The manager's holds on me** (MANAGER.md, 17:30Z):
+     - **#465 (#454 A1):** read its ADR-0022 amendment against issuecomment-6724169121.
+     - **#466 (#454 B1):** an OK, or not, on the seven readings in the PR body.
+     - **#471 (#459 B7c):** three rulings:
+       1. `startup_adp`, `startup_avg_auction_pct` and `std_liquidity` are KTC keys (04c rows 127, 129 and 130). Do they drop too?
+       2. B7c's argparse addition.
+       3. The `--help` proof was denied, and the manager recommends a pytest test of the parser.
+     - **B5 (b459-b5-pbi), parked** (#459 issuecomment-6724610503). The proposed `pbiprune` profile allows exactly two Bash lines for `builder-state/prune_pbi_culture.py`, with and without `--apply`. Also: `tests/test_pbi_measure_refs.py`, Metric Count Total, and the stale Dead Money queryRefs.
+     - **B7a** needs file deletes, and builders have no `git rm`.
+     - **#413's findings** (issuecomment-6724369847): the live table is unfiltered (K, DEF and IDP), has no ADP, and 04f writes the same partition.
+       - The builder's Decision (a, b or c; it recommends a) is mine.
+       - The manager also asks: may B6 take the `sources.yml` slot ahead of #413, and does B9 still wait on #413?
+  2. **#473's scoping briefs:** check them against issuecomment-6724713427, set their tiers, and close #432 when the ADR draft is posted.
+  3. **The 2026-11-09 11:17Z cron run:** the manager's report on the run, the Discord post, #93's two body checks, and the terms-due line.
+  4. **#454 Q3:** check the shape of the five Transparency Report responses (`)]}'`, a 10-element array, `sb.ssr` first).
+  5. **#458's live proof:** the 2026-11-13 Close Day run.
+  6. **Grills:** #429 next, with #428 Q1-Q4 and #424 Q3-Q5.
+  7. **A sweep, only on the owner's word.** Gaps:
+     - the stale `_deliver_text` and `_deliver_embeds` names in CLAUDE.md;
+     - map #375's Players row, which calls 04c and 04y Close Day (they run only under `--profile dynasty`);
+     - rolling `CFG.draft_year` (on the map).
+- **Waiting on the owner:**
+  - The root push (`~/.claude` ahead 1 at 5987e1e).
+  - The DLF Action.
+  - The queued Actions: Q8 and Q3 for #454; B11 for #459 later; the CollegeFootballData key for #473 later.
+  - The manager's tools items (#104, then #99; #101's dispatch) need the owner's word. They are not mine.
+- **Lesson:** when a grill decides what a stored table keeps, ask what the owners want to see in it, not only what the model needs. The owner corrected scored history from totals to a per-category breakdown.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (48 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 (check ListAgents if it fails) and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents).
+
+00000000000000000000000000000000000000000000000. **2026-11-08, about 18:30Z, before a compact (session 795b662a). The 48-zero item overrides it where they differ. Read the 46-zero item only for #454's detail.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
   - The state batch PR is #455; it merges only on the owner's word.
