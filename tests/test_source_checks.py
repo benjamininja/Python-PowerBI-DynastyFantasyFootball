@@ -458,12 +458,50 @@ def test_dtc_case_robots_403_is_one_request_and_a_recorded_stop():
     assert (robots.outcome, robots.code, robots.read) == ("stop", 403, TODAY)
 
 
-def test_a_403_on_a_later_page_is_unread_for_that_read_only():
-    f, t, _ = build({A_ROBOTS: resp(404), A_TERMS: resp(403),
-                     "https://a.example/privacy": resp(200, "p")})
-    assert f.get(A_TERMS).unread == sc.UNREAD_REFUSED_STATUS
-    assert f.get("https://a.example/privacy").outcome == "ok"
+@pytest.mark.parametrize("code", [401, 403])
+def test_a_401_or_403_on_a_later_read_stops_the_host(code):
+    f, t, clock = build({A_ROBOTS: resp(404), A_TERMS: resp(code),
+                         "https://a.example/privacy": resp(200, "p")})
+    first = f.get(A_TERMS)
+    assert (first.outcome, first.unread, first.status) == ("unread", sc.UNREAD_REFUSED_STATUS, code)
+    calls = len(t.calls)
+    for path in ("/privacy", "/terms", "/sitemap.xml"):
+        later = f.get("https://a.example" + path)
+        assert (later.outcome, later.unread) == ("unread", sc.UNREAD_REFUSED_STATUS)
+        assert str(code) in later.detail
+    assert len(t.calls) == calls
     assert t.count(A_TERMS) == 1
+    f.run_deferred()
+    assert len(t.calls) == calls
+    assert clock.long_waits() == []
+
+
+def test_a_later_read_stop_on_one_host_leaves_other_hosts_readable():
+    f, t, _ = build({A_ROBOTS: resp(404), A_TERMS: resp(403), B_ROBOTS: resp(404),
+                     B_TERMS: resp(200, "t")}, secure=("a.example", "b.example"))
+    f.get(A_TERMS)
+    assert f.get(B_TERMS).outcome == "ok"
+
+
+def test_crawl_delay_over_600_stops_the_host_with_no_further_request():
+    f, t, clock = build({A_ROBOTS: resp(200, "User-agent: *\nCrawl-delay: 601\n"),
+                         A_TERMS: resp(200, "t")})
+    res = f.get(A_TERMS)
+    assert (res.outcome, res.unread) == ("unread", sc.UNREAD_RATE_LIMITED)
+    assert "Crawl-delay" in res.detail
+    assert f.get("https://a.example/privacy").unread == sc.UNREAD_RATE_LIMITED
+    assert t.urls() == [A_ROBOTS]
+    assert f.robots("a.example").crawl_delay == 601.0
+    assert clock.sleeps == []
+
+
+def test_crawl_delay_of_600_is_honoured_as_written():
+    f, t, _ = build({A_ROBOTS: resp(200, "User-agent: *\nCrawl-delay: 600\n"),
+                     A_TERMS: resp(200, "t"), "https://a.example/privacy": resp(200, "p")})
+    assert f.get(A_TERMS).outcome == "ok"
+    assert f.get("https://a.example/privacy").outcome == "ok"
+    times = [c[2] for c in t.calls]
+    assert [b - a for a, b in zip(times, times[1:])] == [600.0, 600.0]
 
 
 def test_retry_after_parses_seconds_and_dates():

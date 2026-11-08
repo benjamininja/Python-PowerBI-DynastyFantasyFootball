@@ -265,6 +265,7 @@ class _Host:
     segmented: bool = False
     robots_deferred: bool = False
     rate_limited: _Stop | None = None
+    refused: _Stop | None = None
 
 
 @dataclass
@@ -389,6 +390,8 @@ class Fetcher:
                 return refusal
         if state.robots_deferred:
             return _Refusal("deferred", None, f"robots.txt for {host} is deferred")
+        if state.refused is not None:
+            return _Refusal("unread", UNREAD_REFUSED_STATUS, state.refused.detail)
         if state.rate_limited is not None:
             return _Refusal("unread", UNREAD_RATE_LIMITED, state.rate_limited.detail)
         decision = self.gate.decide(url)
@@ -482,6 +485,9 @@ class Fetcher:
         result.rules = rules
         result.claude_groups = claude_groups(text)
         result.crawl_delay = float(delay) if delay is not None else None
+        if result.crawl_delay is not None and result.crawl_delay > RETRY_AFTER_STOP:
+            self._rate_limit(host, f"Crawl-delay {result.crawl_delay:g} s is over "
+                                   f"{RETRY_AFTER_STOP:.0f} s")
         result.sha256 = hashlib.sha256(raw).hexdigest()
         result.blocks_agent = bool(result.blocked_tokens(f"https://{host}/"))
 
@@ -531,6 +537,9 @@ class Fetcher:
         if resp.status in (401, 403):
             res.outcome, res.unread = "unread", UNREAD_REFUSED_STATUS
             res.detail = f"answered {resp.status}"
+            self._host(host).refused = _Stop(
+                UNREAD_REFUSED_STATUS, resp.status, self.today(),
+                f"an earlier read of {host} answered {resp.status}")
         else:
             res.outcome = "ok"
         return res
