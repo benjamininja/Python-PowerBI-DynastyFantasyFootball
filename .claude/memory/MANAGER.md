@@ -21,6 +21,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~18:10Z (session `fab4616c`, the FINAL one before the CLEAR; it overrides the #104 hold below):**
+  - **Tools checkouts:** both are at `b9ccef6`, equal to origin/main. The owner pulled; the Tools planner confirmed, and so did I. The pull Action stays unticked: its step 4, the pane check, is the owner's.
+  - **#104 is READY to dispatch now** (owner: Go 104). Brief: `t104.txt` in the scratchpad (medium, no Profile).
+    - Start `poll101.sh <outfile>` in the background first. It logs the t104 `claude agents --json` row every 2 s for 90 s after the row appears.
+    - Then dry run and -Apply: `-Name t104-multiqueue -Tier medium -Project C:\Users\benha\OneDrive\Documents\GitHub\skills-plugins-hooks-agents`.
+    - Post the rows at about 3 s and 30 s on #101 (part 2 of my first step).
+    - With t49 and t104 that makes 3 tools builders, since t98 is done with a PR open.
+  - **PR #102** (#98, head `ba617b5`, t98-securityreview): CI is all SUCCESS, scope is 3 markdown files.
+    - Re-proof on the export merged with `b9ccef6`: pytest, build_catalog and the CATALOG diff are running into `g102.txt`.
+    - Before merging, read the dispatch.md Follow up resume text (item 3) against what I saw: SendMessage a listed builder; otherwise `claude --resume <id> --bg <msg>` from its worktree with no flags; never resume a live session; stop a copy at once.
+    - After merge: queue the owner pull Action, and the planner sends the owner Action for the live `.claude/agents/stage-builder.md`.
+    - t98 reported that `git checkout -b` was refused, so it worked on its dispatch branch; that is expected.
 - **UPDATE 2026-11-08 ~18:00Z (session `fab4616c`):** the owner said Go 104, relayed in their words by the Tools planner. #104 is medium, Profile: none; the ticket body is the brief, and its proof includes claude plugin test plugins/owner-queue (allowed).
   - HOLD until the owner's queued pull Action brings both tools checkouts to b9ccef6. #104 builds on #100's owner-queue change, and a builder cut from cd1d95f fails its HEAD-equals-origin/main check.
   - Then dispatch it as t104 (low/medium per the ticket) and capture the claude agents --json rows at about 3 s and 30 s for #101.
