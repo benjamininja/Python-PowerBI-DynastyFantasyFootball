@@ -36,9 +36,7 @@ _DEFAULT_OFFENSE_FORMAT = "SF"
 
 # Source → (positional_rank key, overall_rank key, value key | None).
 _SOURCE_KEYS = {
-    "KTC": ("ktc_positional_rank", "ktc_overall_rank", "value"),
     "DynastySharks": ("ds_positional_rank", "ds_overall_rank", "ds_value"),
-    "FantasyPros": ("fp_positional_rank", "fp_overall_rank", None),
 }
 _SUFFIXES = {"jr", "sr", "ii", "iii", "iv", "v"}
 
