@@ -21,6 +21,12 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~19:10Z by `date -u` (session `aedd9d5a`; read with the CURRENT STATE block below, this wins where they differ):**
+  - **Merged since:** #481 (#479) `595c320`; #466 (#454 B1, readings 3 and 7 in) `41185f0`; #471 (#459 B7c) `115b4fd`; #465 (#454 A1, planner's line in) `81f7509`. Dynasty main `81f7509` = origin/main, local fast-forwarded.
+  - **Running:** b454-b2 (#454 B2, medium, `fb3fcec0`, brief `b454b2.txt`, fixtures from the Q3 reads); b454-a2 (#454 A2, medium, `65854c01`, brief `b454a2.txt`; holds the docs/sources.yml and etl_helpers.py slots).
+  - **#459:** every consumer merged but B5 (waits on the owner's pbiprune Action). B6 waits for A2 to merge (sources.yml one writer: A2, B6, C1); asked the planner whether B6 also needs B5. B7a waits on the owner's git rm Decision (queued, Session 179f29dc). B7b and then #474 follow A2 in the etl_helpers.py queue. #480 after B5.
+  - **Queue (mine, open):** Decisions: git rm (planner's), #103 merge. Actions: pbiprune profile; tools pull plus the owner-queue `queues` setting and the #104 live check.
+  - **Owner word still needed:** #99 and #101 dispatch. Done builders for `claude rm`: add b459-b7c-board, b454-a1, b454-b1, b479-docsbuildpaths.
 - **CURRENT STATE (NEWEST, 2026-11-08 ~18:30Z by `date -u`, session `aedd9d5a`, resumed after fab4616c's CLEAR). This overrides everything below.** The owner had every session that tried to reach me resend; the planner's rulings had gone to the old session and are read from GitHub (below).
   - **Mains.** Dynasty main `af69f09` = origin/main, local fast-forwarded. Tools origin/main `31741ac`; both tools checkouts still `b9ccef6` (owner pull Action queued).
   - **Merged this session:** dynasty #470 `48993ad` (B3), #472 `23f2ccf` (B4; hand-written DS rank rows accepted by the planner, B7b does not restore generation), #468 `af69f09` (B2; export_static stood in for docs-build). Tools #102 `8fe7a80` (#98), #105 `31741ac` (#104; t104 998425b9 found userConfig, so no list-file decision). Re-proof comments are rpNNN.md in scratchpad `aedd9d5a…`.
