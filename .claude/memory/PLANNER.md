@@ -38,13 +38,13 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
     3. #421 Part 2 (low; reopened).
     4. #413 (medium; also after #434).
 
-    #372 (per-step cadence) also edits this file, so it joins the queue when its turn is set. #451 (medium; the form's own concurrency line plus a database guard) goes after #425, beside #440.
+    #451 (medium; the form's own concurrency line plus a database guard) goes after #425, beside #440. (#372 is not in this queue: its code merged in #382.)
   - **Held:** #454 (the source-checks build, a sub-issue of #453) is Tier: unset until #453's findings.
 - **DO NEXT, in order:**
   1. **The manager's report on the 2026-11-09 11:17Z cron run.** Check the run's result, the Discord post, and #93's two body checks: roster_membership with a diff of 0 and no stale-ledger finding, and salary_remaining filing nothing or each finding explained. A failure comes to me.
   2. **#453's findings comment, when it's posted.** Read it, then write #454's tier, scope, files, done-when and proof. It's likely high (an ADR-0022 amendment, more than one PR). Get the owner's word to dispatch, and send it to the manager.
   3. **Builder PRs against their tickets, when the manager asks:** #425, #426, #434, #442, then #440, #451, #421 Part 2 and #413. Answer no breach or plan breach.
-  4. **#372:** place it in the run_pipeline.py queue, and check what is left of its `--dry-run`.
+  4. **#372: no code left** (#382 merged; it is not in the run_pipeline.py queue). Only the owner's two `--dry-run` outputs remain, takeable any day through 2026-11-12 (#372 issuecomment-6722886540; the updated queue entry went to the manager, session 8f091889). Close #372 when both match the expected lines in that comment.
   5. **Grills, in the owner's order:**
      - #423/#415.
      - #429, with #428 Q1-Q4 and #424 Q3-Q5. My recommendation there: DLF is no pipeline source (Betsperts' terms 5.1, 5.3 xiv, 5.7). The owner's reading of it is fine.
