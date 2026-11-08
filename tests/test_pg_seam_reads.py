@@ -3,7 +3,7 @@
 A: timestamptz columns read back unchanged under a non-UTC session TimeZone.
 C: no function of the seam but the known ones fetches rows, so a table read
 cannot bypass read_on (binary format).
-A2: the load's lock_timeout bounds the lock only.
+A2: the load's lock_timeout stays in force after the lock step (#425).
 The database cases skip without TEST_DATABASE_URL (REQUIRE_TEST_DATABASE=1
 makes that a failure); the guard runs everywhere.
 """
@@ -98,7 +98,7 @@ class TestTimestamptzUnderAnotherZone:
         assert loaded.problems == []
 
 
-class TestLockTimeoutBoundsTheLockOnly:
+class TestLockTimeoutStaysInForce:
     def timeouts_seen(self, monkeypatch):
         seen = []
         real = pg.read_on
@@ -110,22 +110,23 @@ class TestLockTimeoutBoundsTheLockOnly:
         monkeypatch.setattr(pg, "read_on", spy)
         return seen
 
-    def test_statements_after_the_lock_run_unbounded(self, db, frames, monkeypatch):
+    def test_statements_after_the_lock_keep_the_bound(self, db, frames, monkeypatch):
         seen = self.timeouts_seen(monkeypatch)
         loaded = pg.load_published(db, frames, empty_only=True, verify=True)
         assert loaded.problems == []
-        assert seen and set(seen) == {"0"}
+        assert seen and set(seen) == {f"{pg.LOCK_TIMEOUT_MS // 1000}s"}
 
-    def test_the_lock_itself_is_still_bounded(self, db, frames):
+    def test_the_lock_itself_is_still_bounded(self, db, frames, monkeypatch):
         import psycopg
+        monkeypatch.setattr(pg, "LOCK_TIMEOUT_MS", 1000)
         name = sorted(frames)[0]
         with psycopg.connect(db) as holder:
             holder.execute(f'LOCK TABLE football."{name}" IN ACCESS EXCLUSIVE MODE')
-            with pytest.raises(psycopg.errors.LockNotAvailable):
+            with pytest.raises(pg.LockTimeout):
                 pg.load_published(db, frames, empty_only=True)
 
-    def test_replace_sets_no_timeout(self, db, frames, monkeypatch):
+    def test_replace_runs_under_the_same_bound(self, db, frames, monkeypatch):
         seen = self.timeouts_seen(monkeypatch)
         loaded = pg.load_published(db, frames, replace=True, verify=True)
         assert loaded.problems == []
-        assert seen and set(seen) == {"0"}
+        assert seen and set(seen) == {f"{pg.LOCK_TIMEOUT_MS // 1000}s"}
