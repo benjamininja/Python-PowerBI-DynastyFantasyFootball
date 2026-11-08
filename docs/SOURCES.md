@@ -83,47 +83,54 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public | None; not ingested | — | Never (rejected) |
 <!-- END GENERATED sources-table:rejected -->
 
-## Terms and licences (every source, re-checked every 6 months)
+## Terms and licences (every source, re-checked once per season)
 
 Each source's terms verdict, when it was last checked, and the ticket that holds
 the evidence. `unresolved` means no clear terms were found or none were looked
-for, and is never read as cleared. A source with no check date is counted as
-due by `scripts/check_sources.py`, as is one past its next check; the count is
-advisory and never fails a run. The full block (how it was checked, URLs read,
-credit owed, share-alike, upstream, access, permission) is in
-[`sources.yml`](sources.yml). See [ADR-0022](adr/0022-source-terms-and-licences.md).
+for, and is never read as cleared. Every source is re-checked once per season,
+before the rookie draft, in the month set by `source_check_month` on `CFG` (May
+by default). The next check is the 1st of the first such month after the last
+check, and it is computed, never typed. A source with no check date is counted as
+due by `scripts/check_sources.py`, as is one past its next check. The same run
+prints two more counts: sources still on the old `evidence` field (due a re-cite)
+and sources read over HTTP whose security check is missing, stale, flagged or
+unconfirmed. All three are advisory and never fail a run. The full block (how it
+was checked, the documents read and how each was reached, what was not found,
+robots and AI signals, credit owed, share-alike, upstream, access, permission)
+and the per-host `security` block are in [`sources.yml`](sources.yml). See
+[ADR-0022](adr/0022-source-terms-and-licences.md).
 
 <!-- BEGIN GENERATED sources-table:terms — regen: python scripts/check_sources.py --render -->
 | Source | Manifest status | Terms | Checked | Next check | Licence | Access | Evidence |
 |---|---|---|---|---|---|---|---|
-| **Fantrax — getPlayerStats (Players grid)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **Fantrax — getPlayerStats (MINOR_FANTASY filters)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **Fantrax — getDraftResults** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **Fantrax — getTransactionDetailsHistory** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **Fantrax — public fxea API (getDraftPicks)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | public_get | #421 (issuecomment-6710339213) |
-| **Fantrax — public fxea API (getLeagueInfo)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | public_get | #421 (issuecomment-6710339213) |
-| **Fantrax — public fxea API (getTeamRosters per period)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | public_get | #421 (issuecomment-6710339213) |
-| **Fantrax — getLiveScoringStats + getStandings (per Scoring Period)** | live | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — getPlayerStats (Players grid)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — getPlayerStats (MINOR_FANTASY filters)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — getDraftResults** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — getTransactionDetailsHistory** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — public fxea API (getDraftPicks)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | public_get | #421 (issuecomment-6710339213) |
+| **Fantrax — public fxea API (getLeagueInfo)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | public_get | #421 (issuecomment-6710339213) |
+| **Fantrax — public fxea API (getTeamRosters per period)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | public_get | #421 (issuecomment-6710339213) |
+| **Fantrax — getLiveScoringStats + getStandings (per Scoring Period)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
 | **Google Sheet — team manifest** | live | unresolved | never | — | — | public_get | — |
-| **nflverse (via nflreadpy)** | live | permitted | 2026-11-07 | 2027-05-07 | CC-BY-4.0 | public_get | #416 (issuecomment-6709476183) |
-| **KeepTradeCut (KTC)** | live | rejected | 2026-11-07 | 2027-05-07 | site terms | public_get | #423 |
-| **FantasyPros** | live | rejected | 2026-11-07 | 2027-05-07 | site terms | public_get | #401, #415 |
-| **WalterFootball** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #417 (issuecomment-6709451916) |
-| **DraftSharks** | live | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DynastySharks** | live | unresolved | 2026-11-07 | 2027-05-07 | none | manual_file | #400 |
+| **nflverse (via nflreadpy)** | live | permitted | 2026-11-07 | 2027-05-01 | CC-BY-4.0 | public_get | #416 (issuecomment-6709476183) |
+| **KeepTradeCut (KTC)** | live | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #423 |
+| **FantasyPros** | live | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #401, #415 |
+| **WalterFootball** | live | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #417 (issuecomment-6709451916) |
+| **DraftSharks** | live | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DynastySharks** | live | unresolved | 2026-11-07 | 2027-05-01 | none | manual_file | #400 |
 | **Manual Excel — misc rankings** | live | unresolved | never | — | — | manual_file | — |
-| **Fantrax — draftPicks.go** | planned | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **Fantrax — commissioner admin** | planned | unresolved | 2026-11-07 | 2027-05-07 | site terms | owner_login | #421 (issuecomment-6710339213) |
-| **PFF (Pro Football Focus)** | rejected | rejected | 2026-11-07 | 2027-05-07 | site terms | none | #402 |
-| **DraftSharks — preseason rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — best ball rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — dynasty rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — weekly rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — rest of season rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — keeper rankings** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — auction values** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — ADP market indexes** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **DraftSharks — trade value charts** | planned | unresolved | 2026-11-07 | 2027-05-07 | none | public_get | #400 |
-| **CollegeFootballData** | planned | permitted | 2026-11-07 | 2027-05-07 | site terms | api_key | #421 (issuecomment-6710339213) |
+| **Fantrax — draftPicks.go** | planned | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **Fantrax — commissioner admin** | planned | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
+| **PFF (Pro Football Focus)** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | none | #402 |
+| **DraftSharks — preseason rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — best ball rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — dynasty rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — weekly rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — rest of season rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — keeper rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — auction values** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — ADP market indexes** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **DraftSharks — trade value charts** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
+| **CollegeFootballData** | planned | permitted | 2026-11-07 | 2027-05-01 | site terms | api_key | #421 (issuecomment-6710339213) |
 | **Google Sheet — manifest sync (write)** | planned | unresolved | never | — | — | api_key | — |
 <!-- END GENERATED sources-table:terms -->

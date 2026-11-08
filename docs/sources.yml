@@ -29,14 +29,46 @@
 #              (unresolved | permitted | rejected) is the terms verdict, separate
 #              from the manifest `status` above.
 #                status, checked, access      always. checked is a date or null.
-#                checked_in, how, evidence,   required once checked is a date.
-#                licence, share_alike         evidence is a list of {url, archive}
+#                checked_in, how, licence,    required once checked is a date.
+#                share_alike
+#                documents / not_found        new shape (ADR-0022 amendment, #454); a
+#                                             checked block needs one of them, or the
+#                                             old `evidence` until it is re-cited.
+#                                             Both together is a failure.
+#                  documents[]                {kind, url, reached_from {page, place,
+#                                             link_text}, read, page_date, read_by,
+#                                             method, unread, archive, capture_sha256,
+#                                             clauses [{section, topic, verbatim, quote}]}.
+#                                             kind: terms | api_terms | licence | privacy |
+#                                             copyright. place: footer | menu | sitemap |
+#                                             legal_hub | linked_from_doc | operator_domain
+#                                             | robots_txt | api_docs | owner_supplied.
+#                                             read_by: agent | owner | script. method:
+#                                             http_get | browser_render | owner_paste.
+#                                             unread: null | js_rendered | refused_status |
+#                                             robots_blocks_agent | login | paywall | dns |
+#                                             tool_refused | rate_limited.
+#                  not_found[]                {kind, looked, date, by}; looked is a
+#                                             non-empty list of places.
+#                signals, operator            signals {robots {url, code, read, ...},
+#                                             tdmrep, x_robots_tag, meta_robots}; a new-shape
+#                                             checked block needs signals.robots.code.
+#                                             operator is text or null.
+#                evidence                     old shape: a list of {url, archive}
 #                                             (archive: a web.archive.org copy or null).
+#                                             Valid until re-cited; counted by the re-cite
+#                                             advisory.
 #                attribution, upstream,       optional. upstream is a list of source ids
 #                permission                   or names; permission is null (never asked)
 #                                             or {asked, given, link}.
 #              access: public_get | api_key | owner_login | manual_file | none.
-#              next_check = checked + 6 months, computed, never typed.
+#              next_check = the 1st of the first CFG.source_check_month month (May by
+#              default) after `checked`, computed, never typed.
+#   security : optional, beside `terms`. The dated per-host security check
+#              (ADR-0022): {checked, host, controls, safe_browsing, dns, tls, hsts,
+#              registered, flags, confirmed {by, date}}. Needed for a live or planned
+#              source read over HTTP (access not manual_file); confirmed.date is needed
+#              for live. Its next check follows the same rule as `terms`.
 
 # Hosts that legitimately appear in notebooks but are NOT data sources.
 # The reverse-drift check subtracts these (plus registered source hosts).
