@@ -21,6 +21,10 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~18:00Z (session `fab4616c`):** the owner said Go 104, relayed in their words by the Tools planner. #104 is medium, Profile: none; the ticket body is the brief, and its proof includes claude plugin test plugins/owner-queue (allowed).
+  - HOLD until the owner's queued pull Action brings both tools checkouts to b9ccef6. #104 builds on #100's owner-queue change, and a builder cut from cd1d95f fails its HEAD-equals-origin/main check.
+  - Then dispatch it as t104 (low/medium per the ticket) and capture the claude agents --json rows at about 3 s and 30 s for #101.
+  - #99 after #104 merges, on the owner's word. #101 still needs the owner's word.
 - **UPDATE 2026-11-08 ~17:55Z (session `fab4616c`, the last before the CLEAR):**
   - **#472** (#459 B4, head `ea201918e53423ad7476b08df540ab417f273039`): Green is running into `g472.txt`. CI had storage-pg pending.
     - 04c drops from 36 to 13 rows; the 23 keys are in the PR body.
