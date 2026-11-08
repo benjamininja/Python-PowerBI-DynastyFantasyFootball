@@ -35,6 +35,7 @@
    - A generator diffs the registry against the existing migrations and writes a new timestamped `supabase/migrations/*.sql` for review. Both are committed.
    - A test fails if the registry and the migrations drift.
    - The generator rejects any identifier that is not unquoted snake_case.
+   - *Amended 2026-11-08 by the owner ([#431](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/431), [#443](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/443)): one change to a check is not refused, a pure widening. When the old and new checks on a table are both exactly `<column> IN (<literal list>)` on the same column and the new list holds every old literal, the generator writes DROP CONSTRAINT then ADD CONSTRAINT in the same migration. Every other check change stays refused: a narrowing, a change of column, any other form of check, a bare drop.*
 4. **Primary key = the registry grain.** Natural and composite keys; no surrogate ids.
 5. **Grain fixes before PKs:**
    - `04y` sets `source_player_id = gsis_id` and `source_uid = 'Composite|<gsis_id>'`; the existing Composite rows are backfilled.
