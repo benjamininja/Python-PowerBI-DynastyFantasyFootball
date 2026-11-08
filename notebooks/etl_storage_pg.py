@@ -22,7 +22,6 @@ _TEXT_DTYPES = ("str", "string", "object")
 
 
 LOCK_TIMEOUT_MS = 10_000
-_RI_TABLE = re.compile(r'FROM (?:ONLY )?((?:"[^"]+"|\w+)\.(?:"[^"]+"|\w+))')
 
 
 class WriteRefused(ValueError):
@@ -64,11 +63,33 @@ def _waiting_on(where: str):
         raise LockTimeout(where) from exc
 
 
-def _blocked_table(exc) -> str | None:
-    """The table a foreign-key check was reading when it timed out, from the
-    SQL statement the error carries (it holds parameter marks, not values)."""
-    found =_RI_TABLE.search(getattr(getattr(exc, "diag", None), "context", None) or "")
-    return found.group(1).replace('"', "") if found else None
+def _outside(links, loaded) -> list[str]:
+    """The tables the foreign-key checks of a load of `loaded` read, other than
+    `loaded` themselves: the parents of the loaded tables and the tables that
+    reference them. `links` is (child, parent) per foreign key. The load already
+    holds a lock on each loaded table, so a check can only wait on one of these."""
+    loaded = set(loaded)
+    touched = {p for c, p in links if c in loaded} | {c for c, p in links if p in loaded}
+    return sorted(touched - loaded)
+
+
+def _fk_where(conn, loaded) -> str:
+    """Where a foreign-key check at commit waited, for LockTimeout: the tables
+    it reads outside the load (up to three named). Run after the check's
+    savepoint has rolled back, so the transaction can still be asked."""
+    psycopg, _ = _psycopg()
+    try:
+        links = [(child, parent) for child, parent in conn.execute(
+            "SELECT cr.relname, pr.relname FROM pg_constraint c "
+            "JOIN pg_class cr ON cr.oid = c.conrelid JOIN pg_class pr ON pr.oid = c.confrelid "
+            "WHERE c.contype = 'f' AND c.connamespace = %s::regnamespace", (SCHEMA,))]
+    except psycopg.Error:
+        links = []
+    names = [f"{SCHEMA}.{t}" for t in _outside(links, loaded)]
+    if not names:
+        return "foreign-key check at commit on a table the foreign keys reference"
+    more = f" and {len(names) - 3} more" if len(names) > 3 else ""
+    return "foreign-key check at commit on " + ", ".join(names[:3]) + more
 
 
 @contextlib.contextmanager
@@ -541,10 +562,10 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
                 problems.extend(orphans(conn))
             if not problems:
                 try:
-                    conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+                    with conn.transaction():
+                        conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
                 except psycopg.errors.LockNotAvailable as exc:
-                    raise LockTimeout("foreign-key check at commit on " + (
-                        _blocked_table(exc) or "a table the foreign keys reference")) from exc
+                    raise LockTimeout(_fk_where(conn, frames)) from exc
                 counts = {}
                 for name in frames:
                     with _waiting_on(f"{SCHEMA}.{name}"):

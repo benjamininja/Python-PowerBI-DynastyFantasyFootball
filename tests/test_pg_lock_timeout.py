@@ -76,11 +76,25 @@ class TestWithoutADatabase:
         where = "foreign-key check at commit on football.fact_nfl_combine_pro_day_metrics"
         assert "not retried" in pg.describe(pg.LockTimeout(where))
 
-    def test_the_table_a_foreign_key_check_was_reading_comes_from_the_error(self):
-        context = 'SQL statement "SELECT 1 FROM ONLY "football"."dim_season" x WHERE "season_id" = $1 FOR KEY SHARE OF x"'
-        assert pg._blocked_table(SimpleNamespace(diag=SimpleNamespace(context=context))) == "football.dim_season"
-        assert pg._blocked_table(SimpleNamespace(diag=SimpleNamespace(context=None))) is None
-        assert pg._blocked_table(SimpleNamespace()) is None
+    def test_the_tables_a_foreign_key_check_reads_are_the_ones_outside_the_load(self):
+        links = [("dim_division", "dim_season"), ("dim_scoring_period", "dim_season"),
+                 ("fact_dead_money", "dim_contract")]
+        assert pg._outside(links, ["dim_division"]) == ["dim_season"]
+        assert pg._outside(links, ["dim_season"]) == ["dim_division", "dim_scoring_period"]
+        assert pg._outside(links, ["dim_division", "dim_season"]) == ["dim_scoring_period"]
+        assert pg._outside(links, ["dim_unrelated"]) == []
+
+    def test_the_foreign_key_wait_names_the_tables_and_caps_the_list(self):
+        def conn_with(links):
+            return SimpleNamespace(execute=lambda *args: iter(links))
+
+        one = pg._fk_where(conn_with([("dim_division", "dim_season")]), ["dim_division"])
+        assert one == "foreign-key check at commit on football.dim_season"
+        many = [(f"c{i}", "p") for i in range(5)]
+        text = pg._fk_where(conn_with(many), ["p"])
+        assert text == "foreign-key check at commit on football.c0, football.c1, football.c2 and 2 more"
+        assert pg._fk_where(conn_with([]), ["x"]) == (
+            "foreign-key check at commit on a table the foreign keys reference")
 
 
 @pytest.fixture(scope="module")
@@ -167,10 +181,11 @@ class TestAHeldLockFailsEachStepWithinTheBound:
                 "SELECT c.conrelid::regclass::text, c.confrelid::regclass::text FROM pg_constraint c "
                 "WHERE c.contype = 'f' AND c.connamespace = %s::regnamespace "
                 "AND c.conrelid <> c.confrelid ORDER BY c.conname", (pg.SCHEMA,)).fetchall()
-        usable = [(child.split(".")[-1].strip('"'), parent.split(".")[-1].strip('"'))
-                  for child, parent in pairs]
-        usable = [(c, p) for c, p in usable if c in frames and p in frames and len(frames[c])]
-        assert usable, "no foreign key between two published tables with rows in the child"
+        links = [(child.split(".")[-1].strip('"'), parent.split(".")[-1].strip('"'))
+                 for child, parent in pairs]
+        usable = [(c, p) for c, p in links if c in frames and p in frames and len(frames[c])
+                  and pg._outside(links, [c]) == [p]]
+        assert usable, "no foreign key to one parent only, from a published table with rows"
         child, parent = usable[0]
         with psycopg.connect(db) as holder:
             holder.execute(f'LOCK TABLE football."{parent}" IN EXCLUSIVE MODE')
