@@ -26,8 +26,8 @@ in ops.etl_run_log; `--cadence all` runs every step. The week is
 (season, period) in season and the ISO week off season.
 
 NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
-03-group rookie chain (manual Excel gates), and review applies (03z,
-apply_fantrax_crosswalk_review). Nothing here writes to Fantrax: the one
+03-group rookie chain (manual Excel gates), and review applies (03z; a
+crosswalk decision is the Record a crosswalk override workflow). Nothing here writes to Fantrax: the one
 write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
 (ADR-0019: Fantrax sets the `Minor` contract itself).
 
@@ -79,7 +79,7 @@ CADENCES = ("due", "all")
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
     "review_fuzzy_matches.csv": "run 03z_apply_fuzzy_review",
-    "review_fantrax_crosswalk.csv": "run scripts/apply_fantrax_crosswalk_review.py",
+    "review_fantrax_crosswalk.csv": "GitHub Actions: Record a crosswalk override",
     "review_dynasty_crosswalk.csv": "manual (no apply script exists yet)",
 }
 

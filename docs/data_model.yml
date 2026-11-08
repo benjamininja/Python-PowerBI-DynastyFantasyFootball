@@ -534,7 +534,7 @@ tables:
     pk: [scorer_id]
     required_keys: [scorer_id, gsis_id, recorded_at, origin]
     checks:
-      - "origin IN ('csv', 'apply_script')"
+      - "origin IN ('csv', 'apply_script', 'form')"
     columns:
       - { name: scorer_id, dtype: str, sql_type: text }
       - { name: gsis_id, dtype: str, sql_type: text }
@@ -546,8 +546,10 @@ tables:
       Hand-kept decisions, one row per Fantrax scorer_id: a registry gsis_id,
       or the literal new (not in the registry yet). 04z reads it first in
       match_one. Private because a note can name a player. Loaded once from
-      the overrides CSV and the apply script's DECISIONS by
-      scripts/load_draft_and_overrides.py; the pattern of dim_player_alias.
+      the overrides CSV and the retired apply script's DECISIONS by
+      scripts/load_draft_and_overrides.py (origin csv, apply_script); a new
+      decision is one row from the Record a crosswalk override workflow
+      (origin form, note = the run id). The pattern of dim_player_alias.
 
   - name: fact_startup_draft_slot
     type: fact

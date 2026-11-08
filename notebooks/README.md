@@ -120,8 +120,13 @@ notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
 - `--profile dynasty` appends `04b → 04c → 04y` (run after refreshing the
   04x manual Excel).
 - **Never scheduled**: the live-draft chain (`04w → 02d → 02f → 02e → 05a`), the
-  03-group rookie chain (manual Excel gates), and review applies (`03z`,
-  `apply_fantrax_crosswalk_review`). No step writes to Fantrax — the one
+  03-group rookie chain (manual Excel gates), and review applies (`03z`).
+  A Fantrax crosswalk review row is decided from GitHub, not on the PC:
+  Actions → Record a crosswalk override → Run workflow (on `main`), then
+  enter the Fantrax `scorer_id` and a registry `gsis_id` (or `new`); tick
+  `replace` to change a decision that already exists. It writes one row to
+  `dim_fantrax_crosswalk_override`, and the next Daily Run's `04z` reads it
+  (`scripts/record_crosswalk_override.py`). No step writes to Fantrax — the one
   write-side path (`04v --apply`) was removed along with its contract
   worklist (ADR-0011).
 

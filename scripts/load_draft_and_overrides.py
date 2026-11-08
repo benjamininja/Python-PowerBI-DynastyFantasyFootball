@@ -7,8 +7,13 @@ The owner runs it once, on the PC, with ETL_STORAGE=postgres:
   - every `fantrax_draftresults_2026*.json` capture -> `fact_startup_draft_slot`
     (one row per slot, deduped on (division, round, pick) keeping the latest
     capture) and `dim_startup_draft_scorer` (the players the captures name)
-  - `fantrax_crosswalk_overrides.csv` and the apply script's DECISIONS ->
-    `dim_fantrax_crosswalk_override`
+  - `fantrax_crosswalk_overrides.csv` -> `dim_fantrax_crosswalk_override`
+
+The loader has run: the real project holds all three tables, so a run now stops
+at its "already holds rows" check. It no longer reads the retired apply
+script's decisions (`decisions` defaults to none). A new override is recorded
+by the Record a crosswalk override workflow
+(scripts/record_crosswalk_override.py), not here.
 
 Checks first, writes after. It writes nothing unless every check passes, and
 refuses if any of the three tables already holds a row. `--check` runs the
@@ -17,7 +22,6 @@ a name, a note or a cell. A mismatch on the overrides stops the run until the
 planner rules.
 """
 import argparse
-import ast
 import glob
 import json
 import os
@@ -39,7 +43,6 @@ TABLES = (SCORER_TABLE, SLOT_TABLE, OVERRIDE_TABLE)
 
 DRAFT_PATTERN = "fantrax_draftresults_2026*.json"
 OVERRIDES_FILE = "fantrax_crosswalk_overrides.csv"
-APPLY_SCRIPT = REPO / "scripts" / "apply_fantrax_crosswalk_review.py"
 SLOTS, MADE, UNMADE = 980, 975, 5
 MANUAL, NEW = 26, 7
 NEW_MARK = "new"
@@ -108,17 +111,6 @@ def draft_problems(slots: pd.DataFrame, scorers: pd.DataFrame) -> list[str]:
     if not len(scorers):
         problems.append("draft: the captures name no player")
     return problems
-
-
-def decisions_from_script(path: Path = APPLY_SCRIPT) -> dict:
-    """The apply script's DECISIONS dict, read from its source. The script is
-    not imported: it reads and writes tables as it loads."""
-    tree = ast.parse(Path(path).read_text(encoding="utf-8"))
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "DECISIONS" for t in node.targets):
-            return dict(ast.literal_eval(node.value))
-    raise ValueError(f"{Path(path).name} holds no DECISIONS dict")
 
 
 def read_overrides_csv(path: Path) -> pd.DataFrame:
@@ -214,7 +206,7 @@ def load(raw_dir: Path, *, check_only: bool = False, decisions: dict | None = No
 
     slots = slots_from_payloads(read_payloads(sorted(files, key=lambda f: f.stat().st_mtime)))
     scorers = scorers_from_payloads(read_payloads(sorted(files)))
-    decisions = decisions_from_script() if decisions is None else decisions
+    decisions = {} if decisions is None else decisions
     links = etl.read_table(etl.GSIS_LINK_TABLE) if etl.table_exists(etl.GSIS_LINK_TABLE) else None
     overrides, problems = overrides_from(
         read_overrides_csv(csv_path), decisions,
