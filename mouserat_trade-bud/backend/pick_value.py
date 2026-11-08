@@ -2,15 +2,14 @@
 commensurate with data_access.player_values (ADR-0013 decision 4) so picks
 and players are directly comparable for Pareto math (decision #11).
 
-Both curve sources in dim_pick_value_curve (KTC, DraftSharks -- see
+The curve source in dim_pick_value_curve (DraftSharks -- see
 notebooks/04d_draftpick_value_curve.ipynb and the plan's decision #10)
-publish generic (year, round[, tier]) buckets on a 12-team grid. This league
+publishes generic (year, round[, tier]) buckets on a 12-team grid. This league
 drafts 14 teams per division, so a pick's within-round slot is fit onto the
 source's tier boundaries proportionally rather than assumed 1:1 (the plan's
 "fit our 14 to the 12" note).
 
-A pick's curve value is on that source's own arbitrary points scale (e.g.
-KTC 0-9999), not directly comparable to our-scale player values. Each pick
+A pick's curve value is on that source's own arbitrary points scale, not directly comparable to our-scale player values. Each pick
 is quantile-mapped instead: find its percentile within the source's own
 covered *player* pool (same source, same points scale), then read off the
 value at that percentile of our-scale player value restricted to that same
@@ -40,7 +39,6 @@ _STANCE_SCALAR = {"contending": 0.85, "balanced": 1.00, "future": 1.25}
 # fact-table label ("DynastySharks") are the same entity, named differently
 # by the two ingest pipelines.
 _SOURCE_METRIC = {
-    "KTC": ("KTC", "value"),
     "DraftSharks": ("DynastySharks", "ds_value"),
 }
 
@@ -106,7 +104,7 @@ def resolve_pick_value(
     Averages whichever curve sources have data for this draft_year, each
     quantile-mapped onto our-scale player value within that source's own
     covered player pool (ADR-0013 decision 4). A round beyond a source's
-    covered range (KTC tops out at 4, DraftSharks at 5) falls back to that
+    covered range (DraftSharks tops out at 5) falls back to that
     source's last covered round for the same year -- dynasty pick value
     flattens out fast past round 4-5, so this is a reasonable floor rather
     than a cliff to zero.
@@ -124,6 +122,8 @@ def resolve_pick_value(
     mapped_values = []
     pool_maxes = []
     for source in year_curve["source_name"].unique():
+        if source not in _SOURCE_METRIC:
+            continue
         src = year_curve[year_curve["source_name"] == source]
         max_round = int(src["round"].max())
         rnd = min(round_num, max_round)
