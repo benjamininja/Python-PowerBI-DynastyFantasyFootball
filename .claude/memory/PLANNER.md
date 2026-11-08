@@ -33,7 +33,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
      - Take open questions to the owner, with context.
      - Set each brief's tier, and tell the manager.
   3. Builder PR reads, when the manager asks: #450 (#425), #440, #451 and #458, then #421 Part 2 and #413.
-  4. Close #372 on the owner's two outputs.
+  4. ~~Close #372~~ **Done:** closed 2026-11-08 on the owner's two matching outputs (issuecomment-6723646274). Map #375 is ticked, and the manager was asked to remove the queue entry.
   5. Grills: **#423/#415 next** (the facts are below), then #429 (with #428 Q1-Q4 and #424 Q3-Q5), then #432.
   6. A sweep, only on the owner's word.
 - **#423/#415 grill facts** (Postgres, 2026-11-08):
