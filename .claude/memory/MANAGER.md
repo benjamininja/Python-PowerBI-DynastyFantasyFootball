@@ -21,6 +21,57 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **CURRENT STATE (NEWEST, 2026-11-08 ~17:30Z, session `fab4616c`, before a CLEAR). This overrides everything below, including the FIRST AFTER THE COMPACT line, which is done.**
+  - **Mains.** Dynasty main is `7313f71`, equal to origin/main: a pipeline data PR, 2026-11-08 inseason week 9, 6 data files, local fast-forwarded. Tools origin/main is `b9ccef6` (#100); both tools checkouts are at `cd1d95f`, and the owner pull Action is queued.
+  - **Reconcile.** `git fetch origin`. `git rev-parse main` and `git rev-parse origin/main`, separately. `gh pr list --state open` in both repos. `claude agents --json --all`. NEEDS-OWNER.md.
+  - **Scratchpad:** `C:\Users\benha\AppData\Local\Temp\claude\91da30c6664f42e7\fab4616c-c6e1-43be-acba-a7f2aba5e7c8\scratchpad`.
+    - `green.sh <pr> <head> <changed files...>` runs the full dynasty Green on the merge-tree export (pytest, check_pii, check_data_model with and without --check, check_sources --check, --check-only, review findings) into `pr<N>m/`.
+    - Runs started before the clear write to `g466.txt`, `g468.txt`, `g469.txt` and `g470.txt`. If a file stops at `== pytest`, rerun green.sh.
+    - Also there: `ins2.py` (queue insert at the `## Actions` line, k+2), `del.py`, the briefs `b459b*.txt`, `t98.txt`, `t49.txt`, and `p459-order.md` (the #459 order).
+  - **Merged this session:** tools #100 `b9ccef6` (closes #81; re-proof issuecomment-6724661049; t81 told it's done).
+  - **Dynasty PRs, each re-proved on an export merged with origin/main:**
+    - **#465** (#454 A1, head `e2b9d46`, Refs #454): Green PASS (2114 passed; the review finding is the known 06anf/B09 repeat). `rp465.md` is ready. HOLD for the planner's read of the ADR-0022 amendment (asked).
+      - To merge: `gh pr comment 465 --body-file rp465.md`, then `gh pr merge 465 --squash --delete-branch --match-head-commit e2b9d467023ee265289fe0cdb460dcfbe01c34cd`.
+      - Then dispatch #454 A2 (medium; c454briefs.md plus planner issuecomment-6724169121). A2 may run beside #413: it touches only the sources.yml header comment, and whichever merges second merges origin/main and restates its advisory counts.
+    - **#466** (#454 B1, `a8d131b`): I read scripts/source_checks.py and it is safe (GET only, the UA, no cookies, https, gated hops, robots first via Protego, no `__main__`). Green is running. HOLD for the planner's OK on the seven readings in the PR body. After merge: B2 (the Q3 reads are posted).
+    - **#468** (#459 B2, `f29506b`): Green plus export_static.py running.
+      - The guard in resolve_pick_value (skip curve sources with no `_SOURCE_METRIC` entry, since KTC rows stay until B12) is accepted as in-file.
+      - docs-build never runs on mouserat_trade-bud/** (told the planner), so export_static on the export is the stand-in proof.
+    - **#469** (#459 B1, `1ac2ec0`): Green running. IDP goes through CommandError to deliver_text, which is the existing path. The bot suite is CI bot-tests.
+    - **#470** (#459 B3, `f92114c`): Green running.
+    - **#471** (#459 B7c, `6a2cc9e`): HOLD for three planner rulings:
+      1. startup_adp, startup_avg_auction_pct and std_liquidity are KTC keys (04c rows 127, 129, 130): drop them too?
+      2. B7c's argparse addition.
+      3. The `--help` proof was DENIED to the builder, so I don't run it either. I recommended a pytest test of the parser.
+      Local pytest 2114 passed.
+    - **#472** (#459 B4, metricdim): opened; no report yet.
+  - **Parked:**
+    - **B5** (b459-b5-pbi, `8bc6c6b6`, head 6316a02, no PR). Its git rm of the scatter visual and the 80-block culture prune were refused. Record: #459 issuecomment-6724610503.
+      - Proposed to the planner instead of its per-ticket settings line, which the owner's #424 (d) rules out: a `pbiprune` profile with exactly `Bash(.venv/Scripts/python.exe builder-state/prune_pbi_culture.py)` and `Bash(.venv/Scripts/python.exe builder-state/prune_pbi_culture.py --apply)`.
+      - On the planner's yes: queue the owner Action, then `claude stop 8bc6c6b6` and dispatch `-Name b459-b5-pbi -Profile pbiprune` (this reuses the worktree).
+      - The script's sha256 is in `b5prune.sha256` (799fe933…); check it is unchanged at closeout.
+      - Also with the planner: the new tests/test_pbi_measure_refs.py, Metric Count Total, and the stale Dead Money queryRefs.
+    - **B7a** will need file deletes, and builders have no git rm (flagged to the planner).
+    - **#413** (b413-dsharkspull `fbb00ca7`, no edit). Findings: #413 issuecomment-6724369847. The live table is unfiltered (K, DEF, IDP), has no ADP, and 04f writes the same partition.
+      - I read probe.py at closeout: it kept every limit, 3 requests. It read the owner's Excel from the main checkout's data/raw and posted counts only.
+      - The builder's Decision (a, b or c; it recommends a) is with the planner, not queued.
+      - Asked the planner: may B6 take the sources.yml slot ahead of #413, and does B9 still wait on #413? The planner's writer order is #413, then B6, then C1.
+  - **#459 remaining** (`p459-order.md`): B6, B7a, B7b (etl_helpers, queued with #454 A2), B8, B9 (run_pipeline.py, after #413), B10, B11 (owner Action after a cron run), B12 (before the next cron), then the closeout memory edits.
+  - **Tools:**
+    - Running: t98-securityreview (`aa292f85`, #98) and t49-smadmi (`032769b0`, #49, the vendor lane, Always-park: the owner reads the auditor table before merge). That is 2 of the 3 cap.
+    - At #98's merge: read the dispatch.md resume text against what I saw; the planner then sends the owner Action for the live stage-builder.md.
+    - #101 (the dispatch.ps1 step 8 false refusal, plus the stop using the full sessionId): part 1 of my first step is posted (issuecomment-6724568098). Part 2: capture the `claude agents --json` rows at about 3 s and 30 s after the next -w dispatch, and post them. Dispatching it needs the owner's word (asked).
+    - #99: HOLD even on a go, until the owner answers the Tools planner's question about multi-project queue files and a local log.
+    - After #49: #57, #52, then #50 (high, owner word).
+  - **Lessons:**
+    - Check every proof command in a brief against builders.settings.json before dispatch.
+    - Never `cd` into a worktree or the tools checkout. Use `git -C` and absolute paths; I slipped twice, harmlessly.
+    - A dispatch refusal saying "not running in its worktree" is the #101 flake (5 of 8 today): verify with `claude agents --json --all`, and never re-dispatch.
+    - The git-guardrails hook blocks any Bash command whose text contains `git push` while on main. Use the Grep tool for such reads.
+  - **Queue (mine, open):** "Pull both tools checkouts, then check the owner-queue pane (merged #100, closes #81)".
+  - **Owner word needed:** #101 dispatch. r453 is already archived.
+  - **Done builders for `claude rm`:** t81 (83c96994, plus the stopped e4516a46), b458-useragent, b421-termsline, s459-scoping, t56 (plus copy 8aeec642), t94, t80, and the older list.
+  - **Cron:** 2026-11-09 11:17Z: check the run, the Discord post (terms line), and #93's two body checks; report to the planner. 2026-11-13: post the 03b/03d Close Day result on #458.
 - **FIRST AFTER THE COMPACT (2026-11-08 ~17:20Z, session `fab4616c`): dispatch #459's consumer group now — B1, B2, B3, B4, B7c (low) and B5 (medium), Profile: none, in parallel, each pointed at #459 issuecomment-6724340325 (planner; wins) and issuecomment-6724208055 (scoping briefs).** The planner's full order, owner answers Q1/Q6, the B11/B12 export plan and the closeout memory edits are in scratchpad `p459-order.md` (path in the block below) and on #459. Check main = origin/main first; briefs with no double quotes; dry run, then -Apply. Then report the session ids to the planner.
 - **CURRENT STATE (NEWEST, 2026-11-08 ~17:15Z, session `fab4616c`, before a COMPACT). This overrides everything below.** Dynasty main is `5c7783d` (= origin/main, local fast-forwarded). Tools origin/main is `cd1d95f`; the tools main checkout and live clone are still `dcd351a` (owner pull Action queued: "Pull both tools checkouts so merged #95, #96 and #97 take effect"). Reconcile: `git fetch origin`; `git rev-parse main` and `git rev-parse origin/main` (separately); `gh pr list --state open` in both repos; `claude agents --json --all`; NEEDS-OWNER.md. Scratchpad: `C:\Users\benha\AppData\Local\Temp\claude\91da30c6664f42e7\fab4616c-c6e1-43be-acba-a7f2aba5e7c8\scratchpad` (briefs t49.txt, t98.txt ready; ins2.py inserts a queue entry at `## Actions` k+2; del.py removes an entry with no Answer/Note).
   - **Merged this session:** dynasty #460 `d8fafb3` (#458, now CLOSED; post the 2026-11-13 Close Day live result for 03b and 03d on #458 either way; a 403/429 parks with planner and owner, UA never reverted), #461 `5c7783d` (#421 closed). Tools #95 `b143603`, #96 `7e3feb0` (#56 closed), #97 `cd1d95f` (#94 closed).
