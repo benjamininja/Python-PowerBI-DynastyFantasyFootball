@@ -21,6 +21,17 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~17:55Z (session `fab4616c`, the last before the CLEAR):**
+  - **#472** (#459 B4, head `ea201918e53423ad7476b08df540ab417f273039`): Green is running into `g472.txt`. CI had storage-pg pending.
+    - 04c drops from 36 to 13 rows; the 23 keys are in the PR body.
+    - Deviation to weigh at re-proof: the generated rank rows came from etl.SOURCE_PREFIX, so B4 hand-wrote the 2 DS rank rows with their old metric_order 2 and 5. B7b may restore generation; tell the planner.
+  - **Planner (#432 grill done, issuecomment-6724713427):**
+    - **#473** builds MouseRatPresents_Baseline (high). Dispatch its scoping session when ready: no code, so it may run beside the builders. It drafts the new ADR and an ADR-0017 amendment and writes the briefs. #432 closes when the ADR draft is posted.
+    - **#474** is the WalterFootball 2027 rookie class (medium, Profile: probe, host walterfootball.com, limits in the body). It joins the etl_helpers.py writer queue after #454 A2 and #459 B7b; #473's etl_helpers briefs follow it.
+    - #475 to #478 are Tier: unset; do not dispatch.
+    - Queue later, not now: the owner Action for a CollegeFootballData API key in a GitHub secret, before #473's rookie brief dispatches.
+    - #430 no longer carries ffopportunity (moved to #475).
+    - The planner is clearing too; its state is in PLANNER.md.
 - **UPDATE 2026-11-08 ~17:50Z (session `fab4616c`), tools:** the owner chose the Tools planner's queue option. New **#104** (medium, Profile: none) is the owner-queue mod reading many projects' queue files, grouping by project, writing back to each entry's own file, logging undrawable entries, plus a README rule. #99 is amended to rules and templates only (issuecomment-6724735856); its hold is lifted.
   - Order: #104 first, then #99, one at a time (both edit plugins/owner-queue/README.md).
   - Each needs the owner's word, as does #101. Count them against the cap of 3 tools builders; t98 and t49 are running.
