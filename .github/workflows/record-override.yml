@@ -7,7 +7,9 @@
 # repository is public, so the run log is too: the inputs are ids and a tick
 # box, never free text, and each reaches the script through env, never inside a
 # run line. The run id is the runner's own GITHUB_RUN_ID. The output is ids and
-# counts only.
+# counts only. The form has its own concurrency group, apart from the Daily
+# Run's, and the script locks the override table, so two forms cannot both pass
+# their checks. A run GitHub cancelled recorded nothing: submit the form again.
 name: record-override
 
 run-name: Record a crosswalk override
@@ -38,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: etl
     concurrency:
-      group: etl
+      group: etl-override
       cancel-in-progress: false
     timeout-minutes: 15
     steps:

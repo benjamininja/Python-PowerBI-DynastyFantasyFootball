@@ -28,7 +28,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Collection, Literal, Mapping, NamedTuple, Sequence
+from typing import Callable, Collection, Literal, Mapping, NamedTuple, Sequence
 
 import pandas as pd
 import requests
@@ -691,6 +691,11 @@ class TableNotFound(StorageError, FileNotFoundError):
     """The table is declared but holds no data yet."""
 
 
+class LockWaitTimeout(StorageError):
+    """A write waited past the database's lock_timeout for another writer
+    (#451). The message names the table and the wait, never a value."""
+
+
 def _registry() -> dict:
     """docs/data_model.yml tables by name, reloaded when the file changes."""
     import yaml
@@ -997,6 +1002,58 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
         return pg.write(entry, df, mode, keys, partition)
     except pg.WriteRefused as exc:
         raise StorageError(f"{name}: {exc}") from exc
+
+
+class Checked(NamedTuple):
+    """What `write_table_checked` did: the problems the check found (empty when
+    the row was written) and the table's row count after (None when nothing was)."""
+    problems: list[str]
+    total: int | None
+
+
+def write_table_checked(name: str, df: pd.DataFrame, *,
+                        reads: Mapping[str, Sequence[str] | None],
+                        check: Callable[[dict[str, pd.DataFrame | None]], list[str]]) -> Checked:
+    """Upsert `df` into `name` on its registry grain only if `check` finds no
+    problem (#451).
+
+    `reads` maps each table the check needs to a column projection (None = all
+    columns). `check` gets `{table: frame}`, cast to the registry as
+    `read_table` casts, with None for a table that holds no rows, and returns
+    the problems as a list of strings; it must not write.
+
+    Under Postgres the lock on `name`, the reads, the check and the upsert are
+    ONE transaction: a second writer waits (LockWaitTimeout past the database's
+    lock_timeout) and then checks against the first writer's committed row.
+    Under parquet, or in capture mode, the reads, the check and the write run
+    in turn with no lock.
+    """
+    entry = _table_entry(name)
+    pg = None if _capture_dir is not None else _backend()
+    if pg is None:
+        stored = {}
+        for table, columns in reads.items():
+            _table_entry(table)
+            stored[table] = read_table(table, columns) if table_exists(table) else None
+        problems = list(check(stored))
+        if problems:
+            return Checked(problems, None)
+        return Checked([], write_table(name, df, mode="upsert"))
+    df = _check_batch(df, entry)
+    entries = {table: (_table_entry(table), None if columns is None else list(columns))
+               for table, columns in reads.items()}
+
+    def cast_then_check(raw):
+        return check({table: None if frame is None else _coerce(frame, entries[table][0])
+                      for table, frame in raw.items()})
+
+    try:
+        problems, total = pg.write_checked(entry, df, table_grain(entry), entries, cast_then_check)
+    except pg.LockTimeout as exc:
+        raise LockWaitTimeout(f"{name}: {exc}") from exc
+    except pg.WriteRefused as exc:
+        raise StorageError(f"{name}: {exc}") from exc
+    return Checked(problems, total)
 
 
 def write_tables_once(frames: Mapping[str, pd.DataFrame]) -> dict[str, int]:

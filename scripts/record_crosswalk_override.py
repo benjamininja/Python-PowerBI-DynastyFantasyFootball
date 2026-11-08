@@ -5,7 +5,11 @@
 Reads SCORER_ID, GSIS_ID, REPLACE and GITHUB_RUN_ID from the environment, checks
 them against the stored tables, then writes one row to
 `dim_fantrax_crosswalk_override` through the storage seam (origin `form`, note
-`run <run id>`). It writes nothing unless every check passes. The next Daily
+`run <run id>`). It writes nothing unless every check passes. The checks run
+twice: first as a preflight with no lock, then again inside
+`etl.write_table_checked`, which under Postgres locks the override table and
+reads the tables in the same transaction as the write (#451), so a second form
+run checks against the first one's row. The next Daily
 Run's 04z reads the row; this script does not rebuild the crosswalk.
 
 The run log is public. The script takes no free text and prints the two ids
@@ -86,14 +90,42 @@ def row(scorer_id: str, gsis_id: str, run_id: str, now=None) -> pd.DataFrame:
     }, columns=COLUMNS)
 
 
+READS = {
+    CROSSWALK_TABLE: ["scorer_id", "gsis_id"],
+    PLAYERS_TABLE: ["gsis_id"],
+    OVERRIDE_TABLE: ["scorer_id", "gsis_id"],
+    etl.GSIS_LINK_TABLE: None,
+}
+
+
+def _inputs_from(stored: dict) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
+    """The four tables `validate` reads, from `{table: frame or None}`. A
+    table that holds no rows is an error for the crosswalk and the players, an
+    empty frame for the overrides and None for the links."""
+    for table in (CROSSWALK_TABLE, PLAYERS_TABLE):
+        if stored[table] is None:
+            raise etl.TableNotFound(f"{table}: no data")
+    overrides = stored[OVERRIDE_TABLE]
+    if overrides is None:
+        overrides = pd.DataFrame({"scorer_id": pd.Series(dtype=str), "gsis_id": pd.Series(dtype=str)})
+    return stored[CROSSWALK_TABLE], stored[PLAYERS_TABLE], overrides, stored[etl.GSIS_LINK_TABLE]
+
+
 def stored_inputs() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame | None]:
-    crosswalk = etl.read_table(CROSSWALK_TABLE, columns=["scorer_id", "gsis_id"])
-    players = etl.read_table(PLAYERS_TABLE, columns=["gsis_id"])
-    overrides = (etl.read_table(OVERRIDE_TABLE, columns=["scorer_id", "gsis_id"])
+    crosswalk = etl.read_table(CROSSWALK_TABLE, columns=READS[CROSSWALK_TABLE])
+    players = etl.read_table(PLAYERS_TABLE, columns=READS[PLAYERS_TABLE])
+    overrides = (etl.read_table(OVERRIDE_TABLE, columns=READS[OVERRIDE_TABLE])
                  if etl.table_exists(OVERRIDE_TABLE)
                  else pd.DataFrame({"scorer_id": pd.Series(dtype=str), "gsis_id": pd.Series(dtype=str)}))
     links = etl.read_table(etl.GSIS_LINK_TABLE) if etl.table_exists(etl.GSIS_LINK_TABLE) else None
     return crosswalk, players, overrides, links
+
+
+def _stop(problems: list[str], out) -> int:
+    for line in problems:
+        out(f"stopped: {line}")
+    out("nothing was written")
+    return 1
 
 
 def run(env, out=print, now=None, inputs=None) -> int:
@@ -108,17 +140,31 @@ def run(env, out=print, now=None, inputs=None) -> int:
             out(f"stopped: {line}")
         out("nothing was written")
         return 1
-    crosswalk, players, overrides, links = stored_inputs() if inputs is None else inputs
+    guarded = inputs is None
+    crosswalk, players, overrides, links = stored_inputs() if guarded else inputs
     problems = validate(scorer_id, gsis_id, replace == "true", crosswalk, players, overrides, links)
     out(f"storage: {os.environ.get('ETL_STORAGE') or 'parquet'}")
     out(f"read: {len(crosswalk)} crosswalk row(s), {len(players)} player(s), {len(overrides)} override(s)")
     if problems:
-        for line in problems:
-            out(f"stopped: {line}")
-        out("nothing was written")
-        return 1
+        return _stop(problems, out)
+    new_row = row(scorer_id, gsis_id, run_id, now)
+    if guarded:
+        held = {}
+
+        def check(stored):
+            held["inputs"] = _inputs_from(stored)
+            return validate(scorer_id, gsis_id, replace == "true", *held["inputs"])
+
+        try:
+            problems, total = etl.write_table_checked(OVERRIDE_TABLE, new_row, reads=READS, check=check)
+        except etl.LockWaitTimeout as exc:
+            return _stop([str(exc)], out)
+        if problems:
+            return _stop(problems, out)
+        overrides = held["inputs"][2]
+    else:
+        total = etl.write_table(OVERRIDE_TABLE, new_row, mode="upsert")
     replaced = scorer_id in set(overrides["scorer_id"])
-    total = etl.write_table(OVERRIDE_TABLE, row(scorer_id, gsis_id, run_id, now), mode="upsert")
     out(f"recorded: scorer_id {scorer_id} -> {gsis_id} (origin {ORIGIN}, run {run_id})")
     out(f"replaced an earlier override: {'yes' if replaced else 'no'}")
     out(f"wrote {OVERRIDE_TABLE}: {total} row(s)")

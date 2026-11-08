@@ -331,6 +331,41 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
     return int(count)
 
 
+def write_checked(entry: dict, df: pd.DataFrame, keys, reads: dict, check) -> tuple[list[str], int | None]:
+    """Upsert `df` on `keys` only if `check` finds no problem, all in ONE
+    transaction. The target is locked in SHARE ROW EXCLUSIVE MODE first, so a
+    second writer waits (LockTimeout past LOCK_TIMEOUT_MS) and then reads what
+    the first one committed. `reads` is `{name: (registry entry, columns)}`;
+    `check` gets `{name: raw frame or None}` read on this connection after the
+    lock and returns the problems. Returns (problems, None) with nothing
+    written, or ([], the table's row count after)."""
+    _, sql = _psycopg()
+    spec = _spec(entry)
+    columns = _check_columns(entry, spec)
+    missing = [k for k in keys if k not in columns]
+    if missing:
+        raise WriteRefused(f"{entry['name']}: keys not in the table: {missing}")
+    df = df.drop_duplicates(subset=keys, keep="last")
+    where = f"{spec['schema']}.{spec['name']}"
+    with _db_errors(where), _connect() as conn:
+        with conn.transaction():
+            bound_locks(conn)
+            with _waiting_on(where):
+                conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(_table(spec)))
+            stored = {}
+            for name, (read_entry, cols) in reads.items():
+                with _waiting_on(f"{_spec(read_entry)['schema']}.{name}"):
+                    stored[name] = read_on(conn, read_entry, cols)
+            problems = list(check(stored))
+            if problems:
+                return problems, None
+            with conn.cursor() as cur:
+                if len(df):
+                    _keys_delete(cur, spec, columns, df, keys)
+                count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
+    return [], int(count)
+
+
 def write_all_empty(batches: dict) -> dict:
     """Insert every batch (`{name: (registry entry, checked frame)}`) into its
     table in ONE transaction. The tables are locked first, and a table that

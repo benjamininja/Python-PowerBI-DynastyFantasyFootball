@@ -1,12 +1,13 @@
 """The Record a crosswalk override workflow (#431, ADR-0015): started by hand
-only, from main only, in the etl environment, one concurrency group with the
-Daily Run, every action pinned to a SHA, and no input inside a run line."""
+only, from main only, in the etl environment, its own concurrency group apart
+from the Daily Run's (#451), every action pinned to a SHA, and no input inside a run line."""
 import re
 from pathlib import Path
 
 import yaml
 
 WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "record-override.yml"
+DAILY = WORKFLOW.parent / "etl-daily.yml"
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 
@@ -44,8 +45,26 @@ def test_environment_concurrency_and_permissions():
     wf = _load()
     job = _job(wf)
     assert job["environment"] == "etl"
-    assert job["concurrency"] == {"group": "etl", "cancel-in-progress": False}
+    assert job["concurrency"] == {"group": "etl-override", "cancel-in-progress": False}
     assert wf["permissions"] == {"contents": "read"}
+
+
+def _daily_groups() -> set[str]:
+    daily = yaml.safe_load(DAILY.read_text(encoding="utf-8"))
+    groups = {daily.get("concurrency", {}).get("group")}
+    groups |= {j.get("concurrency", {}).get("group") for j in daily["jobs"].values()}
+    return groups - {None}
+
+
+def test_the_form_has_its_own_group_apart_from_the_daily_run():
+    group = _job(_load())["concurrency"]["group"]
+    assert _daily_groups(), "etl-daily.yml names no concurrency group"
+    assert group not in _daily_groups()
+
+
+def test_the_description_says_a_cancelled_run_was_not_recorded():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "A run GitHub cancelled recorded nothing: submit the form again." in text
 
 
 def test_every_action_is_pinned_to_a_sha():
