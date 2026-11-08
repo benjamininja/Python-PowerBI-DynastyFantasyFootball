@@ -96,9 +96,33 @@ class TestStepTable:
         assert names.index("04a_scrape") < names.index("04t_txn_history") < names.index("04z_crosswalk")
         assert names.index("04z_crosswalk") < names.index("04v_minor_contracts") < names.index("02d_ledger")
         assert by_name["04t_txn_history"]["needs"] == ["04a_scrape"]
-        assert by_name["04z_crosswalk"]["needs"] == ["04a_scrape", "04t_txn_history"]
+        assert by_name["04z_crosswalk"]["needs"] == ["04a_scrape", "04t_txn_history", "04a_backfill_gp"]
         assert by_name["04v_minor_contracts"]["needs"] == ["04z_crosswalk"]
         assert by_name["02d_ledger"]["needs"] == ["04v_minor_contracts", "04t_txn_history"]
+
+    def test_04z_follows_the_gp_backfill_in_season_and_is_unchanged_elsewhere(self):
+        def selected(phase):
+            return [s["name"] for s in self.STEPS if rp._selected(s, phase, None, None)]
+        inseason = selected("INSEASON")
+        assert inseason.index("04a_backfill_gp") < inseason.index("04z_crosswalk")
+        for phase in ("PRESEASON", "OFFSEASON"):
+            names = selected(phase)
+            assert "04a_backfill_gp" not in names
+            assert names.index("04t_txn_history") < names.index("04z_crosswalk") < names.index("04v_minor_contracts")
+
+    def test_04z_runs_in_off_phases_though_its_backfill_need_is_not_scheduled(self):
+        steps = [s for s in self.STEPS if s["name"] in ("04a_scrape", "04t_txn_history", "04a_backfill_gp", "04z_crosswalk")]
+        results = rp.run_steps(steps, "OFFSEASON", None, dry_run=True)
+        assert [(r["name"], r["status"]) for r in results] == [
+            ("04a_scrape", "dry-run"), ("04t_txn_history", "dry-run"), ("04z_crosswalk", "dry-run")]
+
+    def test_a_failed_gp_backfill_skips_04z_in_season(self):
+        steps = [s for s in self.STEPS if s["name"] in ("04a_backfill_gp", "04z_crosswalk")]
+        steps = [{**s, "cmd": [sys.executable, "-c", "raise SystemExit(1)"], "needs": []} if s["name"] == "04a_backfill_gp"
+                 else {**s, "needs": ["04a_backfill_gp"]} for s in steps]
+        results = rp.run_steps(steps, "INSEASON", None, dry_run=False)
+        assert [(r["name"], r["status"]) for r in results] == [
+            ("04a_backfill_gp", "failed"), ("04z_crosswalk", "skipped")]
 
     @pytest.mark.parametrize("profile", [None, "dynasty"])
     def test_needs_are_acyclic_and_every_dependency_is_earlier(self, profile):

@@ -184,10 +184,10 @@ def build_steps(profile: str | None) -> list[dict]:
         # is held.
         {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04a_backfill_gp", "cmd": _script("04a_fantrax_weekly_scrape.py", "--backfill-gp"),
          "phases": {"INSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
+        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape", "04t_txn_history", "04a_backfill_gp"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
