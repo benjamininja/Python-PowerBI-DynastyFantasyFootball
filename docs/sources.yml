@@ -204,7 +204,7 @@ sources:
     status: live
     terms: { status: unresolved, checked: null, access: public_get }
     locator: "https://docs.google.com/spreadsheets/d/1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc (gid 178660131), read via export?format=csv"
-    purpose: "Owner/team roster manifest: team name, abbrev, manager emails, division, Team ID, Fantrax-TeamId"
+    purpose: "Owner/team roster manifest: division, team name, abbrev, Team ID, Fantrax-TeamId (no emails; those live in a commissioners-only sheet)"
     auth: "Published CSV export (link-readable, no creds) for read"
     cadence: "On league/owner change (manual rerun)"
     feeds:
