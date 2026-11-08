@@ -11,7 +11,46 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 14:45Z, before a clear (session 403b4286). Self-contained; overrides everything below. Read the 42-zero item only for detail.**
+00000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 16:30Z (session 8f091889). It overrides the 43-zero item below where they differ; read that one for the resume steps and the earlier state.**
+- **Done this session:**
+  - **#372 has no code left.** Its two `--dry-run` outputs can be taken any day through 2026-11-12 (issuecomment-6722886540). The manager replaced the queue entry.
+  - **#453 is closed.** Findings: issuecomment-6722904971. The owner's answers to all eight questions: issuecomment-6723570172, plus issuecomment-6723606527 for a robots.txt 429. In short:
+    - captures go in `data/review/policies/`;
+    - Wayback: look up only, plus one owner-approved save step;
+    - one check a season, before the rookie draft (a `CFG` month, May by default), replacing six months;
+    - Safe Browsing uses the Transparency Report endpoint;
+    - a 401 or 403 is a stop. A 429 gets three plain tries, then one deferred try at the end of the run. After a robots.txt 429 clears, the rest goes in segments;
+    - a `young_domain` gets no agent read until the owner confirms it;
+    - Playwright renders only 200-but-blank pages;
+    - **no headless retry for a 429**: it only helps by passing bot detection, which is out.
+  - **#454** is Tier: high, scoped in its body. **#458** is created: low, the scrapers' User-Agent. The owner said "Both now (Recommended)", and both went to the manager. #454 gets the scoping session only.
+  - Map #375's pointer lines are updated.
+  - Root `preferences.md` gained a rule: decision context above every question, in this order: summary, pros, cons, then the recommendation (owner, 2026-11-08).
+- **DO NEXT, in order:**
+  1. The manager's report on the 2026-11-09 11:17Z cron run (as in the 43-zero item).
+  2. **#454's scoping comment.**
+     - Check its briefs against #453 as amended, and against ADR-0022.
+     - Take open questions to the owner, with context.
+     - Set each brief's tier, and tell the manager.
+  3. Builder PR reads, when the manager asks: #450 (#425), #440, #451 and #458, then #421 Part 2 and #413.
+  4. Close #372 on the owner's two outputs.
+  5. Grills: **#423/#415 next** (the facts are below), then #429 (with #428 Q1-Q4 and #424 Q3-Q5), then #432.
+  6. A sweep, only on the owner's word.
+- **#423/#415 grill facts** (Postgres, 2026-11-08):
+  - `fact_dynasty_ranking_metrics`: KTC 15,730 rows on 17 keys, FantasyPros 3,966 on 6, Composite 1,812 on 2. Each is one snapshot, 2026-06-13.
+  - `fact_rookie_rankings`: FantasyPros 422 (Superflex 162, PPR 151, IDP 109); `KTC_Consensus` 54.
+  - `dim_dynasty_crosswalk`: KTC 464, FantasyPros 661.
+  - `dim_pick_value_curve`: KTC 36, DraftSharks 10.
+  - `dim_dynasty_metric`: KTC 17, FantasyPros 6.
+  - 03a, 03c and 04b are not in `build_steps`. 04d reads both KTC and DraftSharks.
+  - `docs/sources.yml`: both have terms `rejected`, but manifest status still `live` (PFF's manifest status is `rejected`). ADR-0022 line 73 makes removal a per-source decision.
+  - The repo is PUBLIC.
+- **Lessons:**
+  - Put the context (summary, pros, cons, recommendation) above every question.
+  - Never frame an option with a rule that doesn't say that (#453 Q4: 3a.6 bars only a changed User-Agent).
+  - A Tools-planner relay goes by session id (`local_9830794b…`). Its uds address goes stale.
+
+0000000000000000000000000000000000000000000. **2026-11-08, about 14:45Z, before a clear (session 403b4286). Self-contained; overrides everything below. Read the 42-zero item only for detail.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading, and again before every push; the manager pushes to the same branch.
   - Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
