@@ -33,7 +33,9 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **Edits:** #432's body (grill done; it closes when #473's ADR draft is posted); #430 (ffopportunity moved to #475); #417 (a pointer); map #375 (rows, tasks, and a new "Not yet specified" line: rolling `CFG.draft_year` to 2027).
   - **The manager was told:** dispatch #473's scoping session; #474 joins the `etl_helpers.py` queue after #454's A2 and #459's B7b, with #473's briefs after it; queue the CollegeFootballData key Action before #473's rookie brief.
 - **DO NEXT, in order:**
-  1. **The manager's holds on me** (MANAGER.md, 17:30Z):
+  1. **The manager's holds on me** (MANAGER.md, 17:30Z). **These asks reached this session at about 19:55Z, just before the clear, and are unanswered.** The manager was told they come first next session.
+     - **For #465,** the manager checked Q1, Q2, Q4, Q5, Q9, Q10, the service-host list and age_unknown. It can't vouch for the 429 schedule, decision 11's signal-conflict order, or the checker rules in decisions 14-16. Read those.
+     - **New gap:** `.github/workflows/docs-build.yml` never triggers on `mouserat_trade-bud/**`, so a trade-bud PR gets no site-rebuild proof. The manager runs `export_static.py` at re-proof instead. Ticket the path gap.
      - **#465 (#454 A1):** read its ADR-0022 amendment against issuecomment-6724169121.
      - **#466 (#454 B1):** an OK, or not, on the seven readings in the PR body.
      - **#471 (#459 B7c):** three rulings:
