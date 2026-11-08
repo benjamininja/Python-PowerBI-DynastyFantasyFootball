@@ -43,8 +43,13 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
      - **B5 (b459-b5-pbi), parked** (#459 issuecomment-6724610503). The proposed `pbiprune` profile allows exactly two Bash lines for `builder-state/prune_pbi_culture.py`, with and without `--apply`. Also: `tests/test_pbi_measure_refs.py`, Metric Count Total, and the stale Dead Money queryRefs.
      - **B7a** needs file deletes, and builders have no `git rm`.
      - **#413's findings** (issuecomment-6724369847): the live table is unfiltered (K, DEF and IDP), has no ADP, and 04f writes the same partition.
-       - The builder's Decision (a, b or c; it recommends a) is mine.
-       - The manager also asks: may B6 take the `sources.yml` slot ahead of #413, and does B9 still wait on #413?
+       - **Answered (sent ~19:50Z):** B6 takes the `sources.yml` slot now. The entry order is B6, then #413 (if it continues), then C1. B9 no longer waits for #413: B9 goes first on `run_pipeline.py`. #413 stays parked, with no re-dispatch.
+       - **Still mine:** the builder's Decision (three options; it recommends the wider probe). I told the manager not to queue it as written. Rewrite it for the owner as separate questions with context:
+         - whether DraftSharks' K, DEF and IDP rows are wanted (IDP is dark after #459);
+         - who owns the `(snapshot_date, DynastySharks)` partition, 04f or #413;
+         - the ADP gap: the live table has 0 of 250, while `ds_adp` is 500 rows today, and after #459 the composite blends DS ADP alone;
+         - whether to retire the 04x hand-saved sheets.
+       - **Lesson:** the probe builder read the owner's Excel in the main checkout's `data/raw` (counts only). Future probe limits name any read allowed outside the worktree.
   2. **#473's scoping briefs:** check them against issuecomment-6724713427, set their tiers, and close #432 when the ADR draft is posted.
   3. **The 2026-11-09 11:17Z cron run:** the manager's report on the run, the Discord post, #93's two body checks, and the terms-due line.
   4. **#454 Q3:** check the shape of the five Transparency Report responses (`)]}'`, a 10-element array, `sb.ssr` first).
