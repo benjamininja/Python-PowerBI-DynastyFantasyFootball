@@ -169,7 +169,8 @@ class TestTimestamptzUnderAnotherZone:
         import psycopg
         from psycopg import sql
         url = database_url()
-        ops = {key: spec for key, spec in pg._state().items() if spec["schema"] == "ops"}
+        ops = {f"{spec['schema']}.{spec['name']}": spec
+               for spec in pg._state().values() if spec["schema"] == "ops"}
         stamped = {key: [c["name"] for c in spec["columns"] if c["sql_type"] == "timestamptz"]
                    for key, spec in ops.items()}
         stamped = {key: cols for key, cols in stamped.items() if cols}
