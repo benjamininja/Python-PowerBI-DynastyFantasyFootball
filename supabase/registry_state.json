@@ -3052,7 +3052,7 @@
     },
     "ops.dim_fantrax_crosswalk_override": {
       "checks": [
-        "origin IN ('csv', 'apply_script')"
+        "origin IN ('csv', 'apply_script', 'form')"
       ],
       "columns": [
         {

@@ -126,8 +126,8 @@ the parquet alone.
   scheduled headless script (`04a_fantrax_weekly_scrape.py`, Task Scheduler),
   a CLI consumer (`05a_startup_draft_board.py`), or standalone
   apply/review utilities in `scripts/` (e.g.
-  `apply_fantrax_crosswalk_review.py`) — these share `etl_helpers` like
-  notebooks do.
+  `record_crosswalk_override.py`, run by the Record a crosswalk override
+  workflow) — these share `etl_helpers` like notebooks do.
 - **Naming**: `NN<letter>_name` — `01`=dim seeds, `02`=core facts,
   `03`=rookie-ranking pipeline, `04`=dynasty-ranking pipeline (incl. Fantrax).
   Letter = order within group; `x`/`y`/`z` reserved for late-stage/apply/
