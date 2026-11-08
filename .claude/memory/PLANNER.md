@@ -38,7 +38,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **DO NEXT, in order:**
   1. **#459's dispatch word.** Ask the owner, with context (summary, pros, cons, then recommendation), to dispatch its scoping session. On a yes, send it to the manager with the owner's words.
   2. **The 2026-11-09 11:17Z cron run.** The manager's report: the run, the Discord post, and #93's two body checks.
-  3. **s454-scoping's comment on #454.**
+  3. **s454-scoping's comment on #454: POSTED, issuecomment-6723809732.**
+     - It has nine briefs in build order: A1 (low), A2 (medium), B1 to B5 (medium), C1 (low) and C2 (low). Those tiers are its proposal; mine to set. It also raises 16 open questions (Q1 to Q16).
+     - Three would be owner Actions: Q3 (a raw Transparency Report sample for B2's fixtures), Q8 (protego into the main .venv) and Q16. Q16 is already done (the pastes are in `data/review/policies/`, hashes matching).
+     - **Q14 says #454's done condition as written can't be met.** Read it first.
+     - Nothing in #454 dispatches until I send tiers.
      - Check the briefs against #453 as amended, and against ADR-0022.
      - Take open questions to the owner, with context.
      - Set the tiers, and tell the manager.
@@ -58,7 +62,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - Never cite a rule for more than it says.
   - A headless retry after a 429 can only help by passing bot detection, so it's out.
   - Split a multi-answer queue entry into separate questions.
-  - In a queue entry, an option never refers to another option by its letter.
+  - In a queue entry, an option never refers to another option by its letter. This is tools #94 (Tier: low); until it lands, write each option whole. The pane parser fix is tools #81 amendment 2 (issuecomment-6723749482), in the same PR as #81.
 - **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (45 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Find the manager with ListAgents and send by name; message Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents).
 
 00000000000000000000000000000000000000000000. **2026-11-08, about 16:30Z (session 8f091889). It overrides the 43-zero item below where they differ; read that one for the resume steps and the earlier state.**
