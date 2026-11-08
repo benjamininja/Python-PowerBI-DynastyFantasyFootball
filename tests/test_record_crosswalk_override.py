@@ -232,6 +232,26 @@ class TestStoredInputs:
         assert rec.run(env(), out=lines.append, now=NOW) == 1
         assert "stopped: scorer_id aaaaa already has an override; tick replace to change it" in lines
 
+    def test_a_row_that_lands_after_the_preflight_is_caught_by_the_check_at_the_write(self, tables, monkeypatch):
+        assert rec.run(env(), out=lambda _: None, now=NOW) == 0
+        monkeypatch.setattr(rec, "stored_inputs", lambda: (XW, PLAYERS, NONE, None))
+        lines = []
+        assert rec.run(env(scorer="bbbbb", gsis="G1"), out=lines.append, now=NOW) == 1
+        assert lines[-2:] == ["stopped: gsis_id G1 is already claimed by scorer_id aaaaa in "
+                              "dim_fantrax_crosswalk_override", "nothing was written"]
+        assert etl.read_table(OVERRIDE)["scorer_id"].tolist() == ["aaaaa"]
+
+    def test_a_lock_wait_that_times_out_stops_and_says_so(self, tables, monkeypatch):
+        def gave_up(*args, **kw):
+            raise etl.LockWaitTimeout("dim_fantrax_crosswalk_override: ops.dim_fantrax_crosswalk_override: "
+                                      "waited 10s for a lock, gave up (lock_timeout); not retried")
+        monkeypatch.setattr(etl, "write_table_checked", gave_up)
+        lines = []
+        assert rec.run(env(), out=lines.append, now=NOW) == 1
+        assert lines[-2].startswith("stopped: dim_fantrax_crosswalk_override: ops.dim_fantrax_crosswalk_override: waited 10s")
+        assert lines[-1] == "nothing was written"
+        assert not etl.table_exists(OVERRIDE)
+
     def test_the_registry_allows_the_form_origin(self):
         entry = etl._table_entry(OVERRIDE)
         assert "origin IN ('csv', 'apply_script', 'form')" in entry["checks"]

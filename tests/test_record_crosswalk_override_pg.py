@@ -4,6 +4,8 @@ widened origin CHECK allows it. Skips without TEST_DATABASE_URL
 """
 import importlib
 import sys
+import threading
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -54,6 +56,90 @@ def go(env, held=None):
 
 def env(scorer="aaaaa", gsis="G1", replace="false", run="777"):
     return {"SCORER_ID": scorer, "GSIS_ID": gsis, "REPLACE": replace, "GITHUB_RUN_ID": run}
+
+
+EMPTY = pd.DataFrame({"scorer_id": pd.Series(dtype=str), "gsis_id": pd.Series(dtype=str)})
+READS = {TABLE: ["scorer_id", "gsis_id"]}
+WAIT_S = 1.5
+JOIN_S = 30
+
+
+def claim(scorer, gsis, *, entered=None, release=None):
+    """One form submission at the seam: the checks of `validate` against the
+    override table as read in the transaction. `entered` is set when the check
+    starts, and `release` (if given) holds the transaction open until it is set."""
+    def check(stored):
+        if entered is not None:
+            entered.set()
+        if release is not None:
+            assert release.wait(JOIN_S), "the test never released the first writer"
+        held = EMPTY if stored[TABLE] is None else stored[TABLE]
+        return rec.validate(scorer, gsis, False, XW, PLAYERS, held, None)
+
+    return etl.write_table_checked(TABLE, rec.row(scorer, gsis, "1", NOW), reads=READS, check=check)
+
+
+def in_thread(call, box):
+    def target():
+        try:
+            box["got"] = call()
+        except BaseException as exc:
+            box["error"] = exc
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    return thread
+
+
+class TestTwoWritersAreSerialized:
+    def test_the_second_writer_waits_then_is_refused_and_only_the_first_row_is_stored(self, db):
+        entered, release = threading.Event(), threading.Event()
+        first, second = {}, {}
+        t1 = in_thread(lambda: claim("aaaaa", "G1", entered=entered, release=release), first)
+        assert entered.wait(JOIN_S), "the first writer never reached its check"
+        entered2 = threading.Event()
+        t2 = in_thread(lambda: claim("bbbbb", "G1", entered=entered2), second)
+        time.sleep(WAIT_S)
+        assert t2.is_alive() and not entered2.is_set(), "the second writer ran its check while the first held the lock"
+        release.set()
+        t1.join(JOIN_S)
+        t2.join(JOIN_S)
+        assert "error" not in first and "error" not in second, (first, second)
+        assert first["got"].problems == [] and first["got"].total == 1
+        assert second["got"].problems == [
+            "gsis_id G1 is already claimed by scorer_id aaaaa in dim_fantrax_crosswalk_override"]
+        assert second["got"].total is None
+        assert etl.read_table(TABLE)[["scorer_id", "gsis_id"]].to_dict("records") == [
+            {"scorer_id": "aaaaa", "gsis_id": "G1"}]
+
+    def test_a_second_writer_that_waits_past_the_bound_gives_up_naming_the_table(self, db, monkeypatch):
+        monkeypatch.setattr(pg, "LOCK_TIMEOUT_MS", 1000)
+        entered, release = threading.Event(), threading.Event()
+        first = {}
+        t1 = in_thread(lambda: claim("aaaaa", "G1", entered=entered, release=release), first)
+        assert entered.wait(JOIN_S)
+        started = time.monotonic()
+        with pytest.raises(etl.LockWaitTimeout) as raised:
+            claim("bbbbb", "G1")
+        waited = time.monotonic() - started
+        assert "ops.dim_fantrax_crosswalk_override: waited 1s for a lock, gave up (lock_timeout)" in str(raised.value)
+        assert 0.9 <= waited < 1 + 10
+        release.set()
+        t1.join(JOIN_S)
+        assert first["got"].total == 1
+        assert etl.read_table(TABLE)["scorer_id"].tolist() == ["aaaaa"]
+
+    def test_a_refused_check_takes_the_lock_and_gives_it_back_with_no_write(self, db):
+        assert claim("aaaaa", "G1").problems == []
+        assert claim("bbbbb", "G1").problems != []
+        assert claim("ccccc", "G3").problems == []
+        assert sorted(etl.read_table(TABLE)["scorer_id"]) == ["aaaaa", "ccccc"]
+
+    def test_a_table_that_holds_no_rows_reads_as_none_inside_the_transaction(self, db):
+        seen = []
+        got = etl.write_table_checked(TABLE, rec.row("aaaaa", "G1", "1", NOW), reads=READS,
+                                      check=lambda stored: seen.append(stored[TABLE]) or [])
+        assert seen == [None] and got.total == 1
 
 
 class TestTheFormRowThroughTheSeam:
