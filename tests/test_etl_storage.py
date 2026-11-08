@@ -79,6 +79,7 @@ def pg_ddl(spec):
 
 LOCAL_HOSTS = ("localhost", "127.0.0.1")
 OPT_IN_NONLOCAL = "ALLOW_NONLOCAL_TEST_DATABASE"
+REDIRECT_ENV = ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE")
 
 
 def refuse_unless_throwaway(url):
@@ -90,7 +91,8 @@ def refuse_unless_throwaway(url):
     except Exception:
         parts = {}
     hosts = [h for key in ("host", "hostaddr") for h in str(parts.get(key) or "").split(",") if h]
-    redirected = bool(parts.get("hostaddr")) or bool(os.environ.get("PGHOSTADDR"))
+    redirected = (bool(parts.get("hostaddr")) or bool(parts.get("service"))
+                  or any(os.environ.get(v) for v in REDIRECT_ENV))
     local = bool(parts.get("host")) and not redirected and all(h in LOCAL_HOSTS for h in hosts)
     if not local and not os.environ.get(OPT_IN_NONLOCAL):
         pytest.fail(f"TEST_DATABASE_URL host is not localhost or 127.0.0.1; "
@@ -378,11 +380,19 @@ class TestGuards:
             with pytest.raises(pytest.fail.Exception, match="not localhost"):
                 refuse_unless_throwaway(url)
 
-    def test_a_hostaddr_in_the_environment_is_not_a_local_database(self, monkeypatch):
+    @pytest.mark.parametrize("var, value", [
+        ("PGHOSTADDR", "10.0.0.5"), ("PGSERVICE", "prod"), ("PGSERVICEFILE", "/tmp/pg_service.conf"),
+    ])
+    def test_a_redirect_in_the_environment_is_not_a_local_database(self, monkeypatch, var, value):
         monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
-        monkeypatch.setenv("PGHOSTADDR", "10.0.0.5")
+        monkeypatch.setenv(var, value)
         with pytest.raises(pytest.fail.Exception, match="not localhost"):
             refuse_unless_throwaway("postgresql://u:p@localhost:5432/d")
+
+    def test_a_service_in_the_url_is_not_a_local_database(self, monkeypatch):
+        monkeypatch.delenv(OPT_IN_NONLOCAL, raising=False)
+        with pytest.raises(pytest.fail.Exception, match="not localhost"):
+            refuse_unless_throwaway("postgresql://u:p@localhost:5432/d?service=prod")
 
     def test_the_opt_in_lets_another_host_through(self, monkeypatch):
         monkeypatch.setenv(OPT_IN_NONLOCAL, "1")

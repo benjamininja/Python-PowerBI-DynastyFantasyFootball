@@ -25,35 +25,107 @@ from test_etl_storage import TABLES, database_url
 pytestmark = pytest.mark.pg
 
 PG_SOURCE = REPO / "notebooks" / "etl_storage_pg.py"
-ROW_FETCHERS = {"read_on", "breaks", "orphans", "login_facts"}
 ZONE = "Asia/Kolkata"
+
+FETCH_METHODS = {"fetchone", "fetchall", "fetchmany", "stream", "stream_dict",
+                 "read_sql", "read_sql_query", "read_sql_table"}
+CURSOR_MAKERS = {"execute", "cursor", "stream"}
+MODULE = "<module>"
+
+# The functions of each psycopg module that may fetch. A scalar probe (a
+# count, an EXISTS, a catalog row, a checksum) or read_on, which reads a table
+# in binary. A new fetching function, or a fetch at module level, fails.
+PG_MODULES = {
+    "notebooks/etl_storage_pg.py": {
+        "read_on", "breaks", "orphans", "login_facts", "nonempty", "has_rows",
+        "write", "write_all_empty", "_copy", "load_published"},
+    "notebooks/etl_run_log.py": {"_count", "_rows"},
+    "scripts/backfill_postgres.py": set(),
+    "scripts/restore_drill.py": {"checksum_lines"},
+}
+
+
+def fetching_functions(source):
+    """Every function (or MODULE) in `source` that reads rows through psycopg:
+    fetchone/fetchall/fetchmany/stream, pd.read_sql*, cursor.copy(<args>), or a
+    loop over a cursor or an execute() result."""
+    tree = ast.parse(source)
+    found = set()
+
+    def attr(node):
+        return node.func.attr if isinstance(node.func, ast.Attribute) else (
+            node.func.id if isinstance(node.func, ast.Name) else None)
+
+    def cursor_names(scope):
+        names = set()
+        for node in ast.walk(scope):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) \
+                    and attr(node.value) in CURSOR_MAKERS:
+                names |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+            if isinstance(node, ast.With):
+                for item in node.items:
+                    if (isinstance(item.context_expr, ast.Call) and attr(item.context_expr) in CURSOR_MAKERS
+                            and isinstance(item.optional_vars, ast.Name)):
+                        names.add(item.optional_vars.id)
+        return names
+
+    def visit(scope, name):
+        cursors = cursor_names(scope)
+        stack = list(ast.iter_child_nodes(scope))
+        while stack:
+            node = stack.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                visit(node, node.name)
+                continue
+            stack.extend(ast.iter_child_nodes(node))
+            if isinstance(node, ast.Call):
+                called = attr(node)
+                if called in FETCH_METHODS or (called == "copy" and (node.args or node.keywords)):
+                    found.add(name)
+            iters = []
+            if isinstance(node, (ast.For, ast.AsyncFor)):
+                iters.append(node.iter)
+            if isinstance(node, ast.comprehension):
+                iters.append(node.iter)
+            for it in iters:
+                if (isinstance(it, ast.Call) and attr(it) in CURSOR_MAKERS) or (
+                        isinstance(it, ast.Name) and it.id in cursors):
+                    found.add(name)
+
+    visit(tree, MODULE)
+    return found
 
 
 class TestNoReadBypassesReadOn:
-    def fetching_functions(self):
-        tree = ast.parse(PG_SOURCE.read_text(encoding="utf-8"))
-        found = set()
-        for fn in ast.walk(tree):
-            if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                for node in ast.walk(fn):
-                    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                            and node.func.attr in ("fetchall", "fetchmany")):
-                        found.add(fn.name)
-        return found
-
-    def test_only_read_on_and_the_catalog_probes_fetch_rows(self):
-        assert self.fetching_functions() <= ROW_FETCHERS
+    @pytest.mark.parametrize("rel", sorted(PG_MODULES))
+    def test_only_the_known_functions_fetch_rows(self, rel):
+        source = (REPO / rel).read_text(encoding="utf-8")
+        assert sorted(fetching_functions(source) - PG_MODULES[rel]) == [], rel
 
     def test_read_on_reads_in_binary(self):
         source = PG_SOURCE.read_text(encoding="utf-8")
         body = source.split("def read_on", 1)[1].split("\ndef ", 1)[0]
         assert "binary=True" in body and "fetchall" in body
 
-    def test_the_guard_sees_a_new_fetching_function(self, monkeypatch, tmp_path):
-        fake = tmp_path / "etl_storage_pg.py"
-        fake.write_text("def sneaky(conn):\n    return conn.execute('SELECT 1').fetchall()\n")
-        monkeypatch.setattr(sys.modules[__name__], "PG_SOURCE", fake)
-        assert self.fetching_functions() == {"sneaky"}
+    @pytest.mark.parametrize("body", [
+        "def sneaky(conn):\n    return conn.execute('SELECT 1').fetchall()\n",
+        "def sneaky(conn):\n    return conn.execute('SELECT 1').fetchone()\n",
+        "def sneaky(cur):\n    return cur.fetchmany(5)\n",
+        "def sneaky(conn):\n    return [r for r in conn.execute('SELECT 1')]\n",
+        "def sneaky(conn):\n    cur = conn.execute('SELECT 1')\n    for r in cur:\n        print(r)\n",
+        "def sneaky(conn):\n    with conn.cursor() as cur:\n        return [r for r in cur]\n",
+        "def sneaky(cur):\n    return list(cur.stream('SELECT 1'))\n",
+        "def sneaky(cur):\n    with cur.copy('COPY t TO STDOUT') as c:\n        return c.read()\n",
+        "def sneaky(conn):\n    import pandas as pd\n    return pd.read_sql('SELECT 1', conn)\n",
+    ])
+    def test_the_guard_sees_a_new_fetching_function(self, body):
+        assert fetching_functions(body) == {"sneaky"}
+
+    def test_the_guard_sees_a_module_level_read(self):
+        assert fetching_functions("import psycopg\nROWS = psycopg.connect('').execute('x').fetchall()\n") == {MODULE}
+
+    def test_the_guard_ignores_a_dataframe_copy_and_a_plain_loop(self):
+        assert fetching_functions("def fine(df, xs):\n    for x in xs:\n        pass\n    return df.copy()\n") == set()
 
 
 @pytest.fixture(scope="module")
@@ -91,6 +163,30 @@ class TestTimestamptzUnderAnotherZone:
                 entry = etl._table_entry(name)
                 got = etl._coerce(pg.read_on(conn, entry), entry)
                 assert pg.differences(got, frames[name], entry) == [], name
+
+    def test_every_ops_timestamptz_column_round_trips_under_a_non_utc_session(self):
+        import datetime as dt
+        import psycopg
+        from psycopg import sql
+        url = database_url()
+        ops = {key: spec for key, spec in pg._state().items() if spec["schema"] == "ops"}
+        stamped = {key: [c["name"] for c in spec["columns"] if c["sql_type"] == "timestamptz"]
+                   for key, spec in ops.items()}
+        stamped = {key: cols for key, cols in stamped.items() if cols}
+        assert {"ops.etl_run_log", "ops.review_check", "ops.review_fantrax_crosswalk"} <= set(stamped)
+        want = dt.datetime(2026, 1, 2, 3, 4, 5, 678000, tzinfo=dt.timezone.utc)
+        with psycopg.connect(with_options(url, f"-c TimeZone={ZONE}")) as conn:
+            assert conn.execute("SHOW TimeZone").fetchone()[0] == ZONE
+            for key, cols in sorted(stamped.items()):
+                table = sql.Identifier(ops[key]["schema"], ops[key]["name"])
+                idents = sql.SQL(", ").join(sql.Identifier(c) for c in cols)
+                conn.execute(sql.SQL("CREATE TEMP TABLE probe ON COMMIT DROP AS "
+                                     "SELECT {} FROM {} WITH NO DATA").format(idents, table))
+                conn.execute(sql.SQL("INSERT INTO probe ({}) VALUES ({})").format(
+                    idents, sql.SQL(", ").join(sql.SQL("'2026-01-02 03:04:05.678+00'::timestamptz") for _ in cols)))
+                got = conn.execute("SELECT * FROM probe", binary=True).fetchall()
+                assert got == [tuple(want for _ in cols)], key
+                conn.execute("DROP TABLE probe")
 
     def test_a_verified_load_under_a_non_utc_session_finds_no_difference(self, db, frames):
         loaded = pg.load_published(with_options(db, f"-c TimeZone={ZONE}"), frames,
