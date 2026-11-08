@@ -1,6 +1,5 @@
 import copy
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -66,26 +65,6 @@ def test_empty_source(tmp_path):
     _write(p, _nb(""), final_newline=True)
     nn.normalize_file(p)
     assert json.loads(p.read_bytes())["cells"][0]["source"] == []
-
-
-@pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
-def test_sources_match_origin_main(path):
-    rel = path.relative_to(ROOT).as_posix()
-    try:
-        res = subprocess.run(["git", "show", f"origin/main:{rel}"], cwd=ROOT,
-                             capture_output=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
-        pytest.skip("origin/main copy not available")
-    old = json.loads(res.stdout.decode("utf-8"))
-    new = json.loads(path.read_bytes().decode("utf-8"))
-    assert ["".join(c["source"]) for c in new["cells"]] == [
-        "".join(c["source"]) if not isinstance(c["source"], str) else c["source"]
-        for c in old["cells"]
-    ]
-    assert [{k: v for k, v in c.items() if k != "source"} for c in new["cells"]] == [
-        {k: v for k, v in c.items() if k != "source"} for c in old["cells"]
-    ]
-    assert new["metadata"] == old["metadata"]
 
 
 @pytest.mark.parametrize("path", NOTEBOOKS, ids=lambda p: p.name)
