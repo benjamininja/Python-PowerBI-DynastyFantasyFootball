@@ -142,7 +142,7 @@ Researching the unchecked sources' terms is a later spike. This ADR records no v
     - the more specific document governs its channel (API terms for the API), and the operative terms text beats marketing copy;
     - a specific robots group beats the `*` group for the agent it names. A Content-Signal under `*` does not reach an agent that has its own group. Both are recorded;
     - the privacy policy governs what the site collects. The terms govern reuse. Both are recorded;
-    - an unknown Content-Signal key is recorded verbatim, and only the defined keys are interpreted (`search`, `ai-input`, `ai-train`; `train-ai`, `ai-use`, `search`);
+    - an unknown Content-Signal key is recorded verbatim, and only the defined keys are interpreted (`search`, `ai-input`, `ai-train`; `train-ai`, `ai-use`, `search`). An unknown key counts as a reservation against AI use when the file also claims Art 4;
     - no terms, only a copyright line, is `not_found` and `unresolved`. No terms is not permission;
     - the AI vocabularies cover AI uses only, so for the pipeline the terms and the `Disallow` lines decide.
 12. **The script writes facts and computed flags, never `status`, `permission`, `clauses` or `confirmed`.** The verdict stays a person's call, made from the verbatim clauses. Choosing and quoting clauses is a person's job. Its output is one file per host per run in the gitignored `REVIEW / "source_checks"` folder. Records reach `docs/sources.yml` only by a later PR, after the owner confirms. The script never writes `docs/sources.yml`.
