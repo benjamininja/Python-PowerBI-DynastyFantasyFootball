@@ -406,7 +406,7 @@ def notebook_cell(notebook: str, cell_id: str) -> str:
 
 
 def fixture_fact() -> pd.DataFrame:
-    """Three weeks of KTC and DynastySharks ADP, and a Composite slice (77.0
+    """Three weeks of DynastySharks ADP, and a Composite slice (77.0
     everywhere, a value the notebook never computes) for the first two."""
     rows = []
 
@@ -415,8 +415,7 @@ def fixture_fact() -> pd.DataFrame:
                      "format": "SF", "source_uid": f"{source}|{pid}", "gsis_id": gsis,
                      "metric_key": key, "metric_num": num, "metric_text": None})
     for snap in (S1, S2, S3):
-        for pid, gsis, ktc, ds in (("1", "g1", 1.0, 1.05), ("2", "g2", 2.0, 2.05), ("3", "g3", 3.0, 3.05)):
-            add(snap, "KTC", "ktc_adp", pid, gsis, ktc)
+        for pid, gsis, ds in (("1", "g1", 1.05), ("2", "g2", 2.05), ("3", "g3", 3.05)):
             add(snap, "DynastySharks", "ds_adp", pid, gsis, ds)
     for snap in (S1, S2):
         for gsis in ("g1", "g2", "g3"):
@@ -485,6 +484,9 @@ class TestCompositeFreezesPastWeeks:
         assert len(current) == 6
         ranks = current[current["metric_key"] == "composite_adp"].set_index("gsis_id")["metric_num"]
         assert sorted(ranks) == [1.0, 2.0, 3.0]
+        assert ranks.to_dict() == {"g1": 1.0, "g2": 2.0, "g3": 3.0}
+        counts = current[current["metric_key"] == "sources_count"]["metric_num"]
+        assert set(counts) == {1.0}
 
     def test_a_second_run_in_the_week_rewrites_only_that_slice(self, tmp_path, monkeypatch):
         monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)
