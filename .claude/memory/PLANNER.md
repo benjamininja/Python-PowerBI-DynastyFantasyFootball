@@ -11,7 +11,57 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 16:30Z (session 8f091889). It overrides the 43-zero item below where they differ; read that one for the resume steps and the earlier state.**
+000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:15Z, before a clear (session 8f091889). Self-contained; overrides everything below. Read the 44-zero item only for detail.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading, and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - The state batch PR is #455; it merges only on the owner's word.
+  - Find the manager by name: `dynastyFantasyFootball-central-builder-manager`.
+  - **Tools-central-planner:** send to its session id, `local_9830794b-c1e9-400a-ba66-e6abb9432396`. Its name and uds addresses go stale. It owns skills-plugins-hooks-agents.
+- **Done this session, all on GitHub:**
+  - #372 closed (the two dry runs matched).
+  - #453 closed. The owner's answers are at issuecomment-6723570172 and issuecomment-6723606527.
+  - #454: Tier: high, scoped. s454-scoping was dispatched (session 1e9e9e62).
+  - #458: Tier: low, dispatched as b458-useragent (session 9d63c29d).
+  - #423 and #415 closed. The answers are at #423 issuecomment-6723794982: delete from Postgres too; leave git history; both out now, with IDP dark.
+  - #397 closed as not planned.
+  - **#459 created** (high: remove KTC and FantasyPros everywhere). **Not dispatched: it needs the owner's word for its scoping session.**
+  - tools #81: the owner answered option (a), recorded at tools #81 issuecomment-6723739198. The manager records it and queues the owner's allow-rule Action. The Tools planner has the pane's Options-parser bug and the no-letter-references entry rule.
+  - PR #456 (#440): I told the manager no breach, merge.
+  - Map #375's lines are updated for all of the above.
+- **Running (manager's):**
+  - b425 (#450);
+  - b440 (#456, in re-proof);
+  - b451 (#457, the supabase-auditor is on it);
+  - b458;
+  - s454-scoping;
+  - in tools: t88-robots and t81.
+- **DO NEXT, in order:**
+  1. **#459's dispatch word.** Ask the owner, with context (summary, pros, cons, then recommendation), to dispatch its scoping session. On a yes, send it to the manager with the owner's words.
+  2. **The 2026-11-09 11:17Z cron run.** The manager's report: the run, the Discord post, and #93's two body checks.
+  3. **s454-scoping's comment on #454.**
+     - Check the briefs against #453 as amended, and against ADR-0022.
+     - Take open questions to the owner, with context.
+     - Set the tiers, and tell the manager.
+     - #454's build waits for #458 to merge.
+  4. **#459's scoping comment, when it lands.** The same check.
+  5. **Builder PR reads, when asked:** #457 (#451) and #458, then #421 Part 2 and #413.
+  6. **#458's live proof:** the 2026-11-13 Close Day run of 03b and 03d (the manager watches). A block parks; it is never reverted.
+  7. **Grills:** #432 next (IDP goes dark with #459), then #429 (with #428 Q1-Q4 and #424 Q3-Q5).
+  8. A sweep, only on the owner's word.
+- **Waiting on the owner:**
+  - **The root push.** `~/.claude` commit 5987e1e (the "context above every question" rule) is committed locally. The git-guardrails hook blocked a direct push to that repo's `main`, though `preferences.md` calls direct-to-main the agreed mode there. The owner pushes it, or picks a branch plus PR.
+    - The other uncommitted hunks in that `preferences.md` aren't mine. I left them alone.
+  - The DLF Action.
+  - The tools pull for wave 1: main checkout b24a6c0 to 11069b3.
+- **Lessons:**
+  - Put the context (summary, pros, cons, then recommendation) above every question. The owner asked for this twice.
+  - Never cite a rule for more than it says.
+  - A headless retry after a 429 can only help by passing bot detection, so it's out.
+  - Split a multi-answer queue entry into separate questions.
+  - In a queue entry, an option never refers to another option by its letter.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (45 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Find the manager with ListAgents and send by name; message Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents).
+
+00000000000000000000000000000000000000000000. **2026-11-08, about 16:30Z (session 8f091889). It overrides the 43-zero item below where they differ; read that one for the resume steps and the earlier state.**
 - **Done this session:**
   - **#372 has no code left.** Its two `--dry-run` outputs can be taken any day through 2026-11-12 (issuecomment-6722886540). The manager replaced the queue entry.
   - **#453 is closed.** Findings: issuecomment-6722904971. The owner's answers to all eight questions: issuecomment-6723570172, plus issuecomment-6723606527 for a robots.txt 429. In short:
