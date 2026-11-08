@@ -16,6 +16,7 @@ openpyxl>=3.1        # 03x/04x manual-Excel ranking sources
 pyyaml>=6            # docs/*.yml registries (check_data_model.py, etl_checks.py)
 httpx>=0.27          # discord_bot/github_fetch.py, imported by tests/ through capmath
 psycopg[binary]>=3   # tests/test_migrations_apply.py, against TEST_DATABASE_URL
+protego>=0.3         # RFC 9309 robots.txt parsing for scripts/source_checks.py (urllib.robotparser gets two RFC cases wrong)
 
 # Headless/agent notebook execution (jupyter nbconvert --execute --inplace).
 # Not needed for interactive VS Code notebook editing -- only when running
