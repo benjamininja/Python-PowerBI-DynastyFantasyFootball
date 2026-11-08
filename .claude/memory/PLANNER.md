@@ -11,7 +11,23 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 19:40Z, before a CLEAR (session 795b662a). Self-contained; overrides everything below. Read the 47-zero item only for the #454, #459 and #413 detail.**
+0000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:55Z by `date -u` (session 179f29dc; earlier items' clock times run ahead). Overrides the 48-zero item where they differ; read that one for the resume steps and the rest of DO NEXT.**
+- **Done this session, all on GitHub:**
+  - **Every manager hold from MANAGER.md 17:30Z is answered.** Sent to the manager (queued, not confirmed read):
+    - **#465**: no breach (PR issuecomment-6724914061). One line to add before merge: findings §4's Art 4 rule for unknown Content-Signal keys. If merged without it, the line goes in C1's brief.
+    - **#466**: readings 1, 2, 4, 5 and 6 OK; 3 and 7 change in the PR (issuecomment-6724914398). The B5 rule on failed reads is on #454 (issuecomment-6724928710).
+    - **#471**: the three KTC keys drop; argparse stays; a parser pytest replaces `--help` (issuecomment-6724914723).
+    - **#459** (issuecomment-6724928260): pbiprune yes (one-time, the owner removes it after B5 merges); B5's test stays; Metric Count Total stays; B4's hand-written DS rank rows are accepted, and B7b does not restore generation.
+  - **New gap tickets** (low, Tooling and upkeep, map #375): **#479**, docs-build paths, dispatch now; **#480**, the stale Dead Money queryRefs, after B5. Map #375 does not list them yet.
+  - **Owner Decision sent to the manager for the queue:** how a builder deletes a file. (a) standing `Bash(git rm *)`, recommended; (b) a per-ticket profile; (c) the owner deletes by hand. B7a waits on it. The Tools planner was told, because session-rules may need a line.
+- **#413's facts, for the grill** (checked on the snapshot):
+  - 04f is manual and not in `run_pipeline.py`. It already pulls DS dynasty and redraft ranks live by `load-rows` (no 250 cap, all positions, TEPP). Its last snapshot is 2026-07-31: 1049 players, 4 keys, including DL 159, DB 162, LB 89 and K 36.
+  - 04x is manual too. Its 2026-06-13 snapshot holds SF and TEPP, 250 offense players each, 9 keys including `ds_adp`.
+  - K is `fantasy_relevant` False in `dim_position`, and there is no team-DEF row: K and DEF are not league positions.
+  - The bot routes IDP by format `IDP`, so it says "No IDP ranking source yet" while DS IDP ranks sit under TEPP.
+- **DO NEXT:** the #413 grill with the owner, one question at a time; then the map #375 pointer lines for #479 and #480; then the 48-zero item's DO NEXT 2 onward.
+
+000000000000000000000000000000000000000000000000. **2026-11-08, about 19:40Z, before a CLEAR (session 795b662a). Self-contained; overrides everything below. Read the 47-zero item only for the #454, #459 and #413 detail.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
   - The state batch PR is #455; it merges only on the owner's word.
