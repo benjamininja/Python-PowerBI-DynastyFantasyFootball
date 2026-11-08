@@ -21,6 +21,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **UPDATE 2026-11-08 ~17:50Z (session `fab4616c`), tools:** the owner chose the Tools planner's queue option. New **#104** (medium, Profile: none) is the owner-queue mod reading many projects' queue files, grouping by project, writing back to each entry's own file, logging undrawable entries, plus a README rule. #99 is amended to rules and templates only (issuecomment-6724735856); its hold is lifted.
+  - Order: #104 first, then #99, one at a time (both edit plugins/owner-queue/README.md).
+  - Each needs the owner's word, as does #101. Count them against the cap of 3 tools builders; t98 and t49 are running.
 - **UPDATE 2026-11-08 ~17:45Z (session `fab4616c`, just before the CLEAR; read with the block below):**
   - Merged: **#469** (#459 B1) as `ae57608`; b459-b1-bot was told it is done. Dynasty main is now `ae57608`, equal to origin/main.
   - Green PASS, not merged:
