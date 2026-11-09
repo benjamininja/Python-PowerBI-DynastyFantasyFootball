@@ -30,7 +30,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
     - **#111** (high): the `Ask planner` button. Amendment 1: the entry's text is quoted, never said as the owner's words. It goes after #110 and takes ADR-0014.
     - #104's held owner decision (check an entry before it is saved) is mine and still held.
   - **Code review at re-proof:**
-    - **tools #113** (high, scoped by the Tools planner). Step 0, the proof that `code-review` runs in a subagent, is the manager's. PR A is the process plus ADR-0015; PR B is `tools-code-review`. The manager's ruleset draft is read: I added P13 and P14 for the mod. A follow-up ticket after PR A adds a tools Green item for `claude plugin test`; the Tools planner and I scope it.
+    - **tools #113** (high, scoped by the Tools planner). Step 0, the proof that `code-review` runs in a subagent, is the manager's. PR A is the process plus ADR-0015; PR B is `tools-code-review`. The manager's ruleset draft is read: I added P13 and P14 for the mod; both are now in it, blocking. The tools Green item for `claude plugin test` goes in the Tools planner's #113 planner PR after PR A (issuecomment-6730858927), so no follow-up ticket is needed. The manager already runs that test at re-proof.
     - **dynasty #490** (low). The ruleset is ruled (issuecomment-6730448396). Amendment 2: the owner's Q20, "Same light review", for rule-text PRs. It goes after #113's PR A.
   - **Tools pulls move to the manager:** tools #112 is PR #114, which waits for the owner's approval. The six allow rules are on disk (checked).
   - **#473** is tiered and ruled (issuecomment-6730839217), with the owner's Q17, Q18 and Q19. #432 can close, but my close and the manager's were both refused; the manager is raising it with the owner.
@@ -42,7 +42,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **DO NEXT, in order:**
   1. **The 2026-11-09 11:17Z cron run.** The manager's report covers the run, the Discord post, #93's two body checks and the terms-due line. Close #93's line on map #375 if both checks pass.
   2. **Re-reads, when the manager asks:** #493's new head (readings 3 and 5), and #482 and #483 if they come back.
-  3. **Reads:** the Tools planner's #113 P6 follow-up ticket when it opens, and `tools-code-review` as PR B builds it.
+  3. **Reads:** the owner-queue rows of `tools-code-review` as PR B builds it.
   4. **#458's live proof:** the 2026-11-13 Close Day run.
   5. **Grills:** #429 next, with #428 Q1-Q4 and #424 Q3-Q5.
   6. **A sweep, only on the owner's word.** Gaps: the stale `_deliver_text` and `_deliver_embeds` names in CLAUDE.md; rolling `CFG.draft_year`.
