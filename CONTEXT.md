@@ -240,10 +240,24 @@ _Avoid_: final check, freeze check
 The dated record of a Source's terms or licence: the verdict (unresolved,
 permitted or rejected), when it was last checked, what was done and the URLs
 read. We judge a Source by the terms of the place we read it from, not of a site
-upstream of it. A Source is re-checked at least every 6 months. One never
-checked, or past its next check, is counted in one advisory line and never
+upstream of it. A Source is re-checked once per season, before the rookie
+draft, in the check month set on `CFG` (May by default), not every 6 months. One
+never checked, or past its next check, is counted in one advisory line and never
 fails a run.
 _Avoid_: licence review, compliance check
+
+**Security check**:
+The dated, per-host check made before anyone reads a page on the host, on the
+same date as the Terms check and before the first read of any new host: Safe
+Browsing (with three test-page controls), DNS, TLS, HSTS and registration age.
+The script writes facts and flags; the owner confirms the block.
+_Avoid_: virus scan, safety review
+
+**Policy capture**:
+The private verbatim copy of a document we read (terms, privacy, licence), kept
+in the gitignored `data/review/policies/` and never in the repo. The public
+record carries only the quotes and its SHA-256.
+_Avoid_: terms archive, snapshot (that's the published data), backup
 
 ### Flows
 

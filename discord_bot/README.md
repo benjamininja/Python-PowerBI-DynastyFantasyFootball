@@ -18,11 +18,11 @@ publicly in one step.
 |---|---|---|
 | `fmt` | `SF` | League format: `SF`, `TEPP` (offense), or `IDP` (defense). |
 | `position` | all | Filter to one position (e.g. `QB`, `LB`). |
-| `source` | best for format | `KTC` for SF/TEPP, `FantasyPros` for IDP. |
+| `source` | best for format | `DynastySharks` for SF/TEPP. IDP has no source yet. |
 | `limit` | `10` | Players per position (max 25). |
 
 Why format-scoped: no single format+source spans all positions — SF/TEPP hold
-offense, IDP holds defense (FantasyPros only). One board = one format.
+offense; IDP replies `No IDP ranking source yet.` One board = one format.
 
 ### `/adp` — Fantrax ADP board (with league-ownership overlay)
 
