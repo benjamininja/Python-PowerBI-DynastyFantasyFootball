@@ -15,6 +15,7 @@ import re
 import socket
 import ssl
 import sys
+import threading
 import time
 from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, timezone
@@ -1610,6 +1611,9 @@ RENDER_TIMEOUT_MS = 30000
 RENDER_IDLE_MS = 10000
 METHOD_RENDER = "browser_render"
 RENDER_SKIP_TAGS = ["script", "style", "noscript", "template", "head"]
+RENDER_BLOCKED_TYPES = frozenset({"image", "media", "font", "stylesheet"})
+RENDER_NO_REQUEST_SCHEMES = frozenset({"data", "blob"})
+RENDER_SAME_HOST_CAP = 50
 
 
 class RenderError(Exception):
@@ -1620,7 +1624,7 @@ class RenderError(Exception):
 class RenderRequest:
     url: str
     user_agent: str
-    allow: Callable[[str], bool]
+    allow: Callable[..., bool]
     storage_state: None = None
 
 
@@ -1639,16 +1643,24 @@ def visible_text(html: bytes | str) -> str:
 
 
 class RenderGuard:
-    def __init__(self, fetcher: Fetcher):
+    def __init__(self, fetcher: Fetcher, page_host: str | None = None,
+                 same_host_cap: int = RENDER_SAME_HOST_CAP):
         self.fetcher = fetcher
+        self.page_host = page_host
+        self.same_host_cap = same_host_cap
+        self.same_host_count = 0
         self.allowed: list = []
         self.aborted: list = []
 
-    def decide(self, url: str) -> str | None:
+    def decide(self, url: str, resource_type: str | None = None) -> str | None:
         parts = urlsplit(url)
+        if parts.scheme in RENDER_NO_REQUEST_SCHEMES:
+            return None
         host = parts.hostname
         if parts.scheme != "https" or not host:
             return "not_https"
+        if resource_type in RENDER_BLOCKED_TYPES:
+            return "resource_type"
         fetcher = self.fetcher
         if host not in fetcher.secure_hosts and host not in fetcher.service_hosts:
             return "host_not_checked"
@@ -1660,11 +1672,17 @@ class RenderGuard:
         decision = fetcher.gate.decide(url)
         if not decision.allowed:
             return decision.reason or UNREAD_ROBOTS_BLOCKS_AGENT
+        if host == self.page_host and self.same_host_count >= self.same_host_cap:
+            return "request_cap"
         return None
 
-    def __call__(self, url: str) -> bool:
-        why = self.decide(url)
+    def __call__(self, url: str, resource_type: str | None = None) -> bool:
+        why = self.decide(url, resource_type)
         if why is None:
+            if urlsplit(url).scheme in RENDER_NO_REQUEST_SCHEMES:
+                return True
+            if urlsplit(url).hostname == self.page_host:
+                self.same_host_count += 1
             self.allowed.append(url)
             return True
         self.aborted.append((url, why))
@@ -1710,7 +1728,8 @@ class PlaywrightRenderer:
                 accept_downloads=False, service_workers="block")
             try:
                 context.route("**/*", lambda route: route.continue_()
-                              if request.allow(route.request.url) else route.abort())
+                              if request.allow(route.request.url, route.request.resource_type)
+                              else route.abort())
                 if hasattr(context, "route_web_socket"):
                     context.route_web_socket("**/*", lambda socket_route: socket_route.close())
                 page = context.new_page()
@@ -1731,6 +1750,7 @@ class PageRenderer:
         self.fetcher = fetcher
         self.renderer = renderer
         self.skipped: dict[str, str] = {}
+        self._locks: dict[str, threading.Lock] = {}
 
     def skip_reason(self, res: FetchResult) -> str | None:
         if res.outcome != "ok":
@@ -1765,9 +1785,16 @@ class PageRenderer:
         return self._render(res)
 
     def _render(self, res: FetchResult) -> FetchResult:
+        host = host_of(res.final_url or res.url)
+        with self._locks.setdefault(host, threading.Lock()):
+            try:
+                return self._run_render(res, host)
+            finally:
+                self.fetcher._host(host).last_request = self.fetcher.clock()
+
+    def _run_render(self, res: FetchResult, host: str) -> FetchResult:
         url = res.final_url or res.url
-        host = host_of(url)
-        guard = RenderGuard(self.fetcher)
+        guard = RenderGuard(self.fetcher, host)
         self.fetcher._pace(host)
         try:
             page = self.renderer(RenderRequest(url=url, user_agent=USER_AGENT, allow=guard))

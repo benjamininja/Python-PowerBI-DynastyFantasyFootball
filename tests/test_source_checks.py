@@ -1452,7 +1452,9 @@ def page(text):
 
 
 class FakeRenderer:
-    def __init__(self, html=None, status=200, subrequests=(), error=None, pages=None, clock=None):
+    def __init__(self, html=None, status=200, subrequests=(), error=None, pages=None, clock=None,
+                 advance=0):
+        self.advance = advance
         self.html = html if html is not None else f"<html><body><p>{FULL_TEXT}</p></body></html>"
         self.status = status
         self.subrequests = list(subrequests)
@@ -1466,8 +1468,11 @@ class FakeRenderer:
     def __call__(self, request):
         self.requests.append(request)
         self.times.append(self.clock() if self.clock else None)
-        for url in self.subrequests:
-            self.verdicts[url] = request.allow(url)
+        for item in self.subrequests:
+            url, kind = item if isinstance(item, tuple) else (item, None)
+            self.verdicts[url] = request.allow(url, kind)
+        if self.advance:
+            self.clock.t += self.advance
         if self.error is not None:
             raise self.error
         return sc.RenderedPage(self.pages.get(request.url, self.html), self.status, request.url)
@@ -1689,14 +1694,100 @@ def test_a_host_that_has_stopped_us_is_aborted():
     assert fake.verdicts == {B_LIB: False}
 
 
-@pytest.mark.parametrize("url", ["http://a.example/app.js", "data:text/plain,hello", "blob:https://a.example/x",
-                                 "wss://a.example/socket"])
-def test_only_https_requests_are_let_through(url):
+@pytest.mark.parametrize("url", ["http://a.example/app.js", "ws://a.example/socket", "wss://a.example/socket",
+                                 "ftp://a.example/file"])
+def test_a_request_that_is_not_https_and_not_inline_is_aborted(url):
     renderer = FakeRenderer(subrequests=[url])
     pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
     out = pr.consider(f.get(A_PAGE))
     assert fake.verdicts == {url: False}
     assert out.render_aborted == [(url, "not_https")]
+
+
+@pytest.mark.parametrize("url", ["data:text/plain,hello", "blob:https://c.example/x"])
+def test_data_and_blob_urls_make_no_request_and_pass(url):
+    renderer = FakeRenderer(subrequests=[url])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {url: True}
+    assert out.render_aborted == [] and out.render_allowed == []
+    assert t.urls() == [A_ROBOTS, A_PAGE]
+
+
+@pytest.mark.parametrize("kind", ["image", "media", "font", "stylesheet"])
+def test_an_image_media_font_or_stylesheet_request_is_aborted(kind):
+    url = "https://a.example/asset"
+    renderer = FakeRenderer(subrequests=[(url, kind)])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {url: False}
+    assert out.render_aborted == [(url, "resource_type")]
+
+
+@pytest.mark.parametrize("kind", ["document", "script", "xhr", "fetch"])
+def test_a_document_script_xhr_or_fetch_request_passes_under_the_gate(kind):
+    url = "https://a.example/asset"
+    renderer = FakeRenderer(subrequests=[(url, kind)])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {url: True} and out.render_allowed == [url]
+
+
+def test_an_image_on_another_host_is_aborted_too():
+    renderer = FakeRenderer(subrequests=[(B_LIB, "image")])
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), B_ROBOTS: resp(404), A_PAGE: page(THIN_92)},
+        renderer=renderer, secure=("a.example", "b.example"))
+    f.read_robots("b.example")
+    pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {B_LIB: False}
+
+
+def test_the_51st_same_host_request_is_aborted():
+    urls = [f"https://a.example/chunk{i}.js" for i in range(51)]
+    renderer = FakeRenderer(subrequests=[(u, "script") for u in urls])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert [fake.verdicts[u] for u in urls] == [True] * 50 + [False]
+    assert out.render_aborted == [(urls[50], "request_cap")]
+    assert len(out.render_allowed) == 50
+
+
+def test_requests_to_other_hosts_and_aborted_ones_do_not_count_toward_the_cap():
+    others = [(f"https://b.example/lib{i}.js", "script") for i in range(30)]
+    images = [(f"https://a.example/pic{i}.png", "image") for i in range(30)]
+    same = [(f"https://a.example/chunk{i}.js", "script") for i in range(50)]
+    renderer = FakeRenderer(subrequests=others + images + same)
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), B_ROBOTS: resp(404), A_PAGE: page(THIN_92)},
+        renderer=renderer, secure=("a.example", "b.example"))
+    f.read_robots("b.example")
+    out = pr.consider(f.get(A_PAGE))
+    assert all(fake.verdicts[u] for u, _ in others + same)
+    assert not any(fake.verdicts[u] for u, _ in images)
+    assert [u for u, why in out.render_aborted if why == "request_cap"] == []
+
+
+def test_the_cap_is_per_render():
+    urls = [(f"https://a.example/chunk{i}.js", "script") for i in range(50)]
+    renderer = FakeRenderer(subrequests=urls)
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), A_PAGE: page(THIN_92), "https://a.example/two": page(THIN_92)},
+        renderer=renderer)
+    pr.consider(f.get(A_PAGE))
+    out = pr.consider(f.get("https://a.example/two"))
+    assert out.render_aborted == [] and len(out.render_allowed) == 50
+
+
+def test_the_next_request_to_the_host_waits_its_spacing_after_the_render_ends():
+    renderer = FakeRenderer(advance=20)
+    pr, f, t, clock, fake = renderer_for(
+        {A_ROBOTS: resp(404), A_PAGE: page(THIN_92), "https://a.example/next": page(FULL_TEXT)},
+        renderer=renderer)
+    pr.consider(f.get(A_PAGE))
+    ended = clock.t
+    f.get("https://a.example/next")
+    assert t.times("https://a.example/next")[0] - ended >= sc.MIN_DELAY
 
 
 def test_the_apex_and_www_are_different_hosts_to_the_render():
