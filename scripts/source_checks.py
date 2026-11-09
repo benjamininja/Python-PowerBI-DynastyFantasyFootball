@@ -1,13 +1,14 @@
 """Source checks, fetch layer (#454 Brief B1): the only network path in the
 script, and the RobotsGate every request must pass. GET only, one product
-token on every request, no cookies, no auth. The security check (B2) and the
-reading section (B3: robots and page signals, document discovery) sit on top of
-this layer. Later briefs add the render and the evidence.
+token on every request, no cookies, no auth. The security check (B2), the
+reading section (B3: robots and page signals, document discovery), the render
+(B4) and the evidence, output and CLI (B5) sit on top of this layer.
 
 Never run live by an agent; tests inject the transport, clock and sleep.
 """
 from __future__ import annotations
 
+import argparse
 import calendar
 import hashlib
 import json
@@ -17,7 +18,7 @@ import ssl
 import sys
 import threading
 import time
-from dataclasses import dataclass, field, fields, replace
+from dataclasses import asdict, dataclass, field, fields, replace
 from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
 from http.cookiejar import CookiePolicy
@@ -319,6 +320,7 @@ class Fetcher:
         self.service_hosts = set(SERVICE_HOSTS)
         self.secure_hosts: set[str] = set()
         self.hosts: dict[str, _Host] = {}
+        self.hop_clearance: Callable[[str], object] | None = None
         self._deferred: list[_Deferred] = []
         self._ran_deferred = False
 
@@ -393,11 +395,16 @@ class Fetcher:
                 return "exhausted", resp, count_429
             self.sleep(wait if wait is not None else RATE_LIMIT_WAITS[attempt])
 
-    def _admit(self, url: str, *, robots_read: bool) -> _Refusal | None:
+    def _admit(self, url: str, *, robots_read: bool, origin: str | None = None) -> _Refusal | None:
         parts = urlsplit(url)
         host = parts.hostname
         if parts.scheme != "https" or not host:
             return _Refusal("failed", None, f"only https URLs are fetched: {url}")
+        if host not in self.service_hosts and host not in self.secure_hosts:
+            if (origin is not None and self.hop_clearance is not None and host != origin
+                    and (parts.path == ROBOTS_PATH or not robots_read)
+                    and same_site(origin, host)):
+                self.hop_clearance(host)
         if host not in self.service_hosts and host not in self.secure_hosts:
             return _Refusal("failed", None, f"security check not passed for {host}")
         if parts.path == ROBOTS_PATH:
@@ -424,8 +431,10 @@ class Fetcher:
         hops: list = []
         saw_429 = False
         current = url
+        origin = host_of(url)
         for hop in range(MAX_HOPS + 1):
-            refusal = self._admit(current, robots_read=robots_read)
+            refusal = self._admit(current, robots_read=robots_read,
+                                  origin=origin if hop > 0 else None)
             if refusal is not None:
                 return _Followed("refused", None, hops, refusal.detail, saw_429, current, refusal)
             hops.append(current)
@@ -470,7 +479,7 @@ class Fetcher:
         elif fol.kind in ("transport", "too_many_redirects"):
             self._store_robots(host, url, None, "disallow_all", UNREAD_REFUSED_STATUS, None, fol.detail)
         else:
-            self._settle_response(host, url, fol.response)
+            self._settle_response(host, fol.hops[-1] if fol.hops else url, fol.response)
         if deferred_try or fol.saw_429:
             state.segmented = True
         return None
@@ -1258,6 +1267,9 @@ class DocumentFind:
     parsed: ParsedPage | None = None
     unread_reason: str | None = None
     note: str = ""
+    capture_sha256: str | None = None
+    capture_file: str | None = None
+    archive: str | None = None
 
     @property
     def unread(self) -> str | None:
@@ -1274,7 +1286,7 @@ class DocumentFind:
             "read": self.read, "page_date": self.parsed.date if self.parsed else None,
             "read_by": "script", "method": self.fetch.method if self.fetch is not None else "http_get",
             "unread": self.unread,
-            "archive": None, "capture_sha256": None,
+            "archive": self.archive, "capture_sha256": self.capture_sha256,
         }
 
 
@@ -1826,3 +1838,417 @@ class PageRenderer:
             else:
                 out.outcome, out.unread, out.detail = "ok", None, ""
         return out
+
+
+POLICIES_DIR = "policies"
+OUTPUT_DIR = "source_checks"
+WAYBACK_URL = "https://archive.org/wayback/available?url="
+SAVE_URL = "https://web.archive.org/save/"
+VERDICT_KEYS = frozenset({"status", "permission", "clauses", "confirmed"})
+HOST_NAME = re.compile(
+    r"^(?=.{1,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
+READ_DONE = "read"
+READ_HELD = "held"
+READ_NOT_CLEARED = "not_cleared"
+READ_CHECK_FAILED = "check_failed"
+
+
+def capture_extension(res: FetchResult) -> str:
+    if res.method == METHOD_RENDER or is_html_response(res):
+        return "html"
+    content_type = res.headers.get("content-type", "").lower()
+    if "pdf" in content_type:
+        return "pdf"
+    return "txt" if content_type.startswith("text/") else "bin"
+
+
+def write_capture(root: Path, host: str, read: date, body: bytes, ext: str) -> tuple[str, str]:
+    sha = hashlib.sha256(body).hexdigest()
+    folder = re.sub(r"[^a-z0-9.-]", "_", host.lower())
+    name = f"{read.isoformat()}_{sha}.{ext}"
+    path = root / folder / name
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+    return sha, f"{folder}/{name}"
+
+
+def wayback_url(url: str) -> str:
+    return WAYBACK_URL + quote(url, safe="")
+
+
+@dataclass
+class ArchiveAnswer:
+    kind: str  # copy | none | unknown
+    archive: str | None = None
+    detail: str = ""
+
+
+def parse_wayback(body: bytes) -> ArchiveAnswer:
+    try:
+        data = json.loads(body.decode("utf-8", errors="replace"))
+    except ValueError:
+        return ArchiveAnswer("unknown", detail="the answer is not JSON")
+    snapshots = data.get("archived_snapshots") if isinstance(data, dict) else None
+    if not isinstance(snapshots, dict):
+        return ArchiveAnswer("unknown", detail="the answer has no archived_snapshots")
+    closest = snapshots.get("closest")
+    if closest is None and not snapshots:
+        return ArchiveAnswer("none")
+    if not isinstance(closest, dict):
+        return ArchiveAnswer("unknown", detail="the answer has an unexpected closest")
+    if closest.get("available") is False:
+        return ArchiveAnswer("none")
+    link = closest.get("url")
+    if (closest.get("available") is True and isinstance(link, str)
+            and link.startswith(("https://web.archive.org/", "http://web.archive.org/"))):
+        return ArchiveAnswer("copy", archive=link)
+    return ArchiveAnswer("unknown", detail="the answer has an unexpected closest")
+
+
+class Wayback:
+    def __init__(self, fetcher: Fetcher):
+        self.fetcher = fetcher
+        self._answers: dict[str, ArchiveAnswer] = {}
+
+    def lookup(self, url: str) -> ArchiveAnswer:
+        answer = self._answers.get(url)
+        if answer is None:
+            res = self.fetcher.get(wayback_url(url))
+            if res.outcome == "ok" and res.status == 200:
+                answer = parse_wayback(res.body)
+            else:
+                why = res.unread or (f"answered {res.status}" if res.status else res.outcome)
+                answer = ArchiveAnswer("unknown", detail=f"{res.outcome}: {why} {res.detail}".strip())
+            self._answers[url] = answer
+        return answer
+
+
+@dataclass
+class Evidence:
+    captures: list = field(default_factory=list)
+    missing: list = field(default_factory=list)
+    lookup_failed: list = field(default_factory=list)
+
+
+def collect_evidence(reading: HostReading, *, captures_root: Path, wayback: Wayback) -> Evidence:
+    evidence = Evidence()
+    for doc in reading.documents:
+        res = doc.fetch
+        if res is None or res.outcome != "ok":
+            continue
+        host = host_of(res.final_url or doc.url) or reading.host
+        doc.capture_sha256, doc.capture_file = write_capture(
+            captures_root, host, doc.read, res.body, capture_extension(res))
+        evidence.captures.append({"url": doc.url, "file": doc.capture_file,
+                                  "sha256": doc.capture_sha256, "method": res.method})
+        answer = wayback.lookup(doc.url)
+        if answer.kind == "copy":
+            doc.archive = answer.archive
+        elif answer.kind == "none":
+            if doc.url not in evidence.missing:
+                evidence.missing.append(doc.url)
+        else:
+            evidence.lookup_failed.append({"url": doc.url, "detail": answer.detail})
+    return evidence
+
+
+class RecordingChecker:
+    """Runs each host's security check once per run and keeps every result, so
+    the output file can show the checks of redirect hops and operator hosts."""
+
+    def __init__(self, checker: SecurityChecker):
+        self.checker = checker
+        self.results: dict[str, SecurityResult] = {}
+        self._active: set[str] = set()
+
+    def check(self, host: str) -> SecurityResult:
+        host = host.lower()
+        if host in self.results:
+            return self.results[host]
+        if host in self._active:
+            return SecurityResult(host=host, checked=self.checker.today(),
+                                  failed="a check of this host is already running")
+        self._active.add(host)
+        try:
+            result = self.checker.check(host)
+        finally:
+            self._active.discard(host)
+        self.results[host] = result
+        return result
+
+    def clear_hop(self, host: str) -> None:
+        self.check(host)
+
+
+@dataclass
+class HostRun:
+    host: str
+    security: SecurityResult
+    reading: HostReading | None = None
+    evidence: Evidence | None = None
+    read: str = READ_DONE
+
+
+@dataclass
+class HostOutput:
+    host: str
+    path: Path
+    missing_path: Path | None
+    payload: dict
+    read: str
+
+
+def security_record(result: SecurityResult) -> dict:
+    return {"block": result.block(), "readable": result.readable, "held": result.held,
+            "failed": result.failed, "notes": list(result.notes)}
+
+
+def jsonable(value):
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(k): jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [jsonable(v) for v in value]
+    return value
+
+
+def verdict_keys_in(value, path: str = "") -> list:
+    found = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in VERDICT_KEYS:
+                found.append(f"{path}/{key}")
+            found += verdict_keys_in(item, f"{path}/{key}")
+    elif isinstance(value, (list, tuple)):
+        for i, item in enumerate(value):
+            found += verdict_keys_in(item, f"{path}[{i}]")
+    return found
+
+
+def unique_path(folder: Path, stem: str, suffix: str) -> Path:
+    path = folder / f"{stem}{suffix}"
+    n = 1
+    while path.exists():
+        n += 1
+        path = folder / f"{stem}_{n}{suffix}"
+    return path
+
+
+def write_json(path: Path, payload: dict) -> None:
+    clean = jsonable(payload)
+    bad = verdict_keys_in(clean)
+    if bad:
+        raise ValueError("the output may hold facts and flags only; verdict keys at " + ", ".join(bad))
+    text = json.dumps(clean, indent=2, ensure_ascii=False, allow_nan=False)
+    path.write_text(text + "\n", encoding="utf-8", newline="\n")
+
+
+class CheckRun:
+    def __init__(self, fetcher: Fetcher, checker: RecordingChecker, reader: SourceReader,
+                 wayback: Wayback, *, out_dir: Path, captures_root: Path):
+        self.fetcher = fetcher
+        self.checker = checker
+        self.reader = reader
+        self.wayback = wayback
+        self.out_dir = out_dir
+        self.captures_root = captures_root
+
+    def run(self, hosts: list[str]) -> list[HostOutput]:
+        runs = [self._read_host(host) for host in dict.fromkeys(h.lower() for h in hosts)]
+        self.fetcher.run_deferred()
+        for item in runs:
+            if item.reading is not None and item.reading.pending:
+                item.reading = self.reader.read(item.host)
+        outputs = []
+        for item in runs:
+            if item.reading is not None:
+                item.evidence = collect_evidence(item.reading, captures_root=self.captures_root,
+                                                 wayback=self.wayback)
+            outputs.append(self._write(item))
+        return outputs
+
+    def _read_host(self, host: str) -> HostRun:
+        result = self.checker.check(host)
+        if result.failed is not None:
+            return HostRun(host, result, read=READ_CHECK_FAILED)
+        if not result.readable:
+            return HostRun(host, result, read=READ_HELD if result.held else READ_NOT_CLEARED)
+        reading = self.reader.read(host)
+        if reading.skipped is not None:
+            return HostRun(host, result, reading, read=READ_NOT_CLEARED)
+        return HostRun(host, result, reading)
+
+    def _read_host_of(self, item: HostRun) -> SecurityResult:
+        reading = item.reading
+        if reading is not None and reading.home is not None and reading.home.outcome == "ok" \
+                and reading.home.final_url:
+            hop = host_of(reading.home.final_url)
+            if hop in self.checker.results:
+                return self.checker.results[hop]
+        return item.security
+
+    def payload(self, item: HostRun) -> dict:
+        today = self.fetcher.today()
+        reading, evidence = item.reading, item.evidence
+        payload: dict = {
+            "host": item.host, "run_date": today,
+            "security": self._read_host_of(item).block(),
+        }
+        run: dict = {
+            "read": item.read,
+            "security_checks": {h: security_record(r) for h, r in self.checker.results.items()},
+        }
+        if reading is not None:
+            payload["terms"] = {
+                "checked": today, "documents": reading.documents_block(),
+                "not_found": reading.not_found_block(), "signals": reading.signals_block(),
+                "operator": None}
+            home = reading.home_signals()
+            run.update({
+                "incomplete": reading.incomplete,
+                "failed": reading.failed, "stopped": reading.stopped, "pending": reading.pending,
+                "js_unread": reading.js_unread,
+                "broken": [{"url": b["url"], "http_code": b["status"], "place": b["place"],
+                            "page": b["page"]} for b in reading.broken],
+                "copyright_line": reading.copyright_line,
+                "page_signals": asdict(home) if home is not None else None,
+                "tdmrep_body": reading.tdmrep_body, "llms_txt_code": reading.llms_txt_code,
+                "documents_read": [
+                    {"url": d.url, "final_url": d.fetch.final_url, "http_code": d.fetch.status,
+                     "date_line": d.parsed.date_line if d.parsed else None,
+                     "capture_file": d.capture_file, "note": d.note}
+                    for d in reading.documents if d.fetch is not None],
+            })
+        if evidence is not None:
+            run.update({"captures": evidence.captures, "missing_archive": evidence.missing,
+                        "archive_lookup_failed": evidence.lookup_failed})
+        payload["run"] = run
+        return payload
+
+    def _write(self, item: HostRun) -> HostOutput:
+        payload = self.payload(item)
+        self.out_dir.mkdir(parents=True, exist_ok=True)
+        path = unique_path(self.out_dir, f"{item.host}_{self.fetcher.today().isoformat()}", ".json")
+        missing_path = None
+        missing = item.evidence.missing if item.evidence is not None else []
+        if missing:
+            missing_path = path.with_name(path.stem + "_missing.txt")
+            payload["run"]["missing_list"] = missing_path.name
+            missing_path.write_text("\n".join(missing) + "\n", encoding="utf-8", newline="\n")
+        write_json(path, payload)
+        return HostOutput(item.host, path, missing_path, payload, item.read)
+
+
+def read_save_list(path: Path) -> tuple[list, list]:
+    urls, rejected = [], []
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = urlsplit(line)
+        if parts.scheme != "https" or not parts.hostname:
+            rejected.append(line)
+        elif line not in urls:
+            urls.append(line)
+    return urls, rejected
+
+
+def run_save(fetcher: Fetcher, list_path: Path, out_dir: Path) -> tuple[Path, dict]:
+    urls, rejected = read_save_list(list_path)
+    pending = [(url, fetcher.get(SAVE_URL + url)) for url in urls]
+    fetcher.run_deferred()
+    saved = []
+    for url, res in pending:
+        record = {"url": url, "result": res.outcome, "http_code": res.status, "snapshot": None,
+                  "detail": res.detail}
+        if res.outcome == "ok" and res.status is not None and 200 <= res.status < 300:
+            record["result"] = "saved"
+            record["snapshot"] = res.final_url
+        elif res.outcome == "ok":
+            record["result"] = "not_saved"
+        elif res.outcome == "unread":
+            record["detail"] = f"{res.unread}: {res.detail}".strip(": ")
+        saved.append(record)
+    payload = {"run_date": fetcher.today(), "list": list_path.name, "saved": saved,
+               "rejected": rejected}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = unique_path(out_dir, f"save_{fetcher.today().isoformat()}", ".json")
+    write_json(path, payload)
+    return path, payload
+
+
+def build_run(fetcher: Fetcher, *, resolver: Callable = socket.getaddrinfo,
+              tls_probe: Callable = default_tls_probe, confirmed: Container[str] | None = None,
+              renderer: Callable | None = None, out_dir: Path | None = None,
+              captures_root: Path | None = None) -> CheckRun:
+    if confirmed is None:
+        confirmed = load_confirmed_hosts()
+    checker = RecordingChecker(SecurityChecker(
+        fetcher, resolver=resolver, tls_probe=tls_probe, confirmed=confirmed))
+    fetcher.hop_clearance = checker.clear_hop
+    page_renderer = PageRenderer(fetcher, renderer) if renderer is not None else None
+    reader = SourceReader(fetcher, checker, page_renderer)
+    return CheckRun(
+        fetcher, checker, reader, Wayback(fetcher),
+        out_dir=out_dir if out_dir is not None else etl_helpers.REVIEW / OUTPUT_DIR,
+        captures_root=captures_root if captures_root is not None
+        else etl_helpers.REVIEW / POLICIES_DIR)
+
+
+def host_argument(value: str) -> str:
+    host = value.strip().lower()
+    if not HOST_NAME.match(host):
+        raise argparse.ArgumentTypeError(f"not a bare host name: {value!r}")
+    return host
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="source_checks.py",
+        description="Source checks (#454). Writes facts and flags, never a verdict, and never "
+                    "docs/sources.yml.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    check = sub.add_parser("check", help="check one or more hosts, one at a time")
+    check.add_argument("--host", action="append", required=True, type=host_argument,
+                       help="a bare host name; repeat for more hosts")
+    save = sub.add_parser("save", help="save only the URLs in an approved list to the Wayback Machine")
+    save.add_argument("--list", dest="list_file", required=True, type=Path,
+                      help="a text file, one https URL per line")
+    return parser
+
+
+def main(argv: list | None = None, *, fetcher: Fetcher | None = None,
+         resolver: Callable = socket.getaddrinfo, tls_probe: Callable = default_tls_probe,
+         confirmed: Container[str] | None = None, renderer: Callable | None = None,
+         out_dir: Path | None = None, captures_root: Path | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    fetcher = fetcher if fetcher is not None else Fetcher()
+    folder = out_dir if out_dir is not None else etl_helpers.REVIEW / OUTPUT_DIR
+    if args.command == "save":
+        path, payload = run_save(fetcher, args.list_file, folder)
+        counts = {}
+        for record in payload["saved"]:
+            counts[record["result"]] = counts.get(record["result"], 0) + 1
+        print(f"save: {len(payload['saved'])} listed URL(s), {len(payload['rejected'])} rejected, "
+              f"results {counts or 'none'}; wrote {path}")
+        return 0
+    owned = renderer is None
+    active = PlaywrightRenderer() if owned else renderer
+    try:
+        run = build_run(fetcher, resolver=resolver, tls_probe=tls_probe, confirmed=confirmed,
+                        renderer=active, out_dir=folder, captures_root=captures_root)
+        outputs = run.run(args.host)
+    finally:
+        if owned:
+            active.close()
+    for out in outputs:
+        print(f"{out.host}: {out.read}; wrote {out.path}")
+        if out.missing_path is not None:
+            print(f"{out.host}: missing archive list {out.missing_path}")
+    return 1 if any(out.read == READ_CHECK_FAILED for out in outputs) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
