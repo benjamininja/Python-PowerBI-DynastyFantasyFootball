@@ -8,9 +8,11 @@ docs/sources.yml is the SSOT for every external data source. This script:
                       reverse-drift (notebook hosts not registered / ignored).
                       Exit 1 on any HARD failure (reverse-drift is WARN only).
                       Every source also needs a `terms` block (ADR-0022): a
-                      malformed block is a hard failure, but a source never
-                      checked or past its next_check is only ONE advisory line
-                      with a count, never a failure.
+                      malformed block (or a malformed `security` block) is a
+                      hard failure, but a source never checked or past its
+                      next_check, a block still on the old `evidence` field,
+                      and a missing or stale security check are each only ONE
+                      advisory line with a count, never a failure.
   --render            regenerate the table regions in docs/SOURCES.md from the
                       yaml (between the BEGIN/END GENERATED markers).
   --check             render in-memory and diff against SOURCES.md; exit 1 if
@@ -24,7 +26,6 @@ Run via the .venv (PyYAML lives there):
 from __future__ import annotations
 
 import argparse
-import calendar
 import json
 import re
 import sys
@@ -38,6 +39,11 @@ SOURCES_YML = REPO / "docs" / "sources.yml"
 SOURCES_MD = REPO / "docs" / "SOURCES.md"
 NOTEBOOK_DIR = REPO / "notebooks"
 
+sys.path.insert(0, str(NOTEBOOK_DIR))
+import etl_helpers as etl  # noqa: E402
+
+CFG = etl.CFG
+
 REQUIRED_FIELDS = ("id", "name", "status", "locator", "purpose", "auth", "cadence", "feeds", "terms")
 VALID_STATUS = {"live", "planned", "rejected"}
 
@@ -46,10 +52,43 @@ TERMS_ACCESS = {"public_get", "api_key", "owner_login", "manual_file", "none"}
 TERMS_KEYS = {
     "status", "checked", "checked_in", "how", "evidence", "licence",
     "attribution", "share_alike", "upstream", "access", "permission",
+    "documents", "not_found", "signals", "operator",
 }
 TERMS_ALWAYS = ("status", "checked", "access")
-TERMS_ONCE_CHECKED = ("checked_in", "how", "evidence", "licence", "share_alike")
-TERMS_RECHECK_MONTHS = 6
+TERMS_ONCE_CHECKED = ("checked_in", "how", "licence", "share_alike")
+
+DOC_KINDS = {"terms", "api_terms", "licence", "privacy", "copyright"}
+DECIDING_KINDS = {"terms", "api_terms", "licence"}
+PLACES = {
+    "footer", "menu", "sitemap", "legal_hub", "linked_from_doc",
+    "operator_domain", "robots_txt", "api_docs", "owner_supplied",
+}
+READ_BY = {"agent", "owner", "script"}
+METHODS = {"http_get", "browser_render", "owner_paste"}
+UNREAD = {
+    "js_rendered", "refused_status", "robots_blocks_agent", "login",
+    "paywall", "dns", "tool_refused", "rate_limited",
+}
+DOC_KEYS = {
+    "kind", "url", "reached_from", "read", "page_date", "read_by", "method",
+    "unread", "archive", "capture_sha256", "clauses",
+}
+DOC_REQUIRED = ("kind", "url", "reached_from", "read", "read_by", "method")
+ROBOTS_KEYS = {
+    "url", "code", "read", "claude_groups", "blocks_agent", "content_signal",
+    "content_usage", "crawl_delay", "sha256",
+}
+SIGNAL_KEYS = {"robots", "tdmrep", "x_robots_tag", "meta_robots"}
+SECURITY_KEYS = {
+    "checked", "host", "controls", "safe_browsing", "dns", "tls", "hsts",
+    "registered", "flags", "confirmed",
+}
+SECURITY_REQUIRED = ("checked", "host", "flags", "confirmed")
+SECURITY_FLAGS = {
+    "young_domain", "age_unknown", "tls_expiring", "tls_failed", "sb_unsafe",
+    "sb_no_verdict", "sb_stale", "nxdomain", "controls_failed",
+}
+SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 HOST_RE = re.compile(r"https?://([^/\s\"'\\)]+)", re.IGNORECASE)
 
 # --- markers ---------------------------------------------------------------
@@ -87,20 +126,184 @@ def _is_date(v: object) -> bool:
     return isinstance(v, date) and not isinstance(v, datetime)
 
 
-def add_months(d: date, months: int) -> date:
-    year, month0 = divmod(d.month - 1 + months, 12)
-    year += d.year
-    month = month0 + 1
-    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
+def next_season_check(checked: date) -> date:
+    """The 1st of the first CFG.source_check_month month that starts after `checked`."""
+    month = int(CFG.source_check_month)
+    start = date(checked.year, month, 1)
+    return start if start > checked else date(checked.year + 1, month, 1)
 
 
 def next_check(terms: object) -> date | None:
     checked = terms.get("checked") if isinstance(terms, dict) else None
-    return add_months(checked, TERMS_RECHECK_MONTHS) if _is_date(checked) else None
+    return next_season_check(checked) if _is_date(checked) else None
+
+
+def security_next_check(security: object) -> date | None:
+    checked = security.get("checked") if isinstance(security, dict) else None
+    return next_season_check(checked) if _is_date(checked) else None
 
 
 def _is_text(v: object) -> bool:
     return isinstance(v, str) and bool(v.strip())
+
+
+def _is_int(v: object) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _is_text_or_null(v: object) -> bool:
+    return v is None or _is_text(v)
+
+
+def _is_date_or_null(v: object) -> bool:
+    return v is None or _is_date(v)
+
+
+def _check_clauses(where: str, clauses: object) -> list[str]:
+    if not isinstance(clauses, list):
+        return [f"{where}.clauses must be a list"]
+    errs: list[str] = []
+    for j, c in enumerate(clauses):
+        ok = (
+            isinstance(c, dict)
+            and set(c) == {"section", "topic", "verbatim", "quote"}
+            and _is_text_or_null(c["section"])
+            and _is_text(c["topic"])
+            and isinstance(c["verbatim"], bool)
+            and _is_text(c["quote"])
+        )
+        if not ok:
+            errs.append(f"{where}.clauses[{j}] must be {{section: text|null, topic: text, verbatim: bool, quote: text}}")
+    return errs
+
+
+def _check_documents(tag: str, docs: object) -> list[str]:
+    if not isinstance(docs, list):
+        return [f"[{tag}] terms.documents must be a list"]
+    errs: list[str] = []
+    for i, d in enumerate(docs):
+        where = f"[{tag}] terms.documents[{i}]"
+        if not isinstance(d, dict):
+            errs.append(f"{where} must be a mapping")
+            continue
+        for key in sorted(set(d) - DOC_KEYS):
+            errs.append(f"{where} has unknown field '{key}'")
+        for key in DOC_REQUIRED:
+            if d.get(key) is None:
+                errs.append(f"{where} missing required field '{key}'")
+        if d.get("kind") is not None and d["kind"] not in DOC_KINDS:
+            errs.append(f"{where}.kind must be one of {sorted(DOC_KINDS)}, got {d['kind']!r}")
+        if d.get("url") is not None and not _is_text(d["url"]):
+            errs.append(f"{where}.url must be text")
+        rf = d.get("reached_from")
+        if rf is not None:
+            if not (isinstance(rf, dict) and set(rf) <= {"page", "place", "link_text"}):
+                errs.append(f"{where}.reached_from must be {{page, place, link_text}}")
+            else:
+                if rf.get("place") not in PLACES:
+                    errs.append(f"{where}.reached_from.place must be one of {sorted(PLACES)}, got {rf.get('place')!r}")
+                if not (_is_text_or_null(rf.get("page")) and _is_text_or_null(rf.get("link_text"))):
+                    errs.append(f"{where}.reached_from page and link_text must be text or null")
+        if "read" in d and d["read"] is not None and not _is_date(d["read"]):
+            errs.append(f"{where}.read must be a date")
+        if not _is_date_or_null(d.get("page_date")):
+            errs.append(f"{where}.page_date must be a date or null")
+        if d.get("read_by") is not None and d["read_by"] not in READ_BY:
+            errs.append(f"{where}.read_by must be one of {sorted(READ_BY)}, got {d['read_by']!r}")
+        if d.get("method") is not None and d["method"] not in METHODS:
+            errs.append(f"{where}.method must be one of {sorted(METHODS)}, got {d['method']!r}")
+        if d.get("unread") is not None and d["unread"] not in UNREAD:
+            errs.append(f"{where}.unread must be null or one of {sorted(UNREAD)}, got {d['unread']!r}")
+        if not _is_text_or_null(d.get("archive")):
+            errs.append(f"{where}.archive must be text or null")
+        sha = d.get("capture_sha256")
+        if sha is not None and not (isinstance(sha, str) and SHA256_RE.match(sha)):
+            errs.append(f"{where}.capture_sha256 must be 64 hex characters or null")
+        if d.get("read_by") == "owner" and d.get("method") == "owner_paste" and sha is None:
+            errs.append(f"{where} is an owner paste and needs a capture_sha256")
+        if d.get("clauses") is not None:
+            errs.extend(_check_clauses(where, d["clauses"]))
+    return errs
+
+
+def _check_not_found(tag: str, entries: object) -> list[str]:
+    if not isinstance(entries, list):
+        return [f"[{tag}] terms.not_found must be a list"]
+    errs: list[str] = []
+    for i, n in enumerate(entries):
+        where = f"[{tag}] terms.not_found[{i}]"
+        if not isinstance(n, dict):
+            errs.append(f"{where} must be a mapping")
+            continue
+        for key in sorted(set(n) - {"kind", "looked", "date", "by"}):
+            errs.append(f"{where} has unknown field '{key}'")
+        if n.get("kind") not in DOC_KINDS:
+            errs.append(f"{where}.kind must be one of {sorted(DOC_KINDS)}, got {n.get('kind')!r}")
+        looked = n.get("looked")
+        if not (isinstance(looked, list) and looked and all(p in PLACES for p in looked)):
+            errs.append(f"{where}.looked must be a non-empty list of places from {sorted(PLACES)}")
+        if not _is_date(n.get("date")):
+            errs.append(f"{where}.date must be a date")
+        if n.get("by") not in READ_BY:
+            errs.append(f"{where}.by must be one of {sorted(READ_BY)}, got {n.get('by')!r}")
+    return errs
+
+
+def _check_signals(tag: str, signals: object) -> list[str]:
+    if not isinstance(signals, dict):
+        return [f"[{tag}] terms.signals must be a mapping"]
+    errs: list[str] = []
+    for key in sorted(set(signals) - SIGNAL_KEYS):
+        errs.append(f"[{tag}] terms.signals has unknown field '{key}'")
+    robots = signals.get("robots")
+    if robots is not None:
+        if not isinstance(robots, dict):
+            errs.append(f"[{tag}] terms.signals.robots must be a mapping")
+        else:
+            for key in sorted(set(robots) - ROBOTS_KEYS):
+                errs.append(f"[{tag}] terms.signals.robots has unknown field '{key}'")
+            if "code" in robots and not _is_int(robots["code"]):
+                errs.append(f"[{tag}] terms.signals.robots.code must be an integer")
+            if not _is_date_or_null(robots.get("read")):
+                errs.append(f"[{tag}] terms.signals.robots.read must be a date")
+            if "claude_groups" in robots and not isinstance(robots["claude_groups"], list):
+                errs.append(f"[{tag}] terms.signals.robots.claude_groups must be a list")
+            if "blocks_agent" in robots and not isinstance(robots["blocks_agent"], bool):
+                errs.append(f"[{tag}] terms.signals.robots.blocks_agent must be true or false")
+    tdm = signals.get("tdmrep")
+    if tdm is not None and not (isinstance(tdm, dict) and set(tdm) <= {"well_known", "header", "meta"}):
+        errs.append(f"[{tag}] terms.signals.tdmrep must be {{well_known, header, meta}}")
+    for key in ("x_robots_tag", "meta_robots"):
+        if not _is_text_or_null(signals.get(key)):
+            errs.append(f"[{tag}] terms.signals.{key} must be text or null")
+    return errs
+
+
+def _rests_on_verbatim(docs: object) -> bool:
+    if not isinstance(docs, list):
+        return False
+    for d in docs:
+        if not (isinstance(d, dict) and d.get("kind") in DECIDING_KINDS):
+            continue
+        clauses = d.get("clauses")
+        if (
+            isinstance(clauses, list)
+            and clauses
+            and all(isinstance(c, dict) and c.get("verbatim") is True for c in clauses)
+        ):
+            return True
+    return False
+
+
+def is_legacy_terms(terms: object) -> bool:
+    """A checked block still on the old `evidence` field (ADR-0022 decision 15)."""
+    return (
+        isinstance(terms, dict)
+        and _is_date(terms.get("checked"))
+        and terms.get("evidence") is not None
+        and terms.get("documents") is None
+        and terms.get("not_found") is None
+    )
 
 
 def check_terms(source: dict) -> list[str]:
@@ -128,10 +331,17 @@ def check_terms(source: dict) -> list[str]:
     if terms.get("status") in ("permitted", "rejected") and checked is None:
         errs.append(f"[{tag}] terms.status {terms['status']} needs a checked date")
 
+    has_evidence = terms.get("evidence") is not None
+    has_documents = terms.get("documents") is not None
+    has_not_found = terms.get("not_found") is not None
+    new_shape = has_documents or has_not_found
+
     if _is_date(checked):
         for key in TERMS_ONCE_CHECKED:
             if terms.get(key) is None:
                 errs.append(f"[{tag}] terms.{key} is required once checked has a date")
+        if not (has_evidence or new_shape):
+            errs.append(f"[{tag}] terms needs documents or not_found (or the old evidence field) once checked has a date")
     if "checked_in" in terms and terms["checked_in"] is not None and not _is_text(terms["checked_in"]):
         errs.append(f"[{tag}] terms.checked_in must be text")
     if "licence" in terms and terms["licence"] is not None and not _is_text(terms["licence"]):
@@ -160,6 +370,102 @@ def check_terms(source: dict) -> list[str]:
     perm = terms.get("permission")
     if perm is not None and not (isinstance(perm, dict) and _is_date(perm.get("asked")) and set(perm) <= {"asked", "given", "link"}):
         errs.append(f"[{tag}] terms.permission must be null or {{asked: date, given: date|null, link: text|null}}")
+
+    if has_evidence and new_shape:
+        errs.append(f"[{tag}] terms holds both evidence and documents/not_found; a half-migrated record cannot pass (ADR-0022)")
+    if has_documents:
+        errs.extend(_check_documents(tag, terms["documents"]))
+    if has_not_found:
+        errs.extend(_check_not_found(tag, terms["not_found"]))
+    if terms.get("signals") is not None:
+        errs.extend(_check_signals(tag, terms["signals"]))
+    if not _is_text_or_null(terms.get("operator")):
+        errs.append(f"[{tag}] terms.operator must be text or null")
+
+    if new_shape:
+        if _is_date(checked):
+            if not (terms.get("documents") or terms.get("not_found")):
+                errs.append(f"[{tag}] terms needs at least one documents or not_found entry once checked has a date")
+            robots = (terms.get("signals") or {}).get("robots") if isinstance(terms.get("signals"), dict) else None
+            if not (isinstance(robots, dict) and _is_int(robots.get("code"))):
+                errs.append(f"[{tag}] terms.signals.robots.code is required on a new-shape block with a check date")
+        if terms.get("status") in ("permitted", "rejected") and not _rests_on_verbatim(terms.get("documents")):
+            errs.append(
+                f"[{tag}] terms.status {terms['status']} needs a terms, api_terms or licence document "
+                "whose clauses are all verbatim: true"
+            )
+    return errs
+
+
+def check_security(source: dict) -> list[str]:
+    tag = source.get("id", "<no id>")
+    sec = source.get("security")
+    if sec is None:
+        return []
+    if not isinstance(sec, dict):
+        return [f"[{tag}] security must be a mapping"]
+
+    errs: list[str] = []
+    for key in sorted(set(sec) - SECURITY_KEYS):
+        errs.append(f"[{tag}] security has unknown field '{key}'")
+    for key in SECURITY_REQUIRED:
+        if key not in sec:
+            errs.append(f"[{tag}] security missing required field '{key}'")
+    if "checked" in sec and not _is_date(sec["checked"]):
+        errs.append(f"[{tag}] security.checked must be a date")
+    if "host" in sec and not _is_text(sec["host"]):
+        errs.append(f"[{tag}] security.host must be text")
+
+    c = sec.get("controls")
+    if c is not None and not (
+        isinstance(c, dict)
+        and set(c) == {"malware", "phishing", "unwanted", "shape_ok"}
+        and all(_is_int(c[k]) for k in ("malware", "phishing", "unwanted"))
+        and isinstance(c["shape_ok"], bool)
+    ):
+        errs.append(f"[{tag}] security.controls must be {{malware, phishing, unwanted: int, shape_ok: bool}}")
+    sb = sec.get("safe_browsing")
+    if sb is not None and not (
+        isinstance(sb, dict)
+        and set(sb) == {"via", "code", "google_scan"}
+        and sb["via"] == "transparency_report"
+        and _is_int(sb["code"])
+        and _is_date_or_null(sb["google_scan"])
+    ):
+        errs.append(f"[{tag}] security.safe_browsing must be {{via: transparency_report, code: int, google_scan: date|null}}")
+    if sec.get("dns") is not None and sec["dns"] not in ("resolves", "nxdomain"):
+        errs.append(f"[{tag}] security.dns must be resolves or nxdomain, got {sec['dns']!r}")
+    tls = sec.get("tls")
+    if tls is not None and not (
+        isinstance(tls, dict)
+        and set(tls) == {"ok", "issuer", "not_after", "version"}
+        and isinstance(tls["ok"], bool)
+        and _is_text_or_null(tls["issuer"])
+        and _is_date_or_null(tls["not_after"])
+        and _is_text_or_null(tls["version"])
+    ):
+        errs.append(f"[{tag}] security.tls must be {{ok: bool, issuer: text|null, not_after: date|null, version: text|null}}")
+    hsts = sec.get("hsts")
+    if hsts is not None and not (
+        isinstance(hsts, dict)
+        and set(hsts) == {"max_age", "preloaded"}
+        and (hsts["max_age"] is None or _is_int(hsts["max_age"]))
+        and (hsts["preloaded"] is None or isinstance(hsts["preloaded"], bool) or _is_text(hsts["preloaded"]))
+    ):
+        errs.append(f"[{tag}] security.hsts must be {{max_age: int|null, preloaded: bool|text|null}}")
+    if not _is_date_or_null(sec.get("registered")):
+        errs.append(f"[{tag}] security.registered must be a date or null")
+    flags = sec.get("flags")
+    if "flags" in sec and not (isinstance(flags, list) and all(f in SECURITY_FLAGS for f in flags)):
+        errs.append(f"[{tag}] security.flags must be a list from {sorted(SECURITY_FLAGS)}")
+    conf = sec.get("confirmed")
+    if "confirmed" in sec and not (
+        isinstance(conf, dict)
+        and set(conf) == {"by", "date"}
+        and _is_text_or_null(conf["by"])
+        and _is_date_or_null(conf["date"])
+    ):
+        errs.append(f"[{tag}] security.confirmed must be {{by: text|null, date: date|null}}")
     return errs
 
 
@@ -193,6 +499,53 @@ def terms_advisory(data: dict, today: date | None = None) -> str | None:
     )
 
 
+def recite_due(sources: list[dict]) -> list[str]:
+    return [s.get("id", "<no id>") for s in sources if is_legacy_terms(s.get("terms"))]
+
+
+def recite_advisory(data: dict) -> str | None:
+    n = len(recite_due(data.get("sources", []) or []))
+    if not n:
+        return None
+    return f"ADVISORY  {n} source(s) due a re-cite (old evidence field) — see docs/SOURCES.md, ADR-0022"
+
+
+def _reads_over_http(source: dict) -> bool:
+    terms = source.get("terms")
+    access = terms.get("access") if isinstance(terms, dict) else None
+    return source.get("status") in ("live", "planned") and access in ("public_get", "api_key", "owner_login")
+
+
+def security_due(sources: list[dict], today: date | None = None) -> list[str]:
+    today = today or date.today()
+    due: list[str] = []
+    for s in sources:
+        if not _reads_over_http(s):
+            continue
+        sec = s.get("security")
+        if not isinstance(sec, dict):
+            due.append(s.get("id", "<no id>"))
+            continue
+        nxt = security_next_check(sec)
+        conf = sec.get("confirmed")
+        unconfirmed = s.get("status") == "live" and not (isinstance(conf, dict) and _is_date(conf.get("date")))
+        if nxt is None or today > nxt or sec.get("flags") or unconfirmed:
+            due.append(s.get("id", "<no id>"))
+    return due
+
+
+def security_advisory(data: dict, today: date | None = None) -> str | None:
+    n = len(security_due(data.get("sources", []) or [], today))
+    if not n:
+        return None
+    return f"ADVISORY  {n} source(s) due a security check — see docs/SOURCES.md, ADR-0022"
+
+
+def advisories(data: dict, today: date | None = None) -> list[str]:
+    lines = (terms_advisory(data, today), recite_advisory(data), security_advisory(data, today))
+    return [ln for ln in lines if ln]
+
+
 # --- validation ------------------------------------------------------------
 def validate(data: dict, today: date | None = None) -> int:
     sources = data.get("sources", []) or []
@@ -216,6 +569,7 @@ def validate(data: dict, today: date | None = None) -> int:
         if not isinstance(s.get("feeds", []), list):
             errors.append(f"[{tag}] feeds must be a list")
         errors.extend(check_terms(s))
+        errors.extend(check_security(s))
         if s.get("status") == "live":
             if not s.get("match"):
                 errors.append(f"[{tag}] live source has no match tokens")
@@ -263,8 +617,7 @@ def validate(data: dict, today: date | None = None) -> int:
     # report
     for w in warns:
         print(f"WARN  {w}")
-    advisory = terms_advisory(data, today)
-    if advisory:
+    for advisory in advisories(data, today):
         print(advisory)
     for e in errors:
         print(f"FAIL  {e}")
@@ -370,8 +723,7 @@ def main() -> int:
             print("FAIL  SOURCES.md tables are stale — run: python scripts/check_sources.py --render")
             return 1
         print("OK — SOURCES.md tables match sources.yml.")
-        advisory = terms_advisory(data)
-        if advisory:
+        for advisory in advisories(data):
             print(advisory)
         return 0
 

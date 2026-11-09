@@ -67,6 +67,7 @@ class LeagueConfig:
     rookie_prospect_name: str = "dim_rookie_prospect"
     alias_name: str = "dim_player_alias"
     close_day_weekday: int = 3
+    source_check_month: int = 5
 
     def __post_init__(self):
         # Anchor relative data paths to the repo root → CWD-independent. (Absolute
