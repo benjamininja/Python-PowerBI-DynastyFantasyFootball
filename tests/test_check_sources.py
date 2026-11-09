@@ -275,8 +275,8 @@ def test_real_manifest_advisory_counts():
         "past": [],
     }
     assert len(cs.recite_due(sources)) == 27
-    assert len(cs.security_due(sources, TODAY)) == 27
-    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "27", "27"]
+    assert len(cs.security_due(sources, TODAY)) == 25
+    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "27", "25"]
 
 
 def _bad(terms_changes, **kw):

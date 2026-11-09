@@ -47,12 +47,10 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | **Fantrax — getLiveScoringStats + getStandings (per Scoring Period)** | https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getLiveScoringStats {period, playerViewType:'2'} and getStandings {view:'SCHEDULE'}; plus the plain getStandings {view:'COMBINED'} per period, captured raw only) | Period Scoring and Matchups (ADR-0016 amendment decisions 1, 5, 9, 15). Live scoring with the bench view lists every rostered player with an entry, Starters under `ACTIVE` and Bench, IR and Minors under `BENCH`, each with points per stat; 04s sums them by Unit. The schedule view gives every week's matchups and Team Scores. A period loads once `allEventsFinished` is true. Live scoring echoes no period, and answers for a period that has not started with 28 teams and no entries. Errors come back as HTTP 200 with a `pageError`. The plain COMBINED standings ignore `period`: every reply is the current standings. It is saved raw and never loaded. No standings table is built (ADR-0016 amendment decision 11): rank is derived from `fact_matchup`, % Playoffs is dropped, and the reply's Salary Remaining is #97's to parse from the raw files | Same Fantrax session as the Players-grid source (04s imports 04a's scraper: env-stored login + persistent Playwright profile). `--from-raw` loads from the saved raw files with no browser and no login | `04s_fantrax_inseason_capture.py` → `fact_period_scoring`<br>`04s_fantrax_inseason_capture.py` → `fact_matchup` | Every INSEASON pipeline run (`04s_scoring` step, after `04r_roster_state`, fantrax_core Chain). Every regular-season period that has started and is not closed is captured and, once final, replaced whole |
 | **Google Sheet — team manifest** | https://docs.google.com/spreadsheets/d/1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc (gid 178660131), read via export?format=csv | Owner/team roster manifest: division, team name, abbrev, Team ID, Fantrax-TeamId (no emails; those live in a commissioners-only sheet) | Published CSV export (link-readable, no creds) for read | `01c_dim_fantasy_teams_seed.ipynb` → `dim_fantasy_teams` | On league/owner change (manual rerun) |
 | **nflverse (via nflreadpy)** | nflreadpy package (nflverse release data) | Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id), in-season snap counts and injury report | None (public package) | `01e_dim_nfl_players_seed.ipynb` → `dim_nfl_players`<br>`02a_fact_nfl_combine_pro_day_metrics.ipynb` → `fact_nfl_combine_pro_day_metrics`<br>`02g_nflverse_inseason.py` → `fact_nfl_snap_counts`<br>`02g_nflverse_inseason.py` → `fact_nfl_injuries`<br>`05a_startup_draft_board.py` → `(career-games lookup)` | Per pipeline run |
-| **KeepTradeCut (KTC)** | https://keeptradecut.com (embedded-HTML / JSON scrape) | Dynasty trade value, tiers, trends, startup ADP/auction; rookie consensus | None (public scrape) | `03c_ktc_rankings.ipynb` → `fact_rookie_rankings`<br>`04b_ktc_dynasty_rankings.ipynb` → `fact_dynasty_ranking_metrics` | Per pipeline run |
-| **FantasyPros** | https://www.fantasypros.com (scrape) + manual Excel for IDP/SF | Rookie PPR + Superflex consensus (scrape); dynasty SF/IDP best/worst/avg/stddev (manual) | None (scrape); manual file (Excel) | `03a_fantasypros_rankings.ipynb` → `fact_rookie_rankings`<br>`04x_manual_dynasty_rankings.ipynb` → `fact_dynasty_ranking_metrics` | Per pipeline run |
 | **WalterFootball** | https://walterfootball.com (scrape) | Rookie positional rankings | None (public scrape) | `03b_walterfootball_rankings.ipynb` → `fact_rookie_rankings` | Per pipeline run |
 | **DraftSharks** | https://www.draftsharks.com (scrape) | Rookie top-90 board | None (public scrape) | `03d_draftsharks_rankings.ipynb` → `fact_rookie_rankings` | Per pipeline run |
 | **DynastySharks** | Manual extraction -> data/raw/DynastyRankings_2026_ManualExtraction.xlsx | Dynasty 1/3/5/10-yr fantasy-point projections + 3D value (SF/TEPP) | Manual file placement (no creds) | `04x_manual_dynasty_rankings.ipynb` → `fact_dynasty_ranking_metrics` | Manual (on refresh) |
-| **Manual Excel — misc rankings** | data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP) | Supplemental rookie/dynasty expert ranks not available via scrape | Manual file placement (no creds) | `03x_manual_rankings.ipynb` → `fact_rookie_rankings` | Manual (on refresh) |
+| **Manual Excel — misc rankings** | data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc) | Supplemental rookie/dynasty expert ranks not available via scrape | Manual file placement (no creds) | `03x_manual_rankings.ipynb` → `fact_rookie_rankings` | Manual (on refresh) |
 <!-- END GENERATED sources-table:live -->
 
 ## Planned sources (designed, not yet ingesting — ADR-0004 / ADR-0005 / ADR-0006)
@@ -81,6 +79,8 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | Source | URL / locator | Purpose | Auth | Feeds (notebook → table) | Cadence |
 |---|---|---|---|---|---|
 | **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public | None; not ingested | — | Never (rejected) |
+| **KeepTradeCut (KTC)** | https://keeptradecut.com (embedded-HTML / JSON scrape) | Rejected (owner, 2026-11-07): KTC terms 2.1 bar any automated data collection and 2.2 bar derivative works and redistribution; the licence is personal and non-commercial only | None; not ingested | — | Never (rejected) |
+| **FantasyPros** | https://www.fantasypros.com (scrape) + manual Excel for IDP/SF | Rejected (owner, 2026-11-07): FantasyPros terms 6 bar copying and republishing without written permission and 19 bar commercial use | None; not ingested | — | Never (rejected) |
 <!-- END GENERATED sources-table:rejected -->
 
 ## Terms and licences (every source, re-checked once per season)
@@ -113,8 +113,6 @@ and the per-host `security` block are in [`sources.yml`](sources.yml). See
 | **Fantrax — getLiveScoringStats + getStandings (per Scoring Period)** | live | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
 | **Google Sheet — team manifest** | live | unresolved | never | — | — | public_get | — |
 | **nflverse (via nflreadpy)** | live | permitted | 2026-11-07 | 2027-05-01 | CC-BY-4.0 | public_get | #416 (issuecomment-6709476183) |
-| **KeepTradeCut (KTC)** | live | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #423 |
-| **FantasyPros** | live | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #401, #415 |
 | **WalterFootball** | live | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #417 (issuecomment-6709451916) |
 | **DraftSharks** | live | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
 | **DynastySharks** | live | unresolved | 2026-11-07 | 2027-05-01 | none | manual_file | #400 |
@@ -122,6 +120,8 @@ and the per-host `security` block are in [`sources.yml`](sources.yml). See
 | **Fantrax — draftPicks.go** | planned | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
 | **Fantrax — commissioner admin** | planned | unresolved | 2026-11-07 | 2027-05-01 | site terms | owner_login | #421 (issuecomment-6710339213) |
 | **PFF (Pro Football Focus)** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | none | #402 |
+| **KeepTradeCut (KTC)** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #423 |
+| **FantasyPros** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #401, #415 |
 | **DraftSharks — preseason rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
 | **DraftSharks — best ball rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
 | **DraftSharks — dynasty rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |

@@ -276,66 +276,6 @@ sources:
       - { notebook: 05a_startup_draft_board.py, table: "(career-games lookup)" }
     match: ["nflreadpy"]
 
-  - id: keeptradecut
-    name: "KeepTradeCut (KTC)"
-    status: live
-    terms:
-      status: rejected
-      checked: 2026-11-07
-      checked_in: "#423"
-      how:
-        - "terms read (last updated 2025-11-11)"
-        - "2.1 bars any form of automated data collection"
-        - "2.2 bars use on any other website, derivative works and redistribution"
-        - "5 grants a personal, non-commercial licence only"
-        - "robots.txt allows crawling, which grants no licence"
-      evidence:
-        - { url: "https://keeptradecut.com/terms-and-conditions", archive: null }
-      licence: site terms
-      attribution: null
-      share_alike: false
-      upstream: []
-      access: public_get
-      permission: null
-    locator: "https://keeptradecut.com (embedded-HTML / JSON scrape)"
-    purpose: "Dynasty trade value, tiers, trends, startup ADP/auction; rookie consensus"
-    auth: "None (public scrape)"
-    cadence: "Per pipeline run"
-    feeds:
-      - { notebook: 03c_ktc_rankings.ipynb, table: fact_rookie_rankings }
-      - { notebook: 04b_ktc_dynasty_rankings.ipynb, table: fact_dynasty_ranking_metrics }
-    match: ["keeptradecut"]
-
-  - id: fantasypros
-    name: "FantasyPros"
-    status: live
-    terms:
-      status: rejected
-      checked: 2026-11-07
-      checked_in: "#401, #415"
-      how:
-        - "terms read (effective July 1, 2010; no later date)"
-        - "6 bars copying, modifying and republishing without prior written permission"
-        - "19 bars use for commercial purposes"
-        - "robots.txt read: ranking pages allowed, Crawl-delay 5"
-      evidence:
-        - { url: "https://www.fantasypros.com/about/legal/", archive: null }
-        - { url: "https://www.fantasypros.com/robots.txt", archive: null }
-      licence: site terms
-      attribution: null
-      share_alike: false
-      upstream: []
-      access: public_get
-      permission: null
-    locator: "https://www.fantasypros.com (scrape) + manual Excel for IDP/SF"
-    purpose: "Rookie PPR + Superflex consensus (scrape); dynasty SF/IDP best/worst/avg/stddev (manual)"
-    auth: "None (scrape); manual file (Excel)"
-    cadence: "Per pipeline run"
-    feeds:
-      - { notebook: 03a_fantasypros_rankings.ipynb, table: fact_rookie_rankings }
-      - { notebook: 04x_manual_dynasty_rankings.ipynb, table: fact_dynasty_ranking_metrics }
-    match: ["fantasypros"]
-
   - id: walterfootball
     name: "WalterFootball"
     status: live
@@ -413,7 +353,7 @@ sources:
     name: "Manual Excel — misc rankings"
     status: live
     terms: { status: unresolved, checked: null, access: manual_file }
-    locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP)"
+    locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc)"
     purpose: "Supplemental rookie/dynasty expert ranks not available via scrape"
     auth: "Manual file placement (no creds)"
     cadence: "Manual (on refresh)"
@@ -473,6 +413,62 @@ sources:
       permission: null
     locator: "https://www.pff.com (paid subscription; spike #402)"
     purpose: "Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public"
+    auth: "None; not ingested"
+    cadence: "Never (rejected)"
+    feeds: []
+    match: []
+
+  - id: keeptradecut
+    name: "KeepTradeCut (KTC)"
+    status: rejected
+    terms:
+      status: rejected
+      checked: 2026-11-07
+      checked_in: "#423"
+      how:
+        - "terms read (last updated 2025-11-11)"
+        - "2.1 bars any form of automated data collection"
+        - "2.2 bars use on any other website, derivative works and redistribution"
+        - "5 grants a personal, non-commercial licence only"
+        - "robots.txt allows crawling, which grants no licence"
+      evidence:
+        - { url: "https://keeptradecut.com/terms-and-conditions", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
+    locator: "https://keeptradecut.com (embedded-HTML / JSON scrape)"
+    purpose: "Rejected (owner, 2026-11-07): KTC terms 2.1 bar any automated data collection and 2.2 bar derivative works and redistribution; the licence is personal and non-commercial only"
+    auth: "None; not ingested"
+    cadence: "Never (rejected)"
+    feeds: []
+    match: []
+
+  - id: fantasypros
+    name: "FantasyPros"
+    status: rejected
+    terms:
+      status: rejected
+      checked: 2026-11-07
+      checked_in: "#401, #415"
+      how:
+        - "terms read (effective July 1, 2010; no later date)"
+        - "6 bars copying, modifying and republishing without prior written permission"
+        - "19 bars use for commercial purposes"
+        - "robots.txt read: ranking pages allowed, Crawl-delay 5"
+      evidence:
+        - { url: "https://www.fantasypros.com/about/legal/", archive: null }
+        - { url: "https://www.fantasypros.com/robots.txt", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: public_get
+      permission: null
+    locator: "https://www.fantasypros.com (scrape) + manual Excel for IDP/SF"
+    purpose: "Rejected (owner, 2026-11-07): FantasyPros terms 6 bar copying and republishing without written permission and 19 bar commercial use"
     auth: "None; not ingested"
     cadence: "Never (rejected)"
     feeds: []
