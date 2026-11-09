@@ -68,6 +68,17 @@ class LeagueConfig:
     alias_name: str = "dim_player_alias"
     close_day_weekday: int = 3
     source_check_month: int = 5
+    rookie_class_year: int = 2027
+    rookie_class_combine_end: str = "2027-03-08"
+    rookie_class_draft_end: str = "2027-05-01"
+
+    def rookie_phase(self, on: "date | str") -> str:
+        run_date = date.fromisoformat(on) if isinstance(on, str) else on
+        if run_date <= date.fromisoformat(self.rookie_class_combine_end):
+            return "pre_combine"
+        if run_date <= date.fromisoformat(self.rookie_class_draft_end):
+            return "post_combine"
+        return "post_draft"
 
     def __post_init__(self):
         # Anchor relative data paths to the repo root → CWD-independent. (Absolute
@@ -261,6 +272,12 @@ def _parse_rank_date(raw: str | None, capture_date: str | None = None) -> str | 
             return datetime.strptime(raw, fmt).date().isoformat()
         except ValueError:
             continue
+    m = re.fullmatch(r"([A-Za-z]{3,9})\.?\s+(\d{1,2}),\s*(\d{4})\.?", raw)
+    if m:
+        try:
+            return datetime.strptime(f"{m.group(1)[:3]} {m.group(2)}, {m.group(3)}", "%b %d, %Y").date().isoformat()
+        except ValueError:
+            pass
     m = re.fullmatch(r"(\d{1,2})/(\d{1,2})", raw)
     if m and capture_date and _ISO_DATE.match(str(capture_date)):
         cap = date.fromisoformat(str(capture_date))
@@ -490,11 +507,7 @@ def ingest_ranking_source(
             raise ValueError(f"fact_rookie_rankings holds rank_date values that are not YYYY-MM-DD: {_bad[:5]}")
     combined = pd.concat([existing, new_df], ignore_index=True)
     _DEDUP   = ["player_key", "source_name", "phase", "draft_year"]
-    # rank_date: preserve the first non-null value ever captured — never overwrite with a later scrape.
-    combined["rank_date"] = (
-        combined.groupby(_DEDUP, sort=False)["rank_date"]
-        .transform(lambda s: s.dropna().iloc[0] if s.notna().any() else None)
-    )
+    # rank_date travels with the ranks: the newest run's row wins, date included.
     combined.drop_duplicates(subset=_DEDUP, keep="last", inplace=True)
     write_table("fact_rookie_rankings", combined)
 

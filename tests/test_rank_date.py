@@ -20,6 +20,11 @@ class TestParseRankDate:
         ("Apr 19, 2026", "2026-04-19"),
         ("2026-04-19", "2026-04-19"),
         ("4/19/2026", "2026-04-19"),
+        ("Nov. 3, 2026", "2026-11-03"),
+        ("Nov. 3, 2026.", "2026-11-03"),
+        ("Sept. 5, 2026", "2026-09-05"),
+        ("Sep. 5, 2026", "2026-09-05"),
+        ("Dec. 12,2026", "2026-12-12"),
     ])
     def test_a_dated_form_becomes_iso(self, raw, want):
         assert etl._parse_rank_date(raw) == want
