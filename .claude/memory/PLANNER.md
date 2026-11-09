@@ -7,7 +7,7 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-None. Planner session 9ed00e32 raised no entries.
+None. Planner sessions 9ed00e32 and dee9ffa9 raised no entries.
 
 ## START HERE (state 2026-11-09, before a clear)
 
@@ -15,7 +15,32 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 02:40Z by `date -u`, before a CLEAR (session 9ed00e32). Self-contained; overrides everything below. The 51-zero item has the detail of this session; read it only for a ticket's history.**
+00000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 03:53Z by `date -u` (session dee9ffa9, name `dynastyFantasyFootball-central-planner`). It adds to the 52-zero item; that item's Resume, open work and Lessons still stand, except as changed here.**
+- **Ids now:** I am `dee9ffa9`. The manager is `038fe696` (app `local_39e3ac7a…`, by name). Both peers were told. I raised no queue entries.
+- **#429 grill, in progress with the owner.** Rounds 1 to 4 are on #429: issuecomment-6731383029 (Q1-Q4), 6731430909 (Q5-Q8), 6731809247 (Q9-Q16). Settled:
+  - the public snapshot is publishing for every source;
+  - the table sort;
+  - `fxpa` keeps running with a 30-day deadline from sending, and the switch waits for 2027-01-07 if the deadline falls in the playoffs;
+  - robots.txt lines bind the agents they name;
+  - logins: 1 per Daily Run plus at most 2 logged-in triggers a UTC day, only on a membership change (the owner's own choice; I had recommended zero per poll);
+  - Materials stay published until the deadline;
+  - **Q10 revised:** build three replacements now (points recomputed from nflverse with the `getMatchupScores` Gate; grid stats from nflverse; minors from career GP ≤ 19), live only outside the playoffs. The ask narrows to transactions and ADP. The fallback stays for 04t only;
+  - no IDP-site requests (#473 is the path);
+  - a dedicated contact address;
+  - takedowns: 72 h, plus a history scrub by the owner's hands on request;
+  - credit on every surface;
+  - money: a small share of dues pays running costs only. **No amounts in any public record** (Q15c).
+  - **Open:** Q16 is parked. The owner asked "why we need this letter at all". I explained in chat: (a) send the narrow letter (recommended); (b) no letter, with roster diffs plus ADP leaving the snapshot; (c) decide after the replacements are built. **Next: the owner's choice, then the remaining frontier** (Q16's order; whether #429's done condition loses the Fantrax draft), then confirm a shared understanding.
+  - **After the grill:** fix #429's body ("no money taken" is wrong; the done condition); ticket the builds (the three replacements, the `fxea` moves of identity, ADP and `getMatchupScores`, the one-shared-login and cap work for #93 brief 5, the Materials-out-of-snapshot scoping, the 04t roster-diff grill spike, the docs page). Send the manager the dedicated-address Action entry. #93 brief 5 is unblocked by Q5 and Q9.
+- **Ruled this session:**
+  - #459 B7b: both lines stay (#459 issuecomment-6731370480);
+  - tools #110: build on the code read, module variable only, re-key on refresh (tools #110 issuecomment-6731445485). The builder's PR is tools #121, at 0.10.0;
+  - #121: plugin.json bumps too (issuecomment-6731760782). Send the Tools planner 0.10.0 when #121 merges.
+- **Owner's word since the 52-zero item (via the manager and the Tools planner):** "Go 110" and "Go 116", #117 after #116, and #113 has its go. The waiting list loses #113 and #110; tools #114 merged.
+- **Gap to look at (from the Tools planner):** should dynasty's re-proof run from a committed script, like tools #117? Ticket it if so.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (53 zeros) first, then the 52-zero item. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents except the owner-queue mod, which is yours).
+
+0000000000000000000000000000000000000000000000000000. **2026-11-09, 02:40Z by `date -u`, before a CLEAR (session 9ed00e32). The 53-zero item adds to it. The 51-zero item has the detail of this session; read it only for a ticket's history.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
   - The state batch PR is #455. It merges only on the owner's word.
