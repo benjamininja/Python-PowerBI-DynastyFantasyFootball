@@ -122,7 +122,7 @@ def clean_player_name(name: str) -> str:
 # must stay byte-stable (changing it rewrites every key seeded in 01). This one
 # additionally strips generational suffixes (jr/sr/ii..v) and apostrophes so
 # Fantrax / dynasty-source names match the nflverse registry despite inconsistent
-# suffix/apostrophe usage. Shared by resolve_dynasty_crosswalk (04b/04x) and the
+# suffix/apostrophe usage. Shared by resolve_dynasty_crosswalk (04x) and the
 # Fantrax crosswalk (04z) so the matching rule lives in exactly one place.
 _MATCH_SUFFIX = re.compile(r"\b(jr|sr|ii|iii|iv|v)\b")
 
@@ -249,7 +249,7 @@ _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 def _parse_rank_date(raw: str | None, capture_date: str | None = None) -> str | None:
     # Parse the source-published "last updated" date into ISO format.
-    # FantasyPros publishes month/day with no year ("5/16"); that form needs
+    # A source may publish month/day with no year ("5/16"); that form needs
     # capture_date, and takes its year, or the year before when the date would
     # fall after capture_date. Returns None if raw is empty. A value no format
     # matches comes back as-is, and ingest_ranking_source refuses it.
@@ -529,7 +529,7 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
                               auto_threshold=90, review_threshold=70, today=None):
     """Resolve dynasty-source player identities to registry keys for
     `dim_dynasty_crosswalk`. Single matcher shared by every section-04 dynasty
-    source notebook (KTC 04b, manual 04x, ...) — do not re-implement per notebook.
+    source notebook (manual 04x, ...) — do not re-implement per notebook.
 
     identities: DataFrame with columns source, source_player_id, player_name,
         position_raw, nfl_team.
@@ -619,14 +619,13 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
 # Source -> metric_key prefix. The refactor's load-bearing invariant is that each
 # metric_key maps to exactly ONE source (so SourceName lives on Dim_DynastyMetric),
 # which means rank keys must be source-prefixed. Adding a source = one entry here;
-# 04b/04x and the 04c SEED all read this map instead of hardcoding prefixes.
-SOURCE_PREFIX = {"KTC": "ktc", "DynastySharks": "ds", "FantasyPros": "fp"}
+# 04x reads this map instead of hardcoding prefixes.
+SOURCE_PREFIX = {"DynastySharks": "ds"}
 
 # metric_keys where 0 is an upstream "no value recorded" sentinel, not a real
-# measurement (KTC writes 0 for players with no ADP, which would read as best rank).
-# Centralized so every producer/consumer drops the same zeros instead of each
-# rediscovering the hazard.
-ZERO_IS_MISSING = {"ktc_adp", "startup_adp"}
+# measurement. Empty: no remaining source writes one. A source that does adds
+# its metric_key here, so every producer/consumer drops the same zeros.
+ZERO_IS_MISSING = set()
 
 
 def fold_ranks_long(df, source_col="source_name",
@@ -636,7 +635,7 @@ def fold_ranks_long(df, source_col="source_name",
     """Melt wide overall/positional rank columns into source-prefixed EAV rows
     (metric_key/metric_num/metric_text), the shape the single dynasty fact expects.
     `metric_key` becomes e.g. ``ds_overall_rank`` via SOURCE_PREFIX. Rows with a
-    null rank are dropped. Shared by 04b/04x so the fold lives in one place.
+    null rank are dropped. Shared by the dynasty source notebooks so the fold lives in one place.
 
     `prefix` overrides the SOURCE_PREFIX lookup with a literal. Needed when one
     source publishes more than one ranking tree and each tree needs its own
