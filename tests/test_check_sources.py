@@ -500,12 +500,23 @@ def test_security_due_reasons():
         planned("stale", stale),
         planned("flagged", flagged),
         planned("manual", None, access="manual_file"),
+        planned("not_read", None, access="none"),
+        planned("api", None, access="api_key"),
+        planned("login", None, access="owner_login"),
         planned("rejected", None, status="rejected"),
         planned("planned_unconfirmed", unconfirmed),
         planned("live_unconfirmed", unconfirmed, status="live"),
         planned("live_confirmed", SECURITY, status="live"),
     ]
-    assert cs.security_due(sources, TODAY) == ["no_block", "stale", "flagged", "live_unconfirmed"]
+    assert cs.security_due(sources, TODAY) == [
+        "no_block", "stale", "flagged", "api", "login", "live_unconfirmed",
+    ]
+
+
+def test_planned_source_with_access_none_is_not_security_due():
+    s = _src("planned", {**CHECKED_TERMS, "access": "none"}, security=None)
+    assert cs.security_due([s], TODAY) == []
+    assert cs.security_advisory({"sources": [s]}, TODAY) is None
 
 
 def test_check_prints_the_same_advisory_lines(capsys, monkeypatch, tmp_path):

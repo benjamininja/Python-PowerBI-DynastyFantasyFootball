@@ -513,7 +513,7 @@ def recite_advisory(data: dict) -> str | None:
 def _reads_over_http(source: dict) -> bool:
     terms = source.get("terms")
     access = terms.get("access") if isinstance(terms, dict) else None
-    return source.get("status") in ("live", "planned") and access != "manual_file"
+    return source.get("status") in ("live", "planned") and access in ("public_get", "api_key", "owner_login")
 
 
 def security_due(sources: list[dict], today: date | None = None) -> list[str]:
