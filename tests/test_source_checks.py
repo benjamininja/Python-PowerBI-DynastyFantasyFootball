@@ -1438,3 +1438,359 @@ def test_the_reader_has_no_network_path_of_its_own():
     assert rd.fetcher is f
     rd.read("a.example")
     only_linked(t, "https://a.example/terms", "https://a.example/privacy-policy")
+
+
+A_PAGE = "https://a.example/app"
+B_LIB = "https://b.example/lib.js"
+THIN_92 = "w" * 92
+FULL_TEXT = " ".join(["word"] * 120)
+LONG_ENOUGH = "x" * 500
+
+
+def page(text):
+    return inline(f"<p>{text}</p>")
+
+
+class FakeRenderer:
+    def __init__(self, html=None, status=200, subrequests=(), error=None, pages=None, clock=None):
+        self.html = html if html is not None else f"<html><body><p>{FULL_TEXT}</p></body></html>"
+        self.status = status
+        self.subrequests = list(subrequests)
+        self.error = error
+        self.pages = pages or {}
+        self.clock = clock
+        self.requests = []
+        self.times = []
+        self.verdicts = {}
+
+    def __call__(self, request):
+        self.requests.append(request)
+        self.times.append(self.clock() if self.clock else None)
+        for url in self.subrequests:
+            self.verdicts[url] = request.allow(url)
+        if self.error is not None:
+            raise self.error
+        return sc.RenderedPage(self.pages.get(request.url, self.html), self.status, request.url)
+
+
+def renderer_for(routes, renderer=None, secure=("a.example",)):
+    fetcher, transport, clock = build(routes, secure)
+    fake = renderer if renderer is not None else FakeRenderer(clock=clock)
+    fake.clock = fake.clock or clock
+    return sc.PageRenderer(fetcher, fake), fetcher, transport, clock, fake
+
+
+def fetched(routes, url=A_PAGE, **kw):
+    pr, f, t, clock, fake = renderer_for({A_ROBOTS: resp(404), **routes}, **kw)
+    return pr, pr.consider(f.get(url)), f, t, clock, fake
+
+
+def test_a_200_with_92_characters_renders():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92)})
+    assert len(fake.requests) == 1
+    assert out.method == sc.METHOD_RENDER == "browser_render"
+    assert out.outcome == "ok" and out.status == 200 and out.unread is None
+    assert FULL_TEXT in out.body.decode()
+    assert pr.skipped == {}
+
+
+def test_a_200_with_full_text_does_not_render():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(FULL_TEXT)})
+    assert fake.requests == []
+    assert out.method == "http_get" and out.outcome == "ok"
+    assert pr.skipped == {A_PAGE: "has_text"}
+
+
+def test_a_body_of_only_loading_renders():
+    pr, out, f, t, _, fake = fetched({A_PAGE: inline("<div>Loading...</div><script>boot()</script>")})
+    assert len(fake.requests) == 1 and out.method == "browser_render"
+
+
+def test_the_limit_is_500_visible_characters_and_scripts_and_styles_do_not_count():
+    pr, out, *_, fake = fetched({A_PAGE: page(LONG_ENOUGH[:-1])})
+    assert len(fake.requests) == 1
+    pr, out, *_, fake = fetched({A_PAGE: page(LONG_ENOUGH)})
+    assert fake.requests == []
+    hidden = "<script>" + "y" * 900 + "</script><style>" + "z" * 900 + "</style>"
+    pr, out, *_, fake = fetched({A_PAGE: inline(hidden + "<p>short</p>")})
+    assert len(fake.requests) == 1
+
+
+def test_a_403_never_renders():
+    pr, out, f, t, _, fake = fetched({A_PAGE: resp(403, "no")})
+    assert fake.requests == []
+    assert out.outcome == "unread" and out.unread == sc.UNREAD_REFUSED_STATUS and out.status == 403
+    assert t.count(A_PAGE) == 1
+
+
+def test_a_401_never_renders():
+    pr, out, f, t, _, fake = fetched({A_PAGE: resp(401, "no")})
+    assert fake.requests == [] and out.unread == sc.UNREAD_REFUSED_STATUS
+
+
+def test_a_429_followed_by_a_200_never_renders():
+    pr, out, f, t, _, fake = fetched({A_PAGE: [resp(429), resp(200, "<html><body>" + THIN_92 + "</body></html>",
+                                                              content_type="text/html")]})
+    assert out.outcome == "ok" and out.status == 200
+    assert fake.requests == []
+    assert out.method == "http_get"
+    assert pr.skipped == {A_PAGE: "rate_limited"}
+
+
+def test_a_robots_429_that_cleared_never_renders_a_page_of_that_host():
+    pr, f, t, _, fake = renderer_for({
+        A_ROBOTS: [resp(429), resp(200, ALLOW_ALL)], A_PAGE: page(THIN_92)})
+    out = pr.consider(f.get(A_PAGE))
+    assert out.outcome == "ok" and fake.requests == []
+    assert pr.skipped == {A_PAGE: "rate_limited"}
+
+
+def test_a_young_domain_never_renders_before_confirmation():
+    host = "young.example.com"
+    url = f"https://{host}/app"
+    w = World(host, days_ago=300, preload=b'{"status": "unknown"}',
+              extra={url: page(THIN_92)})
+    fake = FakeRenderer(clock=w.clock)
+    pr = sc.PageRenderer(w.fetcher, fake)
+    before = w.check()
+    assert before.held and not before.readable
+    stray = sc.FetchResult(url=url, outcome="ok", status=200,
+                           headers={"content-type": "text/html"}, body=b"<p>" + THIN_92.encode() + b"</p>",
+                           final_url=url)
+    assert pr.consider(stray) is stray
+    assert fake.requests == [] and pr.skipped == {url: "host_not_cleared"}
+    assert w.host_requests() == []
+
+    w.confirmed.add(host)
+    assert w.check().readable
+    out = pr.consider(w.fetcher.get(url))
+    assert len(fake.requests) == 1 and out.method == "browser_render" and out.outcome == "ok"
+
+
+def test_a_robots_block_never_renders():
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(200, "User-agent: *\nDisallow: /app\n"),
+                                     A_PAGE: page(THIN_92)})
+    f.read_robots("a.example")
+    stray = sc.FetchResult(url=A_PAGE, outcome="ok", status=200,
+                           headers={"content-type": "text/html"}, body=b"<p>short</p>",
+                           final_url=A_PAGE)
+    assert pr.consider(stray) is stray
+    assert pr.skipped == {A_PAGE: sc.UNREAD_ROBOTS_BLOCKS_AGENT}
+    out = pr.consider(f.get(A_PAGE))
+    assert out.unread == sc.UNREAD_ROBOTS_BLOCKS_AGENT and fake.requests == []
+
+
+def test_a_non_html_200_is_not_a_page_that_drew_nothing():
+    pr, out, f, t, _, fake = fetched({A_PAGE: resp(200, "{}", content_type="application/json")})
+    assert fake.requests == [] and pr.skipped == {A_PAGE: "not_html"}
+
+
+def test_a_host_that_has_not_passed_its_check_never_renders():
+    pr, out, f, t, _, fake = fetched({}, secure=())
+    assert out.outcome == "failed" and fake.requests == []
+    assert t.urls() == []
+
+
+def test_the_renderer_is_called_with_the_user_agent_and_no_storage_state():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92)})
+    (request,) = fake.requests
+    assert request.user_agent == UA == sc.etl_helpers.ETL_USER_AGENT
+    assert request.storage_state is None
+    assert request.url == A_PAGE
+    assert t.urls() == [A_ROBOTS, A_PAGE]
+
+
+def test_the_page_url_passes_the_gate_before_the_renderer_is_called():
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(200, "User-agent: *\nDisallow: /app\n"),
+                                     A_PAGE: page(THIN_92)})
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.requests == [] and t.urls() == [A_ROBOTS]
+    assert out.unread == sc.UNREAD_ROBOTS_BLOCKS_AGENT
+
+
+def test_the_render_navigation_is_spaced_like_any_request_to_the_host():
+    pr, out, f, t, clock, fake = fetched({A_PAGE: page(THIN_92)})
+    assert fake.times[0] - t.times(A_PAGE)[0] >= sc.MIN_DELAY
+
+
+def test_a_page_that_still_draws_nothing_is_unread_js_rendered():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92)}, renderer=FakeRenderer(
+        html="<html><body><div>Loading...</div></body></html>"))
+    assert len(fake.requests) == 1
+    assert out.outcome == "unread" and out.unread == sc.UNREAD_JS_RENDERED
+    assert out.method == "browser_render"
+    assert "Loading..." in out.detail or "characters" in out.detail
+
+
+def test_a_same_host_subrequest_blocked_by_robots_is_aborted():
+    renderer = FakeRenderer(subrequests=["https://a.example/api/data.json", "https://a.example/private/x.json"])
+    pr, f, t, clock, fake = renderer_for(
+        {A_ROBOTS: resp(200, "User-agent: *\nDisallow: /private/\n"), A_PAGE: page(THIN_92)},
+        renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {"https://a.example/api/data.json": True,
+                             "https://a.example/private/x.json": False}
+    assert out.render_aborted == [("https://a.example/private/x.json", sc.UNREAD_ROBOTS_BLOCKS_AGENT)]
+    assert out.render_allowed == ["https://a.example/api/data.json"]
+    assert t.urls() == [A_ROBOTS, A_PAGE]
+
+
+def test_a_subrequest_to_an_unchecked_host_is_aborted_and_starts_no_check():
+    renderer = FakeRenderer(subrequests=["https://c.example/cdn.js"])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {"https://c.example/cdn.js": False}
+    assert out.render_aborted == [("https://c.example/cdn.js", "host_not_checked")]
+    assert t.urls() == [A_ROBOTS, A_PAGE]
+
+
+def test_a_subrequest_to_a_host_that_passed_is_let_through():
+    renderer = FakeRenderer(subrequests=[B_LIB])
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), B_ROBOTS: resp(404), A_PAGE: page(THIN_92)},
+        renderer=renderer, secure=("a.example", "b.example"))
+    f.read_robots("b.example")
+    before = list(t.urls())
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {B_LIB: True}
+    assert out.render_allowed == [B_LIB] and out.render_aborted == []
+    assert before == [B_ROBOTS]
+    assert t.urls() == [B_ROBOTS, A_ROBOTS, A_PAGE]
+
+
+def test_a_checked_host_whose_robots_were_not_read_is_aborted_and_not_read_mid_render():
+    renderer = FakeRenderer(subrequests=[B_LIB])
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer,
+        secure=("a.example", "b.example"))
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {B_LIB: False}
+    assert out.render_aborted == [(B_LIB, "robots_not_read")]
+    assert B_ROBOTS not in t.urls()
+
+
+def test_a_checked_host_whose_robots_disallow_the_path_is_aborted():
+    renderer = FakeRenderer(subrequests=[B_LIB, "https://b.example/open.js"])
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), B_ROBOTS: resp(200, "User-agent: *\nDisallow: /lib.js\n"),
+         A_PAGE: page(THIN_92)}, renderer=renderer, secure=("a.example", "b.example"))
+    f.read_robots("b.example")
+    pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {B_LIB: False, "https://b.example/open.js": True}
+
+
+def test_a_host_that_has_stopped_us_is_aborted():
+    renderer = FakeRenderer(subrequests=[B_LIB])
+    pr, f, t, _, fake = renderer_for(
+        {A_ROBOTS: resp(404), B_ROBOTS: resp(404), "https://b.example/page": resp(403),
+         A_PAGE: page(THIN_92)}, renderer=renderer, secure=("a.example", "b.example"))
+    f.get("https://b.example/page")
+    pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {B_LIB: False}
+
+
+@pytest.mark.parametrize("url", ["http://a.example/app.js", "data:text/plain,hello", "blob:https://a.example/x",
+                                 "wss://a.example/socket"])
+def test_only_https_requests_are_let_through(url):
+    renderer = FakeRenderer(subrequests=[url])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    out = pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {url: False}
+    assert out.render_aborted == [(url, "not_https")]
+
+
+def test_the_apex_and_www_are_different_hosts_to_the_render():
+    renderer = FakeRenderer(subrequests=["https://www.a.example/x.js"])
+    pr, f, t, _, fake = renderer_for({A_ROBOTS: resp(404), A_PAGE: page(THIN_92)}, renderer=renderer)
+    pr.consider(f.get(A_PAGE))
+    assert fake.verdicts == {"https://www.a.example/x.js": False}
+
+
+def test_a_render_that_meets_a_403_stops_the_host():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92), "https://a.example/other": page(FULL_TEXT)},
+                                     renderer=FakeRenderer(status=403))
+    assert out.outcome == "unread" and out.unread == sc.UNREAD_REFUSED_STATUS and out.status == 403
+    later = f.get("https://a.example/other")
+    assert later.unread == sc.UNREAD_REFUSED_STATUS
+    assert t.count("https://a.example/other") == 0
+
+
+def test_a_render_that_meets_a_429_stops_the_host():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92), "https://a.example/other": page(FULL_TEXT)},
+                                     renderer=FakeRenderer(status=429))
+    assert out.unread == sc.UNREAD_RATE_LIMITED
+    assert f.get("https://a.example/other").unread == sc.UNREAD_RATE_LIMITED
+    assert t.count("https://a.example/other") == 0
+
+
+def test_a_render_error_is_a_failed_read_to_try_again_not_a_finding():
+    pr, out, f, t, _, fake = fetched({A_PAGE: page(THIN_92)},
+                                     renderer=FakeRenderer(error=sc.RenderError("browser crashed")))
+    assert out.outcome == "failed" and out.unread is None
+    assert "browser crashed" in out.detail
+
+
+def test_a_render_with_no_response_is_a_failed_read():
+    pr, out, *_ = fetched({A_PAGE: page(THIN_92)}, renderer=FakeRenderer(status=None))
+    assert out.outcome == "failed"
+
+
+def test_the_real_renderer_is_not_started_by_building_it():
+    real = sc.PlaywrightRenderer()
+    assert real._browser is None and real._playwright is None
+    real.close()
+
+
+def padded(name):
+    return (FIXTURES / name).read_text(encoding="utf-8") + f"<p>{FULL_TEXT}</p>"
+
+
+def reader_with_render(routes, renderer):
+    fetcher, transport, clock = build(routes)
+    renderer.clock = renderer.clock or clock
+    pr = sc.PageRenderer(fetcher, renderer)
+    return sc.SourceReader(fetcher, None, pr), fetcher, transport, renderer
+
+
+def test_a_rendered_document_is_recorded_as_browser_render():
+    renderer = FakeRenderer(pages={A_HOME: padded("site_home.html"),
+                                   "https://a.example/terms": padded("site_terms.html"),
+                                   "https://a.example/privacy-policy": padded("site_privacy.html")})
+    rd, f, t, fake = reader_with_render(site(), renderer)
+    r = rd.read("a.example")
+    assert [d["method"] for d in r.documents_block()] == ["browser_render", "browser_render"]
+    assert {d["read_by"] for d in r.documents_block()} == {"script"}
+    assert [d["unread"] for d in r.documents_block()] == [None, None]
+    assert r.documents_block()[0]["page_date"] == date(2026, 11, 4)
+    assert t.urls() == [A_ROBOTS, A_HOME, "https://a.example/terms",
+                        "https://a.example/privacy-policy", A_TDMREP, A_LLMS]
+    assert r.js_unread == [] and not r.incomplete
+
+
+def test_a_document_that_still_draws_nothing_is_unread_js_rendered_and_not_a_not_found():
+    renderer = FakeRenderer(pages={A_HOME: padded("site_home.html"),
+                                   "https://a.example/terms": "<html><body>Loading...</body></html>",
+                                   "https://a.example/privacy-policy": padded("site_privacy.html")})
+    rd, f, t, fake = reader_with_render(site(), renderer)
+    r = rd.read("a.example")
+    blocks = {d["kind"]: d for d in r.documents_block()}
+    assert blocks["terms"]["unread"] == "js_rendered" and blocks["terms"]["method"] == "browser_render"
+    assert blocks["privacy"]["unread"] is None
+    assert [j["url"] for j in r.js_unread] == ["https://a.example/terms"]
+    assert r.incomplete and r.not_found == []
+
+
+def test_a_home_page_that_still_draws_nothing_gives_no_documents_and_no_not_found():
+    renderer = FakeRenderer(html="<html><body>Loading...</body></html>")
+    rd, f, t, fake = reader_with_render(site(), renderer)
+    r = rd.read("a.example")
+    assert r.documents == [] and r.not_found == []
+    assert [j["url"] for j in r.js_unread] == [A_HOME]
+    assert r.incomplete
+    assert t.urls() == [A_ROBOTS, A_HOME]
+
+
+def test_without_a_renderer_a_thin_page_is_read_as_before():
+    rd, f, t, _ = reader(site())
+    r = rd.read("a.example")
+    assert {d["method"] for d in r.documents_block()} == {"http_get"}

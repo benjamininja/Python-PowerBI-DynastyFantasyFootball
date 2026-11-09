@@ -16,7 +16,7 @@ import socket
 import ssl
 import sys
 import time
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
 from http.cookiejar import CookiePolicy
@@ -253,6 +253,9 @@ class FetchResult:
     stopped_at: str | None = None
     unread: str | None = None
     detail: str = ""
+    method: str = "http_get"
+    render_allowed: list = field(default_factory=list)
+    render_aborted: list = field(default_factory=list)
 
     def fill(self, other: "FetchResult") -> None:
         for f in fields(self):
@@ -271,6 +274,7 @@ class _Stop:
 class _Host:
     last_request: float | None = None
     segmented: bool = False
+    saw_429: bool = False
     robots_deferred: bool = False
     rate_limited: _Stop | None = None
     refused: _Stop | None = None
@@ -429,6 +433,8 @@ class Fetcher:
             except TransportError as exc:
                 return _Followed("transport", None, hops, f"{type(exc).__name__}: {exc}", saw_429)
             saw_429 = saw_429 or count_429 > 0
+            if count_429:
+                self._host(host_of(current)).saw_429 = True
             if kind != "ok":
                 return _Followed(kind, resp, hops, "", saw_429)
             if resp.status in REDIRECT_CODES and resp.headers.get("location"):
@@ -939,6 +945,7 @@ CONTENT_USAGE_KEYS = ("train-ai", "ai-use", "search")
 NOAI_TOKENS = ("noai", "noimageai")
 UNREAD_TOOL_REFUSED = "tool_refused"
 UNREAD_DNS = "dns"
+UNREAD_JS_RENDERED = "js_rendered"
 STOP_UNREAD = (UNREAD_REFUSED_STATUS, UNREAD_RATE_LIMITED)
 
 DATE_LINE = re.compile(
@@ -1209,11 +1216,15 @@ def _date_line(soup) -> str | None:
     return None
 
 
+def is_html_response(res: FetchResult) -> bool:
+    content_type = res.headers.get("content-type", "")
+    return "html" in content_type.lower() or (
+        not content_type and res.body.lstrip()[:1] == b"<")
+
+
 def parse_page(url: str, res: FetchResult) -> ParsedPage:
     content_type = res.headers.get("content-type", "")
-    is_html = "html" in content_type.lower() or (
-        not content_type and res.body.lstrip()[:1] == b"<")
-    if not is_html:
+    if not is_html_response(res):
         return ParsedPage(url, content_type, False, [], page_signals(url, res.headers, None))
     soup = BeautifulSoup(res.body, "html.parser")
     for tag in soup(["script", "style", "noscript"]):
@@ -1260,7 +1271,8 @@ class DocumentFind:
             "kind": self.kind, "url": self.url,
             "reached_from": {"page": self.page, "place": self.place, "link_text": self.link_text},
             "read": self.read, "page_date": self.parsed.date if self.parsed else None,
-            "read_by": "script", "method": "http_get", "unread": self.unread,
+            "read_by": "script", "method": self.fetch.method if self.fetch is not None else "http_get",
+            "unread": self.unread,
             "archive": None, "capture_sha256": None,
         }
 
@@ -1292,6 +1304,7 @@ class HostReading:
     failed: list = field(default_factory=list)
     pending: list = field(default_factory=list)
     stopped: list = field(default_factory=list)
+    js_unread: list = field(default_factory=list)
     tdmrep_code: int | None = None
     tdmrep_body: str | None = None
     llms_txt_code: int | None = None
@@ -1322,9 +1335,11 @@ class HostReading:
 
 
 class SourceReader:
-    def __init__(self, fetcher: Fetcher, checker: SecurityChecker | None = None):
+    def __init__(self, fetcher: Fetcher, checker: SecurityChecker | None = None,
+                 page_renderer: "PageRenderer | None" = None):
         self.fetcher = fetcher
         self.checker = checker
+        self.page_renderer = page_renderer
         self.today = fetcher.today
         self._cache: dict[str, FetchResult] = {}
         self._clearance: dict[str, tuple[str, str]] = {}
@@ -1374,6 +1389,8 @@ class SourceReader:
         res = self._cache.get(url)
         if res is None:
             res = self.fetcher.get(url)
+            if self.page_renderer is not None:
+                res = self.page_renderer.consider(res)
             self._cache[url] = res
         if res.outcome == "deferred" and url not in reading.pending:
             reading.pending.append(url)
@@ -1387,6 +1404,9 @@ class SourceReader:
         elif res.outcome == "unread" and res.unread in STOP_UNREAD:
             reading.stopped.append({"url": url, "place": place, "unread": res.unread,
                                     "detail": res.detail})
+            reading.incomplete = True
+        elif res.outcome == "unread" and res.unread == UNREAD_JS_RENDERED:
+            reading.js_unread.append({"url": url, "place": place, "detail": res.detail})
             reading.incomplete = True
         elif res.outcome == "deferred":
             reading.incomplete = True
@@ -1583,3 +1603,199 @@ class SourceReader:
         self._note_unsettled(reading, res.url, "llms_txt", res)
         if res.outcome == "ok":
             reading.llms_txt_code = res.status
+
+
+RENDER_MIN_CHARS = 500
+RENDER_TIMEOUT_MS = 30000
+RENDER_IDLE_MS = 10000
+METHOD_RENDER = "browser_render"
+RENDER_SKIP_TAGS = ["script", "style", "noscript", "template", "head"]
+
+
+class RenderError(Exception):
+    pass
+
+
+@dataclass
+class RenderRequest:
+    url: str
+    user_agent: str
+    allow: Callable[[str], bool]
+    storage_state: None = None
+
+
+@dataclass
+class RenderedPage:
+    html: str
+    status: int | None = None
+    final_url: str | None = None
+
+
+def visible_text(html: bytes | str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(RENDER_SKIP_TAGS):
+        tag.decompose()
+    return " ".join(soup.get_text(" ", strip=True).split())
+
+
+class RenderGuard:
+    def __init__(self, fetcher: Fetcher):
+        self.fetcher = fetcher
+        self.allowed: list = []
+        self.aborted: list = []
+
+    def decide(self, url: str) -> str | None:
+        parts = urlsplit(url)
+        host = parts.hostname
+        if parts.scheme != "https" or not host:
+            return "not_https"
+        fetcher = self.fetcher
+        if host not in fetcher.secure_hosts and host not in fetcher.service_hosts:
+            return "host_not_checked"
+        state = fetcher.hosts.get(host)
+        if state is not None and (state.refused or state.rate_limited or state.robots_deferred):
+            return "host_stopped"
+        if not fetcher.gate.fresh(host):
+            return "robots_not_read"
+        decision = fetcher.gate.decide(url)
+        if not decision.allowed:
+            return decision.reason or UNREAD_ROBOTS_BLOCKS_AGENT
+        return None
+
+    def __call__(self, url: str) -> bool:
+        why = self.decide(url)
+        if why is None:
+            self.allowed.append(url)
+            return True
+        self.aborted.append((url, why))
+        return False
+
+
+class PlaywrightRenderer:
+    """The real renderer. Never started by a test or by an agent."""
+
+    def __init__(self, timeout_ms: int = RENDER_TIMEOUT_MS, idle_ms: int = RENDER_IDLE_MS):
+        self.timeout_ms = timeout_ms
+        self.idle_ms = idle_ms
+        self._playwright = None
+        self._browser = None
+
+    def __enter__(self) -> "PlaywrightRenderer":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._browser is not None:
+            self._browser.close()
+            self._browser = None
+        if self._playwright is not None:
+            self._playwright.stop()
+            self._playwright = None
+
+    def _start(self):
+        if self._browser is None:
+            from playwright.sync_api import sync_playwright
+            self._playwright = sync_playwright().start()
+            self._browser = self._playwright.chromium.launch(headless=True)
+        return self._browser
+
+    def __call__(self, request: RenderRequest) -> RenderedPage:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import TimeoutError as PlaywrightTimeout
+        try:
+            context = self._start().new_context(
+                user_agent=request.user_agent, storage_state=request.storage_state,
+                accept_downloads=False, service_workers="block")
+            try:
+                context.route("**/*", lambda route: route.continue_()
+                              if request.allow(route.request.url) else route.abort())
+                if hasattr(context, "route_web_socket"):
+                    context.route_web_socket("**/*", lambda socket_route: socket_route.close())
+                page = context.new_page()
+                response = page.goto(request.url, wait_until="load", timeout=self.timeout_ms)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=self.idle_ms)
+                except PlaywrightTimeout:
+                    pass
+                return RenderedPage(page.content(), response.status if response else None, page.url)
+            finally:
+                context.close()
+        except PlaywrightError as exc:
+            raise RenderError(f"{type(exc).__name__}: {exc}") from exc
+
+
+class PageRenderer:
+    def __init__(self, fetcher: Fetcher, renderer: Callable[[RenderRequest], RenderedPage]):
+        self.fetcher = fetcher
+        self.renderer = renderer
+        self.skipped: dict[str, str] = {}
+
+    def skip_reason(self, res: FetchResult) -> str | None:
+        if res.outcome != "ok":
+            return "not_read"
+        if res.status != 200:
+            return "not_200"
+        if not is_html_response(res):
+            return "not_html"
+        url = res.final_url or res.url
+        host = host_of(url)
+        fetcher = self.fetcher
+        state = fetcher.hosts.get(host)
+        if state is not None and (state.saw_429 or state.rate_limited):
+            return "rate_limited"
+        if state is not None and state.refused:
+            return "refused_status"
+        if host not in fetcher.secure_hosts and host not in fetcher.service_hosts:
+            return "host_not_cleared"
+        if not fetcher.gate.fresh(host):
+            return "robots_not_read"
+        if not fetcher.gate.decide(url).allowed:
+            return UNREAD_ROBOTS_BLOCKS_AGENT
+        if len(visible_text(res.body)) >= RENDER_MIN_CHARS:
+            return "has_text"
+        return None
+
+    def consider(self, res: FetchResult) -> FetchResult:
+        why = self.skip_reason(res)
+        if why is not None:
+            self.skipped[res.url] = why
+            return res
+        return self._render(res)
+
+    def _render(self, res: FetchResult) -> FetchResult:
+        url = res.final_url or res.url
+        host = host_of(url)
+        guard = RenderGuard(self.fetcher)
+        self.fetcher._pace(host)
+        try:
+            page = self.renderer(RenderRequest(url=url, user_agent=USER_AGENT, allow=guard))
+        except RenderError as exc:
+            return replace(res, outcome="failed", method=METHOD_RENDER, detail=f"render failed: {exc}",
+                           render_allowed=list(guard.allowed), render_aborted=list(guard.aborted))
+        out = replace(res, method=METHOD_RENDER, render_allowed=list(guard.allowed),
+                      render_aborted=list(guard.aborted))
+        if page.status in (401, 403):
+            out.outcome, out.unread, out.status = "unread", UNREAD_REFUSED_STATUS, page.status
+            out.detail = f"the render answered {page.status}"
+            self.fetcher._host(host).refused = _Stop(
+                UNREAD_REFUSED_STATUS, page.status, self.fetcher.today(),
+                f"a render of {host} answered {page.status}")
+        elif page.status == 429:
+            out.outcome, out.unread, out.status = "unread", UNREAD_RATE_LIMITED, 429
+            out.detail = "the render answered 429"
+            self.fetcher._rate_limit(host, out.detail)
+        elif page.status != 200:
+            out.outcome, out.status = "failed", page.status
+            out.detail = f"the render answered {page.status}"
+        else:
+            out.body = page.html.encode("utf-8")
+            out.final_url = page.final_url or url
+            chars = len(visible_text(page.html))
+            if chars < RENDER_MIN_CHARS:
+                out.outcome, out.unread = "unread", UNREAD_JS_RENDERED
+                out.detail = f"the page drew {chars} characters after the render"
+            else:
+                out.outcome, out.unread, out.detail = "ok", None, ""
+        return out
