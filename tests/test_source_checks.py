@@ -1,4 +1,5 @@
 import hashlib
+import json
 import socket
 import sys
 from datetime import date, timedelta
@@ -1885,3 +1886,546 @@ def test_without_a_renderer_a_thin_page_is_read_as_before():
     rd, f, t, _ = reader(site())
     r = rd.read("a.example")
     assert {d["method"] for d in r.documents_block()} == {"http_get"}
+
+
+FG = "footballguys.com"
+WWW = "www.footballguys.com"
+DTC = "dynastytradecalculator.com"
+ARCHIVE_HOSTS = ("archive.org", "web.archive.org")
+SNAPSHOT = "https://web.archive.org/web/20261101000000/https://footballguys.com/terms"
+VERDICT_WORDS = {"status", "permission", "clauses", "confirmed"}
+
+
+def security_routes(host, robots, *, days_ago=OLD):
+    routes = {f"https://{h}/robots.txt": resp(404) for h in SERVICES + ARCHIVE_HOSTS}
+    for control, body in controls_bodies().items():
+        routes[sc.safe_browsing_url(control)] = raw(body)
+    routes[sc.safe_browsing_url(host)] = raw(fx("sb_footballguys.txt"))
+    routes[sc.IANA_BOOTSTRAP_URL] = raw(fx("iana_dns_bootstrap.json"))
+    labels = host.split(".")
+    for i in range(len(labels) - 1):
+        routes[RDAP_BASE + ".".join(labels[i:])] = raw(rdap_body(days_ago))
+    routes[f"https://{host}/robots.txt"] = robots
+    routes[sc.HSTS_PRELOAD_URL + quote(host, safe="")] = raw(b'{"name": "x", "status": "unknown"}')
+    return routes
+
+
+def site_routes(host, **overrides):
+    base = f"https://{host}"
+    routes = {f"{base}/": html_page("site_home.html"), f"{base}/terms": html_page("site_terms.html"),
+              f"{base}/privacy-policy": html_page("site_privacy.html"),
+              f"{base}/.well-known/tdmrep.json": resp(404), f"{base}/llms.txt": resp(404)}
+    routes.update(overrides)
+    return routes
+
+
+def wayback_answer(archive=None):
+    closest = {"available": True, "url": archive, "timestamp": "20261101000000", "status": "200"}
+    snapshots = {"closest": closest} if archive else {}
+    return raw(json.dumps({"url": "x", "archived_snapshots": snapshots}).encode())
+
+
+def wayback_routes(host, terms=None, privacy=None):
+    return {sc.wayback_url(f"https://{host}/terms"): wayback_answer(terms),
+            sc.wayback_url(f"https://{host}/privacy-policy"): wayback_answer(privacy)}
+
+
+class E2E:
+    def __init__(self, tmp_path, routes, *, confirmed=(), renderer=None, dns=None):
+        self.clock = Clock()
+        self.transport = FakeTransport(routes, self.clock)
+        self.fetcher = sc.Fetcher(self.transport, clock=self.clock, sleep=self.clock.sleep,
+                                  today=lambda: TODAY)
+        self.dns = dns or Dns()
+        self.tls = Tls()
+        self.out = tmp_path / "source_checks"
+        self.policies = tmp_path / "policies"
+        self.run = sc.build_run(self.fetcher, resolver=self.dns, tls_probe=self.tls,
+                                confirmed=set(confirmed), renderer=renderer, out_dir=self.out,
+                                captures_root=self.policies)
+
+    def go(self, *hosts):
+        return self.run.run(list(hosts))
+
+    def requests_to(self, host):
+        return [u for u in self.transport.urls() if urlsplit(u).hostname == host]
+
+    def body_of(self, url):
+        return self.transport.routes[url][0].body
+
+
+def full_renderer(host):
+    return FakeRenderer(pages={f"https://{host}/": padded("site_home.html"),
+                               f"https://{host}/terms": padded("site_terms.html"),
+                               f"https://{host}/privacy-policy": padded("site_privacy.html")})
+
+
+def load(output):
+    return json.loads(output.path.read_text(encoding="utf-8"))
+
+
+def words_in(value):
+    found = set()
+    if isinstance(value, dict):
+        for key, item in value.items():
+            found.add(key)
+            found |= words_in(item)
+    elif isinstance(value, list):
+        for item in value:
+            found |= words_in(item)
+    return found
+
+
+def fg_routes(host=FG, robots=None, **site_overrides):
+    routes = security_routes(host, robots or resp(404, strict_transport_security="max-age=86400"))
+    routes.update(site_routes(host, **site_overrides))
+    routes.update(wayback_routes(host, terms=SNAPSHOT))
+    return routes
+
+
+def test_a_capture_is_named_by_read_date_and_hash_and_its_file_hash_is_the_recorded_one(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    payload = load(world.go(FG)[0])
+    docs = payload["terms"]["documents"]
+    files = {d["url"]: d["capture_file"] for d in payload["run"]["documents_read"]}
+    for doc in docs:
+        sent = world.body_of(doc["url"])
+        saved = (world.policies / files[doc["url"]]).read_bytes()
+        assert saved == sent
+        assert hashlib.sha256(saved).hexdigest() == doc["capture_sha256"]
+        assert files[doc["url"]] == f"{FG}/{TODAY.isoformat()}_{doc['capture_sha256']}.html"
+    assert len(docs) == 2 and len({d["capture_sha256"] for d in docs}) == 2
+
+
+def test_a_rendered_document_is_captured_as_the_rendered_html(tmp_path):
+    fake = FakeRenderer(pages={f"https://{FG}/": padded("site_home.html"),
+                               f"https://{FG}/terms": padded("site_terms.html"),
+                               f"https://{FG}/privacy-policy": padded("site_privacy.html")})
+    world = E2E(tmp_path, fg_routes(), renderer=fake)
+    payload = load(world.go(FG)[0])
+    terms = payload["terms"]["documents"][0]
+    rendered = padded("site_terms.html").encode("utf-8")
+    assert terms["method"] == "browser_render"
+    assert terms["capture_sha256"] == hashlib.sha256(rendered).hexdigest()
+    assert terms["capture_sha256"] != hashlib.sha256(world.body_of(terms["url"])).hexdigest()
+    saved = [p for p in (world.policies / FG).iterdir() if terms["capture_sha256"] in p.name]
+    assert len(saved) == 1 and saved[0].read_bytes() == rendered
+
+
+def test_a_capture_is_not_rewritten_when_the_same_bytes_are_read_again(tmp_path):
+    first = sc.write_capture(tmp_path, "a.example", TODAY, b"same", "html")
+    path = tmp_path / first[1]
+    stamp = path.stat().st_mtime_ns
+    assert sc.write_capture(tmp_path, "a.example", TODAY, b"same", "html") == first
+    assert path.stat().st_mtime_ns == stamp
+    assert first[0] == hashlib.sha256(b"same").hexdigest()
+
+
+def test_a_wayback_miss_goes_on_the_missing_list_and_makes_no_save_call(tmp_path):
+    routes = fg_routes()
+    routes.update(wayback_routes(FG))
+    world = E2E(tmp_path, routes)
+    out = world.go(FG)[0]
+    payload = load(out)
+    terms_url, privacy_url = f"https://{FG}/terms", f"https://{FG}/privacy-policy"
+    assert out.missing_path is not None and out.missing_path.parent == out.path.parent
+    assert out.missing_path.read_text(encoding="utf-8").splitlines() == [terms_url, privacy_url]
+    assert payload["run"]["missing_archive"] == [terms_url, privacy_url]
+    assert payload["run"]["missing_list"] == out.missing_path.name
+    assert [d["archive"] for d in payload["terms"]["documents"]] == [None, None]
+    assert not any("/save/" in u for u in world.transport.urls())
+    assert world.requests_to("web.archive.org") == []
+    assert world.requests_to("archive.org")[0] == "https://archive.org/robots.txt"
+
+
+def test_a_wayback_copy_is_recorded_and_not_listed_as_missing(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    out = world.go(FG)[0]
+    docs = load(out)["terms"]["documents"]
+    assert docs[0]["archive"] == SNAPSHOT and docs[1]["archive"] is None
+    assert out.missing_path.read_text(encoding="utf-8") == f"https://{FG}/privacy-policy\n"
+
+
+def test_a_wayback_lookup_that_failed_is_listed_as_failed_not_as_missing(tmp_path):
+    routes = fg_routes()
+    routes[sc.wayback_url(f"https://{FG}/privacy-policy")] = raw(b"", 500)
+    world = E2E(tmp_path, routes)
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert out.missing_path is None and "missing_list" not in payload["run"]
+    assert payload["run"]["missing_archive"] == []
+    assert [f["url"] for f in payload["run"]["archive_lookup_failed"]] == [f"https://{FG}/privacy-policy"]
+
+
+@pytest.mark.parametrize("body,kind", [
+    (json.dumps({"archived_snapshots": {}}), "none"),
+    (json.dumps({"archived_snapshots": {"closest": {"available": False}}}), "none"),
+    (json.dumps({"archived_snapshots": {"closest": {"available": True, "url": SNAPSHOT}}}), "copy"),
+    (json.dumps({"archived_snapshots": {"closest": {
+        "available": True, "url": "http://web.archive.org/web/2026/https://a.example/"}}}), "copy"),
+    (json.dumps({"archived_snapshots": {"closest": {"available": True, "url": "https://evil.example/"}}}),
+     "unknown"),
+    (json.dumps({"other": 1}), "unknown"), ("not json", "unknown"), ("[]", "unknown")])
+def test_the_wayback_answer_is_read_strictly(body, kind):
+    assert sc.parse_wayback(body.encode()).kind == kind
+
+
+def test_save_saves_only_the_listed_urls_through_the_gate(tmp_path):
+    listed = [f"https://{FG}/terms", f"https://{FG}/privacy-policy"]
+    approved = tmp_path / "approved.txt"
+    approved.write_text("# approved by the owner\n" + "\n".join(listed) + "\n\n" + listed[0]
+                        + "\nhttp://plain.example/x\nftp://old.example/y\n", encoding="utf-8")
+    routes = {"https://web.archive.org/robots.txt": resp(404),
+              sc.SAVE_URL + listed[0]: resp(200, "<html>archived</html>", content_type="text/html"),
+              sc.SAVE_URL + listed[1]: resp(429, "", retry_after="5000")}
+    world = E2E(tmp_path, routes)
+    path, payload = sc.run_save(world.fetcher, approved, world.out)
+    assert world.transport.urls() == ["https://web.archive.org/robots.txt", sc.SAVE_URL + listed[0],
+                                      sc.SAVE_URL + listed[1]]
+    assert [(s["url"], s["result"]) for s in payload["saved"]] == [
+        (listed[0], "saved"), (listed[1], "unread")]
+    assert payload["rejected"] == ["http://plain.example/x", "ftp://old.example/y"]
+    assert json.loads(path.read_text(encoding="utf-8")) == json.loads(
+        json.dumps(payload, default=str))
+    assert not world.requests_to(FG) and not world.requests_to("plain.example")
+
+
+def test_save_goes_through_the_gate_and_carries_the_user_agent(tmp_path):
+    approved = tmp_path / "approved.txt"
+    approved.write_text(f"https://{FG}/terms\n", encoding="utf-8")
+    routes = {"https://web.archive.org/robots.txt": resp(200, "User-agent: *\nDisallow: /save/\n")}
+    world = E2E(tmp_path, routes)
+    _, payload = sc.run_save(world.fetcher, approved, world.out)
+    assert payload["saved"][0]["result"] == "unread"
+    assert "robots_blocks_agent" in payload["saved"][0]["detail"]
+    assert world.transport.urls() == ["https://web.archive.org/robots.txt"]
+    for _, headers, _ in world.transport.calls:
+        assert headers == {"User-Agent": UA}
+
+
+def test_a_check_never_saves_and_a_save_never_checks(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    world.go(FG)
+    assert not any(u.startswith(sc.SAVE_URL) for u in world.transport.urls())
+    approved = tmp_path / "approved.txt"
+    approved.write_text(f"https://{FG}/terms\n", encoding="utf-8")
+    routes = {"https://web.archive.org/robots.txt": resp(404), sc.SAVE_URL + f"https://{FG}/terms": resp(200)}
+    other = E2E(tmp_path / "other", routes)
+    sc.run_save(other.fetcher, approved, other.out)
+    assert not any("safebrowsing" in u or "rdap" in u or u.startswith(f"https://{FG}") for u in other.transport.urls())
+    assert other.dns.calls == [] and other.tls.calls == []
+
+
+def test_the_output_never_holds_status_permission_clauses_or_confirmed(tmp_path):
+    world = E2E(tmp_path, {**fg_routes(), **security_routes(DTC, resp(403))})
+    for out in world.go(FG, DTC):
+        payload = load(out)
+        assert not words_in(payload) & VERDICT_WORDS
+        assert set(payload) <= {"host", "run_date", "security", "terms", "run"}
+        assert set(payload["security"]) == {"checked", "host", "controls", "safe_browsing", "dns",
+                                            "tls", "hsts", "registered", "flags"}
+        if "terms" in payload:
+            assert set(payload["terms"]) == {"checked", "documents", "not_found", "signals", "operator"}
+            assert payload["terms"]["operator"] is None
+            for doc in payload["terms"]["documents"]:
+                assert doc["read_by"] == "script"
+
+
+def test_the_writer_refuses_a_verdict_key_and_writes_nothing(tmp_path):
+    target = tmp_path / "x.json"
+    with pytest.raises(ValueError, match="verdict keys"):
+        sc.write_json(target, {"terms": [{"status": "permitted"}]})
+    assert not target.exists()
+
+
+def test_a_run_leaves_docs_sources_yml_byte_for_byte_unchanged(tmp_path, capsys):
+    before = sc.MANIFEST.read_bytes()
+    world = E2E(tmp_path, fg_routes())
+    world.go(FG)
+    code = sc.main(["check", "--host", FG], fetcher=E2E(tmp_path / "again", fg_routes()).fetcher,
+                   resolver=Dns(), tls_probe=Tls(), confirmed=set(), renderer=full_renderer(FG),
+                   out_dir=tmp_path / "cli_out", captures_root=tmp_path / "cli_caps")
+    assert code == 0
+    assert sc.MANIFEST.read_bytes() == before
+    assert not any(p.suffix in (".yml", ".yaml") for p in tmp_path.rglob("*"))
+
+
+def test_footballguys_shaped_run_is_a_full_record(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert out.path.parent == world.out and out.path.name == f"{FG}_{TODAY.isoformat()}.json"
+    security = payload["security"]
+    assert security["host"] == FG and security["flags"] == [] and security["dns"] == "resolves"
+    assert security["controls"] == {"malware": 2, "phishing": 2, "unwanted": 2, "shape_ok": True}
+    assert security["safe_browsing"] == {"via": "transparency_report", "code": 1,
+                                         "google_scan": "2026-11-08"}
+    assert security["tls"]["ok"] and security["hsts"] == {"max_age": 86400, "preloaded": False}
+    assert security["registered"] == "1999-07-09" and security["checked"] == TODAY.isoformat()
+    terms = payload["terms"]
+    assert terms["checked"] == TODAY.isoformat() and terms["not_found"] == []
+    assert [(d["kind"], d["reached_from"]["place"], d["reached_from"]["link_text"])
+            for d in terms["documents"]] == [("terms", "footer", "Terms of Service"),
+                                             ("privacy", "footer", "Privacy Policy")]
+    for doc in terms["documents"]:
+        assert doc["read"] == TODAY.isoformat() and doc["read_by"] == "script"
+        assert doc["method"] == "http_get" and doc["unread"] is None
+        assert len(doc["capture_sha256"]) == 64
+    assert terms["documents"][0]["page_date"] == "2026-11-04"
+    assert terms["documents"][0]["archive"] == SNAPSHOT and terms["documents"][1]["archive"] is None
+    robots = terms["signals"]["robots"]
+    assert robots["code"] == 404 and robots["url"] == f"https://{FG}/robots.txt"
+    assert robots["blocks_agent"] is False and robots["claude_groups"] == []
+    assert terms["signals"]["tdmrep"] == {"well_known": 404, "header": None, "meta": None}
+    run = payload["run"]
+    assert run["read"] == "read" and run["incomplete"] is False
+    assert run["failed"] == run["stopped"] == run["pending"] == run["js_unread"] == []
+    assert run["copyright_line"] == "Copyright © 2022 Example Fantasy LLC. All Rights Reserved."
+    assert run["page_signals"]["url"] == f"https://{FG}/"
+    assert set(run["security_checks"]) == {FG} and run["security_checks"][FG]["block"] == security
+    assert len(run["captures"]) == 2
+    assert world.requests_to(FG) == [f"https://{FG}/robots.txt", f"https://{FG}/",
+                                     f"https://{FG}/terms", f"https://{FG}/privacy-policy",
+                                     f"https://{FG}/.well-known/tdmrep.json", f"https://{FG}/llms.txt"]
+    for _, headers, _ in world.transport.calls:
+        assert headers == {"User-Agent": UA}
+
+
+def test_dtc_shaped_run_is_one_request_and_a_recorded_stop(tmp_path):
+    routes = security_routes(DTC, resp(403, strict_transport_security="max-age=63072000"))
+    world = E2E(tmp_path, routes)
+    out = world.go(DTC)[0]
+    payload = load(out)
+    assert world.requests_to(DTC) == [f"https://{DTC}/robots.txt"]
+    assert payload["security"]["flags"] == [] and payload["security"]["hsts"]["max_age"] == 63072000
+    terms = payload["terms"]
+    assert terms["signals"]["robots"]["code"] == 403
+    assert terms["documents"] == [] and terms["not_found"] == []
+    stopped = payload["run"]["stopped"]
+    assert [(s["place"], s["unread"]) for s in stopped] == [("entry", "refused_status")]
+    assert payload["run"]["incomplete"] is True and payload["run"]["captures"] == []
+    assert out.missing_path is None
+
+
+def test_two_hosts_in_one_run_go_one_host_at_a_time(tmp_path):
+    routes = {**fg_routes(), **security_routes(DTC, resp(403))}
+    world = E2E(tmp_path, routes)
+    outputs = world.go(FG, DTC)
+    order = [urlsplit(u).hostname for u in world.transport.urls() if urlsplit(u).hostname in (FG, DTC)]
+    assert order == [FG] * 6 + [DTC]
+    assert [o.host for o in outputs] == [FG, DTC]
+    assert outputs[0].path.name != outputs[1].path.name
+    assert world.dns.calls == [FG, DTC]
+    assert [load(o)["host"] for o in outputs] == [FG, DTC]
+
+
+def test_a_host_named_twice_is_run_once(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    assert len(world.go(FG, FG.upper())) == 1
+    assert world.dns.calls == [FG]
+
+
+def test_a_second_run_on_the_same_day_never_overwrites_the_first(tmp_path):
+    world = E2E(tmp_path, fg_routes())
+    first = world.go(FG)[0]
+    second = E2E(tmp_path, fg_routes()).go(FG)[0]
+    assert first.path.name == f"{FG}_{TODAY.isoformat()}.json"
+    assert second.path.name == f"{FG}_{TODAY.isoformat()}_2.json"
+    assert first.path.exists() and second.path.exists()
+
+
+def test_a_failed_read_leaves_not_found_empty_and_is_listed_as_failed(tmp_path):
+    world = E2E(tmp_path, fg_routes(**{f"https://{FG}/": sc.TransportError("connection reset")}))
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert payload["terms"]["documents"] == [] and payload["terms"]["not_found"] == []
+    failed = payload["run"]["failed"]
+    assert [(f["url"], f["place"]) for f in failed] == [(f"https://{FG}/", "entry")]
+    assert "connection reset" in failed[0]["detail"]
+    assert payload["run"]["incomplete"] is True
+    assert payload["run"]["captures"] == [] and out.missing_path is None
+    assert not any(u.startswith("https://archive.org/wayback") for u in world.transport.urls())
+
+
+def test_a_young_host_writes_only_its_security_block_and_nothing_is_read(tmp_path):
+    routes = {**fg_routes(), **security_routes("younghost.com", resp(404), days_ago=300)}
+    routes.update(site_routes("younghost.com"))
+    world = E2E(tmp_path, routes)
+    out = world.go("younghost.com")[0]
+    payload = load(out)
+    assert out.read == "held" and set(payload) == {"host", "run_date", "security", "run"}
+    assert payload["security"]["flags"] == ["young_domain"]
+    assert payload["security"]["registered"] == (TODAY - timedelta(days=300)).isoformat()
+    assert payload["security"]["tls"] is None and payload["security"]["hsts"] is None
+    assert payload["run"]["read"] == "held" and "captures" not in payload["run"]
+    assert world.requests_to("younghost.com") == [] and world.tls.calls == []
+    assert out.missing_path is None
+
+
+def test_a_young_host_is_read_in_the_next_run_once_the_manifest_confirms_it(tmp_path):
+    routes = {**security_routes("younghost.com", resp(404), days_ago=300), **site_routes("younghost.com")}
+    routes.update(wayback_routes("younghost.com"))
+    held = E2E(tmp_path, routes).go("younghost.com")[0]
+    assert load(held)["run"]["read"] == "held"
+    world = E2E(tmp_path, routes, confirmed={"younghost.com"})
+    payload = load(world.go("younghost.com")[0])
+    assert payload["run"]["read"] == "read"
+    assert [d["kind"] for d in payload["terms"]["documents"]] == ["terms", "privacy"]
+    assert payload["security"]["flags"] == ["young_domain"]
+    assert world.requests_to("younghost.com")[0] == "https://younghost.com/robots.txt"
+
+
+def test_a_host_whose_check_could_not_finish_is_listed_as_failed_with_no_block(tmp_path):
+    dns = Dns(missing={FG}, code=getattr(socket, "EAI_AGAIN", -3))
+    world = E2E(tmp_path, fg_routes(), dns=dns)
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert out.read == "check_failed" and payload["security"] is None
+    record = payload["run"]["security_checks"][FG]
+    assert record["block"] is None and record["failed"].startswith("dns:")
+    assert world.requests_to(FG) == []
+
+
+def hop_routes(*, www_days=OLD, robots_location=f"https://{WWW}/robots.txt"):
+    routes = security_routes(WWW, resp(404, strict_transport_security="max-age=86400"), days_ago=www_days)
+    routes.update(security_routes(FG, resp(301, location=robots_location)))
+    routes[f"https://{FG}/"] = resp(301, location=f"https://{WWW}/")
+    routes[f"https://{FG}/.well-known/tdmrep.json"] = resp(301, location=f"https://{WWW}/.well-known/tdmrep.json")
+    routes[f"https://{FG}/llms.txt"] = resp(301, location=f"https://{WWW}/llms.txt")
+    routes.update(site_routes(WWW))
+    routes.update(wayback_routes(WWW, terms=SNAPSHOT))
+    return routes
+
+
+def test_an_apex_robots_redirect_to_a_www_host_that_clears_is_followed(tmp_path):
+    world = E2E(tmp_path, hop_routes())
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert {FG, WWW} <= world.fetcher.secure_hosts
+    assert world.dns.calls == [FG, WWW] and world.tls.calls == [FG, WWW]
+    urls = world.transport.urls()
+    assert urls.index(sc.safe_browsing_url(WWW)) < urls.index(f"https://{WWW}/robots.txt")
+    assert payload["security"]["host"] == WWW and payload["security"]["flags"] == []
+    assert set(payload["run"]["security_checks"]) == {FG, WWW}
+    assert payload["run"]["security_checks"][FG]["block"]["host"] == FG
+    assert payload["run"]["security_checks"][WWW]["block"] == payload["security"]
+    robots = payload["terms"]["signals"]["robots"]
+    assert robots["url"] == f"https://{WWW}/robots.txt" and robots["code"] == 404
+    docs = payload["terms"]["documents"]
+    assert [d["kind"] for d in docs] == ["terms", "privacy"]
+    assert {d["reached_from"]["page"] for d in docs} == {f"https://{WWW}/"}
+    assert docs[0]["url"] == f"https://{WWW}/terms"
+    assert payload["run"]["failed"] == [] and payload["run"]["incomplete"] is False
+
+
+def test_an_apex_robots_redirect_to_a_www_host_that_is_held_stops_the_read_with_no_request(tmp_path):
+    world = E2E(tmp_path, hop_routes(www_days=300))
+    out = world.go(FG)[0]
+    payload = load(out)
+    assert world.requests_to(WWW) == []
+    assert WWW not in world.tls.calls and WWW not in world.fetcher.secure_hosts
+    held = payload["run"]["security_checks"][WWW]
+    assert held["held"] is True and held["block"]["flags"] == ["young_domain"]
+    assert held["block"]["tls"] is None
+    assert payload["terms"]["documents"] == [] and payload["terms"]["not_found"] == []
+    failed = payload["run"]["failed"]
+    assert failed and all(WWW in f["detail"] for f in failed)
+    assert payload["run"]["incomplete"] is True
+    assert payload["security"]["host"] == FG
+    assert not any(u.startswith("https://archive.org/wayback") for u in world.transport.urls())
+
+
+def test_an_apex_robots_redirect_to_a_host_that_fails_its_check_stops_the_read(tmp_path):
+    routes = hop_routes()
+    routes[sc.safe_browsing_url(WWW)] = raw(fx("sb_control_malware.txt"))
+    world = E2E(tmp_path, routes)
+    payload = load(world.go(FG)[0])
+    assert world.requests_to(WWW) == []
+    assert WWW not in world.tls.calls
+    assert payload["run"]["security_checks"][WWW]["block"]["flags"] == ["sb_unsafe"]
+    assert payload["run"]["security_checks"][WWW]["held"] is False
+    assert payload["terms"]["documents"] == [] and payload["run"]["failed"]
+
+
+def test_a_redirect_to_a_different_site_is_stopped_with_no_check_of_that_site(tmp_path):
+    routes = security_routes(FG, resp(301, location="https://other.example/robots.txt"))
+    world = E2E(tmp_path, routes)
+    payload = load(world.go(FG)[0])
+    assert "other.example" not in world.dns.calls and world.requests_to("other.example") == []
+    assert set(payload["run"]["security_checks"]) == {FG}
+    assert payload["terms"]["documents"] == [] and payload["terms"]["not_found"] == []
+    assert payload["run"]["failed"] and "other.example" in payload["run"]["failed"][0]["detail"]
+
+
+def test_a_page_redirect_within_the_site_runs_the_hop_hosts_own_check_first(tmp_path):
+    routes = security_routes(FG, resp(404, strict_transport_security="max-age=86400"))
+    routes.update(security_routes(WWW, resp(404)))
+    routes.update(site_routes(FG, **{f"https://{FG}/terms": resp(301, location=f"https://{WWW}/terms")}))
+    routes[f"https://{WWW}/terms"] = html_page("site_terms.html")
+    routes.update(wayback_routes(FG))
+    routes[sc.wayback_url(f"https://{FG}/terms")] = wayback_answer()
+    world = E2E(tmp_path, routes)
+    payload = load(world.go(FG)[0])
+    urls = world.transport.urls()
+    assert urls.index(sc.safe_browsing_url(WWW)) < urls.index(f"https://{WWW}/robots.txt") \
+        < urls.index(f"https://{WWW}/terms")
+    assert set(payload["run"]["security_checks"]) == {FG, WWW}
+    assert payload["terms"]["documents"][0]["kind"] == "terms"
+
+
+def test_the_hop_hook_is_not_called_for_a_host_that_already_passed(tmp_path):
+    world = E2E(tmp_path, hop_routes())
+    world.go(FG)
+    assert world.dns.calls.count(WWW) == 1
+
+
+def test_the_cli_takes_check_with_repeatable_hosts_and_save_with_a_list():
+    parser = sc.build_parser()
+    args = parser.parse_args(["check", "--host", "Footballguys.com", "--host", DTC])
+    assert args.command == "check" and args.host == [FG, DTC]
+    args = parser.parse_args(["save", "--list", "approved.txt"])
+    assert args.command == "save" and args.list_file == Path("approved.txt")
+
+
+@pytest.mark.parametrize("argv", [
+    [], ["check"], ["save"], ["check", "--host", "https://footballguys.com/terms"],
+    ["check", "--host", "footballguys.com/terms"], ["check", "--host", "localhost"],
+    ["check", "--host", "a b.example"], ["check", "--all"], ["season"]])
+def test_the_cli_refuses_anything_but_bare_hosts_and_a_list(argv):
+    with pytest.raises(SystemExit) as exc:
+        sc.build_parser().parse_args(argv)
+    assert exc.value.code == 2
+
+
+def test_the_cli_runs_two_hosts_and_reports_the_files(tmp_path, capsys):
+    routes = {**fg_routes(), **security_routes(DTC, resp(403))}
+    world = E2E(tmp_path, routes)
+    code = sc.main(["check", "--host", FG, "--host", DTC], fetcher=world.fetcher, resolver=world.dns,
+                   tls_probe=world.tls, confirmed=set(), renderer=full_renderer(FG),
+                   out_dir=world.out, captures_root=world.policies)
+    printed = capsys.readouterr().out
+    assert code == 0
+    assert sorted(p.name for p in world.out.glob("*.json")) == [
+        f"{DTC}_{TODAY.isoformat()}.json", f"{FG}_{TODAY.isoformat()}.json"]
+    assert f"{FG}: read" in printed and f"{DTC}: read" in printed
+    assert "missing archive list" in printed
+
+
+def test_the_cli_returns_one_when_a_check_could_not_finish(tmp_path, capsys):
+    dns = Dns(missing={FG}, code=getattr(socket, "EAI_AGAIN", -3))
+    world = E2E(tmp_path, fg_routes(), dns=dns)
+    code = sc.main(["check", "--host", FG], fetcher=world.fetcher, resolver=dns, tls_probe=world.tls,
+                   confirmed=set(), renderer=full_renderer(FG), out_dir=world.out,
+                   captures_root=world.policies)
+    assert code == 1 and "check_failed" in capsys.readouterr().out
+
+
+def test_the_cli_save_reads_the_list_and_writes_a_result_file(tmp_path, capsys):
+    approved = tmp_path / "approved.txt"
+    approved.write_text(f"https://{FG}/terms\n", encoding="utf-8")
+    routes = {"https://web.archive.org/robots.txt": resp(404),
+              sc.SAVE_URL + f"https://{FG}/terms": resp(200, "ok", content_type="text/html")}
+    world = E2E(tmp_path, routes)
+    code = sc.main(["save", "--list", str(approved)], fetcher=world.fetcher, out_dir=world.out)
+    assert code == 0 and "1 listed URL(s)" in capsys.readouterr().out
+    assert [p.name for p in world.out.glob("save_*.json")] == [f"save_{TODAY.isoformat()}.json"]
