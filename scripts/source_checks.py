@@ -1,12 +1,14 @@
 """Source checks, fetch layer (#454 Brief B1): the only network path in the
 script, and the RobotsGate every request must pass. GET only, one product
-token on every request, no cookies, no auth. Later briefs add the security
-check, signals, discovery, render and evidence on top of this layer.
+token on every request, no cookies, no auth. The security check (B2) and the
+reading section (B3: robots and page signals, document discovery) sit on top of
+this layer. Later briefs add the render and the evidence.
 
 Never run live by an agent; tests inject the transport, clock and sleep.
 """
 from __future__ import annotations
 
+import calendar
 import hashlib
 import json
 import re
@@ -27,6 +29,7 @@ sys.path.insert(0, str(REPO / "notebooks"))
 import etl_helpers  # noqa: E402
 import requests  # noqa: E402
 import yaml  # noqa: E402
+from bs4 import BeautifulSoup  # noqa: E402
 from protego import Protego  # noqa: E402
 
 USER_AGENT = etl_helpers.ETL_USER_AGENT
@@ -189,6 +192,7 @@ class RobotsResult:
     strict_transport_security: str | None = None
     fetched_at: float = 0.0
     rules: Protego | None = field(default=None, repr=False, compare=False)
+    text: str | None = field(default=None, repr=False, compare=False)
 
     def blocked_tokens(self, url: str) -> list:
         if self.rules is None:
@@ -495,6 +499,7 @@ class Fetcher:
         delay = rules.crawl_delay(PRODUCT_TOKEN)
         result = self._store_robots(host, url, resp, "rules", None, resp.status, "")
         result.rules = rules
+        result.text = text
         result.claude_groups = claude_groups(text)
         result.crawl_delay = float(delay) if delay is not None else None
         if result.crawl_delay is not None and result.crawl_delay > RETRY_AFTER_STOP:
@@ -915,3 +920,666 @@ class SecurityChecker:
                 result.notes.append(f"rdap: answered {res.status}")
                 return None
         return None
+
+
+ESSENTIAL_KINDS = ("terms", "privacy")
+STAGES = ("footer", "menu", "sitemap", "legal_hub", "linked_from_doc", "operator_domain")
+SITEMAP_PATHS = ("/sitemap.xml", "/wp-sitemap.xml")
+TDMREP_PATH = "/.well-known/tdmrep.json"
+LLMS_PATH = "/llms.txt"
+MAX_DOCUMENTS = 6
+MAX_HUBS = 2
+MAX_OPERATOR_LINKS = 3
+MAX_CHILD_SITEMAPS = 3
+MAX_SITEMAP_SEGMENTS = 2
+MAX_SITEMAP_WORDS = 5
+TDMREP_MAX_CHARS = 64 * 1024
+CONTENT_SIGNAL_KEYS = ("search", "ai-input", "ai-train")
+CONTENT_USAGE_KEYS = ("train-ai", "ai-use", "search")
+NOAI_TOKENS = ("noai", "noimageai")
+UNREAD_TOOL_REFUSED = "tool_refused"
+UNREAD_DNS = "dns"
+STOP_UNREAD = (UNREAD_REFUSED_STATUS, UNREAD_RATE_LIMITED)
+
+DATE_LINE = re.compile(
+    r"\b(?:last\s+(?:updated|modified|revised)|effective(?:\s+date)?|updated|revised)\b", re.IGNORECASE)
+MONTHS = {name.lower(): i for i, name in enumerate(calendar.month_name) if name}
+MONTHS.update({name.lower(): i for i, name in enumerate(calendar.month_abbr) if name})
+
+
+def classify_link(text: str) -> str | None:
+    t = text.lower()
+    if re.search(r"\bapi\b", t):
+        return "api_terms" if re.search(r"terms|licen[cs]e|polic|legal|conditions", t) else None
+    if "terms" in t:
+        return "terms"
+    if "privacy" in t:
+        return "privacy"
+    if re.search(r"licen[cs]e", t):
+        return "licence"
+    if re.search(r"legal|polic(?:y|ies)", t):
+        return "hub"
+    return None
+
+
+def classify_path(url: str) -> str | None:
+    segments = [s for s in urlsplit(url).path.split("/") if s]
+    words = [w for s in segments for w in re.split(r"[^a-z0-9]+", s.lower()) if w]
+    if not segments or len(segments) > MAX_SITEMAP_SEGMENTS or len(words) > MAX_SITEMAP_WORDS:
+        return None
+    return classify_link(" ".join(words))
+
+
+def same_site(a: str | None, b: str | None) -> bool:
+    if not a or not b:
+        return False
+    return a.lower().removeprefix("www.") == b.lower().removeprefix("www.")
+
+
+def parse_date_text(text: str) -> date | None:
+    patterns = (
+        (r"(\d{4})-(\d{2})-(\d{2})", lambda m: (m[1], m[2], m[3])),
+        (r"([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})", lambda m: (m[3], m[1], m[2])),
+        (r"(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})", lambda m: (m[3], m[2], m[1])),
+    )
+    for pattern, order in patterns:
+        m = re.search(pattern, text)
+        if not m:
+            continue
+        year, month, day = order(m)
+        try:
+            month_no = int(month) if month.isdigit() else MONTHS[month.lower()]
+            return date(int(year), month_no, int(day))
+        except (KeyError, ValueError):
+            continue
+    return None
+
+
+@dataclass
+class RobotsGroup:
+    agents: list = field(default_factory=list)
+    content_signal: list = field(default_factory=list)
+    content_usage: list = field(default_factory=list)
+    crawl_delay: list = field(default_factory=list)
+    sealed: bool = False
+
+
+def parse_robots_groups(text: str) -> tuple[list, list]:
+    groups: list[RobotsGroup] = []
+    sitemaps: list[str] = []
+    current: RobotsGroup | None = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        name, sep, value = line.split("#", 1)[0].partition(":")
+        if not sep:
+            continue
+        key, value = name.strip().lower(), value.strip()
+        if key == "sitemap":
+            if value:
+                sitemaps.append(value)
+            continue
+        if key == "user-agent":
+            if current is None or current.sealed:
+                current = RobotsGroup()
+                groups.append(current)
+            current.agents.append(value)
+            continue
+        if current is None:
+            current = RobotsGroup()
+            groups.append(current)
+        current.sealed = True
+        if key == "content-signal":
+            current.content_signal.append(line)
+        elif key == "content-usage":
+            current.content_usage.append(line)
+        elif key == "crawl-delay":
+            current.crawl_delay.append(line)
+    return groups, sitemaps
+
+
+def interpret_signal_line(line: str, defined: tuple) -> tuple[dict, dict]:
+    known: dict = {}
+    unknown: dict = {}
+    for part in line.split("#", 1)[0].partition(":")[2].split(","):
+        part = part.strip()
+        if not part:
+            continue
+        key, sep, value = part.partition("=")
+        key = key.strip().lower()
+        (known if key in defined else unknown)[key] = value.strip() if sep else None
+    return known, unknown
+
+
+def _signal_entries(groups: list, attr: str, defined: tuple | None) -> list:
+    entries = []
+    for group in groups:
+        for line in getattr(group, attr):
+            entry = {"agents": list(group.agents), "line": line}
+            if defined is not None:
+                entry["known"], entry["unknown"] = interpret_signal_line(line, defined)
+            entries.append(entry)
+    return entries
+
+
+@dataclass
+class RobotsSignals:
+    url: str
+    code: int | None
+    read: date
+    outcome: str
+    claude_groups: list
+    blocks_agent: bool
+    sha256: str | None
+    content_signal: list
+    content_usage: list
+    crawl_delay: list
+    sitemaps: list
+
+    def block(self) -> dict:
+        return {
+            "url": self.url, "code": self.code, "read": self.read,
+            "claude_groups": list(self.claude_groups), "blocks_agent": self.blocks_agent,
+            "content_signal": self.content_signal or None,
+            "content_usage": self.content_usage or None,
+            "crawl_delay": self.crawl_delay or None, "sha256": self.sha256,
+        }
+
+
+def robots_signals(result: RobotsResult) -> RobotsSignals:
+    groups, sitemaps = parse_robots_groups(result.text or "")
+    return RobotsSignals(
+        url=result.url, code=result.code, read=result.read, outcome=result.outcome,
+        claude_groups=list(result.claude_groups), blocks_agent=result.blocks_agent,
+        sha256=result.sha256,
+        content_signal=_signal_entries(groups, "content_signal", CONTENT_SIGNAL_KEYS),
+        content_usage=_signal_entries(groups, "content_usage", CONTENT_USAGE_KEYS),
+        crawl_delay=_signal_entries(groups, "crawl_delay", None), sitemaps=sitemaps)
+
+
+@dataclass
+class PageSignals:
+    url: str
+    x_robots_tag: str | None = None
+    content_usage: str | None = None
+    tdm_reservation: str | None = None
+    tdm_policy: str | None = None
+    meta_robots: str | None = None
+    meta_tdm_reservation: str | None = None
+    meta_tdm_policy: str | None = None
+    noai: list = field(default_factory=list)
+
+
+def _meta(soup, name: str) -> str | None:
+    if soup is None:
+        return None
+    for tag in soup.find_all("meta"):
+        if str(tag.get("name") or "").strip().lower() == name and tag.get("content") is not None:
+            return str(tag.get("content"))
+    return None
+
+
+def page_signals(url: str, headers: dict, soup) -> PageSignals:
+    h = {k.lower(): v for k, v in headers.items()}
+    signals = PageSignals(
+        url=url, x_robots_tag=h.get("x-robots-tag"), content_usage=h.get("content-usage"),
+        tdm_reservation=h.get("tdm-reservation"), tdm_policy=h.get("tdm-policy"),
+        meta_robots=_meta(soup, "robots"), meta_tdm_reservation=_meta(soup, "tdm-reservation"),
+        meta_tdm_policy=_meta(soup, "tdm-policy"))
+    for value in (signals.x_robots_tag, signals.meta_robots):
+        for token in re.split(r"[\s,]+", value or ""):
+            if token.lower() in NOAI_TOKENS:
+                signals.noai.append(token)
+    return signals
+
+
+@dataclass(frozen=True)
+class Link:
+    url: str
+    text: str
+    region: str
+
+
+@dataclass
+class ParsedPage:
+    url: str
+    content_type: str
+    html: bool
+    links: list
+    signals: PageSignals
+    copyright_line: str | None = None
+    date_line: str | None = None
+    date: date | None = None
+
+
+_LEAF_BLOCKS = ["p", "small", "div", "li", "span", "address", "footer"]
+
+
+def _marks(tag) -> str:
+    return " ".join([tag.get("id") or ""] + list(tag.get("class") or [])).lower()
+
+
+def _region(tag) -> str:
+    menu = False
+    for parent in tag.parents:
+        marks = _marks(parent)
+        if parent.name == "footer" or "footer" in marks:
+            return "footer"
+        if parent.name in ("nav", "header") or re.search(r"(?:^|[\s_-])(?:nav|menu)", marks):
+            menu = True
+    return "menu" if menu else "body"
+
+
+def _link_text(tag) -> str:
+    text = " ".join(tag.get_text(" ", strip=True).split())
+    return text or " ".join(str(tag.get("aria-label") or tag.get("title") or "").split())
+
+
+def extract_links(soup, base_url: str) -> list:
+    links, seen = [], set()
+    for tag in soup.find_all("a", href=True):
+        href = str(tag["href"]).strip()
+        if not href or href.startswith(("#", "javascript:", "mailto:", "tel:")):
+            continue
+        url = urljoin(base_url, href).split("#", 1)[0]
+        text = _link_text(tag)
+        key = (url, text)
+        if key in seen:
+            continue
+        seen.add(key)
+        links.append(Link(url, text, _region(tag)))
+    return links
+
+
+def _copyright_line(soup) -> str | None:
+    footers = [t for t in soup.find_all(True) if t.name == "footer" or "footer" in _marks(t)]
+    for footer in footers:
+        for tag in footer.find_all(_LEAF_BLOCKS) + [footer]:
+            if tag is not footer and tag.find(_LEAF_BLOCKS):
+                continue
+            text = " ".join(tag.get_text(" ", strip=True).split())
+            if text and re.search(r"©|copyright|all rights reserved", text, re.IGNORECASE):
+                return text
+    return None
+
+
+def _date_line(soup) -> str | None:
+    for text in (" ".join(chunk.split()) for chunk in soup.get_text("\n").splitlines()):
+        if text and len(text) <= 200 and DATE_LINE.search(text):
+            return text
+    return None
+
+
+def parse_page(url: str, res: FetchResult) -> ParsedPage:
+    content_type = res.headers.get("content-type", "")
+    is_html = "html" in content_type.lower() or (
+        not content_type and res.body.lstrip()[:1] == b"<")
+    if not is_html:
+        return ParsedPage(url, content_type, False, [], page_signals(url, res.headers, None))
+    soup = BeautifulSoup(res.body, "html.parser")
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
+    line = _date_line(soup)
+    return ParsedPage(
+        url=url, content_type=content_type, html=True, links=extract_links(soup, url),
+        signals=page_signals(url, res.headers, soup), copyright_line=_copyright_line(soup),
+        date_line=line, date=parse_date_text(line) if line else None)
+
+
+@dataclass
+class Candidate:
+    kind: str
+    url: str
+    text: str | None
+    place: str
+    page: str
+
+
+@dataclass
+class DocumentFind:
+    kind: str
+    url: str
+    page: str
+    place: str
+    link_text: str | None
+    read: date
+    fetch: FetchResult | None = None
+    parsed: ParsedPage | None = None
+    unread_reason: str | None = None
+    note: str = ""
+
+    @property
+    def unread(self) -> str | None:
+        if self.unread_reason is not None:
+            return self.unread_reason
+        if self.fetch is not None and self.fetch.outcome == "unread":
+            return self.fetch.unread
+        return None
+
+    def block(self) -> dict:
+        return {
+            "kind": self.kind, "url": self.url,
+            "reached_from": {"page": self.page, "place": self.place, "link_text": self.link_text},
+            "read": self.read, "page_date": self.parsed.date if self.parsed else None,
+            "read_by": "script", "method": "http_get", "unread": self.unread,
+            "archive": None, "capture_sha256": None,
+        }
+
+
+@dataclass
+class NotFound:
+    kind: str
+    looked: list
+    date: date
+    copyright_line: str | None = None
+
+    def block(self) -> dict:
+        return {"kind": self.kind, "looked": list(self.looked), "date": self.date, "by": "script"}
+
+
+@dataclass
+class HostReading:
+    host: str
+    start_url: str
+    read: date
+    skipped: str | None = None
+    robots: RobotsSignals | None = None
+    home: FetchResult | None = None
+    pages: list = field(default_factory=list)
+    documents: list = field(default_factory=list)
+    not_found: list = field(default_factory=list)
+    looked: list = field(default_factory=list)
+    broken: list = field(default_factory=list)
+    failed: list = field(default_factory=list)
+    pending: list = field(default_factory=list)
+    stopped: list = field(default_factory=list)
+    tdmrep_code: int | None = None
+    tdmrep_body: str | None = None
+    llms_txt_code: int | None = None
+    copyright_line: str | None = None
+    incomplete: bool = False
+
+    def home_signals(self) -> PageSignals | None:
+        return self.pages[0].signals if self.pages else None
+
+    def documents_block(self) -> list:
+        return [d.block() for d in self.documents
+                if d.unread_reason is not None
+                or (d.fetch is not None and d.fetch.outcome in ("ok", "unread"))]
+
+    def not_found_block(self) -> list:
+        return [n.block() for n in self.not_found]
+
+    def signals_block(self) -> dict:
+        home = self.home_signals()
+        return {
+            "robots": self.robots.block() if self.robots is not None else None,
+            "tdmrep": {"well_known": self.tdmrep_code,
+                       "header": home.tdm_reservation if home else None,
+                       "meta": home.meta_tdm_reservation if home else None},
+            "x_robots_tag": home.x_robots_tag if home else None,
+            "meta_robots": home.meta_robots if home else None,
+        }
+
+
+class SourceReader:
+    def __init__(self, fetcher: Fetcher, checker: SecurityChecker | None = None):
+        self.fetcher = fetcher
+        self.checker = checker
+        self.today = fetcher.today
+        self._cache: dict[str, FetchResult] = {}
+        self._clearance: dict[str, tuple[str, str]] = {}
+
+    def read(self, host: str) -> HostReading:
+        host = host.lower()
+        reading = HostReading(host=host, start_url=f"https://{host}/", read=self.today())
+        if not self._cleared(host):
+            reading.skipped = "security_not_cleared"
+            return reading
+        self.fetcher.read_robots(host)
+        home = self._get(reading, reading.start_url)
+        reading.home = home
+        rob = self.fetcher.robots(host)
+        reading.robots = robots_signals(rob) if rob is not None else None
+        if home.outcome == "ok" and home.status == 200:
+            self._read_site(reading, home)
+        elif home.outcome in ("failed", "unread"):
+            self._note_unsettled(reading, reading.start_url, "entry", home)
+        reading.pending = [u for u in reading.pending if self._cache[u].outcome == "deferred"]
+        reading.incomplete = reading.incomplete or bool(reading.pending)
+        return reading
+
+    def _cleared(self, host: str) -> bool:
+        return host in self.fetcher.secure_hosts or host in self.fetcher.service_hosts
+
+    def _host_clearance(self, host: str) -> tuple[str, str]:
+        if self._cleared(host):
+            return "ok", ""
+        if host in self._clearance:
+            return self._clearance[host]
+        if self.checker is None:
+            answer = (UNREAD_TOOL_REFUSED, "no security check is available for this host")
+        else:
+            result = self.checker.check(host)
+            if result.readable and self._cleared(host):
+                answer = ("ok", "")
+            elif result.dns == "nxdomain":
+                answer = (UNREAD_DNS, "nxdomain")
+            else:
+                why = result.failed or ", ".join(result.flags) or "not cleared"
+                answer = (UNREAD_TOOL_REFUSED, f"security check: {why}")
+        self._clearance[host] = answer
+        return answer
+
+    def _get(self, reading: HostReading, url: str) -> FetchResult:
+        res = self._cache.get(url)
+        if res is None:
+            res = self.fetcher.get(url)
+            self._cache[url] = res
+        if res.outcome == "deferred" and url not in reading.pending:
+            reading.pending.append(url)
+        return res
+
+    def _note_unsettled(self, reading, url, place, res) -> None:
+        if res.outcome == "failed":
+            reading.failed.append({"url": url, "place": place, "detail": res.detail,
+                                   "stopped_at": res.stopped_at})
+            reading.incomplete = True
+        elif res.outcome == "unread" and res.unread in STOP_UNREAD:
+            reading.stopped.append({"url": url, "place": place, "unread": res.unread,
+                                    "detail": res.detail})
+            reading.incomplete = True
+        elif res.outcome == "deferred":
+            reading.incomplete = True
+
+    def _read_site(self, reading: HostReading, home: FetchResult) -> None:
+        page = parse_page(home.final_url or reading.start_url, home)
+        reading.pages.append(page)
+        reading.copyright_line = page.copyright_line
+        found = {"offsite": [], "hubs": [], "pages": [page]}
+        self._links(reading, page, "footer", found)
+        reading.looked.append("footer")
+        self._take(reading, found, "footer")
+        if self._missing(reading):
+            reading.looked.append("menu")
+            self._links(reading, page, "menu", found)
+            self._take(reading, found, "menu")
+        for stage in STAGES[2:]:
+            if not self._missing(reading):
+                break
+            getattr(self, f"_stage_{stage}")(reading, found)
+        missing_terms = not any(d.kind == "terms" for d in reading.documents)
+        if missing_terms and reading.looked and not reading.incomplete:
+            reading.not_found.append(NotFound("terms", list(reading.looked), self.today(),
+                                              reading.copyright_line))
+        self._optional(reading)
+
+    def _missing(self, reading: HostReading) -> list:
+        have = {d.kind for d in reading.documents}
+        return [k for k in ESSENTIAL_KINDS if k not in have]
+
+    def _links(self, reading, page: ParsedPage, region: str, found: dict) -> None:
+        for link in page.links:
+            if link.region != region:
+                continue
+            kind = classify_link(link.text)
+            if kind is None:
+                continue
+            found.setdefault("cands", []).append((kind, link, page.url))
+
+    def _take(self, reading, found: dict, place: str, cands: list | None = None) -> None:
+        host = reading.host
+        have = {d.kind for d in reading.documents}
+        pool = cands if cands is not None else found.pop("cands", [])
+        todo: list[Candidate] = []
+        for kind, link, page_url in pool:
+            target = host_of(link.url)
+            if kind == "hub":
+                if same_site(target, host):
+                    found["hubs"].append(Candidate(kind, link.url, link.text, place, page_url))
+                continue
+            if not same_site(target, host):
+                found["offsite"].append(Candidate(kind, link.url, link.text, "operator_domain", page_url))
+                continue
+            if kind in have or any(c.url == link.url for c in todo) \
+                    or any(d.url == link.url for d in reading.documents):
+                continue
+            todo.append(Candidate(kind, link.url, link.text, place, page_url))
+        self._read_candidates(reading, found, todo)
+
+    def _read_candidates(self, reading, found: dict, todo: list) -> None:
+        for cand in todo:
+            if len(reading.documents) >= MAX_DOCUMENTS:
+                return
+            doc = self._document(reading, cand)
+            if doc is None:
+                continue
+            reading.documents.append(doc)
+            if doc.parsed is not None:
+                found["pages"].append(doc.parsed)
+            if doc.fetch is not None:
+                self._note_unsettled(reading, doc.url, doc.place, doc.fetch)
+
+    def _document(self, reading: HostReading, cand: Candidate) -> DocumentFind | None:
+        doc = DocumentFind(kind=cand.kind, url=cand.url, page=cand.page, place=cand.place,
+                           link_text=cand.text, read=self.today())
+        status, note = self._host_clearance(host_of(cand.url) or "")
+        if status != "ok":
+            doc.unread_reason, doc.note = status, note
+            return doc
+        res = self._get(reading, cand.url)
+        doc.fetch = res
+        if res.outcome == "ok":
+            if res.status != 200:
+                reading.broken.append({"url": cand.url, "status": res.status, "place": cand.place,
+                                       "page": cand.page})
+                return None
+            doc.parsed = parse_page(res.final_url or cand.url, res)
+        return doc
+
+    def _stage_sitemap(self, reading: HostReading, found: dict) -> None:
+        urls = [u for u in (reading.robots.sitemaps if reading.robots else [])
+                if same_site(host_of(u), reading.host)]
+        urls += [f"https://{reading.host}{p}" for p in SITEMAP_PATHS]
+        seen, reads = set(), []
+        for url in urls:
+            if url in seen:
+                continue
+            seen.add(url)
+            matches = self._sitemap_matches(reading, url, reads)
+            cands, kinds = [], set()
+            for kind, loc in matches:
+                if kind in self._missing(reading) and kind not in kinds:
+                    kinds.add(kind)
+                    cands.append(Candidate(kind, loc, None, "sitemap", url))
+            if cands:
+                self._read_candidates(reading, found, cands)
+                break
+        if self._searched(reads):
+            reading.looked.append("sitemap")
+
+    @staticmethod
+    def _searched(reads: list) -> bool:
+        return any(r.outcome == "ok" for r in reads) and all(
+            r.outcome == "ok" or (r.outcome == "unread" and r.unread == UNREAD_ROBOTS_BLOCKS_AGENT)
+            for r in reads)
+
+    def _sitemap_matches(self, reading, url: str, reads: list) -> list:
+        res = self._get(reading, url)
+        reads.append(res)
+        self._note_unsettled(reading, url, "sitemap", res)
+        if res.outcome != "ok" or res.status != 200 or url.endswith(".gz"):
+            return []
+        text = res.body.decode("utf-8", errors="replace")
+        locs = [u.strip() for u in re.findall(r"<loc>\s*(.*?)\s*</loc>", text, re.DOTALL)]
+        if "<sitemapindex" in text.lower():
+            children = [u for u in locs if "page" in u.lower() and not u.endswith(".gz")
+                        and same_site(host_of(u), reading.host)][:MAX_CHILD_SITEMAPS]
+            locs = []
+            for child in children:
+                child_res = self._get(reading, child)
+                reads.append(child_res)
+                self._note_unsettled(reading, child, "sitemap", child_res)
+                if child_res.outcome == "ok" and child_res.status == 200:
+                    locs += [u.strip() for u in re.findall(
+                        r"<loc>\s*(.*?)\s*</loc>", child_res.body.decode("utf-8", errors="replace"),
+                        re.DOTALL)]
+        matches = []
+        for loc in locs:
+            kind = classify_path(loc)
+            if kind and kind != "hub" and same_site(host_of(loc), reading.host):
+                matches.append((kind, loc))
+        return matches
+
+    def _stage_legal_hub(self, reading: HostReading, found: dict) -> None:
+        hubs, found["hubs"] = found["hubs"][:MAX_HUBS], []
+        read_any = False
+        for hub in hubs:
+            status, _ = self._host_clearance(host_of(hub.url) or "")
+            if status != "ok":
+                continue
+            res = self._get(reading, hub.url)
+            self._note_unsettled(reading, hub.url, "legal_hub", res)
+            if res.outcome != "ok" or res.status != 200:
+                continue
+            read_any = True
+            page = parse_page(res.final_url or hub.url, res)
+            found["pages"].append(page)
+            cands = [(classify_link(link.text), link, page.url) for link in page.links]
+            self._take(reading, found, "legal_hub", [c for c in cands if c[0] is not None])
+        if read_any:
+            reading.looked.append("legal_hub")
+
+    def _stage_linked_from_doc(self, reading: HostReading, found: dict) -> None:
+        pages = [d.parsed for d in reading.documents if d.parsed is not None]
+        if not pages:
+            return
+        cands = []
+        for page in pages:
+            cands += [(classify_link(link.text), link, page.url) for link in page.links]
+        self._take(reading, found, "linked_from_doc", [c for c in cands if c[0] is not None])
+        reading.looked.append("linked_from_doc")
+
+    def _stage_operator_domain(self, reading: HostReading, found: dict) -> None:
+        offsite, seen = [], set()
+        for cand in found["offsite"]:
+            if cand.kind in self._missing(reading) and cand.url not in seen:
+                seen.add(cand.url)
+                offsite.append(cand)
+        if not offsite:
+            return
+        self._read_candidates(reading, found, offsite[:MAX_OPERATOR_LINKS])
+        reading.looked.append("operator_domain")
+
+    def _optional(self, reading: HostReading) -> None:
+        if reading.stopped:
+            return
+        res = self._get(reading, f"https://{reading.host}{TDMREP_PATH}")
+        self._note_unsettled(reading, res.url, "tdmrep", res)
+        if res.outcome == "ok":
+            reading.tdmrep_code = res.status
+            if res.status == 200:
+                reading.tdmrep_body = res.body.decode("utf-8", errors="replace")[:TDMREP_MAX_CHARS]
+        res = self._get(reading, f"https://{reading.host}{LLMS_PATH}")
+        self._note_unsettled(reading, res.url, "llms_txt", res)
+        if res.outcome == "ok":
+            reading.llms_txt_code = res.status
