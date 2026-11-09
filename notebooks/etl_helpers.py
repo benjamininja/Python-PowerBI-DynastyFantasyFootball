@@ -69,8 +69,8 @@ class LeagueConfig:
     close_day_weekday: int = 3
     source_check_month: int = 5
     rookie_class_year: int = 2027
-    rookie_class_combine_end: str = "2027-03-07"
-    rookie_class_draft_end: str = "2027-04-24"
+    rookie_class_combine_end: str = "2027-03-08"
+    rookie_class_draft_end: str = "2027-05-01"
 
     def rookie_phase(self, on: "date | str") -> str:
         run_date = date.fromisoformat(on) if isinstance(on, str) else on

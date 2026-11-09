@@ -70,6 +70,10 @@ class TestPhaseByRunDate:
                                                       self.draft_end + timedelta(days=1))}
         assert phases == {"pre_combine", "post_combine", "post_draft"}
 
+    def test_the_2027_dates_are_the_announced_ones(self):
+        assert self.CFG.rookie_class_combine_end == "2027-03-08"
+        assert self.CFG.rookie_class_draft_end == "2027-05-01"
+
     def test_the_dates_are_config_fields(self):
         cfg = dataclasses.replace(self.CFG, rookie_class_combine_end="2028-03-05",
                                   rookie_class_draft_end="2028-04-29")
