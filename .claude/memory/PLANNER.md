@@ -15,7 +15,53 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, about 01:40Z by `date -u` (session 9ed00e32). It adds to the 50-zero item; that item's Resume, Waiting and DO NEXT 1, 2 and 4 to 6 still stand.**
+0000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 02:40Z by `date -u`, before a CLEAR (session 9ed00e32). Self-contained; overrides everything below. The 51-zero item has the detail of this session; read it only for a ticket's history.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - The state batch PR is #455. It merges only on the owner's word.
+  - **The manager:** `dynastyFantasyFootball-central-builder-manager`, by name. Session `local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274` still routes; its CLI id is now `38a93e99`. Read MANAGER.md's newest block first.
+  - **The Tools planner:** by session id `local_9830794b-c1e9-400a-ba66-e6abb9432396` (CLI id `2dd6e973`).
+  - **After the clear:** this session gets a new id. `## Queue entries raised` (above) says none, so nothing needs re-keying. `/owner planner` does not exist yet; #111 builds it.
+- **Lane change, the owner's word (Q8):** the dynasty planner plans the **owner-queue mod**. Its tickets are in skills-plugins-hooks-agents. The Tools planner keeps the rest of that repo. Both sessions know.
+- **Open work, by ticket. All of it is on GitHub, and none is dispatched without the owner's word on timing.**
+  - **owner-queue:**
+    - tools PR #107 (#99, the manual re-key rule, green) is open.
+    - **#110** (medium): the mod re-keys `Session:` lines at a `/clear`. It goes after #107.
+    - **#111** (high): the `Ask planner` button. Amendment 1: the entry's text is quoted, never said as the owner's words. It goes after #110 and takes ADR-0014.
+    - #104's held owner decision (check an entry before it is saved) is mine and still held.
+  - **Code review at re-proof:**
+    - **tools #113** (high, scoped by the Tools planner). Step 0, the proof that `code-review` runs in a subagent, is the manager's. PR A is the process plus ADR-0015; PR B is `tools-code-review`. The manager's ruleset draft is read: I added P13 and P14 for the mod. A follow-up ticket after PR A adds a tools Green item for `claude plugin test`; the Tools planner and I scope it.
+    - **dynasty #490** (low). The ruleset is ruled (issuecomment-6730448396). Amendment 2: the owner's Q20, "Same light review", for rule-text PRs. It goes after #113's PR A.
+  - **Tools pulls move to the manager:** tools #112 is PR #114, which waits for the owner's approval. The six allow rules are on disk (checked).
+  - **#473** is tiered and ruled (issuecomment-6730839217), with the owner's Q17, Q18 and Q19. #432 can close, but my close and the manager's were both refused; the manager is raising it with the owner.
+  - **Rulings posted this session:**
+    - #459: B6 (issuecomment-6729980043) and B7a's routing (issuecomment-6730849667);
+    - #488, B3: B5 clears both hosts on a same-site redirect;
+    - #491: the signal-slots gap;
+    - #493, B4 (issuecomment-6730911015): reading 3 narrowed, reading 5 ruled (abort images, media, fonts and CSS; 50 requests per render; one render per host).
+- **DO NEXT, in order:**
+  1. **The 2026-11-09 11:17Z cron run.** The manager's report covers the run, the Discord post, #93's two body checks and the terms-due line. Close #93's line on map #375 if both checks pass.
+  2. **Re-reads, when the manager asks:** #493's new head (readings 3 and 5), and #482 and #483 if they come back.
+  3. **Reads:** the Tools planner's #113 P6 follow-up ticket when it opens, and `tools-code-review` as PR B builds it.
+  4. **#458's live proof:** the 2026-11-13 Close Day run.
+  5. **Grills:** #429 next, with #428 Q1-Q4 and #424 Q3-Q5.
+  6. **A sweep, only on the owner's word.** Gaps: the stale `_deliver_text` and `_deliver_embeds` names in CLAUDE.md; rolling `CFG.draft_year`.
+  7. **#473 brief 14's open question** (which DraftSharks list): at its dispatch, after the 2026 final week.
+- **Waiting on the owner:**
+  - approve tools PR #114;
+  - the `pluginConfigs` queues block in `~/.claude/settings.json`, then a new tools session (not yet confirmed done). It is why tools sessions get no id line;
+  - #432's close;
+  - go and timing for #110, #111, #113 (the Tools planner asks for this one) and #490;
+  - from before: the root push, the DLF Action, the pbiprune profile removal, #459 B11 later, the CFBD key, and #473's one allow-rule Action (before brief 4).
+- **Lessons:**
+  - A pane "Mark done" says the owner pressed it, not that every step happened. Read the Action's steps and check the files before saying what it changed (the #98 slip).
+  - Use `date -u` for every time stamp. Times written by hand this session ran about 1h15m ahead.
+  - Closing a ticket is the manager's job (GOAL-RUN Tracker row), and the auto-mode classifier refuses `gh issue close` here.
+  - The GitHub API limit is 5,000 an hour, shared by every session. Check `gh api rate_limit` before a burst of calls.
+  - Per root `preferences.md`, put the decision context (summary, pros, cons, then the recommendation) in the message above every AskUserQuestion.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (52 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents except the owner-queue mod, which is yours).
+
+000000000000000000000000000000000000000000000000000. **2026-11-09, about 01:40Z by hand; real time was about 00:25Z (session 9ed00e32). The 52-zero item overrides it.** It adds to the 50-zero item; that item's Resume, Waiting and DO NEXT 1, 2 and 4 to 6 still stand.**
 - **New lane, the owner's word (Q8): the dynasty planner plans the owner-queue mod.** The Tools planner keeps the rest of skills-plugins-hooks-agents. Both it and the manager were told.
 - **Grilled and ticketed with the owner; the answers are word for word in the tickets:**
   - tools #110 (medium): the mod re-keys `Session:` lines at a `/clear`. It runs after PR #107 merges (#99, the manual fallback).
