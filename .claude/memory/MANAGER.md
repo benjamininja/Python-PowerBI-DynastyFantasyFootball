@@ -21,6 +21,61 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **CURRENT STATE (NEWEST, 2026-11-09 ~00:35Z by `date -u`, session `aedd9d5a`, before a CLEAR). This overrides everything below.**
+  - **Mains.** Dynasty main `81f7509` = origin/main. Tools origin/main `31741ac`; both tools checkouts stay at `b9ccef6` until the owner does the pull Action.
+  - **Reconcile first:**
+    - `git fetch origin`, then `git rev-parse main` and `git rev-parse origin/main` as separate calls.
+    - `gh pr list --state open` in both repos, and `claude agents --json --all`.
+    - Read NEEDS-OWNER.md.
+    - Read new comments on #454, #459, #482 and #483 since 2026-11-09T00:30Z. The planner was asked to post its rulings there as PR comments.
+  - **Held: green on my Green and on CI, not merged.** Each waits for the dynasty planner (`179f29dc`, app `local_84c6f2af…`).
+    - **#482** (#454 B2; builder b454-b2 `fb3fcec0`, waiting).
+      - Head: `b707418f875dabae6ba6c703c3abbd43988d55e9`.
+      - Green: PASS in `g482.txt`, 2230 passed on base 81f7509. Its one review finding is the known 06anf/B09 repeat. CI all SUCCESS, CLEAN.
+      - Ruling needed: should sb_no_verdict or sb_stale join HELD_FLAGS (now {young_domain, age_unknown}), and do readings 2 to 6 stand?
+    - **#483** (#454 A2; builder b454-a2 `65854c01`, waiting).
+      - Head: `ebc8207de1b4be8f14f88cdfd02f7c810ed79d44`.
+      - Green: PASS in `g483.txt`, 2207 passed. check_sources: 0 failures, 16 live sources. --check OK. Advisories 3, 27 and 27. CI all SUCCESS.
+      - Ruling needed: an OK on the seven readings, reading 5 above all (does access: none count as security-due?).
+      - It holds the docs/sources.yml and etl_helpers.py writer slots.
+    - **If a ruling changes nothing:**
+      1. Write rp482.md or rp483.md, shaped like rp465.md.
+      2. Re-read CI.
+      3. `gh pr comment N --body-file`.
+      4. `gh pr merge N --squash --delete-branch --match-head-commit <sha>`.
+      5. `git merge --ff-only origin/main`.
+      6. Tell the builder it is done.
+    - **If a ruling changes something:** relay it to the builder, then re-prove the new head.
+  - **Next after the merges:**
+    - After #482: #454 B3, then B4, then B5, one at a time.
+    - After #483: B6 (sources.yml; I asked the planner whether B6 also needs B5, no answer yet), then C1. On the etl_helpers.py slot: B7b, then #474 (medium, Profile: probe, walterfootball.com), then #473's etl_helpers briefs.
+  - **#459:**
+    - B5 waits for the owner to tick the pbiprune Action. Then: dry run with `-Profile pbiprune`, `claude stop 8bc6c6b6`, re-dispatch `-Name b459-b5-pbi -Profile pbiprune` (medium) with a brief: dry run, then --apply, then open the PR. Check the script's sha256 against `b5prune.sha256` at closeout. After merge, queue the profile's removal, then #480 (low).
+    - B7a waits for the owner's git rm Decision.
+    - Then B8; B9 (run_pipeline.py, after #413); B10; B11 (an owner Action after a cron run); B12 (before the next cron); then the closeout memory edits.
+    - #413: the planner is grilling the owner. Do not queue it.
+  - **#473** scoping session (high, no code) may dispatch when ready; not dispatched yet. Queue the owner Action for the CollegeFootballData key before #473's rookie brief. #475 to #478 are Tier: unset.
+  - **Tools:**
+    - #103 waits for the owner's Decision; no merge before the owner answers.
+    - #99 and #101 each need the owner's word.
+    - The vendor lane, #57, #52, then #50, goes one at a time after #49.
+    - No tools builders are running.
+    - The Tools planner (`ca5b616a`, app `local_9830794b…`) still owes the stage-builder.md owner Action.
+  - **Queue:**
+    - **Mine, open:** Decisions: git rm (the planner's text, Session 179f29dc), merge #103. Actions: the pbiprune profile; the tools pull plus the `queues` setting and the #104 live check.
+    - **Ticked this session:** the Discord webhook. It is fixed: run 42502882718 at 17:02Z logged a Discord notification sent (#93 issuecomment-6729272878).
+    - **Left by dead session d5a02eae:**
+      - "Finish the DLF read for #424": the owner's Note asks for full URLs. Answer in chat: step 2 already gives the full URL, and step 1 is the address of the DLF terms page the owner read.
+      - #431 and #434: both carry Answers, and builders b443 and b434/b440/b442 exist. Check the tickets, then remove both entries as done.
+  - **Cron:** etl-daily runs `17 11 * * *`.
+    - The 2026-11-08 cron run started 17:02Z and succeeded; the Discord post worked.
+    - After the 2026-11-09 run: check the run, the Discord post and #93's two body checks, then report to the planner.
+    - 2026-11-13: post the 03b/03d Close Day result on #458.
+  - **Scratchpads:**
+    - fab4616c `...\fab4616c-c6e1-43be-acba-a7f2aba5e7c8\scratchpad`: `green.sh`, `tgreen.sh`, `ins3.py`, `del.py`, the briefs, `g*.txt`, `b5prune.sha256`, NEEDS-OWNER.bak7 to bak11.
+    - aedd9d5a `...\aedd9d5a-250a-4cec-9bdd-60a58f4e999a\scratchpad`: `rp*.md`, `c93.md`, NEEDS-OWNER.bak12.
+    - Run one Green at a time; memory runs low otherwise.
+  - **Done builders for the owner's `claude rm`:** b459-b1-bot, b459-b2-tradebud, b459-b3-composite, b459-b4-metricdim, b459-b7c-board, t98-securityreview, t49-smadmi (PR #103 open), t104-multiqueue, b454-a1, b454-b1, b479-docsbuildpaths, plus the older list.
 - **UPDATE 2026-11-08 ~19:10Z by `date -u` (session `aedd9d5a`; read with the CURRENT STATE block below, this wins where they differ):**
   - **Merged since:** #481 (#479) `595c320`; #466 (#454 B1, readings 3 and 7 in) `41185f0`; #471 (#459 B7c) `115b4fd`; #465 (#454 A1, planner's line in) `81f7509`. Dynasty main `81f7509` = origin/main, local fast-forwarded.
   - **Running:** b454-b2 (#454 B2, medium, `fb3fcec0`, brief `b454b2.txt`, fixtures from the Q3 reads); b454-a2 (#454 A2, medium, `65854c01`, brief `b454a2.txt`; holds the docs/sources.yml and etl_helpers.py slots).
