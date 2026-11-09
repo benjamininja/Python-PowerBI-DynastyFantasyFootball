@@ -50,7 +50,24 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **The design:** the manager writes a reviewer packet; the reviewer runs `code-review` at the tier's effort plus the ruleset; one round on the PR thread (findings, the builder's answers, a fresh re-check); the manager decides what's still open, with my weigh-in, and the owner only when we disagree.
 - **#488 (#454 B3) ruled** (issuecomment-6730364507): no breach. B5's check clears and reads both hosts on a same-site redirect, each host with its own check. Readings 2, 5, 6 and 10 are accepted. **#491** (`Tier: unset`, after B5) adds slots for the Content-Usage header, noai and tdm-policy.
 - **My error, corrected by the Tools planner:** my tools #98 comment (issuecomment-6730112577) said the stage-builder bullet was live. It is not. The owner's tick covered step 1 only; the Tools planner's sync PR and the pull are still to come. The correction is at issuecomment-6730128372, and the manager keeps the brief line. **Lesson:** a pane "Mark done" says the owner pressed it, not that every step happened. Read the Action's steps and check the file before saying what the tick changed.
-- **DO NEXT 3 is due now.** #473's scoping is posted (issuecomment-6729572726 and -6729573740): 14 briefs and 17 questions. Every brief holds until I set its tier.
+- **DO NEXT 3 is done: #473 is tiered and ruled** (issuecomment-6730839217).
+  - Tiers:
+    - low: briefs 1, 5, 10, 11, 12, 13;
+    - medium: briefs 2, 3, 4, 6, 7, 8, 9, 14.
+  - The owner's answers:
+    - Q17: a second table, `fact_scored_player_season`;
+    - Q18: the looser drift bar, 1 point + 5%, 90% passing, 2% per position;
+    - Q19: a scheduled yearly CFBD and rookie-fit workflow, Postgres only.
+  - One batched allow-rule Action goes before brief 4.
+  - ADR-0023 is accepted.
+  - Brief 12 goes after #485, and brief 13 after #480.
+  - Q17, the DraftSharks list, is ruled at brief 14's dispatch.
+  - **#432:** the manager closes it. My own `gh issue close` was refused, and the Tracker rule gives closing to the manager.
+- **#492 (B7a) routing ruled** (#459 issuecomment-6730849667).
+- **tools #113's owner-queue rows read** (issuecomment-6730846724):
+  - P13 added: a mod write changes only its target lines;
+  - P14 added: only pressed or typed text goes in as the owner's words;
+  - **#111 amendment 1:** the entry's text is quoted, not said as the owner's words.
 
 00000000000000000000000000000000000000000000000000. **2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
 - **Resume:**
