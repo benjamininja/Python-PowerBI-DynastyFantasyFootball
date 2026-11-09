@@ -578,7 +578,10 @@ MANIFEST = REPO / "docs" / "sources.yml"
 FLAG_ORDER = ("young_domain", "age_unknown", "tls_expiring", "tls_failed", "sb_unsafe",
               "sb_no_verdict", "sb_stale", "nxdomain", "controls_failed")
 NEVER_READ_FLAGS = frozenset({"controls_failed", "sb_unsafe", "nxdomain", "tls_failed"})
-HELD_FLAGS = frozenset({"young_domain", "age_unknown"})
+HELD_FLAGS = frozenset({"young_domain", "age_unknown", "sb_no_verdict"})
+NAME_NOT_FOUND = frozenset(
+    code for code in (getattr(socket, "EAI_NONAME", None), getattr(socket, "EAI_NODATA", None), 11001)
+    if code is not None)
 
 
 @dataclass
@@ -717,8 +720,11 @@ class SecurityResult:
     notes: list = field(default_factory=list)
     readable: bool = False
     held: bool = False
+    failed: str | None = None
 
-    def block(self) -> dict:
+    def block(self) -> dict | None:
+        if self.failed is not None:
+            return None
         return {
             "checked": self.checked, "host": self.host, "controls": self.controls,
             "safe_browsing": self.safe_browsing, "dns": self.dns, "tls": self.tls,
@@ -769,7 +775,10 @@ class SecurityChecker:
             result.safe_browsing = {"via": "transparency_report", "code": None, "google_scan": None}
             result.flags.append("controls_failed")
             return self._finish(result)
-        if not self._resolves(host, result):
+        answer = self._resolves(host, result)
+        if answer is None:
+            return self._finish(result)
+        if not answer:
             result.dns = "nxdomain"
             result.flags.append("nxdomain")
             return self._finish(result)
@@ -797,12 +806,16 @@ class SecurityChecker:
             self._host_hsts(result.host, result)
         return result
 
-    def _resolves(self, host: str, result: SecurityResult) -> bool:
+    def _resolves(self, host: str, result: SecurityResult) -> bool | None:
         try:
             answers = self.resolver(host, 443)
         except socket.gaierror as exc:
-            result.notes.append(f"dns: {exc}")
-            return False
+            if exc.errno in NAME_NOT_FOUND:
+                result.notes.append(f"dns: {exc}")
+                return False
+            result.failed = f"dns: {exc}"
+            result.notes.append(result.failed)
+            return None
         return bool(answers)
 
     def _host_safe_browsing(self, host: str, result: SecurityResult) -> None:

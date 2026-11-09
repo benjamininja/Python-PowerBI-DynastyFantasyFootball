@@ -539,14 +539,15 @@ def rdap_body(days_ago, today=TODAY):
 
 
 class Dns:
-    def __init__(self, missing=()):
+    def __init__(self, missing=(), code=socket.EAI_NONAME):
         self.missing = set(missing)
+        self.code = code
         self.calls = []
 
     def __call__(self, host, port):
         self.calls.append(host)
         if host in self.missing:
-            raise socket.gaierror(socket.EAI_NONAME, "name not known")
+            raise socket.gaierror(self.code, "resolver error")
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.0.2.1", port))]
 
 
@@ -703,6 +704,45 @@ def test_code_four_is_no_verdict_and_keeps_the_code():
     assert result.safe_browsing == {"via": "transparency_report", "code": 4,
                                     "google_scan": date(2026, 10, 5)}
     assert result.flags == ["sb_no_verdict"]
+    assert result.held and not result.readable
+
+
+def test_a_code_four_host_gets_no_connection_until_it_is_confirmed():
+    w = World("google.com", sb=fx("sb_google_code4.txt"), today=date(2026, 10, 20),
+              preload=b'{"status": "unknown"}', extra={"https://google.com/terms": resp(200, "t")})
+    before = w.check()
+    assert before.flags == ["sb_no_verdict"]
+    assert before.held and not before.readable
+    assert w.host_requests() == []
+    assert w.tls.calls == []
+    assert w.fetcher.get("https://google.com/terms").outcome == "failed"
+    assert w.host_requests() == []
+
+    w.confirmed.add("google.com")
+    after = w.check()
+    assert after.flags == ["sb_no_verdict"]
+    assert after.readable and not after.held
+    assert w.host_requests() == ["https://google.com/robots.txt"]
+    assert w.fetcher.get("https://google.com/terms").outcome == "ok"
+
+
+@pytest.mark.parametrize("answer", [raw(b"", 500), raw(b"", 403), raw(b"", 429)])
+def test_a_host_safe_browsing_failure_is_no_verdict_and_held(answer):
+    w = World()
+    w.transport.routes[sc.safe_browsing_url("footballguys.com")] = [answer]
+    result = w.check()
+    assert result.flags == ["sb_no_verdict"]
+    assert result.safe_browsing["code"] is None
+    assert result.held and not result.readable
+    assert w.host_requests() == [] and w.tls.calls == []
+
+
+def test_stale_and_expiring_flags_do_not_hold_a_host():
+    w = World(sb=fx("sb_footballguys.txt"), today=date(2026, 12, 20),
+              tls=Tls(today=date(2026, 12, 20), not_after=date(2026, 12, 22)))
+    result = w.check()
+    assert result.flags == ["tls_expiring", "sb_stale"]
+    assert result.readable and not result.held
 
 
 def test_an_old_scan_is_stale():
@@ -739,6 +779,42 @@ def test_nxdomain_means_no_further_request():
     assert sc.safe_browsing_url("footballguys.com") not in w.transport.urls()
     assert not any(u.startswith(RDAP_BASE) for u in w.transport.urls())
     assert sc.IANA_BOOTSTRAP_URL not in w.transport.urls()
+
+
+NX_CODES = [c for c in (socket.EAI_NONAME, 11001, getattr(socket, "EAI_NODATA", None)) if c is not None]
+
+
+@pytest.mark.parametrize("code", NX_CODES)
+def test_only_a_name_not_found_answer_is_nxdomain(code):
+    w = World(dns=Dns(missing=["footballguys.com"], code=code))
+    result = w.check()
+    assert result.flags == ["nxdomain"]
+    assert result.dns == "nxdomain"
+    assert result.block()["dns"] == "nxdomain"
+    assert w.host_requests() == []
+
+
+@pytest.mark.parametrize("code", [getattr(socket, "EAI_AGAIN", -3), getattr(socket, "EAI_FAIL", -4), 0])
+def test_any_other_resolver_error_stops_the_host_with_no_block(code):
+    w = World(dns=Dns(missing=["footballguys.com"], code=code))
+    result = w.check()
+    assert result.failed and result.failed.startswith("dns:")
+    assert result.block() is None
+    assert result.flags == [] and result.dns is None
+    assert not result.readable and not result.held
+    assert w.tls.calls == []
+    assert w.host_requests() == []
+    assert sc.safe_browsing_url("footballguys.com") not in w.transport.urls()
+    assert not any(u.startswith(RDAP_BASE) for u in w.transport.urls())
+    assert "footballguys.com" not in w.fetcher.secure_hosts
+
+
+def test_a_failed_dns_check_is_tried_again_by_the_next_run():
+    w = World(dns=Dns(missing=["footballguys.com"], code=getattr(socket, "EAI_AGAIN", -3)))
+    assert w.check().failed
+    w.dns.missing.clear()
+    again = w.check()
+    assert again.failed is None and again.flags == [] and again.readable
 
 
 @pytest.mark.parametrize("days,flags", [(6, ["tls_expiring"]), (7, []), (0, ["tls_expiring"])])
