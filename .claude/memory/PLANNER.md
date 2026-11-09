@@ -5,13 +5,28 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
+## Queue entries raised
+
+None. Planner session 9ed00e32 raised no entries.
+
 ## START HERE (state 2026-11-09, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
+000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, about 01:40Z by `date -u` (session 9ed00e32). It adds to the 50-zero item; that item's Resume, Waiting and DO NEXT 1, 2 and 4 to 6 still stand.**
+- **New lane, the owner's word (Q8): the dynasty planner plans the owner-queue mod.** The Tools planner keeps the rest of skills-plugins-hooks-agents. Both it and the manager were told.
+- **Grilled and ticketed with the owner; the answers are word for word in the tickets:**
+  - tools #110 (medium): the mod re-keys `Session:` lines at a `/clear`. It runs after PR #107 merges (#99, the manual fallback).
+  - tools #111 (high): an `Ask planner` button on every open entry takes the entry to the planner's chat as pop-ups. The mod stages the final answer for Submit. Also in #111: `/owner planner` registration, a hold when no planner is registered, a parking.md rule that a session answers a pane comment in full, and ADR-0014. It runs after #110.
+  - #99's parked question is answered "Mod rewrites" (#99 issuecomment-6730018280).
+  - Dispatch timing for both tickets is the owner's.
+- **Ruled:** #459 B6 may change the `security_due` count from 27 to 25 on lines 278 and 279 of `tests/test_check_sources.py` (#459 issuecomment-6729980043). The manager relayed it.
+- **Manager:** its new session is CLI id `38a93e99`. It re-keyed its queue entries and fixed the DLF Action's step 1 URL.
+- **DO NEXT 3 is due now.** #473's scoping is posted (issuecomment-6729572726 and -6729573740): 14 briefs and 17 questions. Every brief holds until I set its tier.
+
+00000000000000000000000000000000000000000000000000. **2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
 - **Resume:**
   - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
   - The state batch PR is #455; it merges only on the owner's word.
