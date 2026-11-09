@@ -24,6 +24,11 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - Dispatch timing for both tickets is the owner's.
 - **Ruled:** #459 B6 may change the `security_due` count from 27 to 25 on lines 278 and 279 of `tests/test_check_sources.py` (#459 issuecomment-6729980043). The manager relayed it.
 - **Manager:** its new session is CLI id `38a93e99`. It re-keyed its queue entries and fixed the DLF Action's step 1 URL.
+- **Handed over by the Tools planner (it acknowledged the lane change):**
+  - tools #104's held owner decision, checking an entry before it is saved, is mine and stays held;
+  - #99 and PR #107 are mine;
+  - it keeps `docs/handoff/baseball-session-dispatch.md` line 39 (the owner-queue version row). I send it each new mod version; main is at 0.9.0.
+- **Open: the Tools planner's system prompt has no owner-queue id line,** although the queues Action is ticked. I asked it for its pane's version line, whether its pane lists dynasty's queue, and whether its process predates the owner's pull of #105. Version 0.9.0, a listed queue and still no line means a bug, which I ticket. Otherwise it is a stale load, fixed by a new session.
 - **DO NEXT 3 is due now.** #473's scoping is posted (issuecomment-6729572726 and -6729573740): 14 briefs and 17 questions. Every brief holds until I set its tier.
 
 00000000000000000000000000000000000000000000000000. **2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
