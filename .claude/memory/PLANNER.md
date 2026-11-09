@@ -32,7 +32,12 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Owner ruling (Q11): the manager pulls both tools checkouts at closeout, not the owner.** It is tools #112, `Tier: unset`, handed to the Tools planner to scope; both it and the manager were told. Until #112 lands, tools PROJECT-RULES.md line 43 stands.
 - **Code review at re-proof, grilled with the owner and ticketed** (the answers are word for word in tools #113):
   - **tools #113** (`Tier: unset`; the Tools planner scopes it, and I proposed high): the shared process in session-rules, a read-only reviewer subagent, and `tools-code-review`. Its first step proves `code-review` runs inside a subagent.
-  - **dynasty #490** (medium, after #113): `mrp-dff-code-review`, dynasty's reviewer agent, and a GOAL-RUN Green item. The manager drafts the ruleset from the fix PRs since 2026-10-09, and I read it.
+  - **dynasty #490** (low after amendment 1, after #113's PR A): `mrp-dff-code-review`, a GOAL-RUN Green item and a CLAUDE.md line. It adds no agent: the shared `pr-code-reviewer` comes from tools. The manager drafts the ruleset from the fix PRs since 2026-10-09, and I read it before dispatch.
+  - **The Tools planner's scoping of #113** (issuecomment-6730387034), all three points accepted:
+    - it is high: one builder, PR A for the process with ADR-0015 (#111 keeps 0014), PR B for `tools-code-review`;
+    - Step 0, the subagent proof, is the manager's;
+    - the reviewer writes nothing, and the manager posts its findings.
+  - The owner's go on #113 is the Tools planner's to get.
   - **The design:** the manager writes a reviewer packet; the reviewer runs `code-review` at the tier's effort plus the ruleset; one round on the PR thread (findings, the builder's answers, a fresh re-check); the manager decides what's still open, with my weigh-in, and the owner only when we disagree.
 - **#488 (#454 B3) ruled** (issuecomment-6730364507): no breach. B5's check clears and reads both hosts on a same-site redirect, each host with its own check. Readings 2, 5, 6 and 10 are accepted. **#491** (`Tier: unset`, after B5) adds slots for the Content-Usage header, noai and tdm-policy.
 - **My error, corrected by the Tools planner:** my tools #98 comment (issuecomment-6730112577) said the stage-builder bullet was live. It is not. The owner's tick covered step 1 only; the Tools planner's sync PR and the pull are still to come. The correction is at issuecomment-6730128372, and the manager keeps the brief line. **Lesson:** a pane "Mark done" says the owner pressed it, not that every step happened. Read the Action's steps and check the file before saying what the tick changed.
