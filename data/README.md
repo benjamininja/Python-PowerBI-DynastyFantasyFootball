@@ -17,7 +17,7 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 | `dim_school.parquet` | `school_raw` | 01a | Raw → canonical school + conference transformer |
 | `dim_player_alias.parquet` | `name_clean + position_raw` | 03y, 03z | Persistent fuzzy-match decisions (variant name → `player_key`) |
 | `dim_fantrax_crosswalk.parquet` | `scorer_id` | 04z | Fantrax `scorer_id` → `gsis_id` + `player_key` |
-| `dim_dynasty_crosswalk.parquet` | `source_uid` (= `source\|source_player_id`) | 04b, 04x | Unified dynasty-source id → `gsis_id` + `player_key`. `source_uid` is the single-column PBI relationship key (both dynasty facts carry it) |
+| `dim_dynasty_crosswalk.parquet` | `source_uid` (= `source\|source_player_id`) | 04x | Unified dynasty-source id → `gsis_id` + `player_key`. `source_uid` is the single-column PBI relationship key (both dynasty facts carry it) |
 | `dim_dynasty_metric.parquet` | `metric_key` | 04c | Index for `fact_dynasty_ranking_metrics.metric_key`: label/group/order/direction; matrix column axis (`metric_order` = flow) |
 | `dim_season.parquet` | `season_id` | 01f | Calendar spine (ADR-0004): fantasy/NFL start-end dates + `relative_nfl_season_number` (0 = current, recomputed every run — never a frozen snapshot). Anchors phase-aware logic (04a week derivation, `scripts/run_pipeline.py` phase) and the Dead Money "current/next year" measures |
 | `dim_division.parquet` | `season_id + conference` | 04p (Fantrax public API) | Season-scoped conference → themed division name (Riddell/Wilson for 2026-2027), from public `getLeagueInfo.teamInfo` (ADR-0016 amendment decision 12). A run replaces its own season's rows |
@@ -30,7 +30,7 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 |---|---|---|---|
 | `fact_rookie_rankings.parquet` | `player_key + source_name + phase + draft_year` | 02c, 03a–03x | Expert rankings, 10 sources, phase cascade |
 | `fact_fantrax_adp.parquet` | `scorer_id + season + week` | 04a, 04z | Fantrax projection board + season-actuals backfill (incl. GP) |
-| `fact_dynasty_ranking_metrics.parquet` | `snapshot_date + source_name + source_player_id + format + metric_key` | 04b, 04x | **The** dynasty fact — long EAV; ranks fold in as source-prefixed metric_keys (the separate `fact_dynasty_rankings` backbone is retired, ADR-0002) |
+| `fact_dynasty_ranking_metrics.parquet` | `snapshot_date + source_name + source_player_id + format + metric_key` | 04x | **The** dynasty fact — long EAV; ranks fold in as source-prefixed metric_keys (the separate `fact_dynasty_rankings` backbone is retired, ADR-0002) |
 | `fact_nfl_combine_pro_day_metrics.parquet` | `pfr_id + season` | 02a | Combine/pro-day metrics, all seasons |
 | `fact_nfl_snap_counts.parquet` | `gsis_id + game_id` | 02g | Offense / defense / special-teams snaps and share per NFL game, current season (nflverse); `period` = the Scoring Period of the game date |
 | `fact_nfl_injuries.parquet` | `gsis_id + season + week` | 02g | Weekly NFL injury report, current season (nflverse): game status, primary injury, practice status; `period` = the Scoring Period of the team's game |
@@ -57,5 +57,5 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 ## Not in git (see `../.gitignore`)
 
 - `.pw_profile/` — Playwright browser session for the Fantrax scraper. **Contains tokens; never commit.**
-- `raw/` — verbatim API captures (Fantrax `04a`, KTC `04b`) + manual extraction xlsx (see Inputs).
+- `raw/` — verbatim API captures (Fantrax `04a`) + manual extraction xlsx (see Inputs).
 - `review/` — fuzzy-match review CSVs (`review_*.csv`) and their `*.applied_YYYYMMDD.csv` archives.
