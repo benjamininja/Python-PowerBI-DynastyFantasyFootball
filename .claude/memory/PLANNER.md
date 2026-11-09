@@ -38,6 +38,15 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
     - Step 0, the subagent proof, is the manager's;
     - the reviewer writes nothing, and the manager posts its findings.
   - The owner's go on #113 is the Tools planner's to get.
+  - **#490's ruleset is ruled** (issuecomment-6730448396): the manager's 12-pattern draft is approved with changes.
+    - P10 blocks.
+    - P7 is split: a missing requirements line blocks everywhere.
+    - Advisories: the builder answers each once, the manager may merge with some open, one ticket per PR.
+    - No CLAUDE.md rules, but a pattern caught twice is promoted to one.
+    - The reviewer also reads the workflows, data_model.yml and the requirements files.
+    - A blocking finding needs a trigger.
+    - Section 4 gains the trade-bud and bot rules.
+- **Tools #112's PR #114** waits for the owner's approval, and so does the six-rule Action. Nothing is mine there.
   - **The design:** the manager writes a reviewer packet; the reviewer runs `code-review` at the tier's effort plus the ruleset; one round on the PR thread (findings, the builder's answers, a fresh re-check); the manager decides what's still open, with my weigh-in, and the owner only when we disagree.
 - **#488 (#454 B3) ruled** (issuecomment-6730364507): no breach. B5's check clears and reads both hosts on a same-site redirect, each host with its own check. Readings 2, 5, 6 and 10 are accepted. **#491** (`Tier: unset`, after B5) adds slots for the Content-Usage header, noai and tdm-policy.
 - **My error, corrected by the Tools planner:** my tools #98 comment (issuecomment-6730112577) said the stage-builder bullet was live. It is not. The owner's tick covered step 1 only; the Tools planner's sync PR and the pull are still to come. The correction is at issuecomment-6730128372, and the manager keeps the brief line. **Lesson:** a pane "Mark done" says the owner pressed it, not that every step happened. Read the Action's steps and check the file before saying what the tick changed.
