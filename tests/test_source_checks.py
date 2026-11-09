@@ -1,7 +1,9 @@
+import hashlib
 import socket
 import sys
 from datetime import date, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import quote, urlsplit
 
 import pytest
@@ -989,3 +991,450 @@ def test_confirmed_hosts_are_read_only_from_security_confirmed(tmp_path):
 def test_the_real_manifest_loads_as_a_set_of_hosts():
     hosts = sc.load_confirmed_hosts()
     assert isinstance(hosts, set) and all(isinstance(h, str) for h in hosts)
+
+
+A_HOME = "https://a.example/"
+A_TDMREP = "https://a.example/.well-known/tdmrep.json"
+A_LLMS = "https://a.example/llms.txt"
+A_SITEMAP = "https://a.example/sitemap.xml"
+A_WP_SITEMAP = "https://a.example/wp-sitemap.xml"
+UNLINKED = {A_ROBOTS, A_HOME, A_SITEMAP, A_WP_SITEMAP, A_TDMREP, A_LLMS}
+DOC_KEYS = {"kind", "url", "reached_from", "read", "page_date", "read_by", "method", "unread",
+            "archive", "capture_sha256"}
+COPYRIGHT = "Copyright © 2022"
+
+
+def html_page(name, **headers):
+    text = (FIXTURES / name).read_text(encoding="utf-8")
+    return resp(200, text, content_type="text/html; charset=utf-8", **headers)
+
+
+def inline(body, status=200):
+    return resp(status, f"<!doctype html><html><body>{body}</body></html>", content_type="text/html")
+
+
+def reader(routes, secure=("a.example",), checker=None):
+    fetcher, transport, clock = build(routes, secure)
+    if checker is not None:
+        checker.fetcher = fetcher
+    return sc.SourceReader(fetcher, checker), fetcher, transport, clock
+
+
+def site(extra=None, **overrides):
+    routes = {A_ROBOTS: resp(404), A_HOME: html_page("site_home.html"),
+              "https://a.example/terms": html_page("site_terms.html"),
+              "https://a.example/privacy-policy": html_page("site_privacy.html"),
+              A_TDMREP: resp(404), A_LLMS: resp(404)}
+    routes.update(overrides)
+    routes.update(extra or {})
+    return routes
+
+
+def only_linked(transport, *linked):
+    assert set(transport.urls()) <= UNLINKED | set(linked)
+
+
+def places(reading):
+    return [(d.kind, d.place, d.link_text, d.page) for d in reading.documents]
+
+
+def test_footballguys_shaped_site_gives_both_documents_from_the_footer():
+    rd, f, t, _ = reader(site())
+    r = rd.read("a.example")
+    assert places(r) == [
+        ("terms", "footer", "Terms of Service", A_HOME),
+        ("privacy", "footer", "Privacy Policy", A_HOME)]
+    assert t.urls() == [A_ROBOTS, A_HOME, "https://a.example/terms",
+                        "https://a.example/privacy-policy", A_TDMREP, A_LLMS]
+    assert r.not_found == [] and not r.incomplete and r.skipped is None
+    assert r.copyright_line == "Copyright © 2022 Example Fantasy LLC. All Rights Reserved."
+    assert r.signals_block() == {
+        "robots": {"url": A_ROBOTS, "code": 404, "read": TODAY, "claude_groups": [],
+                   "blocks_agent": False, "content_signal": None, "content_usage": None,
+                   "crawl_delay": None, "sha256": None},
+        "tdmrep": {"well_known": 404, "header": None, "meta": None},
+        "x_robots_tag": None, "meta_robots": None}
+    for _, headers, _ in t.calls:
+        assert headers == {"User-Agent": UA}
+
+
+def test_a_document_block_has_the_a2_fields_and_no_clauses_or_status():
+    rd, *_ = reader(site())
+    r = rd.read("a.example")
+    first = r.documents_block()[0]
+    assert set(first) == DOC_KEYS
+    assert first == {
+        "kind": "terms", "url": "https://a.example/terms",
+        "reached_from": {"page": A_HOME, "place": "footer", "link_text": "Terms of Service"},
+        "read": TODAY, "page_date": date(2026, 11, 4), "read_by": "script", "method": "http_get",
+        "unread": None, "archive": None, "capture_sha256": None}
+    assert r.documents_block()[1]["page_date"] == date(2026, 10, 1)
+    assert not hasattr(r, "status") and not hasattr(r, "clauses")
+
+
+def test_a_menu_link_is_found_in_the_menu():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: html_page("home_nav.html"),
+        "https://a.example/terms-and-conditions": html_page("site_terms.html"),
+        "https://a.example/privacy": html_page("site_privacy.html"), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert places(r) == [
+        ("terms", "menu", "Terms and Conditions", A_HOME), ("privacy", "menu", "Privacy", A_HOME)]
+    assert r.looked == ["footer", "menu"]
+    assert A_SITEMAP not in t.urls()
+
+
+def test_a_sitemap_entry_is_found_in_the_sitemap_with_no_link_text():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: inline("<p>nothing linked</p>"),
+        A_SITEMAP: resp(200, (FIXTURES / "sitemap_terms.xml").read_text(encoding="utf-8"),
+                        content_type="application/xml"),
+        "https://a.example/terms-of-use": html_page("site_terms.html"),
+        "https://a.example/privacy": html_page("site_privacy.html"), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert places(r) == [("terms", "sitemap", None, A_SITEMAP), ("privacy", "sitemap", None, A_SITEMAP)]
+    assert "sitemap" in r.looked
+    assert A_WP_SITEMAP not in t.urls()
+    only_linked(t, "https://a.example/terms-of-use", "https://a.example/privacy")
+
+
+def test_the_robots_sitemap_line_is_read_before_the_default_sitemaps():
+    robots = ("User-agent: *\nAllow: /\nSitemap: https://a.example/map.xml\n"
+              "Sitemap: https://other.example/elsewhere.xml\n")
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(200, robots), A_HOME: inline("<p>nothing linked</p>"),
+        "https://a.example/map.xml": resp(200, (FIXTURES / "sitemap_terms.xml").read_text(
+            encoding="utf-8"), content_type="application/xml"),
+        "https://a.example/terms-of-use": html_page("site_terms.html"),
+        "https://a.example/privacy": html_page("site_privacy.html"), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert r.documents[0].page == "https://a.example/map.xml"
+    assert A_SITEMAP not in t.urls()
+    assert "https://other.example/elsewhere.xml" not in t.urls()
+
+
+def test_a_legal_hub_page_is_followed_for_the_documents_it_links():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: html_page("home_hub.html"), A_SITEMAP: resp(404),
+        A_WP_SITEMAP: resp(404), "https://a.example/legal": html_page("legal_hub.html"),
+        "https://a.example/legal/terms": html_page("site_terms.html"),
+        "https://a.example/legal/privacy": html_page("site_privacy.html"), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    hub = "https://a.example/legal"
+    assert places(r) == [("terms", "legal_hub", "Terms of Use", hub),
+                         ("privacy", "legal_hub", "Privacy Policy", hub)]
+    assert "legal_hub" in r.looked
+
+
+def test_a_link_inside_a_found_document_is_followed():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: html_page("home_privacy_only.html"), A_SITEMAP: resp(404),
+        A_WP_SITEMAP: resp(404), "https://a.example/privacy": html_page("site_privacy.html"),
+        "https://a.example/terms-of-use": html_page("site_terms.html"), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert places(r) == [
+        ("privacy", "footer", "Privacy Policy", A_HOME),
+        ("terms", "linked_from_doc", "Terms of Use", "https://a.example/privacy")]
+    assert r.not_found == []
+
+
+def test_a_site_with_only_a_privacy_link_gives_a_not_found_for_terms_and_no_guessed_request():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: html_page("home_privacy_only.html"),
+        "https://a.example/privacy": inline("<p>No links here.</p>"), A_SITEMAP: resp(404),
+        A_WP_SITEMAP: resp(404), A_TDMREP: resp(404), A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert [d.kind for d in r.documents] == ["privacy"]
+    assert len(r.not_found) == 1
+    found = r.not_found[0]
+    assert found.block() == {"kind": "terms", "looked": ["footer", "menu", "sitemap", "linked_from_doc"],
+                             "date": TODAY, "by": "script"}
+    assert found.copyright_line == "Copyright © 2022 | Example Fantasy | All Rights Reserved"
+    assert r.not_found_block() == [found.block()]
+    only_linked(t, "https://a.example/privacy")
+    assert not any(u.endswith(("/terms", "/tos", "/terms-of-use", "/legal")) for u in t.urls())
+
+
+def test_a_failed_read_never_becomes_a_not_found():
+    rd, f, t, _ = reader({
+        A_ROBOTS: resp(404), A_HOME: html_page("home_privacy_only.html"),
+        "https://a.example/privacy": inline("<p>No links here.</p>"),
+        A_SITEMAP: sc.TransportError("boom"), A_WP_SITEMAP: resp(404), A_TDMREP: resp(404),
+        A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert r.not_found == [] and r.incomplete
+    assert [x["url"] for x in r.failed] == [A_SITEMAP]
+    assert "sitemap" not in r.looked
+
+
+def test_a_broken_link_is_not_a_document():
+    rd, f, t, _ = reader(site({"https://a.example/terms": resp(404), A_SITEMAP: resp(404),
+                               A_WP_SITEMAP: resp(404),
+                               "https://a.example/privacy-policy": inline("<p>No links.</p>")}))
+    r = rd.read("a.example")
+    assert [d.kind for d in r.documents] == ["privacy"]
+    assert r.broken == [{"url": "https://a.example/terms", "status": 404, "place": "footer",
+                         "page": A_HOME}]
+    assert r.not_found[0].kind == "terms"
+
+
+def test_a_403_on_a_document_stops_the_host_and_reads_nothing_more():
+    rd, f, t, _ = reader(site({"https://a.example/terms": resp(403)}))
+    r = rd.read("a.example")
+    assert [(d.kind, d.unread) for d in r.documents] == [
+        ("terms", sc.UNREAD_REFUSED_STATUS), ("privacy", sc.UNREAD_REFUSED_STATUS)]
+    assert "https://a.example/privacy-policy" not in t.urls()
+    assert A_TDMREP not in t.urls() and A_LLMS not in t.urls()
+    assert r.incomplete and r.stopped and r.not_found == []
+
+
+def test_a_robots_403_is_one_request_and_nothing_is_discovered():
+    rd, f, t, _ = reader({A_ROBOTS: resp(403)})
+    r = rd.read("a.example")
+    assert t.urls() == [A_ROBOTS]
+    assert (r.home.outcome, r.home.unread) == ("unread", sc.UNREAD_REFUSED_STATUS)
+    assert r.robots.code == 403 and r.documents == [] and r.not_found == []
+    assert r.signals_block()["robots"]["code"] == 403
+
+
+def test_a_robots_disallow_for_the_entry_page_is_unread_and_not_a_not_found():
+    rd, f, t, _ = reader({A_ROBOTS: resp(200, "User-agent: *\nDisallow: /\n")})
+    r = rd.read("a.example")
+    assert t.urls() == [A_ROBOTS]
+    assert r.home.unread == sc.UNREAD_ROBOTS_BLOCKS_AGENT
+    assert r.not_found == [] and r.documents == []
+
+
+def test_a_host_that_has_not_passed_the_security_check_gets_no_request():
+    rd, f, t, _ = reader(site(), secure=())
+    r = rd.read("a.example")
+    assert r.skipped == "security_not_cleared"
+    assert t.calls == [] and r.documents == []
+
+
+def test_robots_signals_are_kept_verbatim_with_unknown_keys_apart():
+    text = (FIXTURES / "robots_signals.txt").read_text(encoding="utf-8")
+    f, t, _ = build({A_ROBOTS: resp(200, text)})
+    f.read_robots("a.example")
+    sig = sc.robots_signals(f.robots("a.example"))
+    assert sig.content_signal == [{
+        "agents": ["*"], "line": "Content-Signal: search=yes, ai-train=no, ai-input=no, fancy-new=maybe",
+        "known": {"search": "yes", "ai-train": "no", "ai-input": "no"},
+        "unknown": {"fancy-new": "maybe"}}]
+    assert sig.content_usage == [
+        {"agents": ["ClaudeBot", "Claude-User"], "line": "Content-Usage: train-ai=n, ai-use=y, search=y",
+         "known": {"train-ai": "n", "ai-use": "y", "search": "y"}, "unknown": {}},
+        {"agents": ["GPTBot"], "line": "Content-Usage: ai-use=n, made-up",
+         "known": {"ai-use": "n"}, "unknown": {"made-up": None}}]
+    assert sig.crawl_delay == [{"agents": ["ClaudeBot", "Claude-User"], "line": "Crawl-delay: 7"}]
+    assert sig.sitemaps == ["https://a.example/sitemap-main.xml", "https://a.example/sitemap-news.xml"]
+    assert sig.sha256 == hashlib.sha256(text.encode()).hexdigest()
+    assert sig.claude_groups == ["ClaudeBot", "Claude-User"] and sig.blocks_agent is False
+    assert set(sig.block()) == {"url", "code", "read", "claude_groups", "blocks_agent", "content_signal",
+                                "content_usage", "crawl_delay", "sha256"}
+
+
+def test_only_the_defined_keys_of_each_vocabulary_are_interpreted():
+    known, unknown = sc.interpret_signal_line("Content-Signal: ai-use=y, search=n", sc.CONTENT_SIGNAL_KEYS)
+    assert known == {"search": "n"} and unknown == {"ai-use": "y"}
+    known, unknown = sc.interpret_signal_line("Content-Usage: ai-input=n", sc.CONTENT_USAGE_KEYS)
+    assert known == {} and unknown == {"ai-input": "n"}
+
+
+def test_robots_without_signals_has_null_signal_fields():
+    f, t, _ = build({A_ROBOTS: resp(200, ALLOW_ALL)})
+    f.read_robots("a.example")
+    block = sc.robots_signals(f.robots("a.example")).block()
+    assert block["content_signal"] is None and block["content_usage"] is None
+    assert block["crawl_delay"] is None and block["code"] == 200
+
+
+def test_page_signals_are_collected_from_headers_meta_and_the_well_known_file():
+    rd, f, t, _ = reader(site(
+        {A_HOME: html_page("home_signals.html", x_robots_tag="noai", content_usage="ai-use=n",
+                           tdm_reservation="1", tdm_policy="https://a.example/p.json"),
+         A_TDMREP: resp(200, '[{"location": "/", "tdm-reservation": 1}]'),
+         "https://a.example/privacy": html_page("site_privacy.html")}))
+    r = rd.read("a.example")
+    sig = r.home_signals()
+    assert (sig.x_robots_tag, sig.content_usage, sig.tdm_reservation, sig.tdm_policy) == (
+        "noai", "ai-use=n", "1", "https://a.example/p.json")
+    assert sig.meta_robots == "noindex, noai, NoImageAI"
+    assert (sig.meta_tdm_reservation, sig.meta_tdm_policy) == ("1", "https://a.example/tdm-policy.json")
+    assert sig.noai == ["noai", "noai", "NoImageAI"]
+    assert r.tdmrep_code == 200 and r.tdmrep_body == '[{"location": "/", "tdm-reservation": 1}]'
+    assert r.signals_block()["tdmrep"] == {"well_known": 200, "header": "1", "meta": "1"}
+    assert r.signals_block()["x_robots_tag"] == "noai"
+    assert r.signals_block()["meta_robots"] == "noindex, noai, NoImageAI"
+    assert r.llms_txt_code == 404
+
+
+def test_a_segmented_host_reads_the_essentials_before_the_optional_reads():
+    rd, f, t, _ = reader(site({A_ROBOTS: [resp(429), resp(200, ALLOW_ALL)]}))
+    r = rd.read("a.example")
+    urls = t.urls()
+    assert urls == [A_ROBOTS, A_ROBOTS, A_HOME, "https://a.example/terms",
+                    "https://a.example/privacy-policy", A_TDMREP, A_LLMS]
+    assert len(r.documents) == 2
+    times = [t.times(u)[0] for u in urls[2:]]
+    assert all(b - a >= sc.SEGMENT_DELAY for a, b in zip(times, times[1:]))
+
+
+def test_a_deferred_entry_page_is_continued_from_the_cache_after_the_deferred_try():
+    routes = site({A_HOME: [resp(429)] * 3 + [html_page("site_home.html")]})
+    rd, f, t, _ = reader(routes)
+    first = rd.read("a.example")
+    assert first.pending == [A_HOME] and first.incomplete and first.documents == []
+    assert first.not_found == []
+    f.run_deferred()
+    second = rd.read("a.example")
+    assert [d.kind for d in second.documents] == ["terms", "privacy"]
+    assert second.pending == [] and not second.incomplete
+    assert t.count(A_HOME) == 4
+
+
+def test_an_operator_domain_link_gets_its_own_security_check_before_a_read():
+    home = inline('<footer><a href="https://ops.example/terms">Terms of Service</a>'
+                  '<a href="/privacy">Privacy Policy</a></footer>')
+    routes = {A_ROBOTS: resp(404), A_HOME: home, "https://a.example/privacy": inline("<p>p</p>"),
+              A_SITEMAP: resp(404), A_WP_SITEMAP: resp(404),
+              "https://ops.example/robots.txt": resp(404),
+              "https://ops.example/terms": html_page("site_terms.html"), A_TDMREP: resp(404),
+              A_LLMS: resp(404)}
+    checker = FakeChecker("ok")
+    rd, f, t, _ = reader(routes, checker=checker)
+    r = rd.read("a.example")
+    assert checker.calls == ["ops.example"]
+    assert ("terms", "operator_domain", "Terms of Service", A_HOME) in places(r)
+    assert t.urls().index("https://ops.example/robots.txt") < t.urls().index("https://ops.example/terms")
+    assert "operator_domain" in r.looked and r.not_found == []
+
+
+@pytest.mark.parametrize("outcome,reason", [("held", sc.UNREAD_TOOL_REFUSED),
+                                            ("nxdomain", sc.UNREAD_DNS)])
+def test_an_operator_host_that_fails_or_is_held_gets_no_request(outcome, reason):
+    home = inline('<footer><a href="https://ops.example/terms">Terms of Service</a></footer>')
+    routes = {A_ROBOTS: resp(404), A_HOME: home, A_SITEMAP: resp(404), A_WP_SITEMAP: resp(404),
+              A_TDMREP: resp(404), A_LLMS: resp(404)}
+    checker = FakeChecker(outcome)
+    rd, f, t, _ = reader(routes, checker=checker)
+    r = rd.read("a.example")
+    doc = r.documents[0]
+    assert (doc.kind, doc.place, doc.unread, doc.fetch) == ("terms", "operator_domain", reason, None)
+    assert not any(urlsplit(u).hostname == "ops.example" for u in t.urls())
+    assert r.documents_block()[0]["unread"] == reason
+
+
+def test_an_other_host_link_with_no_security_check_available_is_not_read():
+    home = inline('<footer><a href="https://ops.example/terms">Terms of Service</a></footer>')
+    rd, f, t, _ = reader({A_ROBOTS: resp(404), A_HOME: home, A_SITEMAP: resp(404),
+                          A_WP_SITEMAP: resp(404), A_TDMREP: resp(404), A_LLMS: resp(404)})
+    r = rd.read("a.example")
+    assert r.documents[0].unread == sc.UNREAD_TOOL_REFUSED
+    assert not any(urlsplit(u).hostname == "ops.example" for u in t.urls())
+
+
+def test_the_www_host_of_a_site_is_its_own_host_with_its_own_check():
+    home = inline('<footer><a href="https://www.a.example/terms">Terms of Service</a></footer>')
+    routes = {A_ROBOTS: resp(404), A_HOME: home, A_SITEMAP: resp(404), A_WP_SITEMAP: resp(404),
+              "https://www.a.example/robots.txt": resp(404),
+              "https://www.a.example/terms": html_page("site_terms.html"), A_TDMREP: resp(404),
+              A_LLMS: resp(404)}
+    checker = FakeChecker("ok")
+    rd, f, t, _ = reader(routes, checker=checker)
+    r = rd.read("a.example")
+    assert checker.calls == ["www.a.example"]
+    assert places(r)[0] == ("terms", "footer", "Terms of Service", A_HOME)
+
+
+class FakeChecker:
+    def __init__(self, outcome):
+        self.outcome = outcome
+        self.calls = []
+        self.fetcher = None
+
+    def check(self, host):
+        self.calls.append(host)
+        if self.outcome == "ok":
+            self.fetcher.mark_secure(host)
+            return SimpleNamespace(readable=True, dns="resolves", flags=[], failed=None)
+        if self.outcome == "nxdomain":
+            return SimpleNamespace(readable=False, dns="nxdomain", flags=["nxdomain"], failed=None)
+        return SimpleNamespace(readable=False, dns="resolves", flags=["young_domain"], failed=None)
+
+
+@pytest.mark.parametrize("text,kind", [
+    ("Terms of Service", "terms"), ("Terms & Conditions", "terms"), ("Terms", "terms"),
+    ("Privacy Policy", "privacy"), ("Privacy", "privacy"), ("Licence", "licence"),
+    ("License Agreement", "licence"), ("Legal", "hub"), ("Cookie Policy", "hub"),
+    ("API Terms of Use", "api_terms"), ("API", None), ("Developer API", None),
+    ("Contact Us", None), ("Rankings", None), ("", None)])
+def test_link_text_is_classified_on_terms_privacy_legal_policy_licence_and_api(text, kind):
+    assert sc.classify_link(text) == kind
+
+
+@pytest.mark.parametrize("url,kind", [
+    ("https://a.example/terms-of-use", "terms"), ("https://a.example/legal/privacy", "privacy"),
+    ("https://a.example/legal/terms", "terms"), ("https://a.example/api", None),
+    ("https://a.example/", None),
+    ("https://a.example/blog/2026/11/why-the-terms-of-a-trade-matter", None),
+    ("https://a.example/blog/terms-of-a-trade-that-matters-in-dynasty-leagues", None)])
+def test_sitemap_paths_match_only_short_legal_looking_addresses(url, kind):
+    assert sc.classify_path(url) == kind
+
+
+@pytest.mark.parametrize("html,region", [
+    ('<footer><nav><a href="/terms">Terms</a></nav></footer>', "footer"),
+    ('<div class="site-Footer"><a href="/terms">Terms</a></div>', "footer"),
+    ('<header><a href="/terms">Terms</a></header>', "menu"),
+    ('<div id="main_menu"><a href="/terms">Terms</a></div>', "menu"),
+    ('<p><a href="/terms">Terms</a></p>', "body")])
+def test_a_link_region_is_footer_then_menu_then_body(html, region):
+    links = sc.extract_links(sc.BeautifulSoup(html, "html.parser"), "https://a.example/")
+    assert [(link.url, link.text, link.region) for link in links] == [
+        ("https://a.example/terms", "Terms", region)]
+
+
+def test_links_skip_fragments_scripts_and_mail():
+    html = ('<a href="#top">Terms</a><a href="javascript:void(0)">Terms</a>'
+            '<a href="mailto:x@example.com">Terms</a><a href="/terms#section-2">Terms</a>')
+    links = sc.extract_links(sc.BeautifulSoup(html, "html.parser"), "https://a.example/page")
+    assert [link.url for link in links] == ["https://a.example/terms"]
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("Last updated: November 4, 2026", date(2026, 11, 4)),
+    ("Effective 4 November 2026", date(2026, 11, 4)),
+    ("Updated 2026-10-01", date(2026, 10, 1)),
+    ("Last updated Nov. 4th, 2026", date(2026, 11, 4)),
+    ("Effective date: someday", None), ("Last updated: 13/14/2026", None),
+    ("Last updated: February 31, 2026", None)])
+def test_a_candidate_page_date_is_parsed_only_when_unambiguous(text, expected):
+    assert sc.parse_date_text(text) == expected
+
+
+def test_a_non_html_document_is_recorded_without_parsing():
+    pdf = sc.Response(200, {"content-type": "application/pdf"}, b"%PDF-1.7 Terms of Service")
+    rd, f, t, _ = reader(site({"https://a.example/terms": pdf}))
+    r = rd.read("a.example")
+    assert r.documents[0].parsed.html is False and r.documents[0].parsed.links == []
+    assert r.documents_block()[0]["page_date"] is None
+
+
+def test_every_request_of_a_full_read_carries_the_user_agent_and_no_cookie():
+    rd, f, t, _ = reader(site())
+    rd.read("a.example")
+    for _, headers, _ in t.calls:
+        assert headers == {"User-Agent": UA}
+
+
+def test_the_reader_has_no_network_path_of_its_own():
+    rd, f, t, _ = reader(site())
+    assert rd.fetcher is f
+    rd.read("a.example")
+    only_linked(t, "https://a.example/terms", "https://a.example/privacy-policy")
