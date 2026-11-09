@@ -8,7 +8,10 @@ Never run live by an agent; tests inject the transport, clock and sleep.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
+import socket
+import ssl
 import sys
 import time
 from dataclasses import dataclass, field, fields
@@ -16,13 +19,14 @@ from datetime import date, datetime, timezone
 from email.utils import parsedate_to_datetime
 from http.cookiejar import CookiePolicy
 from pathlib import Path
-from typing import Callable
-from urllib.parse import urljoin, urlsplit
+from typing import Callable, Container
+from urllib.parse import quote, urljoin, urlsplit
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "notebooks"))
 import etl_helpers  # noqa: E402
 import requests  # noqa: E402
+import yaml  # noqa: E402
 from protego import Protego  # noqa: E402
 
 USER_AGENT = etl_helpers.ETL_USER_AGENT
@@ -324,6 +328,14 @@ class Fetcher:
     def get(self, url: str) -> FetchResult:
         return self._fetch(url, tries=RATE_LIMIT_TRIES, allow_defer=True)
 
+    def read_robots(self, host: str) -> RobotsResult | None:
+        host = host.lower()
+        if host not in self.service_hosts and host not in self.secure_hosts:
+            raise RobotsNotRead(f"security check not passed for {host}")
+        if not self._host(host).robots_deferred and not self.gate.fresh(host):
+            self._read_robots(host, tries=RATE_LIMIT_TRIES)
+        return self.gate.result(host)
+
     def run_deferred(self) -> None:
         if self._ran_deferred:
             return
@@ -543,3 +555,363 @@ class Fetcher:
         else:
             res.outcome = "ok"
         return res
+
+
+SB_STATUS_URL = "https://transparencyreport.google.com/transparencyreport/api/v3/safebrowsing/status?site="
+SB_CONTROLS = {
+    "malware": "testsafebrowsing.appspot.com/s/malware.html",
+    "phishing": "testsafebrowsing.appspot.com/s/phishing.html",
+    "unwanted": "testsafebrowsing.appspot.com/s/unwanted.html",
+}
+SB_PREFIX = ")]}'"
+SB_ITEMS = 10
+SB_FIRST = "sb.ssr"
+SB_CLEAN = 1
+SB_UNSAFE = 2
+SB_STALE_DAYS = 30
+TLS_EXPIRING_DAYS = 7
+YOUNG_DAYS = 365
+IANA_BOOTSTRAP_URL = "https://data.iana.org/rdap/dns.json"
+HSTS_PRELOAD_URL = "https://hstspreload.org/api/v2/status?domain="
+MANIFEST = REPO / "docs" / "sources.yml"
+
+FLAG_ORDER = ("young_domain", "age_unknown", "tls_expiring", "tls_failed", "sb_unsafe",
+              "sb_no_verdict", "sb_stale", "nxdomain", "controls_failed")
+NEVER_READ_FLAGS = frozenset({"controls_failed", "sb_unsafe", "nxdomain", "tls_failed"})
+HELD_FLAGS = frozenset({"young_domain", "age_unknown", "sb_no_verdict"})
+NAME_NOT_FOUND = frozenset(
+    code for code in (getattr(socket, "EAI_NONAME", None), getattr(socket, "EAI_NODATA", None), 11001)
+    if code is not None)
+
+
+@dataclass
+class SafeBrowsing:
+    code: int
+    scan: date
+
+
+def _is_int(value) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def parse_safe_browsing(body: bytes) -> SafeBrowsing | None:
+    text = body.decode("utf-8-sig", errors="replace").lstrip()
+    if not text.startswith(SB_PREFIX):
+        return None
+    try:
+        data = json.loads(text[len(SB_PREFIX):])
+    except ValueError:
+        return None
+    if not isinstance(data, list) or len(data) != 1:
+        return None
+    row = data[0]
+    if not isinstance(row, list) or len(row) != SB_ITEMS or row[0] != SB_FIRST:
+        return None
+    code, stamp = row[1], row[7]
+    if not _is_int(code) or not _is_int(stamp):
+        return None
+    try:
+        scan = datetime.fromtimestamp(stamp / 1000, tz=timezone.utc).date()
+    except (OverflowError, OSError, ValueError):
+        return None
+    return SafeBrowsing(code, scan)
+
+
+def safe_browsing_url(site: str) -> str:
+    return SB_STATUS_URL + quote(site, safe="/")
+
+
+@dataclass
+class Controls:
+    malware: int | None
+    phishing: int | None
+    unwanted: int | None
+    shape_ok: bool
+
+    @property
+    def passed(self) -> bool:
+        return self.shape_ok and all(
+            code == SB_UNSAFE for code in (self.malware, self.phishing, self.unwanted))
+
+    def block(self) -> dict:
+        return {"malware": self.malware, "phishing": self.phishing,
+                "unwanted": self.unwanted, "shape_ok": self.shape_ok}
+
+
+def parse_hsts_max_age(value: str | None) -> int | None:
+    if not value:
+        return None
+    m = re.search(r"max-age\s*=\s*\"?(\d+)", value, re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
+def tls_fields(cert: dict, version: str | None) -> dict:
+    issuer = None
+    for rdn in cert.get("issuer", ()):
+        for key, value in rdn:
+            if key == "organizationName":
+                issuer = value
+            elif key == "commonName" and issuer is None:
+                issuer = value
+    not_after = None
+    if cert.get("notAfter"):
+        stamp = ssl.cert_time_to_seconds(cert["notAfter"])
+        not_after = datetime.fromtimestamp(stamp, tz=timezone.utc).date()
+    return {"ok": True, "issuer": issuer, "not_after": not_after, "version": version}
+
+
+def default_tls_probe(host: str, port: int = 443, timeout: float = REQUEST_TIMEOUT) -> dict:
+    context = ssl.create_default_context()
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as raw:
+            with context.wrap_socket(raw, server_hostname=host) as tls:
+                return tls_fields(tls.getpeercert(), tls.version())
+    except OSError as exc:
+        return {"ok": False, "issuer": None, "not_after": None, "version": None,
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def registration_date(body: bytes) -> date | None:
+    try:
+        data = json.loads(body.decode("utf-8", errors="replace"))
+    except ValueError:
+        return None
+    events = data.get("events") if isinstance(data, dict) else None
+    if not isinstance(events, list):
+        return None
+    for event in events:
+        if isinstance(event, dict) and event.get("eventAction") == "registration":
+            stamp = event.get("eventDate")
+            if isinstance(stamp, str):
+                try:
+                    return date.fromisoformat(stamp[:10])
+                except ValueError:
+                    return None
+    return None
+
+
+def load_confirmed_hosts(path: Path = MANIFEST) -> set[str]:
+    with open(path, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    hosts = set()
+    for source in data.get("sources") or []:
+        security = source.get("security") if isinstance(source, dict) else None
+        if not isinstance(security, dict):
+            continue
+        confirmed = security.get("confirmed")
+        host = security.get("host")
+        if (isinstance(host, str) and isinstance(confirmed, dict)
+                and confirmed.get("by") and confirmed.get("date") is not None):
+            hosts.add(host.lower())
+    return hosts
+
+
+@dataclass
+class SecurityResult:
+    host: str
+    checked: date
+    controls: dict | None = None
+    safe_browsing: dict | None = None
+    dns: str | None = None
+    tls: dict | None = None
+    hsts: dict | None = None
+    registered: date | None = None
+    flags: list = field(default_factory=list)
+    notes: list = field(default_factory=list)
+    readable: bool = False
+    held: bool = False
+    failed: str | None = None
+
+    def block(self) -> dict | None:
+        if self.failed is not None:
+            return None
+        return {
+            "checked": self.checked, "host": self.host, "controls": self.controls,
+            "safe_browsing": self.safe_browsing, "dns": self.dns, "tls": self.tls,
+            "hsts": self.hsts, "registered": self.registered, "flags": list(self.flags),
+        }
+
+
+class SecurityChecker:
+    def __init__(self, fetcher: Fetcher, *,
+                 resolver: Callable = socket.getaddrinfo,
+                 tls_probe: Callable = default_tls_probe,
+                 confirmed: Container[str] = (),
+                 today: Callable[[], date] | None = None):
+        self.fetcher = fetcher
+        self.resolver = resolver
+        self.tls_probe = tls_probe
+        self.confirmed = confirmed
+        self.today = today if today is not None else fetcher.today
+        self._controls: Controls | None = None
+        self._bootstrap: list | None = None
+        self._bootstrap_read = False
+
+    def controls(self) -> Controls:
+        if self._controls is None:
+            codes, shape_ok = {}, True
+            for name, site in SB_CONTROLS.items():
+                kind, reading = self._safe_browsing(site)
+                codes[name] = reading.code if reading is not None else None
+                shape_ok = shape_ok and kind != "bad_shape"
+            self._controls = Controls(codes["malware"], codes["phishing"], codes["unwanted"], shape_ok)
+        return self._controls
+
+    def _safe_browsing(self, site: str) -> tuple[str, SafeBrowsing | None]:
+        res = self.fetcher.get(safe_browsing_url(site))
+        if res.outcome != "ok" or res.status != 200:
+            return "unavailable", None
+        reading = parse_safe_browsing(res.body)
+        if reading is None:
+            return "bad_shape", None
+        return "ok", reading
+
+    def check(self, host: str) -> SecurityResult:
+        host = host.lower()
+        result = SecurityResult(host=host, checked=self.today())
+        controls = self.controls()
+        result.controls = controls.block()
+        if not controls.passed:
+            result.safe_browsing = {"via": "transparency_report", "code": None, "google_scan": None}
+            result.flags.append("controls_failed")
+            return self._finish(result)
+        answer = self._resolves(host, result)
+        if answer is None:
+            return self._finish(result)
+        if not answer:
+            result.dns = "nxdomain"
+            result.flags.append("nxdomain")
+            return self._finish(result)
+        result.dns = "resolves"
+        self._host_safe_browsing(host, result)
+        self._host_registration(host, result)
+        if not self._blocked(result) and not self._held(result):
+            self._host_tls(host, result)
+        return self._finish(result)
+
+    def _blocked(self, result: SecurityResult) -> bool:
+        return any(flag in NEVER_READ_FLAGS for flag in result.flags)
+
+    def _held(self, result: SecurityResult) -> bool:
+        return (any(flag in HELD_FLAGS for flag in result.flags)
+                and result.host not in self.confirmed)
+
+    def _finish(self, result: SecurityResult) -> SecurityResult:
+        result.flags = [flag for flag in FLAG_ORDER if flag in result.flags]
+        result.held = self._held(result)
+        result.readable = (not self._blocked(result) and not result.held
+                           and result.tls is not None)
+        if result.readable:
+            self.fetcher.mark_secure(result.host)
+            self._host_hsts(result.host, result)
+        return result
+
+    def _resolves(self, host: str, result: SecurityResult) -> bool | None:
+        try:
+            answers = self.resolver(host, 443)
+        except socket.gaierror as exc:
+            if exc.errno in NAME_NOT_FOUND:
+                result.notes.append(f"dns: {exc}")
+                return False
+            result.failed = f"dns: {exc}"
+            result.notes.append(result.failed)
+            return None
+        return bool(answers)
+
+    def _host_safe_browsing(self, host: str, result: SecurityResult) -> None:
+        kind, reading = self._safe_browsing(host)
+        scan = reading.scan if reading is not None else None
+        result.safe_browsing = {"via": "transparency_report",
+                                "code": reading.code if reading is not None else None,
+                                "google_scan": scan}
+        if kind == "bad_shape":
+            result.flags.append("controls_failed")
+            result.notes.append("safe browsing: response shape changed")
+        elif reading is None:
+            result.flags.append("sb_no_verdict")
+        elif reading.code == SB_UNSAFE:
+            result.flags.append("sb_unsafe")
+        elif reading.code != SB_CLEAN:
+            result.flags.append("sb_no_verdict")
+        if scan is not None and (self.today() - scan).days > SB_STALE_DAYS:
+            result.flags.append("sb_stale")
+
+    def _host_registration(self, host: str, result: SecurityResult) -> None:
+        result.registered = self._registered(host, result)
+        if result.registered is None:
+            result.flags.append("age_unknown")
+        elif (self.today() - result.registered).days < YOUNG_DAYS:
+            result.flags.append("young_domain")
+
+    def _host_tls(self, host: str, result: SecurityResult) -> None:
+        probe = self.tls_probe(host)
+        tls = {key: probe.get(key) for key in ("ok", "issuer", "not_after", "version")}
+        result.tls = tls
+        if probe.get("error"):
+            result.notes.append(f"tls: {probe['error']}")
+        not_after = tls["not_after"]
+        if not tls["ok"] or not_after is None or not_after < self.today():
+            tls["ok"] = False
+            result.flags.append("tls_failed")
+        elif (not_after - self.today()).days < TLS_EXPIRING_DAYS:
+            result.flags.append("tls_expiring")
+
+    def _host_hsts(self, host: str, result: SecurityResult) -> None:
+        robots = self.fetcher.read_robots(host)
+        header = robots.strict_transport_security if robots is not None else None
+        result.hsts = {"max_age": parse_hsts_max_age(header), "preloaded": self._preloaded(host)}
+
+    def _preloaded(self, host: str) -> bool | None:
+        res = self.fetcher.get(HSTS_PRELOAD_URL + quote(host, safe=""))
+        if res.outcome != "ok" or res.status != 200:
+            return None
+        try:
+            data = json.loads(res.body.decode("utf-8", errors="replace"))
+        except ValueError:
+            return None
+        if not isinstance(data, dict) or not isinstance(data.get("status"), str):
+            return None
+        return data["status"] == "preloaded"
+
+    def _rdap_base(self, tld: str) -> str | None:
+        if not self._bootstrap_read:
+            self._bootstrap_read = True
+            res = self.fetcher.get(IANA_BOOTSTRAP_URL)
+            if res.outcome == "ok" and res.status == 200:
+                try:
+                    data = json.loads(res.body.decode("utf-8", errors="replace"))
+                    services = data.get("services")
+                    self._bootstrap = services if isinstance(services, list) else None
+                except (ValueError, AttributeError):
+                    self._bootstrap = None
+        for entry in self._bootstrap or []:
+            if not (isinstance(entry, list) and len(entry) == 2):
+                continue
+            tlds, urls = entry
+            if tld in [str(t).lower() for t in tlds]:
+                for url in urls:
+                    if str(url).startswith("https://"):
+                        self.fetcher.register_rdap_host(url)
+                        return url
+        return None
+
+    def _registered(self, host: str, result: SecurityResult) -> date | None:
+        labels = host.split(".")
+        if len(labels) < 2:
+            return None
+        base = self._rdap_base(labels[-1])
+        if base is None:
+            result.notes.append(f"rdap: no server for .{labels[-1]}")
+            return None
+        for i in range(len(labels) - 1):
+            name = ".".join(labels[i:])
+            res = self.fetcher.get(base.rstrip("/") + "/domain/" + name)
+            if res.outcome != "ok":
+                result.notes.append(f"rdap: {res.outcome}")
+                return None
+            if res.status == 200:
+                return registration_date(res.body)
+            if res.status not in (400, 404):
+                result.notes.append(f"rdap: answered {res.status}")
+                return None
+        return None
