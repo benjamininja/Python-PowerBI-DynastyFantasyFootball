@@ -29,6 +29,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - #99 and PR #107 are mine;
   - it keeps `docs/handoff/baseball-session-dispatch.md` line 39 (the owner-queue version row). I send it each new mod version; main is at 0.9.0.
 - **Open: the Tools planner's system prompt has no owner-queue id line,** although the queues Action is ticked. I asked it for its pane's version line, whether its pane lists dynasty's queue, and whether its process predates the owner's pull of #105. Version 0.9.0, a listed queue and still no line means a bug, which I ticket. Otherwise it is a stale load, fixed by a new session.
+- **Owner ruling (Q11): the manager pulls both tools checkouts at closeout, not the owner.** It is tools #112, `Tier: unset`, handed to the Tools planner to scope; both it and the manager were told. Until #112 lands, tools PROJECT-RULES.md line 43 stands.
+- **The owner asked who runs code reviews.** Answered: builders run security-review; the manager re-proves Green, checks scope and runs the domain auditors; the planner's read is spec-only, on request. No general correctness review runs on every PR. That gap is offered to the owner, not ticketed.
 - **DO NEXT 3 is due now.** #473's scoping is posted (issuecomment-6729572726 and -6729573740): 14 briefs and 17 questions. Every brief holds until I set its tier.
 
 00000000000000000000000000000000000000000000000000. **2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
