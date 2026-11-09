@@ -5,13 +5,66 @@ no other in `.claude/memory/`. It says where the plan stands, so a new
 planner session can resume from the repository alone. The rules are in
 `GOAL-RUN.md` and the role file; this file is state.
 
-## START HERE (state 2026-11-08, before a clear)
+## START HERE (state 2026-11-09, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-08, about 17:55Z by `date -u` (session 179f29dc; earlier items' clock times run ahead). Overrides the 48-zero item where they differ; read that one for the resume steps and the rest of DO NEXT.**
+00000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 00:50Z by `date -u`, before a CLEAR (session 179f29dc). Self-contained; overrides everything below. The 48-zero item has older detail; read it only for #473 and the grills.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - The state batch PR is #455; it merges only on the owner's word.
+  - **The manager** is `dynastyFantasyFootball-central-builder-manager`. Send to it **by name**; session id `local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274` still routes, and its CLI id is `0cb5bab5`. It reads GitHub, so post every ruling there first.
+  - **Tools-central-planner:** by session id `local_9830794b-c1e9-400a-ba66-e6abb9432396`. Its name did not resolve.
+  - Read MANAGER.md's newest block (commit 1c1011d, "before a CLEAR, 2026-11-09") first.
+- **Done this session, all on GitHub:**
+  - **Merged by the manager on my rulings:**
+    - #465: the ADR-0022 amendment, with the Art 4 line;
+    - #466: B1, with readings 3 and 7 changed;
+    - #471: B7c;
+    - #472: B4;
+    - #468: B2 trade-bud;
+    - #481, which closed #479.
+  - **#482 (#454 B2) and #483 (#454 A2) are back with their builders:**
+    - on #482, `sb_no_verdict` is held, and only a name-not-found answer is `nxdomain` (issuecomment-6729315770);
+    - on #483, `access: none` is not security-due (issuecomment-6729316078).
+    - The B2 fixtures settled #454 Q3: `)]}'`, then a one-element array holding the 10-item `sb.ssr` array.
+  - **#459:**
+    - B5: pbiprune yes; the script's fix is OK'd with new sha256 `515fbeba…` (issuecomment-6729534235).
+    - B6 does not wait for B5, only for A2 (issuecomment-6729316331).
+    - Builder deletes: the owner answered (a), a standing `Bash(git rm *)`. The manager queued the Action, and B7a dispatches when it is ticked. The Tools planner was told.
+  - **#413 is redesigned with the owner** (issuecomment-6729495460; the body points to it). The four answers:
+    - "New step replaces both" (04f and the 04x sheets);
+    - "Store and show" IDP;
+    - ADP is seasonal: write it when shown, no probe;
+    - "All three, always" (dynasty SF and TEPP, redraft, ROS as `dsros_`).
+    - It is blocked by #459 B11 and B12, then the run_pipeline.py and sources.yml queues.
+  - **New tickets:**
+    - #480: Dead Money queryRefs (low, after B5);
+    - #484: retire 04f and 04x (low, after #413 plus a Close Day run);
+    - #485: the bot shows DraftSharks IDP (medium, after the same).
+  - **Map #375** is current. The Players row no longer calls 04c and 04y Close Day, which closes that sweep gap. A new not-yet-specified line: which board Contending reads.
+- **DO NEXT, in order:**
+  1. **The 2026-11-09 11:17Z cron run.** The manager sends its report: the run, the Discord post (the webhook is fixed: run 42502882718, #93 issuecomment-6729272878), #93's two body checks, and the terms-due line. Then close #93's line on map #375 if both checks pass.
+  2. **Re-reads, when the manager asks:** #482 and #483's new heads against my rulings.
+  3. **#473's scoping briefs:** check them against #432 issuecomment-6724713427, set their tiers, and close #432 when the ADR draft is posted.
+  4. **#458's live proof:** the 2026-11-13 Close Day run.
+  5. **Grills:** #429 next, with #428 Q1-Q4 and #424 Q3-Q5.
+  6. **A sweep, only on the owner's word.** Gaps left: the stale `_deliver_text` and `_deliver_embeds` names in CLAUDE.md; rolling `CFG.draft_year` (on the map).
+- **Waiting on the owner:**
+  - the root push (`~/.claude` ahead 1 at 5987e1e);
+  - the DLF Action;
+  - the pbiprune and git rm Actions;
+  - #459 B11 later;
+  - the CollegeFootballData key for #473 later;
+  - the manager's tools items.
+- **Lessons:**
+  - The owner's chat answers can take hours, and the manager may clear meanwhile. Post a ruling on GitHub before messaging it.
+  - Before setting a design for a new pull, check the published snapshot for an existing writer of the same partition: 04f was missed in #413's first brief.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (50 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents).
+
+0000000000000000000000000000000000000000000000000. **2026-11-08, about 17:55Z by `date -u` (session 179f29dc; the 48-zero item's clock times run ahead). The 50-zero item overrides it.**
 - **Done this session, all on GitHub:**
   - **Every manager hold from MANAGER.md 17:30Z is answered.** Sent to the manager (queued, not confirmed read):
     - **#465**: no breach (PR issuecomment-6724914061). One line to add before merge: findings §4's Art 4 rule for unknown Content-Signal keys. If merged without it, the line goes in C1's brief.
