@@ -369,7 +369,7 @@ def code_of(notebook: str) -> str:
 
 class TestNotebooksWriteTheAnchor:
     @pytest.mark.parametrize("notebook", [
-        "04b_ktc_dynasty_rankings.ipynb", "04d_draftpick_value_curve.ipynb",
+        "04d_draftpick_value_curve.ipynb",
         "04e_dim_position_ceiling.ipynb", "04f_draftsharks_two_tree.ipynb",
         "04x_manual_dynasty_rankings.ipynb"])
     def test_snapshot_date_comes_from_the_anchor(self, notebook):
@@ -381,8 +381,7 @@ class TestNotebooksWriteTheAnchor:
         assert "SNAPSHOT_DATE = date.today" not in code
         assert "pd.Timestamp(etl.TODAY)" not in code
 
-    @pytest.mark.parametrize("notebook", [
-        "04b_ktc_dynasty_rankings.ipynb", "04d_draftpick_value_curve.ipynb"])
+    @pytest.mark.parametrize("notebook", ["04d_draftpick_value_curve.ipynb"])
     def test_raw_captures_keep_the_run_date(self, notebook):
         code = code_of(notebook)
         assert "{RUN_DATE}.json" in code

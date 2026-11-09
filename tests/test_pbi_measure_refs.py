@@ -42,6 +42,33 @@ def report_measure_refs() -> dict:
     return found
 
 
+def report_measure_string_refs() -> list:
+    found = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in {"queryRef", "metadata"} and isinstance(value, str) \
+                        and value.startswith("_Measures."):
+                    found.append((value[len("_Measures."):], str(path.relative_to(ROOT)), key))
+                walk(value, path)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value, path)
+
+    for f in sorted(REPORT.rglob("*.json")):
+        walk(json.loads(f.read_text(encoding="utf-8")), f)
+    return found
+
+
+def test_every_report_queryref_and_metadata_resolves():
+    names = measure_names()
+    refs = report_measure_string_refs()
+    assert refs
+    missing = [(n, p, k) for n, p, k in refs if n not in names]
+    assert not missing, missing
+
+
 def test_measures_table_is_parsed():
     assert len(measure_names()) > 20
 
