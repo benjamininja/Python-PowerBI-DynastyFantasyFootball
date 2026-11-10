@@ -15,7 +15,63 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-09, 03:53Z by `date -u` (session dee9ffa9, name `dynastyFantasyFootball-central-planner`). It adds to the 52-zero item; that item's Resume, open work and Lessons still stand, except as changed here.**
+000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-10, 23:58Z by `date -u`, before a CLEAR (session dee9ffa9). Self-contained; overrides everything below. The 53-zero item has this session's detail; the 52-zero item has the older open work.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`. The state batch PR is #455, and it merges only on the owner's word.
+  - **The manager:** `dynastyFantasyFootball-central-builder-manager`, by name (CLI id `038fe696` when last seen; app `local_39e3ac7a…`). **The Tools planner:** session id `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
+  - **Reconcile first.** My last activity was about 2026-11-09 05:00Z, so about 42 hours have passed.
+    - Read MANAGER.md's newest block (1a3aab5 or later), #93's comments since 2026-11-09, and `gh pr list --state open` in both repos.
+    - The 11-09 and 11-10 cron reports never reached me. Check them against #93's two body checks and the terms-due line, then close #93's line on map #375 if they passed.
+    - Check tools PR #121 (#110; still open at 23:58Z) and the owner's live-check Action for it (`/owner id`, `/clear`, `/owner id`, does the pane still refresh).
+  - **Merged since the 52-zero item:** dynasty #493 (`48a0c03`), #494 (`c5c4e6e`), #495 (`fb0de2e`), #496 (`ba50d8e`; my date fix landed: `etl_helpers.py` lines 72 and 73 read 2027-03-08 and 2027-05-01); tools #107 (`45d9fc7`), #115 (`875077e`), #114 and #118.
+- **DO NEXT, in order:**
+  1. **Two manager asks, unanswered at the clear. Post on GitHub first, then message.**
+     - **PR #497 (#459 B8, head `aba189a`, CI green): three parks.**
+       - (1) `notebooks/00_fantasy_etl_flow.ipynb` still names 03a to 03d in the rookie bullet and the reminder print.
+       - (2) `data/README.md` line 31 (03a to 03x) and line 52 (FantasyPros sheets in the manual xlsx).
+       - (3) The normalizer's larger diff needs no action.
+       - The manager recommends adding (1) and (2) to B8, since the files are already open. My lean is yes; check the lines at its head first, then post on PR #497.
+     - **The #459 order after B8:** may B10 (the owner's delete and export scripts) dispatch right after B8, with B9 going after #413? B9 waits on `run_pipeline.py` behind #413, which is blocked by B11 and B12. The manager says B10 doesn't touch `run_pipeline.py`. Check B10's files in #459 issuecomment-6724208055 and my tiers comment issuecomment-6724340325 before answering.
+  2. **Two owner decisions are open.** My question dialog for both was refused, after the owner had said "park this". **Don't re-ask a parked question until the owner raises it again.** Bring these up as the owner's next items, one at a time, with summary, pros, cons, then the recommendation:
+     - **#429 Q16, the Fantrax letter.** The owner asked "why we need this letter at all", and I explained in chat:
+       - After Q10 it asks for only two things: reading transactions, and publishing ADP.
+       - On reading transactions: §8.6(c) limits the route whoever owns the data, and `fxea` has no transaction call. Without a yes we use roster diffs, which lose the waiver or free-agent claim method, the 132 waiver bids, the exact time and order, and which legs make up each of the 51 trades. Those counts are from `fact_roster_transactions`: 435 Fantrax moves.
+       - On publishing ADP: reading it through `getAdp` is fine; showing it publicly is §8.7.
+       - The risk: asking tells Fantrax we have been using `fxpa`, and a no could come with "stop now".
+       - Options: (a) send the narrow letter (recommended); (b) no letter (roster diffs now, and ADP leaves the snapshot); (c) decide after the builds.
+     - **`dim_position` has no row for WalterFootball's `OLB/DE` and `DE/OLB`.** Options: (a) both go to DL with detail EDGE, like the existing `EDGE` row (recommended); (b) the first token decides. Then a low ticket for the mapping in `notebooks/01a_dim_rookie_prospect.ipynb`. The PR #496 read (issuecomment-6732105406) says it is the owner's call. Nothing is skipped today.
+  3. **Finish the #429 grill.**
+     - Left on the frontier: Q16's order (the statement first, then the address Action, then the docs PR, then the letter), and #429's done condition if there is no letter. Then confirm a shared understanding with the owner.
+     - Then:
+       - correct #429's body: "no money taken" is wrong, and **no amounts go in any public record** (Q15c);
+       - ticket the builds: the three nflverse replacements; the `fxea` moves of identity, ADP and `getMatchupScores`; the one shared login per Daily Run; the Materials-out-of-snapshot scoping (high); the 04t roster-diff grill spike; the 04s recompute spike; the docs page;
+       - send the manager the dedicated-address Action entry;
+       - tell the manager that #93 brief 5 is unblocked by Q5 and Q9 (the cap: 2 logged-in triggers a UTC day, only on a membership change);
+       - #428 closes when #429 settles, and #424 Q3 to Q5 are answered there.
+     - Rounds 1 to 4: #429 issuecomment-6731383029, 6731430909 and 6731809247.
+  4. **When tools #121 merges:** send the Tools planner the merge commit, and confirm `plugins/owner-queue/.claude-plugin/plugin.json` reads 0.10.0. Its handoff row is line 43.
+  5. #458's live proof: the 2026-11-13 Close Day run.
+  6. A sweep, only on the owner's word. Gaps: the stale `_deliver_text` and `_deliver_embeds` names in CLAUDE.md; rolling `CFG.draft_year`; **new:** should dynasty's re-proof run from a committed script, like tools #117?
+  7. #473 brief 14's DraftSharks-list question, at its dispatch.
+- **Ruled this session, all on GitHub:**
+  - #459 B7b (issuecomment-6731370480);
+  - tools #110 (issuecomment-6731445485);
+  - tools #121's plugin.json bump (issuecomment-6731760782);
+  - PR #495 read (issuecomment-6731966566), with reading 10 folded into #463 (issuecomment-6731968830);
+  - PR #496 read (issuecomment-6732105406): I looked up the dates (combine 2027-03-01 to 03-08, draft 2027-04-29 to 05-01).
+- **Waiting on the owner:**
+  - Q16 and the `OLB/DE` mapping;
+  - #110's live-check Action;
+  - #432's close;
+  - #473's and #490's timing;
+  - from before: the root push, the DLF Action, the pbiprune profile's removal, #459 B11, the CFBD key, and #473's allow-rule Action.
+- **Lessons:**
+  - A builder's dates "from memory" get looked up. WebSearch works in a planner session; quote the source on the PR.
+  - A merge can follow a read within minutes, so check that an asked-for fix landed.
+  - A question the owner parked stays parked until the owner raises it.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (54 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by session id local_9830794b-c1e9-400a-ba66-e6abb9432396 (it owns skills-plugins-hooks-agents except the owner-queue mod, which is yours).
+
+00000000000000000000000000000000000000000000000000000. **2026-11-09, 03:53Z by `date -u` (session dee9ffa9). The 54-zero item overrides it. It adds to the 52-zero item.**
 - **Ids now:** I am `dee9ffa9`. The manager is `038fe696` (app `local_39e3ac7a…`, by name). Both peers were told. I raised no queue entries.
 - **#429 grill, in progress with the owner.** Rounds 1 to 4 are on #429: issuecomment-6731383029 (Q1-Q4), 6731430909 (Q5-Q8), 6731809247 (Q9-Q16). Settled:
   - the public snapshot is publishing for every source;
