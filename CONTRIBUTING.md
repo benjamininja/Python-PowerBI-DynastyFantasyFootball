@@ -140,6 +140,23 @@ drift: the export raises, the run aborts and the database is reloaded from
 the snapshot at HEAD. Between the merge and the next run the snapshot keeps
 its old columns; a consumer that reads a new column waits for that run.
 
+### The owner's delete and re-export scripts (#459)
+
+Two scripts the owner runs by hand, never an agent, with `SUPABASE_DB_URL` set
+(in the shell or in `.env`):
+
+- `.\run.ps1 scripts\delete_rejected_sources.py` is a dry run. It prints, per
+  table and source, the rows it would delete beside the counts #459 expects,
+  and exits 1 if any differs. Add `--apply` to delete in one transaction. It
+  rolls back before any delete if a count differs, and afterwards unless every
+  count is zero. It refuses a login that is not `etl_writer` or that has
+  BYPASSRLS or superuser.
+- `.\run.ps1 scripts\export_tables.py TABLE [TABLE ...] [--out DIR]` writes the
+  named published tables from the database to `DIR` (an existing folder,
+  default `data/`) through the same exporter the pipeline's publish step uses.
+
+Both print table names and counts only.
+
 ## Security rule
 
 `data/.pw_profile` is gitignored. It holds the Playwright browser session for
