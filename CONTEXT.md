@@ -119,7 +119,8 @@ _Avoid_: weekly stats, fantasy points (unqualified)
 The phase of play a stat, a point or a snap belongs to: **Offense**, **Defense**
 or **Special Teams**. Scoring stats take Fantrax's offense/defense grouping,
 except Return Yards and Blocked Kicks, which are Special Teams (the only special
-teams stats the league scores). Snaps are counted per Unit by the NFL.
+teams stats the league scores). Snaps are counted per Unit by the NFL. The
+baseline's **Special teams** Category Group holds the same two stats.
 _Avoid_: side, phase, stat group
 
 **Dead Money**:
@@ -405,4 +406,32 @@ mapping), clamped at the anchoring pool's own max; players fold their
 age tilt into the rank pre-ceiling instead of the finished value. Both are
 now capped at 100 by construction. ADR-0013 decisions 4-5.
 _Avoid_: dual scale, uncalibrated sum
+
+**Baseline**:
+Our own source, `MouseRatPresents_Baseline`: nflverse counts scored with the
+league's Fantrax rules, projected forward by position and age. It gives each
+player points per game for the next three seasons, a positional rank and a share
+of points by Category Group; it gives no blended value. Fantrax stays the
+authority for league points; a drift check holds the baseline to it. ADR-0023.
+_Avoid_: composite (that is the blend of other sources), our rankings
+
+**Scoring Category**:
+One stat the league scores, such as solo tackles or passing yards, with its
+points by position as Fantrax's `getLeagueInfo.scoringSystem` states them. The
+rules are read on every run, never typed.
+_Avoid_: stat, scoring rule (unqualified)
+
+**Category Group**:
+One of seven buckets every Scoring Category belongs to: Passing; Rushing;
+Receiving; Special teams; Defense, tackles; Defense, big plays; Other. A
+transformer table assigns them, so a new category adds a row, not code. Not the
+same as a Unit, which has three values.
+_Avoid_: stat type, Unit (for this)
+
+**Yardstick**:
+The yearly judgment of a ranked list against the season it predicted: Fantrax
+points per game by Fantrax position, over players with 8+ games, as Spearman's
+rho and the hits of the list's top 12 and top 24. Published each year as a dated
+page under `docs/`, whatever it says about the baseline.
+_Avoid_: accuracy score, leaderboard
 
