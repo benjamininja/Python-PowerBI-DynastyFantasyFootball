@@ -2373,6 +2373,16 @@ def test_a_page_redirect_within_the_site_runs_the_hop_hosts_own_check_first(tmp_
     assert payload["terms"]["documents"][0]["kind"] == "terms"
 
 
+def test_two_sites_in_one_run_each_keep_only_their_own_security_checks(tmp_path):
+    routes = hop_routes()
+    routes.update(fg_routes(DTC))
+    world = E2E(tmp_path, routes)
+    outputs = {o.host: load(o) for o in world.go(FG, DTC)}
+    assert set(outputs[FG]["run"]["security_checks"]) == {FG, WWW}
+    assert set(outputs[DTC]["run"]["security_checks"]) == {DTC}
+    assert set(world.run.checker.results) == {FG, WWW, DTC}
+
+
 def test_the_hop_hook_is_not_called_for_a_host_that_already_passed(tmp_path):
     world = E2E(tmp_path, hop_routes())
     world.go(FG)
