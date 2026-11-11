@@ -1,0 +1,130 @@
+/// Fantasy team dimension: 28 league teams across two conferences, with managers and starting/reinvestment cap. Roster-derived cap figures (active salary, remaining cap) are computed live from Fact_FantasyTeams via _Measures.tmdl, not stored here.
+table Dim_FantasyTeams
+	lineageTag: e0094a7f-6dc4-416f-aca3-639e6ae8cbe0
+
+	/// Fantasy team key; joins to roster facts.
+	column TeamKey
+		dataType: string
+		lineageTag: 4eb36110-1d33-4001-a151-c69f55211226
+		summarizeBy: none
+		sourceColumn: team_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|team key|team id|franchise
+
+		annotation SynonymCollection = ["team","team key","team id","franchise"]
+
+	/// Fantasy team name.
+	column TeamName
+		dataType: string
+		lineageTag: ded3a6d4-997c-4a48-8a70-2212cfc4c4a8
+		summarizeBy: none
+		sourceColumn: team_name
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team name|franchise name|squad name
+
+		annotation SynonymCollection = ["team name","franchise name","squad name"]
+
+	/// League conference the team plays in (A=Riddell, B=Wilson).
+	column Conference
+		dataType: string
+		lineageTag: 68337558-57e9-4c8d-a71c-6d65dd087764
+		summarizeBy: none
+		sourceColumn: conference
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = conference|division group|conf
+
+		annotation SynonymCollection = ["conference","division group","conf"]
+
+	/// Short fantasy team abbreviation.
+	column TeamAbbr
+		dataType: string
+		lineageTag: 7be15e65-4e89-4090-9fa3-547655e78eb2
+		summarizeBy: none
+		sourceColumn: team_abbr
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team abbr|abbreviation|team code
+
+		annotation SynonymCollection = ["team abbr","abbreviation","team code"]
+
+	/// League division within the conference.
+	column Division
+		dataType: string
+		lineageTag: 2206c057-f99c-442c-881b-75619376cfdc
+		summarizeBy: none
+		sourceColumn: division
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = division|div|group
+
+		annotation SynonymCollection = ["division","div","group"]
+
+	/// Starting salary cap for the team ($).
+	column OriginalCap
+		dataType: int64
+		formatString: 0
+		lineageTag: c7a6e2c1-0b70-4a45-ab60-8b20f0f6ded6
+		summarizeBy: none
+		sourceColumn: original_cap
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = original cap|starting cap|cap
+
+		annotation SynonymCollection = ["original cap","starting cap","cap"]
+
+	/// Reinvestment cap available ($).
+	column ReinvestmentCap
+		dataType: int64
+		formatString: 0
+		lineageTag: a8d82c6d-82e7-4245-9af2-4019ada7052e
+		summarizeBy: none
+		sourceColumn: reinvestment_cap
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = reinvestment cap|reinvest cap
+
+		annotation SynonymCollection = ["reinvestment cap","reinvest cap"]
+
+	column fantrax_team_id
+		dataType: string
+		lineageTag: f4cf429f-eeb0-45c6-8153-7f3c8b8a33b7
+		summarizeBy: none
+		sourceColumn: fantrax_team_id
+
+		annotation SummarizationSetBy = Automatic
+
+	/// Composite join key to Dim_Division: current season (Dim_Season relative 0) + conference. Exists because Dim_Division is keyed per (season, conference) and a conference-only join breaks once a second season lands. Hidden plumbing.
+	column DivisionKey = LOOKUPVALUE ( Dim_Season[season_id], Dim_Season[relative_nfl_season_number], 0 ) & "|" & Dim_FantasyTeams[Conference]
+		isHidden
+		lineageTag: e5f121e8-7c50-4285-b8c5-a17967c56516
+		summarizeBy: none
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Dim_FantasyTeams = m
+		mode: import
+		queryGroup: 'Dimension Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_fantasy_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Fantasy Teams|Teams|League Teams|Managers|Rosters
+
+	annotation SynonymCollection = ["Fantasy Teams","Teams","League Teams","Managers","Rosters"]
+

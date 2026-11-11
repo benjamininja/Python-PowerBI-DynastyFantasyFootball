@@ -1,0 +1,140 @@
+/// Roster fact: one row per team and player, with contract and squad placement. A kept player charges full ContractValue (CapHit is not stored). Dead money lives in Fact_DeadMoney.
+table Fact_FantasyTeams
+	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
+
+	/// Fantasy team that rosters the player; links to Dim_FantasyTeams.
+	column TeamKey
+		dataType: string
+		lineageTag: ec7f5a21-fc45-4cf2-9bab-d6bd47db3847
+		summarizeBy: none
+		sourceColumn: team_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = team|team key|franchise
+
+		annotation SynonymCollection = ["team","team key","franchise"]
+
+	/// nflverse universal player id; links to Dim_NFLPlayers.
+	column GSISID
+		dataType: string
+		lineageTag: 52ac3b73-6873-4954-a3b1-4c0a0981756c
+		summarizeBy: none
+		sourceColumn: gsis_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = gsis id|player id|nfl id
+
+		annotation SynonymCollection = ["gsis id","player id","nfl id"]
+
+	/// Draft-class player key for rookies.
+	column PlayerKey
+		dataType: string
+		lineageTag: 98274f0c-e8b1-41b7-b69d-5ef6c1b9e394
+		summarizeBy: none
+		sourceColumn: player_key
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = player key|rookie key|prospect key
+
+		annotation SynonymCollection = ["player key","rookie key","prospect key"]
+
+	/// Contract rule applied; links to Dim_Contract.
+	column ContractID
+		dataType: string
+		lineageTag: a0b4cfc4-735b-431b-a785-440c6f394145
+		summarizeBy: none
+		sourceColumn: contract_id
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract id|contract|deal
+
+		annotation SynonymCollection = ["contract id","contract","deal"]
+
+	/// Total contract value ($).
+	column ContractValue
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 39c38be4-85a9-4354-9513-3c2f23ff8360
+		summarizeBy: none
+		sourceColumn: contract_value
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract value|deal value|salary total
+
+		annotation SynonymCollection = ["contract value","deal value","salary total"]
+
+	/// Current year within the player's contract cycle.
+	column ContractYear
+		dataType: double
+		formatString: 0
+		lineageTag: 962fc312-d521-4fb4-a7e6-a4bc2d381796
+		summarizeBy: none
+		sourceColumn: contract_year
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = contract year|year of deal|deal year
+
+		annotation SynonymCollection = ["contract year","year of deal","deal year"]
+
+	/// How the player was acquired (draft, FA, trade).
+	column AcquiredMethod
+		dataType: string
+		lineageTag: a33fa6e4-92f7-4e23-9008-e08c690bf1ec
+		summarizeBy: none
+		sourceColumn: acquired_method
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = acquired|how acquired|acquisition|acquired method
+
+		annotation SynonymCollection = ["acquired","how acquired","acquisition","acquired method"]
+
+	/// League season the roster row applies to.
+	column Season
+		dataType: string
+		lineageTag: b0bc91d9-2e78-427e-b56a-7aa2087e32af
+		summarizeBy: none
+		sourceColumn: season
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation Synonyms = season|year|league year
+
+		annotation SynonymCollection = ["season","year","league year"]
+
+	/// Roster slot from the latest roster snapshot: Starter, Bench, IR or Minors. Minors and IR salary is cap-exempt. Blank = not in the snapshot, charged normally.
+	column RosterSlot
+		dataType: string
+		lineageTag: a3fc80c9-b244-4ac9-99c5-e17adcc8ea30
+		summarizeBy: none
+		sourceColumn: roster_slot
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = roster slot|roster status|squad placement|minors placement|placement|cap exempt status
+
+		annotation SynonymCollection = ["roster slot","roster status","squad placement","minors placement","placement","cap exempt status"]
+
+	partition Fact_FantasyTeams = m
+		mode: import
+		queryGroup: 'Fact Tables'
+		source =
+				let
+				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_fantasy_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				in
+				    Source
+
+	annotation PBI_NavigationStepName = Navigation
+
+	annotation PBI_ResultType = Table
+
+	annotation Synonyms = Rosters|Team Rosters|Roster Fact|Contracts on Roster|Player Salaries
+
+	annotation SynonymCollection = ["Rosters","Team Rosters","Roster Fact","Contracts on Roster","Player Salaries"]
+
