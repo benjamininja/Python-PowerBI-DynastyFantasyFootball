@@ -337,13 +337,13 @@ The one snapshot a week kept in history, from the last good run before the next
 Scoring Period (or week, off season) begins.
 _Avoid_: weekly snapshot, daily history
 
-**Pre-Game Run**:
+**Pre-Game Run** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
 The Daily Run on the morning of the week's first NFL kickoff.
 
-**Post-Game Run**:
+**Post-Game Run** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
 The Daily Run on the morning after the week's last game.
 
-**Capture**:
+**Capture** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
 Which snapshot of a week a ranking is: `weekly`, `pre_game` or `post_game`. The
 Weekly Final is one snapshot per week per Capture.
 _Avoid_: snapshot type, version
@@ -397,8 +397,8 @@ _Avoid_: pick tax, pick bump
 
 **Commensuration**:
 Mapping player and draft pick values onto one currency, so a mixed package can
-be summed at all. A source that quotes both in the same native units (KTC's
-`value`, DraftSharks' `ds_value`) is what makes it possible. **Built
+be summed at all. A source that quotes both in the same native units (DynastySharks'
+`ds_value`) is what makes it possible. **Built
 2026-08-01 (#49)**: a pick's percentile within its source's covered player
 pool maps onto our-scale player value at that same percentile (quantile
 mapping), clamped at the anchoring pool's own max; players fold their

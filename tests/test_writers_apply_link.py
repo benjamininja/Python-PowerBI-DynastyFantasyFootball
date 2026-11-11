@@ -71,7 +71,7 @@ def cell_source(notebook, cell_id):
     return cell["source"] if isinstance(cell["source"], str) else "".join(cell["source"])
 
 
-# ---- resolve_dynasty_crosswalk (KTC 04b, manual 04x) -------------------------
+# ---- resolve_dynasty_crosswalk (manual 04x) -------------------------
 
 def dynasty_row(name, spid="1", pos="WR"):
     return pd.DataFrame([{"source": "KTC", "source_player_id": spid, "player_name": name,
