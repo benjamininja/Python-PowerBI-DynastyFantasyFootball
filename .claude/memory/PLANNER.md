@@ -15,6 +15,43 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
+00000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-11, ~22:55Z by `date -u`, before a CLEAR (session d21ed5d8). Self-contained; overrides everything below. The 55-zero item has this session's detail; the 54-zero item has the older open work.**
+- **Resume:**
+  - Worktree ps1103, local branch `docs/state-2026-11-07`. Run `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`. The state batch PR is #455, and it merges only on the owner's word.
+  - **Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`, and run `git status --short` first.** At 22:42Z, 137 files had vanished from ps1103's working tree (it sits in old session 4b9eacec's temp scratchpad). My `commit -am` committed their deletion as 881cca9 and pushed it. Revert 31c2595 restored the tree, which I checked equals 5cd55b6 plus the manager's d737d7c. If files vanish again, ask the owner before restoring them; consider a new worktree outside Temp.
+  - **The manager:** `dynastyFantasyFootball-central-builder-manager`, by name (session 14815791, cleared ~22:45Z; app `local_39e3ac7a…`). **The Tools planner:** `Tools-central-planner`, by name, or app id `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
+  - **Reconcile first:** run `gh pr list --state open` in both repos, read #93, #500, #459, #502 and #506 for comments since 2026-11-11 01:40Z, and MANAGER.md's newest block (22:45Z or later).
+- **Open at the clear:**
+  - **Dynasty PR #505** (my planner PR, `docs/planner-490-review-skill`, head `2d94c39`, worktree `scratchpad/p490` of session d21ed5d8 with a `.venv` junction; Closes #490): the `mrp-dff-code-review` skill, the GOAL-RUN Green line and `.gitignore` `!/.claude/skills/`. **It waits on the owner's approval.** Relay their exact words to the manager, which merges. #504 merged as `f185617`. Code review goes live for dynasty after #505.
+  - **Dynasty #455:** the state batch, on the owner's word. The manager says it conflicts with #504 in CLAUDE.md.
+  - **Tools #121** (#110): waits on the owner's live check. When it merges, send the Tools planner the merge commit and confirm `plugins/owner-queue/.claude-plugin/plugin.json` reads 0.10.0. **Tools #131** (#117): the Tools planner's.
+- **Time-boxed: #459 B11 and B12.** The owner's B11 (delete, recompute, export) can run now, after the 11-11 cron. **B12 must merge before the 11-12 11:17Z cron.** The manager posts the counts on #459 and dispatches B12. Then B9 goes behind #413.
+- **Waiting on the manager's 11-11 cron report** (run 43080183642, data `40e11bc`): #500's step 0. If B08 and B13 aren't filed again and neither roster changed, #500 closes; then tick Salary Remaining on #93 and close #93's line on map #375. If either repeats, #500 dispatches at the owner's go.
+- **New tickets this session, each dispatching at the owner's go:**
+  - #500 (medium, look-only): the Salary Remaining findings;
+  - **#502** (low): `run.security_checks` is per invocation. It goes before the owner's walterfootball/draftsharks run, which C1 waits on;
+  - #506 (low): the flaky test_02d_main test.
+- **Merged this session:** dynasty #497 (B8) `67bf2d3`, #501 (B10) `ed40900`, #503 (#473 brief 1, ADR-0023 accepted) `8bb95f5`, #504 `f185617`; tools #126 `2090367`, plus #128 (the live pr-code-reviewer), #129 (#124), #130 and #127 by the manager.
+- **DO NEXT, in order:**
+  1. Reconcile; relay any owner word on #505.
+  2. The 11-11 result on #93 and #500; B11 and B12's counts on #459.
+  3. The 54-zero item's DO NEXT items 2 to 7. Q16 and OLB/DE stay **parked until the owner raises them**, and the #429 grill waits on Q16. The rest: #458's Close Day proof on 2026-11-13, a sweep only on the owner's word, and #473 brief 14's DraftSharks list at its dispatch.
+- **Waiting on the owner:**
+  - approval of #505 and #455;
+  - B11 (time-boxed);
+  - go for #502, #506, and #500 if it repeats;
+  - #473's later briefs' timing;
+  - the #110 live check;
+  - the walterfootball/draftsharks run, after #502;
+  - Q16 and OLB/DE (parked);
+  - from before: the root push, the DLF Action, the pbiprune profile, the CFBD key.
+- **Lessons:**
+  - Never `commit -a` in a state worktree.
+  - The bare `skills/` in `.gitignore` swallows `.claude/skills/`; run `git check-ignore` before adding a folder.
+  - A written order can hide a cycle (B9, #413, B11); trace the blockers end to end.
+  - A planner worktree needs a `.venv` junction for the hooks.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (56 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, commit with an explicit git add of PLANNER.md (never commit -a), and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by name (session id local_9830794b-c1e9-400a-ba66-e6abb9432396 if the name fails; it owns skills-plugins-hooks-agents except the owner-queue mod, which is yours).
+
 0000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-11, ~00:10Z by `date -u` (session d21ed5d8, after the clear). Adds to the 54-zero item; its DO NEXT stands except item 1, which is done.**
 - **Ids:** I am `d21ed5d8` (by name `dynastyFantasyFootball-central-planner`). The manager cleared too and is a new session (same name).
 - **Ruled, DO NEXT item 1 done:**
