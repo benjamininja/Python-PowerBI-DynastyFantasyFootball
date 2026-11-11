@@ -101,6 +101,10 @@ the parquet alone.
   ambiguous architectural/design decision, use `grill-me` (one question at a
   time, recommended answer first) and get explicit sign-off before writing
   code — don't present a fait accompli.
+- **Code review at re-proof**: the shared `pr-code-reviewer` (from tools)
+  reviews a builder's code PR against the `mrp-dff-code-review` skill
+  (`.claude/skills/mrp-dff-code-review/SKILL.md`); it loads only when the
+  reviewer's packet names it.
 - **Execution loop**: long agentic builds follow the token-gated
   `grill/plan → consolidate → compact → execute → compact ↺` loop (compact at
   ~125K–150K tokens) — see
