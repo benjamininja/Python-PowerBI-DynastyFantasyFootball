@@ -28,7 +28,7 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 
 | File | Grain / key | Produced by | Notes |
 |---|---|---|---|
-| `fact_rookie_rankings.parquet` | `player_key + source_name + phase + draft_year` | 02c, 03a–03x | Expert rankings, 10 sources, phase cascade |
+| `fact_rookie_rankings.parquet` | `player_key + source_name + phase + draft_year` | 02c, 03b, 03d, 03x | Expert rankings, 10 sources, phase cascade |
 | `fact_fantrax_adp.parquet` | `scorer_id + season + week` | 04a, 04z | Fantrax projection board + season-actuals backfill (incl. GP) |
 | `fact_dynasty_ranking_metrics.parquet` | `snapshot_date + source_name + source_player_id + format + metric_key` | 04x | **The** dynasty fact — long EAV; ranks fold in as source-prefixed metric_keys (the separate `fact_dynasty_rankings` backbone is retired, ADR-0002) |
 | `fact_nfl_combine_pro_day_metrics.parquet` | `pfr_id + season` | 02a | Combine/pro-day metrics, all seasons |
@@ -49,7 +49,7 @@ Migration path to Microsoft Fabric: swap to `abfss://` + `spark.read.parquet` �
 ## Inputs (manual extractions, in `raw/`)
 
 - `raw/RookieRankings_2026_ManualExtraction.xlsx` — manual rookie-ranking sheets, ingested by `03x` (one sheet per source).
-- `raw/DynastyRankings_2026_ManualExtraction.xlsx` — manual dynasty-ranking sheets (DynastySharks SF-PPR/TE-prem, FantasyPros SF-PPR/IDP), ingested by `04x`.
+- `raw/DynastyRankings_2026_ManualExtraction.xlsx` — manual dynasty-ranking sheets (DynastySharks SF-PPR/TE-prem), ingested by `04x`.
 
 > Note: `raw/` is gitignored, so these hand-curated inputs are **not tracked in git** —
 > they rely on OneDrive for backup. Un-ignore them explicitly if you want them in the repo.
