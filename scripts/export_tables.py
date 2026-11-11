@@ -14,7 +14,7 @@ such as the manual-only dim_pick_value_curve.
 Every table is read before any file is written.
 
 Exit 0: written. Exit 1: failed. Exit 2: refused before any read. The output
-holds table names and counts only, never a cell.
+holds table names and counts only, never a cell, and never the database URL.
 """
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "notebooks"))
@@ -32,6 +33,21 @@ import etl_storage_pg as pg  # noqa: E402
 
 def database_url() -> str | None:
     return os.environ.get(pg.URL_ENV) or etl_run_log.env_value(pg.URL_ENV)
+
+
+def described(exc: BaseException, url: str) -> str:
+    """`pg.describe(exc)` with the URL, and its user, password and host, taken out of an
+    error that is not a psycopg one (those print class, SQLSTATE and names only).
+    The redaction runs before the scrub, which cuts at the first line and 200 characters."""
+    psycopg, _ = pg._psycopg()
+    if isinstance(exc, psycopg.Error):
+        return pg.describe(exc)
+    parts = urlsplit(url)
+    text = str(exc)
+    for secret in (url, parts.netloc, parts.password, parts.username, parts.hostname):
+        if secret:
+            text = text.replace(secret, "<url>")
+    return f"{type(exc).__name__}: {pg.scrub(text)}"
 
 
 def run(names, out_dir, *, out=print) -> int:
@@ -70,7 +86,7 @@ def main(argv=None) -> int:
     try:
         return run(names, out_dir)
     except Exception as exc:
-        print(f"stopped: {pg.describe(exc)}")
+        print(f"stopped: {described(exc, url)}")
         return 1
 
 

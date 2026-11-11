@@ -142,13 +142,17 @@ class TestTheDryRun:
         assert len([line for line in out.splitlines() if "#459 expects" in line]) == 9
         assert "counts match #459's" in out and "dry run: nothing was deleted" in out
 
-    def test_a_count_that_differs_is_marked_and_the_run_says_not_to_apply(self):
+    def test_a_count_that_differs_exits_1_after_printing_every_table_with_DIFFERS_beside_it(self):
         held = {**expected(), ("dim_dynasty_crosswalk", "FantasyPros"): 660}
-        code, out = run(FakeConnection(held=held))
-        assert code == 0
-        assert "dim_dynasty_crosswalk where source = FantasyPros: 660 row(s) would be deleted " \
-               "(#459 expects 661: DIFFERS)" in out
+        conn = FakeConnection(held=held)
+        code, out = run(conn)
+        assert code == 1
+        assert len([line for line in out.splitlines() if "#459 expects" in line]) == 9
+        assert [line for line in out.splitlines() if "DIFFERS)" in line] == [
+            "dim_dynasty_crosswalk where source = FantasyPros: 660 row(s) would be deleted "
+            "(#459 expects 661: DIFFERS)"]
         assert "counts DIFFER from #459's: do not --apply" in out
+        assert conn.deleted == [] and conn.state == held
 
     def test_main_with_no_flag_is_a_dry_run(self, monkeypatch, capsys):
         conn = FakeConnection()
@@ -181,6 +185,20 @@ class TestTheApply:
         assert conn.log.index("SET CONSTRAINTS ALL IMMEDIATE") < recount
         assert any(q.startswith("SET LOCAL lock_timeout") for q in conn.log[:first_delete])
 
+    def test_a_count_that_differs_from_459s_rolls_back_before_any_delete(self):
+        held = {**expected(), ("fact_dynasty_ranking_metrics", "KTC"): 15729}
+        conn = FakeConnection(held=held)
+        code, out = run(conn, apply=True)
+        assert code == 1
+        assert conn.deleted == []
+        assert not any(q.startswith(("DELETE", "SET ")) for q in conn.log)
+        assert conn.events == ["rollback"]
+        assert conn.state == held
+        assert "fact_dynasty_ranking_metrics where source_name = KTC: 15729 row(s) found " \
+               "(#459 expects 15730: DIFFERS)" in out
+        assert "counts DIFFER from #459's; rolled back; nothing was deleted" in out
+        assert "committed" not in out
+
     def test_a_count_that_is_not_zero_after_the_delete_rolls_everything_back(self):
         conn = FakeConnection(stuck={("fact_rookie_rankings", "FantasyPros"): 2})
         code, out = run(conn, apply=True)
@@ -209,6 +227,40 @@ class TestTheApply:
         assert SENTINEL not in out.out + out.err and "Traceback" not in out.out + out.err
         assert conn.events == ["rollback"]
         assert conn.state == expected()
+
+
+class TestTheUrlIsNeverPrinted:
+    URL = "postgresql://etl_writer.projref:hunter2-pw@aws-0.pooler.example.com:5432/postgres"
+
+    @pytest.mark.parametrize("message", [
+        f"could not reach {URL}",
+        f"{URL} refused the connection",
+        "password hunter2-pw rejected for etl_writer.projref@aws-0.pooler.example.com:5432",
+        f"bad dsn 'x'\nsecond line {URL}",
+    ])
+    @pytest.mark.parametrize("flag", [[], ["--apply"]])
+    def test_an_error_that_holds_the_url_prints_neither_it_nor_its_password(self, monkeypatch, capsys,
+                                                                            message, flag):
+        def failing(url):
+            raise RuntimeError(message)
+
+        monkeypatch.setenv(pg.URL_ENV, self.URL)
+        monkeypatch.setattr(delete, "connect", failing)
+        assert delete.main(flag) == 1
+        seen = capsys.readouterr()
+        shown = seen.out + seen.err
+        assert shown.startswith("stopped, nothing was committed: RuntimeError")
+        for secret in (self.URL, "hunter2-pw", "etl_writer.projref", "pooler.example.com"):
+            assert secret not in shown
+        assert "Traceback" not in shown
+
+    def test_a_refusal_or_a_result_line_never_holds_it(self, monkeypatch, capsys):
+        conn = FakeConnection(bypass=True)
+        monkeypatch.setenv(pg.URL_ENV, self.URL)
+        monkeypatch.setattr(delete, "connect", lambda url: conn)
+        assert delete.main([]) == 2
+        shown = capsys.readouterr().out
+        assert "hunter2-pw" not in shown and "pooler.example.com" not in shown
 
 
 class TestTheRefusal:

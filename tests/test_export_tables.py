@@ -105,6 +105,27 @@ def test_no_url_is_a_refusal(world, capsys, monkeypatch):
     assert f"refused: {pg.URL_ENV} is not set" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("message", [
+    "could not reach postgresql://etl_writer.projref:hunter2-pw@aws-0.pooler.example.com:5432/postgres",
+    "password hunter2-pw rejected for etl_writer.projref@aws-0.pooler.example.com:5432",
+])
+def test_an_error_that_holds_the_url_prints_neither_it_nor_its_password(world, capsys, monkeypatch, message):
+    _, target, _ = world
+    monkeypatch.setenv(pg.URL_ENV, "postgresql://etl_writer.projref:hunter2-pw@aws-0.pooler.example.com:5432/postgres")
+
+    def failing(conn, entry, columns=None):
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(pg, "read_on", failing)
+    assert export_tables.main(["dim_one", "--out", str(target)]) == 1
+    seen = capsys.readouterr()
+    shown = seen.out + seen.err
+    assert shown.startswith("stopped: RuntimeError")
+    for secret in ("hunter2-pw", "etl_writer.projref", "pooler.example.com"):
+        assert secret not in shown
+    assert "Traceback" not in shown
+
+
 def test_a_database_error_prints_no_value_and_no_traceback(world, capsys, monkeypatch):
     _, target, _ = world
 

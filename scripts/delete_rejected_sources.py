@@ -12,14 +12,18 @@ and an ALL policy on these tables (supabase/migrations/20261101154326_initial_sc
   1. The login must be etl_writer, without BYPASSRLS or superuser, and every
      football table must have row-level security on (as backfill_postgres.py).
   2. The dry run opens a read-only session. It prints, per table and per source,
-     the count it would delete beside the count #459 expects.
-  3. --apply deletes in ONE transaction, the fact rows before dim_dynasty_metric
-     (the foreign key), checks the foreign keys, counts again inside the
-     transaction, and rolls back unless every count is zero.
+     the count it would delete beside the count #459 expects, and exits 1 if any
+     count differs.
+  3. --apply counts first, inside its transaction, and rolls back with exit 1
+     before any DELETE if any count differs from #459's (there is no override).
+     Otherwise it deletes in the same transaction, the fact rows before
+     dim_dynasty_metric (the foreign key), checks the foreign keys, counts again,
+     and rolls back unless every count is zero.
 
-Exit 0: dry run printed, or committed. Exit 1: rolled back or failed. Exit 2:
-refused before any write. The output holds table names, source names and counts
-only, never a cell, and a failure prints one scrubbed line with no traceback.
+Exit 0: dry run matched, or committed. Exit 1: a count differs, rolled back or
+failed. Exit 2: refused before any write. The output holds table names, source
+names and counts only, never a cell, and a failure prints one scrubbed line with
+no traceback and never the database URL.
 """
 from __future__ import annotations
 
@@ -28,6 +32,7 @@ import os
 import sys
 from pathlib import Path
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "notebooks"))
@@ -54,6 +59,21 @@ TARGETS = (
 
 def database_url() -> str | None:
     return os.environ.get(pg.URL_ENV) or etl_run_log.env_value(pg.URL_ENV)
+
+
+def described(exc: BaseException, url: str) -> str:
+    """`pg.describe(exc)` with the URL, and its user, password and host, taken out of an
+    error that is not a psycopg one (those print class, SQLSTATE and names only).
+    The redaction runs before the scrub, which cuts at the first line and 200 characters."""
+    psycopg, _ = pg._psycopg()
+    if isinstance(exc, psycopg.Error):
+        return pg.describe(exc)
+    parts = urlsplit(url)
+    text = str(exc)
+    for secret in (url, parts.netloc, parts.password, parts.username, parts.hostname):
+        if secret:
+            text = text.replace(secret, "<url>")
+    return f"{type(exc).__name__}: {pg.scrub(text)}"
 
 
 def connect(url: str):
@@ -96,11 +116,15 @@ def run(url: str, *, apply: bool = False, out=print, connector=None) -> int:
             out("nothing was deleted")
             return 2
         before = counts(conn)
-        same = show(out, before, "would be deleted" if not apply else "found")
+        same = show(out, before, "found" if apply else "would be deleted")
         if not apply:
             out("counts match #459's" if same else "counts DIFFER from #459's: do not --apply")
             out("dry run: nothing was deleted")
-            return 0
+            return 0 if same else 1
+        if not same:
+            conn.rollback()
+            out("counts DIFFER from #459's; rolled back; nothing was deleted")
+            return 1
         pg.bound_locks(conn)
         for t in TARGETS:
             cur = conn.execute(
@@ -134,7 +158,7 @@ def main(argv=None) -> int:
     try:
         return run(url, apply=args.apply)
     except Exception as exc:
-        print(f"stopped, nothing was committed: {pg.describe(exc)}")
+        print(f"stopped, nothing was committed: {described(exc, url)}")
         return 1
 
 
