@@ -10,6 +10,9 @@ data/dim_fantrax_crosswalk_override.parquet
 data/fact_startup_draft_slot.parquet
 data/dim_startup_draft_scorer.parquet
 skills/
+# Project skills under .claude/skills/ are tracked (#490); the rule above is for
+# the repo-root skills/ reference folder.
+!/.claude/skills/
 
 # ── Credentials ───────────────────────────────────────────────────────────────
 # Ignore every .env anywhere: bare, prefixed (foo.env), and dotted (.env.local,
