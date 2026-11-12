@@ -124,6 +124,39 @@ job runs `supabase db push` against the real project, using the Actions secret
 failed push run is not re-run: it goes to the planner with the log, because it
 may have applied part of a migration.
 
+### A column change on a published table
+
+Adding, dropping or renaming a column of a table that has a
+`data/<name>.parquet` needs the registry change and its migration in one PR,
+and the code that fills the column; nothing else by hand. After the migration
+is on the project, the next run exports each table from the database
+(`export_published`). If the table's snapshot has other columns than the
+registry, the export treats that as an intended change: the snapshot is
+written in the registry's shape and the run log
+(`ops.etl_run_log.column_changes`) and the run summary list the column names
+added and dropped, never a value. A rename shows as one dropped and one added name, as
+the registry marks no rename. A frame that is not the registry's columns is
+drift: the export raises, the run aborts and the database is reloaded from
+the snapshot at HEAD. Between the merge and the next run the snapshot keeps
+its old columns; a consumer that reads a new column waits for that run.
+
+### The owner's delete and re-export scripts (#459)
+
+Two scripts the owner runs by hand, never an agent, with `SUPABASE_DB_URL` set
+(in the shell or in `.env`):
+
+- `.\run.ps1 scripts\delete_rejected_sources.py` is a dry run. It prints, per
+  table and source, the rows it would delete beside the counts #459 expects,
+  and exits 1 if any differs. Add `--apply` to delete in one transaction. It
+  rolls back before any delete if a count differs, and afterwards unless every
+  count is zero. It refuses a login that is not `etl_writer` or that has
+  BYPASSRLS or superuser.
+- `.\run.ps1 scripts\export_tables.py TABLE [TABLE ...] [--out DIR]` writes the
+  named published tables from the database to `DIR` (an existing folder,
+  default `data/`) through the same exporter the pipeline's publish step uses.
+
+Both print table names and counts only.
+
 ## Security rule
 
 `data/.pw_profile` is gitignored. It holds the Playwright browser session for

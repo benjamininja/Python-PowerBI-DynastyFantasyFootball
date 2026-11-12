@@ -30,6 +30,7 @@ Run the whole suite against the current snapshot:
 from __future__ import annotations
 
 import io
+import logging
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -41,8 +42,9 @@ import pyarrow.parquet as pq
 import yaml
 
 import etl_cap as cap
-from etl_helpers import DATA, REVIEW, read_stored
+from etl_helpers import DATA, REVIEW, TableNotFound, is_private, read_stored
 
+log = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MODEL_YML = REPO / "docs" / "data_model.yml"
 REVIEW_CSV = REVIEW / "review_check.csv"
@@ -503,14 +505,43 @@ def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFram
     return errs
 
 
-def salary_remaining_findings(table: pd.DataFrame,
-                              roster: pd.DataFrame) -> list[tuple[str, str]]:
-    """Fantrax's Salary Remaining against cap room, on Fantrax's basis: IR
-    salary added back, since Fantrax charges it (owner's ruling 2026-10-12,
-    #97), and no reinvestment charge. One finding per team off by more than
-    $1. Compared only when the roster read and Fantrax's capture fall on the
-    same league day: Fantrax serves today's value alone. Otherwise it raises
-    NotComparable, so the open findings stay open."""
+def _ours_at_period(r, state: pd.DataFrame, dead: pd.DataFrame) -> float | None:
+    """Our figure on Fantrax's basis at the reply's own period (#509): the
+    team's Roster State of that period (Minors and IR not charged, IR salary
+    added back) less the season's Dead Money owed by then. A row from a drop
+    in an earlier season (`own_season` false) is owed in full; a row from a
+    drop in this season counts when drop_period <= that period, and a null
+    drop_period counts as already owed. None when Roster State holds no row
+    for the team at that period."""
+    if pd.isna(r.fantrax_period):
+        return None
+    period = int(r.fantrax_period)
+    mine = state[(state["season_id"] == r.season_id) & (state["period"] == period)
+                 & (state["team_key"] == r.team_key)]
+    if mine.empty:
+        return None
+    exempt = mine["roster_slot"].isin(cap.EXEMPT_SLOTS)
+    charged = mine.loc[~exempt, "salary"].sum()
+    ir = mine.loc[mine["roster_slot"] == cap.IR_SLOT, "salary"].sum()
+    owed = ~dead["own_season"] | dead["drop_period"].isna() | (dead["drop_period"] <= period)
+    gone = dead[(dead["season_id"] == r.season_id) & (dead["team_key"] == r.team_key)
+                & owed]["dead_money"].sum()
+    return float(r.original_cap - charged - ir - gone)
+
+
+def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
+                              state: pd.DataFrame, dead: pd.DataFrame,
+                              ledger: pd.DataFrame) -> list[tuple[str, str]]:
+    """Fantrax's Salary Remaining against our figure at Fantrax's own period
+    (#509), on Fantrax's basis: IR salary added back, since Fantrax charges it
+    (owner's ruling 2026-10-12, #97), and no reinvestment charge. Ours is built
+    from fact_roster_state at the reply's period plus Dead Money dropped by
+    then, so a move after the lock files nothing. A team with no Roster State
+    at that period files nothing and is logged; the live roster is never used.
+    One finding per team off by more than $1. Compared only when the roster
+    read and Fantrax's capture fall on the same league day: Fantrax serves
+    today's value alone. Otherwise it raises NotComparable, so the open
+    findings stay open."""
     rows = table[table["is_current_season"] & table["fantrax_salary_remaining"].notna()
                  & table["roster_captured_at"].notna() & table["fantrax_captured_at"].notna()]
     if rows.empty:
@@ -521,17 +552,80 @@ def salary_remaining_findings(table: pd.DataFrame,
     if rows.empty:
         raise NotComparable(f"roster read {read_days.iloc[0]}, Fantrax captured {capture_days.iloc[0]}")
     led = pd.to_datetime(roster["ledger_captured_at"], utc=True).max()
-    ledger = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
-    out = []
+    ledger_day = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
+    drop_season = ledger.drop_duplicates("transaction_id").set_index("transaction_id")["season_id"]
+    dead = dead.assign(own_season=dead["season_id"].eq(dead["transaction_id"].map(drop_season)))
+    out, compared = [], 0
     for r in rows.itertuples():
         read_day = pd.Timestamp(r.roster_captured_at).tz_convert(cap.LEAGUE_TZ).date()
-        ours = r.original_cap - r.charged_salary - r.ir_salary - r.dead_money
+        ours = _ours_at_period(r, state, dead)
+        if ours is None:
+            log.warning("salary_remaining: no fact_roster_state for %s %s period %s; not compared",
+                        r.season_id, r.team_key, r.fantrax_period)
+            continue
+        compared += 1
         if abs(ours - r.fantrax_salary_remaining) > SALARY_TOLERANCE:
             out.append((f"{r.season_id}|{r.team_key}",
                         f"{r.team_key} period {r.fantrax_period} on {read_day}: Fantrax's Salary "
                         f"Remaining {r.fantrax_salary_remaining:,.2f}, ours {ours:,.2f} on its "
-                        f"basis (ledger captured {ledger})"))
+                        f"basis (ledger captured {ledger_day})"))
+    if not compared:
+        raise NotComparable("no fact_roster_state at Fantrax's period for any team")
     return out
+
+
+STARTUP_SLOTS, STARTUP_UNMADE = 980, 5   # the finished 2026 Startup draft
+LOADER = "scripts/load_draft_and_overrides.py"
+
+
+def private_table(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFrame:
+    """A private table (#93 brief 6) through the loader `load`. One this store
+    has no copy of (a snapshot folder holds none) is not compared."""
+    try:
+        return load(name)
+    except TableNotFound:
+        raise NotComparable(f"{name} is not in this store") from None
+
+
+def overrides_errors(overrides: pd.DataFrame, players: pd.DataFrame | None = None,
+                     links: pd.DataFrame | None = None) -> list[str]:
+    """The decisions table (#93, planner ruling 4): not empty; every gsis_id is
+    in dim_nfl_players (or is an old id dim_gsis_link maps on) or is `new`; no
+    gsis_id is claimed by two scorer_ids. No fixed count: #431 adds rows."""
+    if not len(overrides):
+        return [f"dim_fantrax_crosswalk_override holds no rows -- run {LOADER} once"]
+    errs = []
+    real = overrides[overrides["gsis_id"] != "new"]
+    if players is not None:
+        known = set(players["gsis_id"]) | (set(links["old_gsis_id"]) if links is not None else set())
+        unknown = int((~real["gsis_id"].isin(known)).sum())
+        if unknown:
+            errs.append(f"{unknown} override(s) hold a gsis_id that is neither in dim_nfl_players nor new")
+    twice = int((real.groupby("gsis_id")["scorer_id"].nunique() > 1).sum())
+    if twice:
+        errs.append(f"{twice} gsis_id(s) are claimed by more than one scorer_id")
+    return errs
+
+
+def _optional(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFrame | None:
+    try:
+        return load(name)
+    except TableNotFound:
+        return None
+
+
+def draft_copy_errors(slots: pd.DataFrame) -> list[str]:
+    """02d reads the Startup draft from a private copy: every slot, the unmade
+    ones with no scorer_id."""
+    errs = []
+    if len(slots) != STARTUP_SLOTS:
+        errs.append(f"fact_startup_draft_slot holds {len(slots)} slot(s), "
+                    f"expected {STARTUP_SLOTS} -- run {LOADER} once")
+    unmade = int(slots["scorer_id"].isna().sum())
+    if unmade != STARTUP_UNMADE:
+        errs.append(f"fact_startup_draft_slot holds {unmade} unmade slot(s), "
+                    f"expected {STARTUP_UNMADE}")
+    return errs
 
 
 @dataclass(frozen=True)
@@ -570,6 +664,13 @@ DOMAIN_CHECKS = [
                 lambda load: dead_money_errors(load("fact_dead_money"),
                                                load("fact_roster_transactions"),
                                                load("dim_contract"))),
+    DomainCheck("overrides_present", "gate", "dim_fantrax_crosswalk",
+                lambda load: overrides_errors(
+                    private_table(load, "dim_fantrax_crosswalk_override"),
+                    load("dim_nfl_players"), _optional(load, "dim_gsis_link"))),
+    DomainCheck("draft_copy", "gate", "fact_draft_pick",
+                lambda load: draft_copy_errors(
+                    private_table(load, "fact_startup_draft_slot"))),
     DomainCheck("stintless_drop", "review", "fact_roster_transactions",
                 lambda load: stintless_drop_findings(load("fact_roster_transactions"),
                                                      load("fact_roster_state"))),
@@ -587,7 +688,10 @@ DOMAIN_CHECKS = [
                                              load("dim_contract"), load("dim_season"))),
     DomainCheck("salary_remaining", "review", "fact_team_cap",
                 lambda load: salary_remaining_findings(load("fact_team_cap"),
-                                                       load("fact_fantasy_teams"))),
+                                                       load("fact_fantasy_teams"),
+                                                       load("fact_roster_state"),
+                                                       load("fact_dead_money"),
+                                                       load("fact_roster_transactions"))),
 ]
 
 
@@ -613,7 +717,8 @@ def run_suite(tables: Iterable[str] | None = None,
     registered table). Never raises on bad data — failures come back as
     Results."""
     registry = registry if registry is not None else load_registry()
-    tables = sorted(registry) if tables is None else sorted(set(tables))
+    tables = (sorted(n for n, e in registry.items() if not is_private(e))
+              if tables is None else sorted(set(tables)))
     accepted = set(accepted_shrink)
     cache: dict[str, pd.DataFrame] = {}
 

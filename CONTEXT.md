@@ -119,7 +119,8 @@ _Avoid_: weekly stats, fantasy points (unqualified)
 The phase of play a stat, a point or a snap belongs to: **Offense**, **Defense**
 or **Special Teams**. Scoring stats take Fantrax's offense/defense grouping,
 except Return Yards and Blocked Kicks, which are Special Teams (the only special
-teams stats the league scores). Snaps are counted per Unit by the NFL.
+teams stats the league scores). Snaps are counted per Unit by the NFL. The
+baseline's **Special teams** Category Group holds the same two stats.
 _Avoid_: side, phase, stat group
 
 **Dead Money**:
@@ -147,6 +148,24 @@ that season's Dead Money and, this season, its reinvestment charge. Published in
 never the calendar. Fantrax's own figure is **Salary Remaining**, which also
 charges IR salary.
 _Avoid_: remaining cap, cap space
+
+### Drafts
+
+**Draft**:
+A transaction that moves players to teams by pick: the Startup draft once, a
+Rookie draft each year.
+_Avoid_: auction (that's the FA Auction, by bid)
+
+**Skipped Pick**:
+A draft slot whose turn passed with no player.
+
+**Frozen Draft**:
+A completed draft, never rewritten.
+
+**FA Auction**:
+The annual Fantrax auction after the Rookie draft, where free agents are won by
+bid.
+_Avoid_: draft
 
 ### Results
 
@@ -218,6 +237,62 @@ team's roster present, every Starter scored, team totals matching Fantrax.
 Until it passes, the Update-Set stays closing.
 _Avoid_: final check, freeze check
 
+**Terms check**:
+The dated record of a Source's terms or licence: the verdict (unresolved,
+permitted or rejected), when it was last checked, what was done and the URLs
+read. We judge a Source by the terms of the place we read it from, not of a site
+upstream of it. A Source is re-checked once per season, before the rookie
+draft, in the check month set on `CFG` (May by default), not every 6 months. One
+never checked, or past its next check, is counted in one advisory line and never
+fails a run.
+_Avoid_: licence review, compliance check
+
+**Security check**:
+The dated, per-host check made before anyone reads a page on the host, on the
+same date as the Terms check and before the first read of any new host: Safe
+Browsing (with three test-page controls), DNS, TLS, HSTS and registration age.
+The script writes facts and flags; the owner confirms the block.
+_Avoid_: virus scan, safety review
+
+**Policy capture**:
+The private verbatim copy of a document we read (terms, privacy, licence), kept
+in the gitignored `data/review/policies/` and never in the repo. The public
+record carries only the quotes and its SHA-256.
+_Avoid_: terms archive, snapshot (that's the published data), backup
+
+### Flows
+
+**Domain**:
+One of five groups a flow belongs to: League, Rosters, Players, Rookies, Apps.
+League is the league's setup and reference data (calendar, periods, teams,
+contract types, positions, schools, NFL teams). Rosters is what teams hold, how
+players move to them (drafts, auctions, trades, claims, drops), and what teams
+pay (ledger, dead money, cap, future picks). Players is who players are, how
+they perform and how the market values them. Rookies is the incoming draft
+class. Apps is what is built on the Published Snapshot (trade-bud, the Discord
+bot, Power BI), plus the steps only they read.
+_Avoid_: area, layer
+
+**Source**:
+The outside system or systems a flow reads. _Derived_ when the flow reads only
+stored tables.
+_Avoid_: provider, feed
+
+**Depends On**:
+The flows that must finish before a flow runs.
+_Avoid_: needs
+
+**Run Tier**:
+0 for a flow that depends on nothing, otherwise one more than the highest tier
+it depends on. Computed from Depends On, never typed.
+_Avoid_: stage, level, order
+
+**Cadence**:
+How often a flow runs: Daily, Close Day, **Annual** (on a named league event,
+not a calendar date) or **Manual** (on demand by design, with the reason
+recorded), optionally within a season window.
+_Avoid_: schedule, frequency
+
 ### Time
 
 **Season** (`season_id`):
@@ -262,6 +337,17 @@ weekday off season.
 The one snapshot a week kept in history, from the last good run before the next
 Scoring Period (or week, off season) begins.
 _Avoid_: weekly snapshot, daily history
+
+**Pre-Game Run** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
+The Daily Run on the morning of the week's first NFL kickoff.
+
+**Post-Game Run** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
+The Daily Run on the morning after the week's last game.
+
+**Capture** (unused since 2026-11-08: only KTC used it, and KTC is rejected, #423):
+Which snapshot of a week a ranking is: `weekly`, `pre_game` or `post_game`. The
+Weekly Final is one snapshot per week per Capture.
+_Avoid_: snapshot type, version
 
 ### Teams & divisions
 
@@ -312,12 +398,40 @@ _Avoid_: pick tax, pick bump
 
 **Commensuration**:
 Mapping player and draft pick values onto one currency, so a mixed package can
-be summed at all. A source that quotes both in the same native units (KTC's
-`value`, DraftSharks' `ds_value`) is what makes it possible. **Built
+be summed at all. A source that quotes both in the same native units (DynastySharks'
+`ds_value`) is what makes it possible. **Built
 2026-08-01 (#49)**: a pick's percentile within its source's covered player
 pool maps onto our-scale player value at that same percentile (quantile
 mapping), clamped at the anchoring pool's own max; players fold their
 age tilt into the rank pre-ceiling instead of the finished value. Both are
 now capped at 100 by construction. ADR-0013 decisions 4-5.
 _Avoid_: dual scale, uncalibrated sum
+
+**Baseline**:
+Our own source, `MouseRatPresents_Baseline`: nflverse counts scored with the
+league's Fantrax rules, projected forward by position and age. It gives each
+player points per game for the next three seasons, a positional rank and a share
+of points by Category Group; it gives no blended value. Fantrax stays the
+authority for league points; a drift check holds the baseline to it. ADR-0023.
+_Avoid_: composite (that is the blend of other sources), our rankings
+
+**Scoring Category**:
+One stat the league scores, such as solo tackles or passing yards, with its
+points by position as Fantrax's `getLeagueInfo.scoringSystem` states them. The
+rules are read on every run, never typed.
+_Avoid_: stat, scoring rule (unqualified)
+
+**Category Group**:
+One of seven buckets every Scoring Category belongs to: Passing; Rushing;
+Receiving; Special teams; Defense, tackles; Defense, big plays; Other. A
+transformer table assigns them, so a new category adds a row, not code. Not the
+same as a Unit, which has three values.
+_Avoid_: stat type, Unit (for this)
+
+**Yardstick**:
+The yearly judgment of a ranked list against the season it predicted: Fantrax
+points per game by Fantrax position, over players with 8+ games, as Spearman's
+rho and the hits of the list's top 12 and top 24. Published each year as a dated
+page under `docs/`, whatever it says about the baseline.
+_Avoid_: accuracy score, leaderboard
 

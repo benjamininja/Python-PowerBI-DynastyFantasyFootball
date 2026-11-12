@@ -1549,7 +1549,16 @@
           "to": "football.dim_dynasty_metric"
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_dynasty_ranking_metrics_gsis_id_idx",
+          "unique": false,
+          "where": null
+        }
+      ],
       "name": "fact_dynasty_ranking_metrics",
       "pk": [
         "snapshot_date",
@@ -2740,7 +2749,17 @@
           "to": "football.dim_season"
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "columns": [
+            "season_id",
+            "event_type"
+          ],
+          "name": "fact_roster_transactions_season_event_idx",
+          "unique": false,
+          "where": null
+        }
+      ],
       "name": "fact_roster_transactions",
       "pk": [
         "transaction_id",
@@ -3031,6 +3050,82 @@
       ],
       "schema": "ops"
     },
+    "ops.dim_fantrax_crosswalk_override": {
+      "checks": [
+        "origin IN ('csv', 'apply_script', 'form')"
+      ],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "note",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "recorded_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "origin",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_fantrax_crosswalk_override",
+      "pk": [
+        "scorer_id"
+      ],
+      "schema": "ops"
+    },
+    "ops.dim_startup_draft_scorer": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position_raw",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "is_rookie",
+          "not_null": false,
+          "sql_type": "boolean"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_startup_draft_scorer",
+      "pk": [
+        "scorer_id"
+      ],
+      "schema": "ops"
+    },
     "ops.etl_run_log": {
       "checks": [
         "trigger IN ('daily', 'poll', 'weekly', 'manual')",
@@ -3081,6 +3176,16 @@
           "name": "error",
           "not_null": false,
           "sql_type": "text"
+        },
+        {
+          "name": "cadence",
+          "not_null": false,
+          "sql_type": "jsonb"
+        },
+        {
+          "name": "column_changes",
+          "not_null": false,
+          "sql_type": "jsonb"
         }
       ],
       "fks": [],
@@ -3088,6 +3193,50 @@
       "name": "etl_run_log",
       "pk": [
         "run_id"
+      ],
+      "schema": "ops"
+    },
+    "ops.fact_startup_draft_slot": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "division_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "round",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "pick_in_round",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "team_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "picked_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "fact_startup_draft_slot",
+      "pk": [
+        "division_id",
+        "round",
+        "pick_in_round"
       ],
       "schema": "ops"
     },

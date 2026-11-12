@@ -18,29 +18,17 @@ publicly in one step.
 |---|---|---|
 | `fmt` | `SF` | League format: `SF`, `TEPP` (offense), or `IDP` (defense). |
 | `position` | all | Filter to one position (e.g. `QB`, `LB`). |
-| `source` | best for format | `KTC` for SF/TEPP, `FantasyPros` for IDP. |
+| `source` | best for format | `DynastySharks` for SF/TEPP. IDP has no source yet. |
 | `limit` | `10` | Players per position (max 25). |
 
 Why format-scoped: no single format+source spans all positions — SF/TEPP hold
-offense, IDP holds defense (FantasyPros only). One board = one format.
-
-### `/adp` — Fantrax ADP board (with league-ownership overlay)
-
-One overall board sorted by ADP ascending; two lines per player so ADP, salary,
-overall rank, position/team/age, and the player's owner in *our* league all fit.
-
-| Arg | Default | Notes |
-|---|---|---|
-| `position` | all | Filter to one position group. |
-| `limit` | `15` | Players to show (max 50). |
-
-The owner column is blank for anyone not yet drafted and fills in as teams draft.
+offense; IDP replies `No IDP ranking source yet.` One board = one format.
 
 ### `/player <name>` — single-player card
 
 Resolves a name (normalize + substring; asks you to disambiguate a collision
 like the two Josh Allens), then shows dynasty ranks + value per source (for the
-player's format — IDP for defense, SF otherwise), composite + Fantrax ADP, and
+player's format — IDP for defense, SF otherwise), composite ADP, and
 the player's contract in our league if rostered.
 
 ### `/cap` — league salary-cap standings
@@ -102,7 +90,6 @@ github_fetch.py   # GitHub contents API → DataFrame, TTL cache (all data acces
 delivery.py       # privacy routing + ShareView + respond_with_embeds wrapper
 render.py         # embed pagination + null-safe cell formatting (shared)
 rankings.py       # /rankings cog + query
-adp.py            # /adp cog + query
 player.py         # /player cog + query
 cap.py            # /cap cog + query
 roster.py         # /roster cog + query

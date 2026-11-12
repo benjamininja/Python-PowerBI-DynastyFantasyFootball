@@ -77,17 +77,14 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02g | `02g_nflverse_inseason.py` | `fact_nfl_snap_counts`, `fact_nfl_injuries`: snaps by Unit per game and the weekly injury report, current season, from nflverse (ADR-0017, #86). Each row carries the Scoring Period of its game date, read off `dim_scoring_period`. Snap rows with no `gsis_id` (offensive linemen, long snappers) are dropped and counted. Each run replaces the season; no login. In the scheduled run it is the `injury` group, in-season only |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams`, grain `(team_key, scorer_id)`: the current roster, from the newest `getTeamRosters` reply 04r saved (`roster_slot`, salary and contract are Fantrax's; Starter / Bench / IR / Minors, as in `fact_roster_state`). The ledger adds `acquired_method` / `acquired_date` from the move that opened the copy's open stint, else `unknown`. `etl_cap` stamps `cap_hit` and `cap_exempt` (the Minors and IR slots are exempt; ADR-0016's #97 amendment). Fails in season with no saved reply; out of season builds from the ledger replay with slots blank. `--raw-dir` reads the replies from another folder. Written through the storage seam; no network |
 | 02h | `02h_fact_team_cap.py` | `fact_team_cap`, grain `(season_id, team_key)`: the published cap table, this season and next (ADR-0016's #97 amendment), with `etl_cap`'s rules. This season is the `season` on `fact_fantasy_teams`, never the calendar. Each season's row carries only that season's Dead Money. Fantrax's Salary Remaining sits on the current-season row, from the newest `standings` reply `04s` saved for that season; the Review check `salary_remaining` compares it on Fantrax's basis on the same league day. `--raw-dir` reads the replies from another folder. Rewrites the whole table; no network |
-| 03a | `03a_fantasypros_rankings.ipynb` | FantasyPros PPR + Superflex (scraped) |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
-| 03c | `03c_ktc_rankings.ipynb` | KeepTradeCut consensus (scraped) |
 | 03d | `03d_draftsharks_rankings.ipynb` | DraftSharks top-90 (scraped) |
 | 03x | `03x_manual_rankings.ipynb` | RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP (Excel) |
 | 03y | `03y_dim_player_alias.ipynb` | `dim_player_alias` (backfill from archived reviews) |
 | 03z | `03z_apply_fuzzy_review.ipynb` | Applies `data/review/review_fuzzy_matches.csv` decisions |
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
-| 04b | `04b_ktc_dynasty_rankings.ipynb` | `fact_dynasty_ranking_metrics` (overall/positional rank folded in as metric_keys) + `dim_dynasty_crosswalk` (KTC, embedded-HTML scrape) |
 | 04c | `04c_dim_dynasty_metric.ipynb` | `dim_dynasty_metric` — curated index for `metric_key` (label/group/order/direction); matrix column axis |
-| 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — KTC RDP (Early/Mid/Late tercile) + DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `fact_draft_pick` rows in that project's backend |
+| 04d | `04d_draftpick_value_curve.ipynb` | `dim_pick_value_curve` — DraftSharks dynasty TE-premium-SF (flat per-round) pick-value buckets by `(snapshot_date, source_name, draft_year, round, tier)`. Not part of the player-identity EAV — mouserat_trade-bud pick valuation, resolved to real `fact_draft_pick` rows in that project's backend |
 | 04p | `04p_fantrax_league_info.py` | Fantrax's public no-auth `getLeagueInfo` — **scheduled script** (after 01f): `dim_scoring_period` (all 17 Scoring Periods with exact bounds, `is_playoff`, and the Update-Set state `open` / `closing` / `closed`) + `dim_division` (the season's Division name per Conference; replaces the Sheet-sourced `01g`, now in `archive/`). Fails, and holds the Chain, unless each Fantrax division maps to exactly one Conference. Closes a period once the following period has ended and its Close checks pass on the stored tables (`etl_checks.close_errors`: Roster State covers 28 teams; Matchups hold every team once and mirror; each Matchup score is the team's Starter sum). A period that fails stays `closing` and is logged; a `closed` period is frozen (no re-open until #93) |
 | 04r | `04r_fantrax_roster_state.py` | Fantrax's public no-auth `getTeamRosters?period=N` — **scheduled script** (after 04p): `fact_roster_state`, the Roster State of each regular-season Scoring Period (Roster Slot `Starter` / `Bench` / `IR` / `Minors`, salary, contract), replace-by-`(season_id, period)`. Reads every period that has started and is not `closed`, never one past the period Fantrax calls current (Fantrax answers a future period with the current roster). Fails, and holds the Chain, on a reply for the wrong period, a team set other than `dim_fantasy_teams`', an unknown status or a contract not in `dim_contract`. `02d` and `04e` read it. Every reply it saves is stamped `captured_at` and `season_id`; the current (no-period) roster is read and kept on every run, all year, even when the league's season is not yet in `dim_scoring_period` (then no Roster State is written). `02e` builds `fact_fantasy_teams` from the newest saved reply (#97) |
 | 04s | `04s_fantrax_inseason_capture.py` | Internal `fxpa/req` RPC, logged in — **scheduled script** (after 04r, in-season only; it reuses 04a's session): captures `data/raw/fantrax_inseason_{season}_schedule.json` (every week's matchups and scores) + `_p{NN}.json` per Scoring Period (`getLiveScoringStats` with the bench view, so Starters and non-starters; the plain `getStandings`, saved raw and never loaded: it carries Fantrax's Salary Remaining for #97). Each file is stamped `captured_at`. Then loads every period whose games are final: `fact_period_scoring` (each rostered player's points, split by Unit, with `is_starter`) and `fact_matchup` (two mirrored rows per matchup), both replace-by-(season_id, period). `--from-raw` loads from the saved files with no browser and no login. Default periods: every regular-season period that has started and is not closed; a period outside that list is never loaded. No standings table is built: Standings are derived from `fact_matchup` (win percentage, then points for) |
@@ -95,7 +92,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04u | `04u_fantrax_public_api.py` | Fantrax's public no-auth `fxea/general` REST API: `getDraftPicks` → `fact_draft_pick_future` (real 2027-2028 pick ownership, incl. pick-for-pick trades). Manual run |
 | 04v | `04v_minor_contracts.py` | Minors eligibility — **scheduled script** (after 04a), read-only: Fantrax's own minors-eligibility verdict (GP ≤ 19) → `fact_minor_eligibility`. `02d` reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from `04r`, not from here |
 | 04w | `04w_fantrax_draft_results.py` | Raw `getDraftResults` JSON per division (live startup-draft capture) — parsed downstream by `02d` |
-| 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) + FantasyPros (SF/IDP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
+| 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
 The `.py` rows (`02d`, `02e`, `02f`, `02h`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
@@ -106,8 +103,8 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h
-→ (04b, offseason)`, surfaces review-queue row counts, commits refreshed
+`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h`,
+surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
 
@@ -117,30 +114,35 @@ notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
   Thursday 06:00; `-Unregister` to remove).
 - Testing: `.\run.ps1 scripts\run_pipeline.py --dry-run [--phase X]
   [--steps a,b] [--no-commit] [--no-push]`.
-- `--profile dynasty` appends `04b → 04c → 04y` (run after refreshing the
+- `--profile dynasty` appends `04c → 04y` (run after refreshing the
   04x manual Excel).
 - **Never scheduled**: the live-draft chain (`04w → 02d → 02f → 02e → 05a`), the
-  03-group rookie chain (manual Excel gates), and review applies (`03z`,
-  `apply_fantrax_crosswalk_review`). No step writes to Fantrax — the one
+  03-group rookie chain (manual Excel gates), and review applies (`03z`).
+  A Fantrax crosswalk review row is decided from GitHub, not on the PC:
+  Actions → Record a crosswalk override → Run workflow (on `main`), then
+  enter the Fantrax `scorer_id` and a registry `gsis_id` (or `new`); tick
+  `replace` to change a decision that already exists. It writes one row to
+  `dim_fantrax_crosswalk_override`, and the next Daily Run's `04z` reads it
+  (`scripts/record_crosswalk_override.py`). No step writes to Fantrax — the one
   write-side path (`04v --apply`) was removed along with its contract
   worklist (ADR-0011).
 
 ### Dynasty rankings (04) — single EAV fact
 
-Dynasty sources expose **incompatible metric vocabularies** (KTC trade value/tiers/trends;
-DynastySharks 1/3/5/10-yr projections; FantasyPros best/worst/avg/std-dev). The 2026-06-12
+Dynasty sources expose **incompatible metric vocabularies** (e.g. DynastySharks
+1/3/5/10-yr projections beside plain ranks). The 2026-06-12
 refactor (ADR-0002) collapsed the former two-layer backbone+companion model into **one
 long EAV fact** — even rank is just another metric:
 - `fact_dynasty_ranking_metrics` — **long EAV** (`metric_key → metric_num/metric_text`),
   grain `snapshot_date × source_name × source_player_id × format`. Overall/positional rank
-  fold in as source-prefixed metric_keys (`ktc_overall_rank`, `fp_positional_rank`, …);
+  fold in as source-prefixed metric_keys (`ds_overall_rank`, `dsr_positional_rank`, …);
   new sources/metrics add rows, never columns. (The separate `fact_dynasty_rankings`
   ranking backbone is **retired**.)
 - `dim_dynasty_crosswalk` — `(source, source_player_id) → gsis_id + player_key` (unified across sources).
-- `dim_dynasty_metric` — curated index for `metric_key` (`metric_label`/`metric_group`/`metric_order`/`direction`); use as the matrix **column axis**, sort `metric_label` by `metric_order`. The 6 per-source rank rows are generated from `SOURCE_PREFIX` (one source list shared with `04b`/`04x`).
+- `dim_dynasty_metric` — curated index for `metric_key` (`metric_label`/`metric_group`/`metric_order`/`direction`); use as the matrix **column axis**, sort `metric_label` by `metric_order`. The 6 per-source rank rows are generated from `SOURCE_PREFIX` (one source list shared with `04x`).
 
-Formats are a dimension (`SF`, `TEPP`, `IDP`, …). Sources: KTC = `04b` (scrape),
-DynastySharks + FantasyPros = `04x` (manual Excel). Identity is resolved by the
+Formats are a dimension (`SF`, `TEPP`, `IDP`, …). Sources: DynastySharks =
+`04f` (scrape) and `04x` (manual Excel). Identity is resolved by the
 **shared** `etl_helpers.resolve_dynasty_crosswalk` (one matcher for all sources;
 each source notebook upserts its own rows + passes nickname overrides).
 

@@ -18,12 +18,12 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 _BOT_DIR = Path(__file__).resolve().parent.parent
 _DATA = _BOT_DIR.parent / "data"
 sys.path.insert(0, str(_BOT_DIR))
 
-import adp  # noqa: E402
 import cap  # noqa: E402
 import capmath  # noqa: E402
 import player  # noqa: E402
@@ -47,7 +47,7 @@ def _local_fetch(path: str, _cfg: Config) -> pd.DataFrame:
 # each module's own namespace. capmath (cap.py/roster.py's shared cap-table
 # reader) imports fetch_parquet itself — omitting it here means teams_with_cap/
 # roster_with_cap_hit silently hit real GitHub instead of local parquet.
-for mod in (rankings, adp, player, cap, roster, capmath):
+for mod in (rankings, player, cap, roster, capmath):
     mod.fetch_parquet = _local_fetch
 
 
@@ -70,16 +70,8 @@ def _expect_error(fn, label: str) -> None:
 
 def test_rankings():
     _check(rankings.build_rankings_embeds(CFG, fmt="SF"), "rankings SF all")
-    _check(rankings.build_rankings_embeds(CFG, fmt="IDP"), "rankings IDP all")
     _check(rankings.build_rankings_embeds(CFG, fmt="SF", position="QB"), "rankings SF QB")
     _expect_error(lambda: rankings.build_rankings_embeds(CFG, fmt="ZZZ"), "rankings bad format")
-
-
-def test_adp():
-    _check(adp.build_adp_embeds(CFG), "adp overall")
-    _check(adp.build_adp_embeds(CFG, position="QB"), "adp QB")
-    _check(adp.build_adp_embeds(CFG, limit=50), "adp limit 50")
-    _expect_error(lambda: adp.build_adp_embeds(CFG, position="ZZZ"), "adp bad position")
 
 
 def test_player():
@@ -108,8 +100,8 @@ def test_name_search_still_resolves_a_person_with_only_a_dropped_row():
 
 def _tied_board(order: list[int]) -> list[str]:
     eav = pd.DataFrame({
-        "snapshot_date": pd.to_datetime(["2026-01-01"] * 3), "source_name": ["KTC"] * 3,
-        "format": ["SF"] * 3, "metric_key": ["ktc_positional_rank"] * 3,
+        "snapshot_date": pd.to_datetime(["2026-01-01"] * 3), "source_name": ["DynastySharks"] * 3,
+        "format": ["SF"] * 3, "metric_key": ["ds_positional_rank"] * 3,
         "gsis_id": ["g1", "g2", "g3"], "metric_num": [1.0, 1.0, 1.0],
     }).iloc[order]
     players = pd.DataFrame({
@@ -138,6 +130,42 @@ def test_rankings_ties_break_by_name_then_gsis_whichever_row_comes_first():
     assert _tied_board([2, 1, 0]) == _tied_board([1, 0, 2]) == first
     body = first[0][1]
     assert body.index("BBB") < body.index("CCC") < body.index("Zed")
+
+
+def _rank_fetch(eav: pd.DataFrame):
+    players = pd.DataFrame({
+        "gsis_id": ["g1", "g2"], "display_name": ["Amy Ant", "Bob Bee"],
+        "position_group": ["QB", "QB"], "team_abbr": ["AAA", "BBB"],
+    })
+    return lambda path, _cfg: eav if "metrics" in path else players
+
+
+def _eav(rows: list[tuple[str, str, str, str]]) -> pd.DataFrame:
+    return pd.DataFrame({
+        "snapshot_date": pd.to_datetime(["2026-01-01"] * len(rows)),
+        "source_name": [r[0] for r in rows], "format": [r[1] for r in rows],
+        "metric_key": [r[2] for r in rows], "gsis_id": [r[3] for r in rows],
+        "metric_num": [float(i + 1) for i in range(len(rows))],
+    })
+
+
+def test_rankings_idp_replies_with_the_fixed_text_when_no_source_ranks_it(monkeypatch):
+    eav = _eav([("DynastySharks", "SF", "ds_positional_rank", "g1")])
+    monkeypatch.setattr(rankings, "fetch_parquet", _rank_fetch(eav))
+    with pytest.raises(CommandError) as err:
+        rankings.build_rankings_embeds(CFG, fmt="IDP")
+    assert str(err.value) == "No IDP ranking source yet."
+
+
+def test_rankings_sf_defaults_to_dynastysharks(monkeypatch):
+    eav = _eav([
+        ("DynastySharks", "SF", "ds_positional_rank", "g1"),
+        ("DynastySharks", "SF", "ds_positional_rank", "g2"),
+    ])
+    monkeypatch.setattr(rankings, "fetch_parquet", _rank_fetch(eav))
+    embeds = rankings.build_rankings_embeds(CFG, fmt="SF")
+    assert "(DynastySharks)" in embeds[0].title
+    assert "Source: DynastySharks" in embeds[0].footer.text
 
 
 def _league_fetch(owned: pd.DataFrame, teams: pd.DataFrame):

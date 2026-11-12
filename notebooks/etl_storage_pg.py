@@ -21,9 +21,21 @@ BATCH_TABLE = "_seam_batch"
 _TEXT_DTYPES = ("str", "string", "object")
 
 
+LOCK_TIMEOUT_MS = 10_000
+
+
 class WriteRefused(ValueError):
     """The database refused the batch: a value out of range, a null or a
     repeated key, a check, or a foreign key at commit."""
+
+
+class LockTimeout(WriteRefused):
+    """A lock wait ran past LOCK_TIMEOUT_MS (SQLSTATE 55P03). The step stops
+    and nothing retries it; the message names where the wait was and for how long."""
+
+    def __init__(self, where: str):
+        super().__init__(f"{where}: waited {LOCK_TIMEOUT_MS // 1000}s for a lock, gave up "
+                         f"(lock_timeout); not retried")
 
 
 def _psycopg():
@@ -32,15 +44,83 @@ def _psycopg():
     return psycopg, sql
 
 
+def bound_locks(conn) -> None:
+    """Start of every transaction on a write path: no lock wait runs past
+    LOCK_TIMEOUT_MS, whatever the role or session default is. SET LOCAL ends
+    with the transaction. A step that needs another bound saves the value in
+    force (`SELECT current_setting('lock_timeout')`) and sets that back, never 0,
+    which means no limit."""
+    conn.execute(f"SET LOCAL lock_timeout = {int(LOCK_TIMEOUT_MS)}")
+
+
 @contextlib.contextmanager
-def _db_errors():
-    """Any error psycopg raises comes out as WriteRefused, first line only."""
+def _waiting_on(where: str):
+    """A lock timeout inside the block comes out as LockTimeout naming `where`."""
     psycopg, _ = _psycopg()
     try:
         yield
+    except psycopg.errors.LockNotAvailable as exc:
+        raise LockTimeout(where) from exc
+
+
+def _outside(links, loaded) -> list[str]:
+    """The tables the foreign-key checks of a load of `loaded` read, other than
+    `loaded` themselves: the parents of the loaded tables and the tables that
+    reference them. `links` is (child, parent) per foreign key. The load already
+    holds a lock on each loaded table, so a check can only wait on one of these."""
+    loaded = set(loaded)
+    touched = {p for c, p in links if c in loaded} | {c for c, p in links if p in loaded}
+    return sorted(touched - loaded)
+
+
+def _fk_where(conn, loaded) -> str:
+    """Where a foreign-key check at commit waited, for LockTimeout: the tables
+    it reads outside the load (up to three named). Run after the check's
+    savepoint has rolled back, so the transaction can still be asked."""
+    psycopg, _ = _psycopg()
+    try:
+        links = [(child, parent) for child, parent in conn.execute(
+            "SELECT cr.relname, pr.relname FROM pg_constraint c "
+            "JOIN pg_class cr ON cr.oid = c.conrelid JOIN pg_class pr ON pr.oid = c.confrelid "
+            "WHERE c.contype = 'f' AND c.connamespace = %s::regnamespace", (SCHEMA,))]
+    except psycopg.Error:
+        links = []
+    names = [f"{SCHEMA}.{t}" for t in _outside(links, loaded)]
+    if not names:
+        return "foreign-key check at commit on a table the foreign keys reference"
+    more = f" and {len(names) - 3} more" if len(names) > 3 else ""
+    return "foreign-key check at commit on " + ", ".join(names[:3]) + more
+
+
+@contextlib.contextmanager
+def _db_errors(where: str | None = None):
+    """Any error psycopg raises comes out as WriteRefused, first line only. A
+    lock timeout not already named by a step inside comes out as LockTimeout
+    naming `where`."""
+    psycopg, _ = _psycopg()
+    try:
+        with _waiting_on(where) if where else contextlib.nullcontext():
+            yield
     except psycopg.Error as exc:
         lines = str(exc).strip().splitlines()
         raise WriteRefused(lines[0] if lines else type(exc).__name__) from exc
+
+
+_READ_ONLY = False
+
+
+@contextlib.contextmanager
+def session_read_only():
+    """Every connection this module opens inside the block is read-only: each
+    transaction starts as BEGIN READ ONLY, so any write raises (psycopg
+    `Connection.read_only`, which works through a pooler too). The owner's
+    comparison check runs in it (#93)."""
+    global _READ_ONLY
+    was, _READ_ONLY = _READ_ONLY, True
+    try:
+        yield
+    finally:
+        _READ_ONLY = was
 
 
 def _connect():
@@ -48,7 +128,10 @@ def _connect():
     if not url:
         raise RuntimeError(f"ETL_STORAGE=postgres needs {URL_ENV} set")
     psycopg, _ = _psycopg()
-    return psycopg.connect(url, prepare_threshold=None)
+    conn = psycopg.connect(url, prepare_threshold=None)
+    if _READ_ONLY:
+        conn.read_only = True
+    return conn
 
 
 def _state() -> dict:
@@ -230,8 +313,9 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
             raise WriteRefused(f"{entry['name']}: keys not in the table: {missing}")
     if mode == "upsert":
         df = df.drop_duplicates(subset=keys, keep="last")
-    with _db_errors(), _connect() as conn:
+    with _db_errors(f"{spec['schema']}.{spec['name']}"), _connect() as conn:
         with conn.transaction():
+            bound_locks(conn)
             with conn.cursor() as cur:
                 if mode == "replace":
                     batch = stage(cur, spec, columns, df)
@@ -245,6 +329,70 @@ def write(entry: dict, df: pd.DataFrame, mode: str, keys, partition) -> int:
                     _keys_delete(cur, spec, columns, df, keys)
                 count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
     return int(count)
+
+
+def write_checked(entry: dict, df: pd.DataFrame, keys, reads: dict, check) -> tuple[list[str], int | None]:
+    """Upsert `df` on `keys` only if `check` finds no problem, all in ONE
+    transaction. The target is locked in SHARE ROW EXCLUSIVE MODE first, so a
+    second writer waits (LockTimeout past LOCK_TIMEOUT_MS) and then reads what
+    the first one committed. `reads` is `{name: (registry entry, columns)}`;
+    `check` gets `{name: raw frame or None}` read on this connection after the
+    lock and returns the problems. Returns (problems, None) with nothing
+    written, or ([], the table's row count after)."""
+    _, sql = _psycopg()
+    spec = _spec(entry)
+    columns = _check_columns(entry, spec)
+    missing = [k for k in keys if k not in columns]
+    if missing:
+        raise WriteRefused(f"{entry['name']}: keys not in the table: {missing}")
+    df = df.drop_duplicates(subset=keys, keep="last")
+    where = f"{spec['schema']}.{spec['name']}"
+    with _db_errors(where), _connect() as conn:
+        with conn.transaction():
+            bound_locks(conn)
+            with _waiting_on(where):
+                conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(_table(spec)))
+            stored = {}
+            for name, (read_entry, cols) in reads.items():
+                with _waiting_on(f"{_spec(read_entry)['schema']}.{name}"):
+                    stored[name] = read_on(conn, read_entry, cols)
+            problems = list(check(stored))
+            if problems:
+                return problems, None
+            with conn.cursor() as cur:
+                if len(df):
+                    _keys_delete(cur, spec, columns, df, keys)
+                count = cur.execute(sql.SQL("SELECT count(*) FROM {}").format(_table(spec))).fetchone()[0]
+    return [], int(count)
+
+
+def write_all_empty(batches: dict) -> dict:
+    """Insert every batch (`{name: (registry entry, checked frame)}`) into its
+    table in ONE transaction. The tables are locked first, and a table that
+    already holds a row refuses the whole write inside that same transaction;
+    any other refusal rolls every insert back. Returns the row count each
+    table holds, counted before the commit."""
+    _, sql = _psycopg()
+    specs = {name: _spec(entry) for name, (entry, _) in batches.items()}
+    with _db_errors(f"the write of {len(specs)} table(s)"), _connect() as conn:
+        with conn.transaction():
+            bound_locks(conn)
+            for name in sorted(specs):
+                with _waiting_on(f"{specs[name]['schema']}.{name}"):
+                    conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE").format(_table(specs[name])))
+            held = [name for name in sorted(specs)
+                    if conn.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM {})")
+                                    .format(_table(specs[name]))).fetchone()[0]]
+            if held:
+                raise WriteRefused(f"{', '.join(held)} already hold rows")
+            for name, (entry, df) in batches.items():
+                columns = _check_columns(entry, specs[name])
+                with conn.cursor() as cur, _waiting_on(f"{specs[name]['schema']}.{name}"):
+                    staged = stage(cur, specs[name], columns, df)
+                    insert_staged(cur, specs[name], columns, staged)
+            return {name: int(conn.execute(sql.SQL("SELECT count(*) FROM {}")
+                                           .format(_table(spec))).fetchone()[0])
+                    for name, spec in specs.items()}
 
 
 # ---- The backfill: load the published tables, read them back, compare (#135, B3) ----
@@ -336,8 +484,9 @@ def orphans(conn) -> list[str]:
     for name, child, parent, ccols, pcols in keys:
         present = " AND ".join(f'c."{x}" IS NOT NULL' for x in ccols)
         match = " AND ".join(f'p."{y}" = c."{x}"' for x, y in zip(ccols, pcols))
-        n = conn.execute(f"SELECT count(*) FROM {child} c WHERE {present} "
-                         f"AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match})").fetchone()[0]
+        with _waiting_on(f"{child} or {parent}"):
+            n = conn.execute(f"SELECT count(*) FROM {child} c WHERE {present} "
+                             f"AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match})").fetchone()[0]
         if n:
             lines.append(f"FOREIGN KEY {name}: {n} row(s) with no parent")
     return lines
@@ -413,11 +562,12 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
     problems, counts, refused = [], {}, False
     with psycopg.connect(url, prepare_threshold=None) as conn:
         with conn.transaction() as tx:
+            bound_locks(conn)
             if empty_only:
-                conn.execute("SET LOCAL lock_timeout = '10s'")
                 for name in sorted(frames):
-                    conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE")
-                                 .format(sql.Identifier(SCHEMA, name)))
+                    with _waiting_on(f"{SCHEMA}.{name}"):
+                        conn.execute(sql.SQL("LOCK TABLE {} IN SHARE ROW EXCLUSIVE MODE")
+                                     .format(sql.Identifier(SCHEMA, name)))
                 problems.extend(f"{SCHEMA}.{name} already holds rows; this run loads an empty schema "
                                 f"(--replace empties each table first)"
                                 for name in nonempty(conn, sorted(frames)))
@@ -435,6 +585,8 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
                         if replace:
                             cur.execute(sql.SQL("DELETE FROM {}").format(_table(spec)))
                         insert_staged(cur, spec, columns, staged)
+                except psycopg.errors.LockNotAvailable as exc:
+                    raise LockTimeout(f"{SCHEMA}.{name}") from exc
                 except psycopg.Error as exc:
                     problems.append(f"{name}: refused: {describe(exc)}")
                     try:
@@ -444,14 +596,21 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
             if not problems:
                 problems.extend(orphans(conn))
             if not problems:
-                conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
-                counts = {name: conn.execute(sql.SQL("SELECT count(*) FROM {}")
-                                             .format(sql.Identifier(SCHEMA, name))).fetchone()[0]
-                          for name in frames}
+                try:
+                    with conn.transaction():
+                        conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+                except psycopg.errors.LockNotAvailable as exc:
+                    raise LockTimeout(_fk_where(conn, frames)) from exc
+                counts = {}
+                for name in frames:
+                    with _waiting_on(f"{SCHEMA}.{name}"):
+                        counts[name] = conn.execute(sql.SQL("SELECT count(*) FROM {}")
+                                                    .format(sql.Identifier(SCHEMA, name))).fetchone()[0]
             if verify and not problems:
                 for name, frame in frames.items():
                     entry = etl._table_entry(name)
-                    got = read_on(conn, entry)
+                    with _waiting_on(f"{SCHEMA}.{name}"):
+                        got = read_on(conn, entry)
                     if got is not None:
                         got = etl._coerce(got, entry)
                     problems.extend(differences(got, frame, entry))
@@ -481,35 +640,82 @@ def like_snapshot(df: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
     extra = [c for c in df.columns if c not in snapshot.columns]
     if missing or extra:
         raise ValueError(f"columns differ from the snapshot: missing {missing}, extra {extra}")
-    out = df[list(snapshot.columns)].copy()
+    return _snapshot_flavour(df[list(snapshot.columns)].copy(), snapshot)
+
+
+def _snapshot_flavour(out: pd.DataFrame, snapshot: pd.DataFrame) -> pd.DataFrame:
     for col in out.columns:
+        if col not in snapshot.columns:
+            continue
         was, want = str(out[col].dtype), str(snapshot[col].dtype)
         if was != want and was in _TEXT_DTYPES and want in _TEXT_DTYPES:
             out[col] = out[col].astype(snapshot[col].dtype)
     return out
 
 
-def export_published(names, data_dir) -> dict:
+def frame_drift(df: pd.DataFrame, entry: dict) -> None:
+    """Raise ValueError, naming columns only, unless `df` holds exactly the
+    columns the registry declares for the table. The frame comes from the
+    database through `read_on`, which has already refused unless the registry
+    and registry_state.json agree; this is the explicit check that what is
+    about to be written is the registry's shape, so a snapshot behind the
+    registry is the one thing an export may follow (`follow_registry`)."""
+    declared = [c["name"] for c in entry["columns"]]
+    missing = [c for c in declared if c not in df.columns]
+    extra = [c for c in df.columns if c not in declared]
+    if missing or extra or len(df.columns) != len(declared):
+        raise ValueError(f"{entry['name']}: columns differ from the registry: "
+                         f"missing {missing}, extra {extra}")
+
+
+def follow_registry(df: pd.DataFrame, snapshot: pd.DataFrame):
+    """`df` (already the registry's columns) for a snapshot that is behind the
+    registry: the snapshot's columns that remain, in its order, then the added
+    ones, in `df` order, with the snapshot's text flavour where it differs.
+    Returns the frame, the added column names and the dropped ones. A rename
+    is one dropped name and one added name: the registry marks none."""
+    added = [c for c in df.columns if c not in snapshot.columns]
+    dropped = [c for c in snapshot.columns if c not in df.columns]
+    kept = [c for c in snapshot.columns if c in df.columns]
+    return _snapshot_flavour(df[kept + added].copy(), snapshot), added, dropped
+
+
+def export_published(names, data_dir, changes=None) -> dict:
     """Write `<data_dir>/<name>.parquet` for each of `names` from the database
     and return the rows written per table. Rows are sorted by the table's
     primary key (Q1 of #135); columns and dtypes follow the snapshot already
-    in `data_dir`, if any. Every table is read before any file is written."""
+    in `data_dir`, if any. Every table is read before any file is written.
+    A frame that is not the registry's columns raises (`frame_drift`). A
+    snapshot whose columns differ from the registry's is behind an intended
+    change (#355): it is written in the registry's shape, and if `changes` is
+    a dict, `changes[name] = {"added": [...], "dropped": [...]}` is set once
+    every file is written, column names only."""
     import etl_helpers as etl
     data_dir = Path(data_dir)
-    frames = {}
+    frames, found = {}, {}
     with _db_errors(), _connect() as conn:
         for name in names:
             entry = etl._table_entry(name)
             got = read_on(conn, entry)
             df = etl.empty_frame(entry) if got is None else etl._coerce(got, entry)
             df = df.sort_values(etl.table_grain(entry), kind="stable").reset_index(drop=True)
+            frame_drift(df, entry)
             try:
-                df = like_snapshot(df, etl.read_stored(name, data_dir))
+                snapshot = etl.read_stored(name, data_dir)
             except etl.TableNotFound:
-                pass
+                snapshot = None
+            if snapshot is not None:
+                if set(snapshot.columns) == set(df.columns):
+                    df = like_snapshot(df, snapshot)
+                else:
+                    df, added, dropped = follow_registry(df, snapshot)
+                    found[name] = {"added": added, "dropped": dropped}
             frames[name] = (entry, df)
-    return {name: len(etl._write_parquet(data_dir / f"{name}.parquet", df, "replace", None, None, entry))
-            for name, (entry, df) in frames.items()}
+    written = {name: len(etl._write_parquet(data_dir / f"{name}.parquet", df, "replace", None, None, entry))
+               for name, (entry, df) in frames.items()}
+    if changes is not None:
+        changes.update(found)
+    return written
 
 
 def clear_published(url: str, names) -> None:

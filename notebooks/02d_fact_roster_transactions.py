@@ -2,8 +2,10 @@
 # # 02d_fact_roster_transactions  (startup-draft ledger parse)
 #
 # **Purpose:** Transform-step for the event-sourced acquisition ledger
-# (ADR-0003/0004). Reads the captured `getDraftResults` (04w) and emits three
-# tables in one pass:
+# (ADR-0003/0004). Reads the Startup draft from the private table
+# `fact_startup_draft_slot` (filled once from the `getDraftResults` captures
+# by scripts/load_draft_and_overrides.py, #93) and emits three tables in one
+# pass:
 #
 # - **`dim_roster_asset`** — polymorphic asset bridge. One row per real-world
 #   asset; `asset_id` is a **monotonic int sequence assigned at first sight and
@@ -100,16 +102,15 @@ PICK_PATH        = DATA / "fact_draft_pick.parquet"
 TRADE_LOG_PATH = DATA / "fact_trade_log.parquet"
 PICK_REVIEW_PATH = REVIEW / "review_trade_log_picks.csv"
 PICK_OWNER_REVIEW_PATH = REVIEW / "review_pick_ownership.csv"
-DRAFT_GLOB     = str(DATA / "raw" / "fantrax_draftresults_2026*.json")
 TXN_GLOB       = str(DATA / "raw" / "fantrax_txn_history_*.json")
+DRAFT_SLOT_TABLE = "fact_startup_draft_slot"   # private copy of the Startup draft (#93 brief 6)
+DRAFT_LOADER     = "scripts/load_draft_and_overrides.py"
 
 
 def use_raw_dir(raw_dir) -> None:
-    """Point both raw globs at `raw_dir`, read in place (a worktree has no data/raw)."""
-    global DRAFT_GLOB, TXN_GLOB
-    folder = Path(raw_dir)
-    DRAFT_GLOB = str(folder / Path(DRAFT_GLOB).name)
-    TXN_GLOB   = str(folder / Path(TXN_GLOB).name)
+    """Point the transaction-history glob at `raw_dir`, read in place (a worktree has no data/raw)."""
+    global TXN_GLOB
+    TXN_GLOB = str(Path(raw_dir) / Path(TXN_GLOB).name)
 
 
 def parse_args(argv=None):
@@ -186,30 +187,27 @@ _PICK_OWNER = re.compile(r"\((.*)\)\s*$")
 
 # %%
 # ---- Draft results: load + parse -------------------------------------------
-def load_draft() -> list[dict]:
-    """Every captured `getDraftResults` payload, oldest capture first.
+def load_draft() -> pd.DataFrame:
+    """The Startup draft's slots, from the private table the one-time loader
+    fills (the payloads are deduped there, on the slot). Raises
+    `TableNotFound` naming the loader when the table holds nothing."""
+    try:
+        slots = etl.read_table(DRAFT_SLOT_TABLE)
+    except etl.TableNotFound:
+        raise etl.TableNotFound(
+            f"{DRAFT_SLOT_TABLE} holds no rows -- run {DRAFT_LOADER} once "
+            f"(ETL_STORAGE=postgres)") from None
+    print(f"[info] {len(slots)} draft slot(s) read from {DRAFT_SLOT_TABLE}")
+    return slots
 
-    Globs every `fantrax_draftresults_2026*.json` — covers the legacy no-suffix
-    file AND the per-division files 04w now writes."""
-    files = sorted(glob.glob(DRAFT_GLOB), key=lambda f: Path(f).stat().st_mtime)
-    if not files:
-        raise FileNotFoundError("No draft-results capture found -- run 04w first.")
-    print(f"[info] division files (oldest first): {[Path(f).name for f in files]}")
-    return [json.loads(Path(f).read_text(encoding="utf-8")) for f in files]
 
-
-def parse_draft_results(payloads: list[dict]) -> pd.DataFrame:
-    """`getDraftResults` payloads (oldest first) -> one row per pick slot.
-
-    Picks are deduped on `(divisionId, round, pickNumber)` keeping the latest
-    capture, so the old and new Riddell files don't double-count."""
-    pick_rows = []
-    for payload in payloads:
-        pick_rows.extend(payload["responses"][0]["data"]["draftPicksOrdered"])
-
-    picks = pd.DataFrame(pick_rows)
-    picks = picks.drop_duplicates(
-        subset=["divisionId", "round", "pickNumber"], keep="last").reset_index(drop=True)
+def parse_draft_results(slots: pd.DataFrame) -> pd.DataFrame:
+    """The slot table -> one row per pick slot, under the names the rest of
+    this module reads (Fantrax's own: divisionId, pickNumber, teamId, scorerId;
+    `pickedAt` is the pick time) plus `overall_slot`."""
+    picks = slots.rename(columns={"division_id": "divisionId", "pick_in_round": "pickNumber",
+                                  "team_id": "teamId", "scorer_id": "scorerId",
+                                  "picked_at": "pickedAt"}).reset_index(drop=True)
     # canonical snake order: pickNumber already encodes within-round snake order,
     # so overall_slot is linear in (round, pickNumber). N = teams per division.
     n_by_div = picks.groupby("divisionId")["pickNumber"].transform("max")
@@ -919,8 +917,9 @@ def repriced(terms: dict, salary: float) -> dict:
 
 # %%
 # ---- fact_roster_transactions: one startup_draft row per made pick ---------
-def _epoch_ms_to_date(ms):
-    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date() if pd.notna(ms) else pd.NaT
+def _pick_date(stamp):
+    """The UTC day of a pick time (a tz-aware timestamp), NaT where none."""
+    return stamp.tz_convert("UTC").date() if pd.notna(stamp) else pd.NaT
 
 
 def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, departs,
@@ -936,7 +935,7 @@ def build_startup_rows(made, team_lut, sid2aid, gsis_lut, draft_salaries, src, d
     for _, p in made.iterrows():
         sid = p["scorerId"]
         team_key   = team_lut[p["teamId"]]
-        event_date = _epoch_ms_to_date(p["modifiedDate"])
+        event_date = _pick_date(p["pickedAt"])
         # The pick starts the copy's stint, which ends at its first departure.
         left = stint_end(departs, team_key, sid)
         seen = first_in_stint(src.snaps, team_key, sid, DRAFT_PERIOD, event_date,

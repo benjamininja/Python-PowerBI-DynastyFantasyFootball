@@ -20,9 +20,14 @@ Phase model (derived from 04a's week label + the season calendar):
   OFFSEASON  everything else (fixes the "February clamps to week 18" edge:
              derive_week_label alone would keep saying 18 forever)
 
+Cadence (ADR-0020): each step is `daily` or `close_day`. A close_day step runs
+on its Close Day, or on the first run after it with no success for that week
+in ops.etl_run_log; `--cadence all` runs every step. The week is
+(season, period) in season and the ISO week off season.
+
 NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
-03-group rookie chain (manual Excel gates), and review applies (03z,
-apply_fantrax_crosswalk_review). Nothing here writes to Fantrax: the one
+03-group rookie chain (manual Excel gates), and review applies (03z; a
+crosswalk decision is the Record a crosswalk override workflow). Nothing here writes to Fantrax: the one
 write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
 (ADR-0019: Fantrax sets the `Minor` contract itself).
 
@@ -43,9 +48,19 @@ import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Callable
 
 REPO = Path(__file__).resolve().parent.parent
-VENV_PY = REPO / ".venv" / "Scripts" / "python.exe"
+
+
+def _find_python(repo: Path) -> Path:
+    for candidate in (repo / ".venv" / "Scripts" / "python.exe", repo / ".venv" / "bin" / "python"):
+        if candidate.exists():
+            return candidate
+    return Path(sys.executable)
+
+
+VENV_PY = _find_python(REPO)
 NB = REPO / "notebooks"
 OUT_DIR = REPO / "data" / "outputs"
 STEP_TIMEOUT_S = 1800
@@ -58,10 +73,13 @@ import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
 import etl_helpers  # noqa: E402
 import etl_run_log  # noqa: E402
 
+CLOSE_DAY_STEPS = frozenset({"03b_walterfootball", "03d_draftsharks_rookie"})
+CADENCES = ("due", "all")
+
 # Review queues surfaced (never blocking): file -> the action that drains it.
 REVIEW_QUEUES = {
     "review_fuzzy_matches.csv": "run 03z_apply_fuzzy_review",
-    "review_fantrax_crosswalk.csv": "run scripts/apply_fantrax_crosswalk_review.py",
+    "review_fantrax_crosswalk.csv": "GitHub Actions: Record a crosswalk override",
     "review_dynasty_crosswalk.csv": "manual (no apply script exists yet)",
 }
 
@@ -160,14 +178,20 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "injury"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+        # Logged-in transaction history (04a's session, like 04v): the raw
+        # capture 02d builds the ledger from and 04z reads for scorers seen
+        # only in a trade or claim. If it fails, 02d is skipped and the Chain
+        # is held.
+        {"name": "04t_txn_history", "cmd": _script("04t_fantrax_transaction_history.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04a_backfill_gp", "cmd": _script("04a_fantrax_weekly_scrape.py", "--backfill-gp"),
          "phases": {"INSEASON"}, "needs": ["04a_scrape"], "chain": "fantrax_core", "group": "regular_season"},
+        {"name": "04z_crosswalk", "cmd": _nbconvert("04z_fantrax_crosswalk.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04a_scrape", "04t_txn_history", "04a_backfill_gp"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "04v_minor_contracts", "cmd": _script("04v_minor_contracts.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04z_crosswalk"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "02d_ledger", "cmd": _script("02d_fact_roster_transactions.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts"], "chain": "fantrax_core", "group": "regular_season"},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04v_minor_contracts", "04t_txn_history"], "chain": "fantrax_core", "group": "regular_season"},
         # Dead Money from the ledger's drops (no network). 02e's cap summary
         # reads it, so it sits between the ledger and the roster.
         {"name": "02f_dead_money", "cmd": _script("02f_fact_dead_money.py"),
@@ -178,33 +202,122 @@ def build_steps(profile: str | None) -> list[dict]:
         # and each season's row carries only that season's Dead Money.
         {"name": "02h_team_cap", "cmd": _script("02h_fact_team_cap.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02f_dead_money", "02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
-        {"name": "04b_ktc_dynasty", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-         "phases": {"OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
-        # Rookie chain (auto-safe scrapes only): 03a-03d ingest expert sources
-        # directly. Deliberately stops here — 03x (manual Excel), 03y/03z
+        # Rookie chain (auto-safe scrapes only): 03b and 03d ingest expert
+        # sources directly. Deliberately stops here — 03x (manual Excel), 03y/03z
         # (fuzzy-review + apply) need a human in the loop, per
         # notebooks/README.md, and are never added to this orchestrator.
-        {"name": "03a_fantasypros", "cmd": _nbconvert("03a_fantasypros_rankings.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
         {"name": "03b_walterfootball", "cmd": _nbconvert("03b_walterfootball_rankings.ipynb"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
-        {"name": "03c_ktc_rookie", "cmd": _nbconvert("03c_ktc_rankings.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
         {"name": "03d_draftsharks_rookie", "cmd": _nbconvert("03d_draftsharks_rankings.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "rookie", "group": "rookie"},
     ]
     if profile == "dynasty":
-        # After the user refreshes the 04x manual Excel. 04b re-runs even if
-        # the phase already included it (idempotent).
+        # After the user refreshes the 04x manual Excel.
         steps += [
-            {"name": "04b_ktc_dynasty_p", "cmd": _nbconvert("04b_ktc_dynasty_rankings.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
             {"name": "04c_dim_dynasty_metric", "cmd": _nbconvert("04c_dim_dynasty_metric.ipynb"),
-             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04b_ktc_dynasty_p"], "chain": "dynasty_profile", "group": "pre_season"},
+             "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "dynasty_profile", "group": "pre_season"},
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
              "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "chain": "dynasty_profile", "group": "pre_season"},
         ]
+    for s in steps:
+        s["cadence"] = "close_day" if s["name"] in CLOSE_DAY_STEPS else "daily"
     return steps
+
+
+def _selected(s: dict, phase: str, only: set[str] | None, groups: set[str] | None) -> bool:
+    if phase not in s["phases"] or (only and s["name"] not in only):
+        return False
+    return not (groups and s.get("group") not in groups)
+
+
+def league_today() -> date:
+    return etl_helpers.league_date()
+
+
+def close_day_state(today: date, periods=None, weekday: int | None = None) -> dict:
+    """What the close_day steps owe on `today`, from `etl_helpers.close_state`,
+    which alone defines the week (ADR-0020). `week_key` and `close_day` are
+    None when no week is owed; `reason` says why: owed, not_yet or covered (a
+    quiet day), unreadable (the calendar could not be read: no week, no guess).
+    `periods` and `weekday` default to the stored table and the config."""
+    owed = etl_helpers.close_state(today, periods, weekday)
+    week = owed.week
+    return {"week_key": week.key if week else None,
+            "close_day": week.close_day if week else None,
+            "mode": week.mode if week else None,
+            "is_playoff": week.is_playoff if week else False,
+            "reason": owed.reason}
+
+
+def apply_cadence(steps: list[dict], phase: str, only: set[str] | None,
+                  groups: set[str] | None, cadence: str, state: dict, today: date,
+                  done_for: Callable[[str], set[str] | None]) -> tuple[list[dict], dict]:
+    """Drop the close_day steps that are not due. Only a close_day step that
+    phase, --steps and --group would otherwise run counts as ran or deferred.
+    With an unreadable calendar (`state["reason"]`) no step is due, whatever
+    `cadence` says. Otherwise a step is due when `cadence` is "all", or when the week in `state` has no
+    record of it in `done_for(week_key)`; with no record to read (None) it is
+    due on its Close Day only. Returns (steps to run, the cadence report)."""
+    kept, ran, deferred = [], [], []
+    record: list = []
+    for s in steps:
+        if s.get("cadence", "daily") != "close_day" or not _selected(s, phase, only, groups):
+            kept.append(s)
+            continue
+        if state["reason"] == "unreadable":
+            due = False
+        elif cadence == "all":
+            due = True
+        elif state["week_key"] is None:
+            due = False
+        else:
+            if not record:
+                record.append(done_for(state["week_key"]))
+            due = (today == state["close_day"]) if record[0] is None else s["name"] not in record[0]
+        if due:
+            kept.append(s)
+            ran.append(s["name"])
+        else:
+            deferred.append(s["name"])
+    return kept, {"filter": cadence, "week_key": state["week_key"],
+                  "close_day": state["close_day"].isoformat() if state["close_day"] else None,
+                  "mode": state["mode"], "is_playoff": state["is_playoff"],
+                  "reason": state["reason"], "ran": ran, "deferred": deferred}
+
+
+def close_steps_done(report: dict, results: list[dict], steps: list[dict], plan: dict | None,
+                     commit_line: str) -> list[str]:
+    """The close_day steps of this run that count as a success for its week: ok,
+    their Chain passed and was not withheld, and the data was not aborted or
+    left uncommitted."""
+    landed = etl_run_log.data_committed(commit_line) or commit_line.startswith("no data changes")
+    if not plan or not landed:
+        return []
+    chain_of = {s["name"]: s["chain"] for s in steps}
+    good = set(plan["passed"]) - set(plan.get("unpublished", ()))
+    return [r["name"] for r in results if r["name"] in report["ran"]
+            and r["status"] == "ok" and chain_of[r["name"]] in good]
+
+
+NO_WEEK = {"not_yet": "no Close Day yet", "covered": "week covered by the last period's run",
+           "unreadable": "calendar unreadable, no week"}
+
+
+def cadence_line(report: dict) -> str:
+    when = f"week {report['week_key']}, Close Day {report['close_day']}" if report["week_key"] \
+        else NO_WEEK.get(report.get("reason"), "no week owed")
+    return (f"filter={report['filter']} ({when}); close_day ran: "
+            f"{', '.join(report['ran']) or 'none'}; deferred: {', '.join(report['deferred']) or 'none'}")
+
+
+def cadence_warning(report: dict) -> str | None:
+    """A run-summary warning when the calendar could not be read: close_day
+    steps are skipped (their catch-up runs once it reads), never keyed on a
+    guessed week."""
+    if report.get("reason") != "unreadable":
+        return None
+    return ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
+            f"({', '.join(report['deferred']) or 'none selected'}); they run once the calendar reads")
 
 
 def run_steps(steps: list[dict], phase: str, only: set[str] | None,
@@ -214,9 +327,7 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     env = {**os.environ, "PYTHONUTF8": "1"}
     for s in steps:
         name = s["name"]
-        if phase not in s["phases"] or (only and name not in only):
-            continue
-        if groups and s.get("group") not in groups:
+        if not _selected(s, phase, only, groups):
             continue
         bad_dep = next((d for d in s["needs"] if status.get(d) in ("failed", "skipped")), None)
         if bad_dep:
@@ -561,8 +672,13 @@ def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str |
         return f"ABORTED: reload from the snapshot failed: {pg.describe(exc)}"
     if export and plan["publish"]:
         published = list(plan["publish"])
+        changes: dict = {}
         try:
-            pg.export_published(published, data)
+            pg.export_published(published, data, changes)
+            if changes:
+                plan["column_changes"] = changes
+                notes.append("snapshot columns changed (names only): " + "; ".join(
+                    f"{t} added {c['added']} dropped {c['dropped']}" for t, c in sorted(changes.items())))
         except Exception as exc:
             _withhold(plan)
             try:
@@ -596,10 +712,23 @@ def notify(text: str) -> None:
         print(f"[warn] webhook failed: {type(e).__name__}: {reason}")
 
 
+def terms_line() -> str:
+    try:
+        import check_sources
+        n = check_sources.terms_due_count(check_sources.load_yaml())
+    except Exception:
+        return "📜 Terms checks due: unavailable (docs/sources.yml could not be read)"
+    return f"📜 Terms checks due: {n}"
+
+
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
-              filed: dict | None = None) -> str:
+              filed: dict | None = None, cadence: dict | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
+    if cadence:
+        lines.append(f"🗓️ {cadence_line(cadence)}")
+        if cadence_warning(cadence):
+            lines.append(cadence_warning(cadence))
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
@@ -617,6 +746,7 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
     if pending:
         lines.append("**Review queues:**")
         lines += [f"• {f}: {v['rows']} rows → {v['action']}" for f, v in pending.items()]
+    lines.append(terms_line())
     lines.append(f"📦 {commit_line}")
     return "\n".join(lines)
 
@@ -665,6 +795,11 @@ def main() -> int:
     ap.add_argument("--group", help="comma-separated groups to run "
                     "(pre_season,rookie,regular_season,injury) — orthogonal "
                     "to --phase, combines with AND")
+    ap.add_argument("--cadence", choices=CADENCES, default="due",
+                    help="due (default): a close_day step runs on its Close Day "
+                         "or the first run after it that has no success for "
+                         "the week; all: every step runs whatever the day "
+                         "(close_day steps still wait for a readable calendar)")
     ap.add_argument("--profile", choices=["dynasty"],
                     help="extra chain: dynasty = 04b -> 04c -> 04y "
                          "(run after refreshing the 04x manual Excel)")
@@ -700,6 +835,11 @@ def main() -> int:
         steps = build_steps(args.profile)
         only = set(args.steps.split(",")) if args.steps else None
         groups = set(args.group.split(",")) if args.group else None
+        today = league_today()
+        state = close_day_state(today)
+        steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
+                                       today, etl_run_log.steps_done)
+        print(f"[cadence] {cadence_line(cadence)}")
         results = run_steps(steps, phase, only, args.dry_run, groups)
 
         plan, filed = None, None
@@ -742,6 +882,8 @@ def main() -> int:
             r["status"] not in ("ok", "dry-run") for r in results)
         code = 1 if failed or commit_line.startswith("ABORTED") else 0
 
+        cadence["done"] = [] if args.no_commit or not cadence["week_key"] else close_steps_done(
+            cadence, results, steps, plan, commit_line)
         if runlog.run_id:
             runlog.finish(
                 etl_run_log.final_status(code, commit_line),
@@ -751,14 +893,17 @@ def main() -> int:
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
                 error=(etl_run_log.failure_summary(results, plan, commit_line)
-                       if code else None))
+                       if code else None),
+                cadence=cadence,
+                column_changes=(plan or {}).get("column_changes")
+                if not commit_line.startswith("ABORTED") else None)
     except BaseException as exc:
         runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
         if runlog.warning and not args.dry_run:
             notify(f"{runlog.warning}\nThe pipeline raised {type(exc).__name__} before it finished.")
         raise
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
     if runlog.warning:
         summary = f"{runlog.warning}\n{summary}"
     OUT_DIR.mkdir(parents=True, exist_ok=True)

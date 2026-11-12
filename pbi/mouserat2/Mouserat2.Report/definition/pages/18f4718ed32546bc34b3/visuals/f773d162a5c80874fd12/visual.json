@@ -82,7 +82,7 @@
                   "Property": "Dead Money - Active - Current Year"
                 }
               },
-              "queryRef": "_Measures.Dead Money",
+              "queryRef": "_Measures.Dead Money - Active - Current Year",
               "nativeQueryRef": "Dead $ - Curr Yr",
               "displayName": "Dead $ - Curr Yr"
             },
@@ -228,7 +228,7 @@
             }
           },
           "selector": {
-            "metadata": "_Measures.Dead Money"
+            "metadata": "_Measures.Dead Money - Active - Current Year"
           }
         },
         {

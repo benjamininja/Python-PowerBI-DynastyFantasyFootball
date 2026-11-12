@@ -1,0 +1,15 @@
+Sitemap: https://a.example/sitemap-main.xml
+# a comment line
+User-agent: *
+Content-Signal: search=yes, ai-train=no, ai-input=no, fancy-new=maybe
+Disallow: /private/
+
+User-agent: ClaudeBot
+User-agent: Claude-User
+Content-Usage: train-ai=n, ai-use=y, search=y
+Crawl-delay: 7
+Disallow: /api/
+
+User-agent: GPTBot
+Content-Usage: ai-use=n, made-up
+Sitemap: https://a.example/sitemap-news.xml

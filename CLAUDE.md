@@ -101,6 +101,10 @@ the parquet alone.
   ambiguous architectural/design decision, use `grill-me` (one question at a
   time, recommended answer first) and get explicit sign-off before writing
   code — don't present a fait accompli.
+- **Code review at re-proof**: the shared `pr-code-reviewer` (from tools)
+  reviews a builder's code PR against the `mrp-dff-code-review` skill
+  (`.claude/skills/mrp-dff-code-review/SKILL.md`); it loads only when the
+  reviewer's packet names it.
 - **Execution loop**: long agentic builds follow the token-gated
   `grill/plan → consolidate → compact → execute → compact ↺` loop (compact at
   ~125K–150K tokens) — see
@@ -126,8 +130,8 @@ the parquet alone.
   scheduled headless script (`04a_fantrax_weekly_scrape.py`, Task Scheduler),
   a CLI consumer (`05a_startup_draft_board.py`), or standalone
   apply/review utilities in `scripts/` (e.g.
-  `apply_fantrax_crosswalk_review.py`) — these share `etl_helpers` like
-  notebooks do.
+  `record_crosswalk_override.py`, run by the Record a crosswalk override
+  workflow) — these share `etl_helpers` like notebooks do.
 - **Naming**: `NN<letter>_name` — `01`=dim seeds, `02`=core facts,
   `03`=rookie-ranking pipeline, `04`=dynasty-ranking pipeline (incl. Fantrax).
   Letter = order within group; `x`/`y`/`z` reserved for late-stage/apply/
@@ -151,7 +155,9 @@ the parquet alone.
 - **Editing `.ipynb` programmatically**: load JSON → mutate `cell["source"]`
   (`[l + "\n" for l in lines[:-1]] + lines[-1:]`) → `json.dump(nb, f,
   ensure_ascii=False, indent=1)`. Find cells by `cell["id"]`, never by index.
-  Prefer a full-cell rebuild over >3 stacked patches in one session.
+  Prefer a full-cell rebuild over >3 stacked patches in one session. The
+  `normalize-notebooks` pre-commit hook (`scripts/normalize_notebooks.py`)
+  rewrites that form on commit, so `NotebookEdit` is fine.
 - **Network calls**: wrap in try/except with descriptive errors;
   `etl._make_session()` gives retry/backoff. HTTP 200 ≠ success for JSON APIs
   — check the response body for logical errors.

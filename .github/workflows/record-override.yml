@@ -1,0 +1,66 @@
+# Record a crosswalk override from a form, no PC (#431, ADR-0015). Started by the
+# owner from the Actions tab: workflow_dispatch only, from main, in the etl
+# environment (limited to main) that holds SUPABASE_DB_URL. It writes one row to
+# ops.dim_fantrax_crosswalk_override through the storage seam, origin form, after
+# scripts/record_crosswalk_override.py has checked the inputs. The next Daily
+# Run's 04z reads the row; this workflow does not rebuild the crosswalk. The
+# repository is public, so the run log is too: the inputs are ids and a tick
+# box, never free text, and each reaches the script through env, never inside a
+# run line. The run id is the runner's own GITHUB_RUN_ID. The output is ids and
+# counts only. The form has its own concurrency group, apart from the Daily
+# Run's, and the script locks the override table, so two forms cannot both pass
+# their checks. A run GitHub cancelled recorded nothing: submit the form again.
+name: record-override
+
+run-name: Record a crosswalk override
+
+on:
+  workflow_dispatch:
+    inputs:
+      scorer_id:
+        description: The Fantrax player id (five lowercase letters or digits)
+        required: true
+        type: string
+      gsis_id:
+        description: A registry gsis_id, or the word new
+        required: true
+        type: string
+      replace:
+        description: Tick to replace an override this scorer_id already has
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  record:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: etl
+    concurrency:
+      group: etl-override
+      cancel-in-progress: false
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Record the override
+        env:
+          ETL_STORAGE: postgres
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SCORER_ID: ${{ inputs.scorer_id }}
+          GSIS_ID: ${{ inputs.gsis_id }}
+          REPLACE: ${{ inputs.replace }}
+        run: python scripts/record_crosswalk_override.py

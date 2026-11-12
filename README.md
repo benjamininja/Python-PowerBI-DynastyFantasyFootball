@@ -1,5 +1,11 @@
 # Python · Power BI · Dynasty Fantasy Football
 
+**Docs site:** [Home](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/) ·
+[Refresh schedule](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/refresh-schedule/) ·
+[Running the pipeline](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/running-the-pipeline/) ·
+[Data sources](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/data-sources/) ·
+[Data model](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/data-model/)
+
 Data pipeline and owner tools for a 28-team, dual-conference IDP dynasty
 fantasy football league. Python notebooks pull league data from Fantrax, NFL
 data from nflverse and expert rankings from several sites into a star-schema
@@ -31,7 +37,7 @@ Built by millennial excellence; you're welcome. [League principles](docs/PRINCIP
 | `data/` | The published snapshot: one parquet file per table | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) |
 | `scripts/` | The scheduled orchestrator (`run_pipeline.py`) and the checks | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | `pbi/` | Power BI project (PBIP: TMDL semantic model + PBIR report) at `pbi/mouserat2/` | [pbi/README.md](pbi/README.md) |
-| `discord_bot/` | League Discord bot: `rankings`, `player`, `adp`, `roster`, `cap` | [discord_bot/README.md](discord_bot/README.md) |
+| `discord_bot/` | League Discord bot: `rankings`, `player`, `roster`, `cap` | [discord_bot/README.md](discord_bot/README.md) |
 | `mouserat_trade-bud/` | Trade-diagnostic web app, published as a static site | [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md) |
 | `tests/` | Regression tests for the helpers, checks and tools | [ADR-0008](docs/adr/0008-regression-testing-standard.md) |
 | `docs/` | Principles, data model, source manifest, decision records, research | below |
@@ -74,19 +80,18 @@ is the snapshot that Power BI, the bot and the trade tool read.
 ## Running the pipeline
 
 `scripts/run_pipeline.py` runs the scheduled part of the ETL in dependency
-order, checks each group of tables before publishing it, and commits only
-the groups that passed. It runs weekly on Windows Task Scheduler through
-`run_weekly.ps1`; a move to GitHub Actions is planned
-([ADR-0015](docs/adr/0015-etl-on-github-actions-owner-pii-confined.md)).
+order, checks each group of tables before publishing it, and lands only the
+groups that passed. What runs, and when, is on the
+[Refresh schedule](https://benjamininja.github.io/Python-PowerBI-DynastyFantasyFootball/docs/refresh-schedule/)
+page; the move to GitHub Actions is in
+[ADR-0015](docs/adr/0015-etl-on-github-actions-owner-pii-confined.md).
 
 ```powershell
 .\run.ps1 scripts\run_pipeline.py --check-only   # run the checks, no steps
 .\run.ps1 scripts\run_pipeline.py --dry-run      # show what would run
 ```
 
-Some steps stay manual by design: the live draft, the rankings that arrive
-as Excel files, and the review of uncertain player matches. Notebook order
-and run modes are in [notebooks/README.md](notebooks/README.md).
+Notebook order and run modes: [notebooks/README.md](notebooks/README.md).
 
 ---
 

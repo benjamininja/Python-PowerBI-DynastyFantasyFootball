@@ -79,8 +79,8 @@ STANCES = ("contending", "balanced", "future")
 # side, and picks carry the matching one in pick_value.
 _STANCE_RANK_KEYS = {
     "contending": ("dsr_overall_rank",),
-    "balanced": ("ds_overall_rank", "ktc_overall_rank", "fp_overall_rank"),
-    "future": ("ds_overall_rank", "ktc_overall_rank", "fp_overall_rank"),
+    "balanced": ("ds_overall_rank",),
+    "future": ("ds_overall_rank",),
 }
 
 # Only `future` tilts. Continuous in age rather than bucketed so nobody loses a
@@ -113,8 +113,7 @@ def _latest_overall_ranks(rank_keys: tuple[str, ...]) -> pd.DataFrame:
     """The requested *_overall_rank rows, at each series' own latest snapshot.
 
     Not a single global max(snapshot_date): the sources refresh on independent
-    cadences (DraftSharks was re-pulled 2026-07-31, KTC/FantasyPros last on
-    2026-06-13), so a global max would silently drop every source but the most
+    cadences, so a global max would silently drop every source but the most
     recently scraped one. A series here is (source_name, format, metric_key) --
     the same source ranks several formats, each its own board.
     """

@@ -91,20 +91,21 @@ class TestParseHeightToInches:
 
 
 class TestFoldRanksLong:
-    def test_melts_and_prefixes_metric_key(self):
+    def test_melts_and_prefixes_metric_key(self, monkeypatch):
+        monkeypatch.setitem(etl.SOURCE_PREFIX, "MadeUpSource", "mus")
         df = pd.DataFrame(
             {
-                "source_name": ["KTC", "DynastySharks"],
+                "source_name": ["MadeUpSource", "DynastySharks"],
                 "source_player_id": ["1", "2"],
                 "format": ["SF", "SF"],
-                "source_uid": ["KTC|1", "DynastySharks|2"],
+                "source_uid": ["MadeUpSource|1", "DynastySharks|2"],
                 "overall_rank": [1.0, None],
                 "positional_rank": [1.0, 5.0],
             }
         )
         long = fold_ranks_long(df)
         keys = set(long["metric_key"])
-        assert "ktc_overall_rank" in keys
+        assert "mus_overall_rank" in keys
         assert "ds_positional_rank" in keys
         # The null overall_rank for DynastySharks was dropped, not folded as NaN.
         assert not long[
@@ -128,11 +129,14 @@ class TestFantraxPublicGet:
     @pytest.fixture
     def reply(self, monkeypatch):
         calls = []
+        sent_headers = []
+        self.sent_headers = sent_headers
 
         def install(response):
             class Session:
-                def get(self, url, params=None, timeout=None):
+                def get(self, url, params=None, timeout=None, headers=None):
                     calls.append((url, params, timeout))
+                    sent_headers.append(headers)
                     if isinstance(response, Exception):
                         raise response
                     return response
@@ -147,6 +151,16 @@ class TestFantraxPublicGet:
         url, params, timeout = calls[0]
         assert url.endswith("/fxea/general/getTeamRosters")
         assert params == {"leagueId": "LG", "period": 3} and timeout == 30
+
+    def test_sends_the_program_user_agent(self, reply):
+        reply(_FakeResponse(body={"rosters": {}}))
+        etl.fantrax_public_get("getTeamRosters", "LG")
+        assert self.sent_headers == [{"User-Agent": etl.FANTRAX_PUBLIC_UA}]
+        assert etl.FANTRAX_PUBLIC_UA.startswith("MouseratDynastyETL/1.0 (+https://github.com/")
+
+    def test_default_headers_user_agent_is_the_program_constant(self):
+        assert etl.DEFAULT_HEADERS["User-Agent"] == etl.ETL_USER_AGENT
+        assert etl.FANTRAX_PUBLIC_UA == etl.ETL_USER_AGENT
 
     def test_non_200_raises(self, reply):
         reply(_FakeResponse(status_code=503, body={}))

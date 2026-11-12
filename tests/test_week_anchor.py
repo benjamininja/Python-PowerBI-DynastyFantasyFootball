@@ -133,26 +133,6 @@ class TestAnchorOffSeason:
         assert etl.week_anchor() is not None
 
 
-def reference_close_day_state(periods, today, weekday):
-    """The week key and Close Day as run_pipeline.close_day_state (#372, PR
-    #382) builds them, kept here so the keys already stored stay valid."""
-    one_day = timedelta(days=1)
-    rows = []
-    if periods is not None and len(periods):
-        rows = sorted((pd.Timestamp(r.start_date).date(), pd.Timestamp(r.end_date).date(),
-                       str(r.season_id), int(r.period), bool(r.is_playoff))
-                      for r in periods.itertuples())
-    if rows and rows[0][0] <= today <= rows[-1][1] + one_day:
-        closed = [r for r in rows if r[1] + one_day <= today]
-        if not closed:
-            return None
-        _, end, season, period, playoff = closed[-1]
-        return ("period", f"{season}-p{period:02d}", end + one_day, playoff)
-    day = today - timedelta(days=(today.weekday() - weekday) % 7)
-    year, week, _ = day.isocalendar()
-    return ("weekday", f"{year}-W{week:02d}", day, False)
-
-
 THURSDAY = 3
 NO_PERIODS = PERIODS.iloc[0:0]
 SHORT = PERIODS.iloc[:1]
@@ -233,25 +213,6 @@ class TestClosedWeek:
         assert etl.closed_week(date(2027, 2, 11), PERIODS).key == "2027-W06"
         assert etl.closed_week(date(2027, 2, 15), PERIODS).key == "2027-W06"
         assert etl.closed_week(date(2027, 2, 18), PERIODS).key == "2027-W07"
-
-    @pytest.mark.parametrize("periods", [PERIODS, SHORT])
-    def test_the_keys_match_run_pipelines_on_every_day_but_the_handover(self, periods):
-        last_close = pd.Timestamp(periods["end_date"].iloc[-1]).date() + timedelta(days=1)
-        covered = 0
-        day = date(2026, 8, 1)
-        while day <= date(2027, 3, 1):
-            ref = reference_close_day_state(periods, day, THURSDAY)
-            got = etl.close_state(day, periods, THURSDAY)
-            if ref is None:
-                assert (got.week, got.reason) == (None, "not_yet"), day
-            elif ref[0] == "weekday" and day > last_close and ref[2] <= last_close:
-                assert (got.week, got.reason) == (None, "covered"), day
-                covered += 1
-            else:
-                assert got.reason == "owed", day
-                assert (got.week.mode, got.week.key, got.week.close_day, got.week.is_playoff) == ref, day
-            day += timedelta(days=1)
-        assert covered > 0
 
     def test_before_the_calendar_the_weekday_week_is_owed_with_no_cover_rule(self):
         got = etl.close_state(date(2026, 8, 13), PERIODS, THURSDAY)
@@ -408,7 +369,7 @@ def code_of(notebook: str) -> str:
 
 class TestNotebooksWriteTheAnchor:
     @pytest.mark.parametrize("notebook", [
-        "04b_ktc_dynasty_rankings.ipynb", "04d_draftpick_value_curve.ipynb",
+        "04d_draftpick_value_curve.ipynb",
         "04e_dim_position_ceiling.ipynb", "04f_draftsharks_two_tree.ipynb",
         "04x_manual_dynasty_rankings.ipynb"])
     def test_snapshot_date_comes_from_the_anchor(self, notebook):
@@ -420,8 +381,7 @@ class TestNotebooksWriteTheAnchor:
         assert "SNAPSHOT_DATE = date.today" not in code
         assert "pd.Timestamp(etl.TODAY)" not in code
 
-    @pytest.mark.parametrize("notebook", [
-        "04b_ktc_dynasty_rankings.ipynb", "04d_draftpick_value_curve.ipynb"])
+    @pytest.mark.parametrize("notebook", ["04d_draftpick_value_curve.ipynb"])
     def test_raw_captures_keep_the_run_date(self, notebook):
         code = code_of(notebook)
         assert "{RUN_DATE}.json" in code
@@ -445,7 +405,7 @@ def notebook_cell(notebook: str, cell_id: str) -> str:
 
 
 def fixture_fact() -> pd.DataFrame:
-    """Three weeks of KTC and DynastySharks ADP, and a Composite slice (77.0
+    """Three weeks of DynastySharks ADP, and a Composite slice (77.0
     everywhere, a value the notebook never computes) for the first two."""
     rows = []
 
@@ -454,8 +414,7 @@ def fixture_fact() -> pd.DataFrame:
                      "format": "SF", "source_uid": f"{source}|{pid}", "gsis_id": gsis,
                      "metric_key": key, "metric_num": num, "metric_text": None})
     for snap in (S1, S2, S3):
-        for pid, gsis, ktc, ds in (("1", "g1", 1.0, 1.05), ("2", "g2", 2.0, 2.05), ("3", "g3", 3.0, 3.05)):
-            add(snap, "KTC", "ktc_adp", pid, gsis, ktc)
+        for pid, gsis, ds in (("1", "g1", 1.05), ("2", "g2", 2.05), ("3", "g3", 3.05)):
             add(snap, "DynastySharks", "ds_adp", pid, gsis, ds)
     for snap in (S1, S2):
         for gsis in ("g1", "g2", "g3"):
@@ -524,6 +483,9 @@ class TestCompositeFreezesPastWeeks:
         assert len(current) == 6
         ranks = current[current["metric_key"] == "composite_adp"].set_index("gsis_id")["metric_num"]
         assert sorted(ranks) == [1.0, 2.0, 3.0]
+        assert ranks.to_dict() == {"g1": 1.0, "g2": 2.0, "g3": 3.0}
+        counts = current[current["metric_key"] == "sources_count"]["metric_num"]
+        assert set(counts) == {1.0}
 
     def test_a_second_run_in_the_week_rewrites_only_that_slice(self, tmp_path, monkeypatch):
         monkeypatch.delenv("COMPOSITE_REBUILD_HISTORY", raising=False)

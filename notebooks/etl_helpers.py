@@ -19,6 +19,7 @@ Import pattern (notebooks run with CWD = repo root):
 Paths (DATA, REVIEW, ALIAS) are anchored to the repo root via LeagueConfig.__post_init__,
 so notebooks write to <repo>/data regardless of the CWD they run from.
 """
+import contextlib
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Collection, Literal, Mapping, NamedTuple, Sequence
+from typing import Callable, Collection, Literal, Mapping, NamedTuple, Sequence
 
 import pandas as pd
 import requests
@@ -66,6 +67,18 @@ class LeagueConfig:
     rookie_prospect_name: str = "dim_rookie_prospect"
     alias_name: str = "dim_player_alias"
     close_day_weekday: int = 3
+    source_check_month: int = 5
+    rookie_class_year: int = 2027
+    rookie_class_combine_end: str = "2027-03-08"
+    rookie_class_draft_end: str = "2027-05-01"
+
+    def rookie_phase(self, on: "date | str") -> str:
+        run_date = date.fromisoformat(on) if isinstance(on, str) else on
+        if run_date <= date.fromisoformat(self.rookie_class_combine_end):
+            return "pre_combine"
+        if run_date <= date.fromisoformat(self.rookie_class_draft_end):
+            return "post_combine"
+        return "post_draft"
 
     def __post_init__(self):
         # Anchor relative data paths to the repo root → CWD-independent. (Absolute
@@ -96,10 +109,11 @@ ALIAS  = DATA / "dim_player_alias.parquet"   # persistent name->player_key decis
 DATA.mkdir(exist_ok=True)
 REVIEW.mkdir(parents=True, exist_ok=True)
 
-# Default browser-like headers for scrapers (Chrome UA).
+ETL_USER_AGENT = ("MouseratDynastyETL/1.0 "
+                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
+
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "User-Agent": ETL_USER_AGENT,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
 }
@@ -119,7 +133,7 @@ def clean_player_name(name: str) -> str:
 # must stay byte-stable (changing it rewrites every key seeded in 01). This one
 # additionally strips generational suffixes (jr/sr/ii..v) and apostrophes so
 # Fantrax / dynasty-source names match the nflverse registry despite inconsistent
-# suffix/apostrophe usage. Shared by resolve_dynasty_crosswalk (04b/04x) and the
+# suffix/apostrophe usage. Shared by resolve_dynasty_crosswalk (04x) and the
 # Fantrax crosswalk (04z) so the matching rule lives in exactly one place.
 _MATCH_SUFFIX = re.compile(r"\b(jr|sr|ii|iii|iv|v)\b")
 
@@ -213,6 +227,7 @@ def _make_session(timeout_sec: int = 30, retries: int = 3, backoff: float = 2.0)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
+FANTRAX_PUBLIC_UA = ETL_USER_AGENT
 
 
 def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
@@ -223,6 +238,7 @@ def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
     try:
         resp = _make_session().get(f"{FANTRAX_PUBLIC_API}/{method}",
                                    params={"leagueId": league_id, **params},
+                                   headers={"User-Agent": FANTRAX_PUBLIC_UA},
                                    timeout=timeout_sec)
     except requests.RequestException as e:
         raise RuntimeError(f"Fantrax public {method}: request failed ({type(e).__name__}: {e})") from e
@@ -244,7 +260,7 @@ _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 def _parse_rank_date(raw: str | None, capture_date: str | None = None) -> str | None:
     # Parse the source-published "last updated" date into ISO format.
-    # FantasyPros publishes month/day with no year ("5/16"); that form needs
+    # A source may publish month/day with no year ("5/16"); that form needs
     # capture_date, and takes its year, or the year before when the date would
     # fall after capture_date. Returns None if raw is empty. A value no format
     # matches comes back as-is, and ingest_ranking_source refuses it.
@@ -256,6 +272,12 @@ def _parse_rank_date(raw: str | None, capture_date: str | None = None) -> str | 
             return datetime.strptime(raw, fmt).date().isoformat()
         except ValueError:
             continue
+    m = re.fullmatch(r"([A-Za-z]{3,9})\.?\s+(\d{1,2}),\s*(\d{4})\.?", raw)
+    if m:
+        try:
+            return datetime.strptime(f"{m.group(1)[:3]} {m.group(2)}, {m.group(3)}", "%b %d, %Y").date().isoformat()
+        except ValueError:
+            pass
     m = re.fullmatch(r"(\d{1,2})/(\d{1,2})", raw)
     if m and capture_date and _ISO_DATE.match(str(capture_date)):
         cap = date.fromisoformat(str(capture_date))
@@ -485,11 +507,7 @@ def ingest_ranking_source(
             raise ValueError(f"fact_rookie_rankings holds rank_date values that are not YYYY-MM-DD: {_bad[:5]}")
     combined = pd.concat([existing, new_df], ignore_index=True)
     _DEDUP   = ["player_key", "source_name", "phase", "draft_year"]
-    # rank_date: preserve the first non-null value ever captured — never overwrite with a later scrape.
-    combined["rank_date"] = (
-        combined.groupby(_DEDUP, sort=False)["rank_date"]
-        .transform(lambda s: s.dropna().iloc[0] if s.notna().any() else None)
-    )
+    # rank_date travels with the ranks: the newest run's row wins, date included.
     combined.drop_duplicates(subset=_DEDUP, keep="last", inplace=True)
     write_table("fact_rookie_rankings", combined)
 
@@ -524,7 +542,7 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
                               auto_threshold=90, review_threshold=70, today=None):
     """Resolve dynasty-source player identities to registry keys for
     `dim_dynasty_crosswalk`. Single matcher shared by every section-04 dynasty
-    source notebook (KTC 04b, manual 04x, ...) — do not re-implement per notebook.
+    source notebook (manual 04x, ...) — do not re-implement per notebook.
 
     identities: DataFrame with columns source, source_player_id, player_name,
         position_raw, nfl_team.
@@ -614,14 +632,13 @@ def resolve_dynasty_crosswalk(identities, overrides=None,
 # Source -> metric_key prefix. The refactor's load-bearing invariant is that each
 # metric_key maps to exactly ONE source (so SourceName lives on Dim_DynastyMetric),
 # which means rank keys must be source-prefixed. Adding a source = one entry here;
-# 04b/04x and the 04c SEED all read this map instead of hardcoding prefixes.
-SOURCE_PREFIX = {"KTC": "ktc", "DynastySharks": "ds", "FantasyPros": "fp"}
+# 04x reads this map instead of hardcoding prefixes.
+SOURCE_PREFIX = {"DynastySharks": "ds"}
 
 # metric_keys where 0 is an upstream "no value recorded" sentinel, not a real
-# measurement (KTC writes 0 for players with no ADP, which would read as best rank).
-# Centralized so every producer/consumer drops the same zeros instead of each
-# rediscovering the hazard.
-ZERO_IS_MISSING = {"ktc_adp", "startup_adp"}
+# measurement. Empty: no remaining source writes one. A source that does adds
+# its metric_key here, so every producer/consumer drops the same zeros.
+ZERO_IS_MISSING = set()
 
 
 def fold_ranks_long(df, source_col="source_name",
@@ -631,7 +648,7 @@ def fold_ranks_long(df, source_col="source_name",
     """Melt wide overall/positional rank columns into source-prefixed EAV rows
     (metric_key/metric_num/metric_text), the shape the single dynasty fact expects.
     `metric_key` becomes e.g. ``ds_overall_rank`` via SOURCE_PREFIX. Rows with a
-    null rank are dropped. Shared by 04b/04x so the fold lives in one place.
+    null rank are dropped. Shared by the dynasty source notebooks so the fold lives in one place.
 
     `prefix` overrides the SOURCE_PREFIX lookup with a literal. Needed when one
     source publishes more than one ranking tree and each tree needs its own
@@ -687,6 +704,11 @@ class TableNotFound(StorageError, FileNotFoundError):
     """The table is declared but holds no data yet."""
 
 
+class LockWaitTimeout(StorageError):
+    """A write waited past the database's lock_timeout for another writer
+    (#451). The message names the table and the wait, never a value."""
+
+
 def _registry() -> dict:
     """docs/data_model.yml tables by name, reloaded when the file changes."""
     import yaml
@@ -704,6 +726,17 @@ def _table_entry(name: str) -> dict:
     if entry is None:
         raise StorageError(f"{name}: not declared in {Path(REGISTRY_PATH).name}")
     return entry
+
+
+def is_private(entry: dict) -> bool:
+    """A `tables` entry whose schema is not football is private (#93 brief 6):
+    the seam reads and writes it, nothing publishes it."""
+    return (entry.get("schema") or "football") != "football"
+
+
+def published_names() -> list[str]:
+    """The registry tables that make up the published snapshot."""
+    return sorted(name for name, entry in _registry().items() if not is_private(entry))
 
 
 def table_grain(entry: dict) -> list[str]:
@@ -839,9 +872,58 @@ def _write_parquet(path: Path, df: pd.DataFrame, mode: str, keys, partition,
     return df
 
 
+_capture_dir: Path | None = None
+
+
+@contextlib.contextmanager
+def capturing(directory):
+    """Capture mode (#93, the owner's comparison check): inside it `write_table`
+    writes nothing to the store. It applies the write, in the mode asked, to a
+    parquet copy in `directory` (seeded from the stored table for a merge
+    mode), and `read_table` / `table_exists` see that copy once it exists, so a
+    step reads back what it wrote. `read_stored` still reads the store. Leaving
+    the block ends the mode; the files stay for the caller to read."""
+    global _capture_dir
+    if _capture_dir is not None:
+        raise StorageError("capture mode is already on")
+    _capture_dir = Path(directory)
+    try:
+        yield _capture_dir
+    finally:
+        _capture_dir = None
+
+
+def captured_path(name: str, directory=None) -> Path:
+    return Path(directory if directory is not None else _capture_dir) / f"{name}.parquet"
+
+
+def read_captured(name: str, directory) -> pd.DataFrame:
+    """The table `name` as a capture left it in `directory`, cast to the registry."""
+    return _coerce(pd.read_parquet(captured_path(name, directory)), _table_entry(name))
+
+
+def _captured(name: str) -> bool:
+    return _capture_dir is not None and captured_path(name).exists()
+
+
+def _capture_write(name: str, df: pd.DataFrame, mode: str, keys, partition, entry: dict) -> int:
+    _check_write_args(mode, keys, partition)
+    path = captured_path(name)
+    if mode != "replace" and not path.exists():
+        try:
+            stored = read_stored(name)
+        except TableNotFound:
+            stored = None
+        if stored is not None and len(stored):
+            _write_parquet(path, _coerce(stored, entry), "replace", None, None, entry)
+    return len(_write_parquet(path, df, mode, keys, partition, entry))
+
+
 def table_exists(name: str) -> bool:
     """Is the declared table `name` there to read?"""
     entry = _table_entry(name)
+    if _captured(name):
+        return True
     pg = _backend()
     if pg is not None:
         try:
@@ -857,6 +939,9 @@ def read_table(name: str, columns: Sequence[str] | None = None) -> pd.DataFrame:
     Under Postgres the rows come ordered by primary key, the columns in
     registry order, and a table with no rows holds no data."""
     entry = _table_entry(name)
+    if _captured(name):
+        df = pd.read_parquet(captured_path(name), columns=list(columns) if columns is not None else None)
+        return _coerce(df, entry)
     pg = _backend()
     if pg is not None:
         try:
@@ -917,6 +1002,8 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
                          grain); other rows untouched.
     """
     entry = _table_entry(name)
+    if _capture_dir is not None:
+        return _capture_write(name, df, mode, keys, partition, entry)
     pg = _backend()
     if pg is None:
         return len(_write_parquet(_table_path(name), df, mode, keys, partition, entry))
@@ -928,6 +1015,91 @@ def write_table(name: str, df: pd.DataFrame, *, mode: WriteMode = "replace",
         return pg.write(entry, df, mode, keys, partition)
     except pg.WriteRefused as exc:
         raise StorageError(f"{name}: {exc}") from exc
+
+
+class Checked(NamedTuple):
+    """What `write_table_checked` did: the problems the check found (empty when
+    the row was written) and the table's row count after (None when nothing was)."""
+    problems: list[str]
+    total: int | None
+
+
+def write_table_checked(name: str, df: pd.DataFrame, *,
+                        reads: Mapping[str, Sequence[str] | None],
+                        check: Callable[[dict[str, pd.DataFrame | None]], list[str]]) -> Checked:
+    """Upsert `df` into `name` on its registry grain only if `check` finds no
+    problem (#451).
+
+    `reads` maps each table the check needs to a column projection (None = all
+    columns). `check` gets `{table: frame}`, cast to the registry as
+    `read_table` casts, with None for a table that holds no rows, and returns
+    the problems as a list of strings; it must not write.
+
+    Under Postgres the lock on `name`, the reads, the check and the upsert are
+    ONE transaction: a second writer waits (LockWaitTimeout past the database's
+    lock_timeout) and then checks against the first writer's committed row.
+    Under parquet, or in capture mode, the reads, the check and the write run
+    in turn with no lock.
+    """
+    entry = _table_entry(name)
+    pg = None if _capture_dir is not None else _backend()
+    if pg is None:
+        stored = {}
+        for table, columns in reads.items():
+            _table_entry(table)
+            stored[table] = read_table(table, columns) if table_exists(table) else None
+        problems = list(check(stored))
+        if problems:
+            return Checked(problems, None)
+        return Checked([], write_table(name, df, mode="upsert"))
+    df = _check_batch(df, entry)
+    entries = {table: (_table_entry(table), None if columns is None else list(columns))
+               for table, columns in reads.items()}
+
+    def cast_then_check(raw):
+        return check({table: None if frame is None else _coerce(frame, entries[table][0])
+                      for table, frame in raw.items()})
+
+    try:
+        problems, total = pg.write_checked(entry, df, table_grain(entry), entries, cast_then_check)
+    except pg.LockTimeout as exc:
+        raise LockWaitTimeout(f"{name}: {exc}") from exc
+    except pg.WriteRefused as exc:
+        raise StorageError(f"{name}: {exc}") from exc
+    return Checked(problems, total)
+
+
+def write_tables_once(frames: Mapping[str, pd.DataFrame]) -> dict[str, int]:
+    """First fill of several empty tables, all or nothing (#93, the one-time
+    loader). Each batch is checked against the registry first. Under Postgres
+    every insert, and the check that no target holds a row, run in ONE
+    transaction with the tables locked; a refusal anywhere leaves every table
+    empty. Under parquet the files written so far are removed on a failure.
+    Raises StorageError, naming the tables that hold rows. Returns the rows
+    each table holds."""
+    batches = {}
+    for name, df in frames.items():
+        entry = _table_entry(name)
+        batches[name] = (entry, _check_batch(df, entry))
+    pg = _backend()
+    if pg is not None:
+        try:
+            return pg.write_all_empty(batches)
+        except pg.WriteRefused as exc:
+            raise StorageError(str(exc)) from exc
+    held = [name for name in batches if _table_path(name).exists()]
+    if held:
+        raise StorageError(f"{', '.join(held)} already hold rows")
+    written = []
+    try:
+        for name, (entry, df) in batches.items():
+            _write_parquet(_table_path(name), df, "replace", None, None, entry)
+            written.append(name)
+    except BaseException:
+        for name in written:
+            _table_path(name).unlink(missing_ok=True)
+        raise
+    return {name: len(df) for name, (_, df) in batches.items()}
 
 
 LEAGUE_TZ = "America/New_York"
@@ -1115,11 +1287,13 @@ def referenced_ids(name: str, key: str = "gsis_id") -> set:
     """Every id held by a stored table, other than `name`, in any registry
     column whose name contains the stem of `key` (`gsis` for `gsis_id`, so
     `new_gsis_id` counts too). Found from the registry, read through the
-    seam; a declared table with no data holds nothing."""
+    seam; a declared table with no data holds nothing. A private table is not
+    walked: it is no fact, every id it holds already reaches a published table,
+    and the overrides table also holds the literal `new`."""
     stem = key.removesuffix("_id")
     ids: set = set()
     for other, entry in _registry().items():
-        if other == name or not table_exists(other):
+        if other == name or is_private(entry) or not table_exists(other):
             continue
         cols = [c["name"] for c in entry.get("columns", []) if stem in c["name"]]
         if cols:
@@ -1150,7 +1324,7 @@ def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd
 
 GSIS_LINK_TABLE = "dim_gsis_link"
 GSIS_LINK_COLUMNS = ["old_gsis_id", "new_gsis_id", "method", "decided_date"]
-GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id")
+GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "nfl_id", "otc_id")
 
 
 def _gsis_link_map(links: pd.DataFrame) -> dict:

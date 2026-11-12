@@ -1,0 +1,1 @@
+{"description": "RDAP bootstrap file for Domain Name System registrations (trimmed test copy in the RFC 9224 shape)", "publication": "2026-10-28T00:00:00Z", "services": [[["com", "net"], ["https://rdap.verisign.com/com/v1/"]], [["org"], ["https://rdap.publicinterestregistry.org/rdap/"]]], "version": "1.0"}

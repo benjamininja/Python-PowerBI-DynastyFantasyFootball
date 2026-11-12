@@ -190,12 +190,13 @@ class TestTheDatabase:
         assert any("already holds rows" in line for line in again.problems)
         assert {t: count(db, t) for t in TABLES} == before
 
-    def test_a_held_lock_is_an_ordinary_error_after_the_lock_timeout(self, db, frames):
+    def test_a_held_lock_is_an_ordinary_error_after_the_lock_timeout(self, db, frames, monkeypatch):
         import psycopg
+        monkeypatch.setattr(pg, "LOCK_TIMEOUT_MS", 1000)
         name = sorted(frames)[0]
         with psycopg.connect(db) as holder:
             holder.execute(f'LOCK TABLE football."{name}" IN ACCESS EXCLUSIVE MODE')
-            with pytest.raises(psycopg.errors.LockNotAvailable):
+            with pytest.raises(pg.LockTimeout, match=f"football.{name}: waited 1s"):
                 pg.load_published(db, frames, empty_only=True)
         assert held(db) == []
 

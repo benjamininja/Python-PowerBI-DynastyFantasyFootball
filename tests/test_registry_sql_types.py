@@ -74,6 +74,8 @@ class TestTheRegistry:
         declared = {(t["name"], c["name"]) for t in TABLES for c in t["columns"]
                     if "sql_type" in c}
         for t in TABLES:
+            if (t.get("schema") or "football") != "football":
+                continue                                       # private: no snapshot file
             df = pd.read_parquet(REPO / "data" / f"{t['name']}.parquet")
             for col in df.columns:
                 if len(df) and str(df[col].dtype) == "object" and df[col].isna().all():

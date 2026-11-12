@@ -36,10 +36,12 @@ class Refused(Exception):
 
 
 def published_frames(data_dir: Path | str | None = None) -> dict:
-    """Every table of the registry, as the snapshot in `data_dir` stores it."""
+    """Every published table of the registry (a private one is not in the
+    snapshot), as the snapshot in `data_dir` stores it."""
     folder = Path(data_dir) if data_dir is not None else Path(etl.DATA)
-    declared = sorted(etl._registry())
-    stored = sorted(p.stem for p in folder.glob("*.parquet"))
+    declared = etl.published_names()
+    private = set(etl._registry()) - set(declared)
+    stored = sorted(p.stem for p in folder.glob("*.parquet") if p.stem not in private)
     if stored != declared:
         raise Refused("the snapshot and the registry name different tables -- "
                       f"no snapshot for [{', '.join(sorted(set(declared) - set(stored)))}], "
