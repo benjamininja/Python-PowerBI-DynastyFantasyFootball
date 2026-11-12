@@ -15,11 +15,13 @@ job installs nothing.
 The gate guards every migration, not only the generator's (planner ruling on
 PR #536). Comments are stripped and the file is split into statements on `;`,
 both outside quotes. A statement is destructive when it holds, anywhere and
-in any case, DROP (any form), TRUNCATE, DELETE FROM, RENAME, or an ALTER of a
-column's type. The one exemption is the generator's check widening (#443): an
-`ALTER TABLE t DROP CONSTRAINT a` statement directly followed by an
-`ALTER TABLE t ADD CONSTRAINT b CHECK (...)` statement on the same table. A
-false hold costs a dispatch; a false pass loses data.
+in any case: DROP (any form), TRUNCATE, DELETE FROM, MERGE, UPDATE ... SET,
+RENAME, ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION or
+SET SCHEMA. GRANT and REVOKE are not held. The one exemption is the generator's check widening (#443): an
+`ALTER TABLE t DROP CONSTRAINT t_chk_<8 hex>` statement directly followed by
+an `ALTER TABLE t ADD CONSTRAINT t_chk_<8 hex> CHECK (...)` statement on the
+same table. A key, foreign key or unique constraint dropped is held. A false
+hold costs a dispatch; a false pass loses data.
 """
 import argparse
 import re
@@ -37,11 +39,32 @@ DESTRUCTIVE = [
     re.compile(r"\bRENAME\b", re.IGNORECASE),
     re.compile(rf"\bALTER\s+(?:COLUMN\s+)?{_NAME}\s+(?:SET\s+DATA\s+)?TYPE\b", re.IGNORECASE),
     re.compile(r"\bALTER\s+TYPE\b", re.IGNORECASE),
+    re.compile(r"\bMERGE\b", re.IGNORECASE),
+    re.compile(rf"\bUPDATE\s+(?:ONLY\s+)?{_NAME}\s*\*?\s+(?:(?:AS\s+)?{_NAME}\s+)?SET\b", re.IGNORECASE),
+    re.compile(r"\bDETACH\s+PARTITION\b", re.IGNORECASE),
+    re.compile(r"\bSET\s+SCHEMA\b", re.IGNORECASE),
 ]
-_WIDEN_DROP = re.compile(rf"ALTER\s+TABLE\s+({_NAME})\s+DROP\s+CONSTRAINT\s+{_NAME}", re.IGNORECASE)
-_WIDEN_ADD = re.compile(rf"ALTER\s+TABLE\s+({_NAME})\s+ADD\s+CONSTRAINT\s+{_NAME}\s+CHECK\s*\(.*\)",
+_WIDEN_DROP = re.compile(rf"ALTER\s+TABLE\s+({_NAME})\s+DROP\s+CONSTRAINT\s+({_NAME})", re.IGNORECASE)
+_WIDEN_ADD = re.compile(rf"ALTER\s+TABLE\s+({_NAME})\s+ADD\s+CONSTRAINT\s+({_NAME})\s+CHECK\s*\(.*\)",
                         re.IGNORECASE | re.DOTALL)
-_DOLLAR = re.compile(r"\$[A-Za-z_]*\$")
+
+
+def _is_check_name(table, name):
+    """True when `name` is a generator check name for `table`: `<table>_chk_<8 hex>`."""
+    bare = table.lower().rsplit(".", 1)[-1]
+    return re.fullmatch(rf"{re.escape(bare)}_chk_[0-9a-f]{{8}}", name.lower()) is not None
+
+
+def _widening_pair(drop_stmt, add_stmt):
+    """The #443 pair (planner ruling on PR #536): a generator check dropped and a
+    generator check added on the same table. Any other constraint is held."""
+    drop, add = _WIDEN_DROP.fullmatch(drop_stmt), _WIDEN_ADD.fullmatch(add_stmt)
+    if not drop or not add or drop.group(1).lower() != add.group(1).lower():
+        return False
+    table = drop.group(1)
+    return (_is_check_name(table, drop.group(2)) and _is_check_name(table, add.group(2))
+            and not _hits(add_stmt))
+_DOLLAR = re.compile(r"\$[A-Za-z0-9_]*\$")
 
 
 def statements(sql):
@@ -100,8 +123,7 @@ def destructive(sql):
     stmts = statements(sql)
     exempt = set()
     for i in range(len(stmts) - 1):
-        drop, add = _WIDEN_DROP.fullmatch(stmts[i]), _WIDEN_ADD.fullmatch(stmts[i + 1])
-        if drop and add and drop.group(1).lower() == add.group(1).lower() and not _hits(stmts[i + 1]):
+        if _widening_pair(stmts[i], stmts[i + 1]):
             exempt.add(i)
     return [s for i, s in enumerate(stmts) if i not in exempt and _hits(s)]
 

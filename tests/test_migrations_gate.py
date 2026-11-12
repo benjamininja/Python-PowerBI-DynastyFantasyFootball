@@ -23,8 +23,10 @@ WORKFLOW = REPO / ".github" / "workflows" / "migrate.yml"
 SHA = re.compile(r"^[^@\s]+@[0-9a-f]{40}$")
 
 ORDINARY = "-- registry_state sha256: x\n\nALTER TABLE football.t ADD COLUMN c text;\n"
-WIDENING = ("-- registry_state sha256: x\n\nALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\n\n"
-            "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a', 'b'));\n")
+R1, R2 = "r_chk_0123abcd", "r_chk_89abcdef"
+WIDENING = (f"-- registry_state sha256: x\n\nALTER TABLE ops.r DROP CONSTRAINT {R1};\n\n"
+            f"ALTER TABLE ops.r ADD CONSTRAINT {R2} CHECK (s IN ('a', 'b'));\n")
+ADD_R2 = f"ALTER TABLE ops.r ADD CONSTRAINT {R2} CHECK (s IN ('a'));"
 COLUMN_DROP = "-- registry_state sha256: x\n\nALTER TABLE football.t DROP COLUMN c;\n"
 TABLE_DROP = "-- registry_state sha256: x\n\nDROP TABLE football.t;\n"
 
@@ -44,22 +46,37 @@ HELD_FORMS = {
     "drop function": "DROP FUNCTION shared.pii_token_hashes();",
     "drop index": "DROP INDEX football.t_c_idx;",
     "drop policy": "DROP POLICY etl_writer_all ON football.t;",
-    "lone drop constraint": "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;",
-    "drop constraint then add on another table": (
-        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\n"
-        "ALTER TABLE ops.s ADD CONSTRAINT s_chk_2 CHECK (s IN ('a'));"),
-    "drop constraint then a non-check add": (
+    "a check dropped with none added": f"ALTER TABLE ops.r DROP CONSTRAINT {R1};",
+    "a check dropped then an ordinary statement": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT {R1};\nALTER TABLE ops.r ADD COLUMN z text;"),
+    "a pair across tables": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT {R1};\n"
+        "ALTER TABLE ops.s ADD CONSTRAINT s_chk_12345678 CHECK (s IN ('a'));"),
+    "a primary key dropped then a check added": f"ALTER TABLE ops.r DROP CONSTRAINT r_pkey;\n{ADD_R2}",
+    "a foreign key dropped then a check added": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT r_team_key_fkey;\n{ADD_R2}"),
+    "a unique constraint dropped then a check added": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT r_a_key;\n{ADD_R2}"),
+    "a primary key swapped for a primary key": (
         "ALTER TABLE ops.r DROP CONSTRAINT r_pkey;\n"
         "ALTER TABLE ops.r ADD CONSTRAINT r_pkey PRIMARY KEY (a);"),
-    "drop constraint not directly followed": (
-        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\nSELECT 1;\n"
-        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a'));"),
-    "drop constraint if exists": (
-        "ALTER TABLE ops.r DROP CONSTRAINT IF EXISTS r_chk_1;\n"
-        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a'));"),
+    "another table's check name dropped": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT s_chk_0123abcd;\n{ADD_R2}"),
+    "a check name with a longer prefix": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT xr_chk_0123abcd;\n{ADD_R2}"),
+    "a check name with seven hex": f"ALTER TABLE ops.r DROP CONSTRAINT r_chk_0123abc;\n{ADD_R2}",
+    "a check name with a non-hex": f"ALTER TABLE ops.r DROP CONSTRAINT r_chk_0123abcg;\n{ADD_R2}",
+    "an added check with a non-generator name": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT {R1};\n"
+        "ALTER TABLE ops.r ADD CONSTRAINT r_status CHECK (s IN ('a'));"),
+    "a check dropped not directly followed": (
+        f"ALTER TABLE ops.r DROP CONSTRAINT {R1};\nSELECT 1;\n{ADD_R2}"),
+    "a check dropped if exists": f"ALTER TABLE ops.r DROP CONSTRAINT IF EXISTS {R1};\n{ADD_R2}",
+    "a check dropped with cascade": f"ALTER TABLE ops.r DROP CONSTRAINT {R1} CASCADE;\n{ADD_R2}",
     "truncate": "TRUNCATE football.t;",
     "truncate table": "truncate table football.t restart identity;",
     "delete": "DELETE FROM football.t WHERE a = 1;",
+    "delete from only": "delete  from\n only football.t;",
     "delete in a cte": "WITH gone AS (DELETE FROM football.t RETURNING *) SELECT count(*) FROM gone;",
     "rename table": "ALTER TABLE football.t RENAME TO u;",
     "rename column": "ALTER TABLE football.t RENAME COLUMN a TO b;",
@@ -68,6 +85,20 @@ HELD_FORMS = {
     "alter without COLUMN type": "ALTER TABLE football.t ALTER a TYPE integer USING a::integer;",
     "alter quoted column type": 'ALTER TABLE football.t ALTER COLUMN "a b" TYPE integer;',
     "alter type": "ALTER TYPE football.kind RENAME VALUE 'a' TO 'b';",
+    "merge with delete": ("MERGE INTO football.t USING football.u ON t.a = u.a "
+                          "WHEN MATCHED THEN DELETE;"),
+    "merge with update": ("merge into football.t t using football.u u on t.a = u.a "
+                          "when matched then update set b = u.b;"),
+    "update": "UPDATE football.t SET a = NULL;",
+    "update only": "update only football.t set a = 1 where b = 2;",
+    "update with an alias": "UPDATE football.t AS x SET a = 1;",
+    "update with a bare alias": "UPDATE football.t x SET a = 1;",
+    "update across lines": "UPDATE football.t\n   SET a = NULL;",
+    "update in a cte": "WITH u AS (UPDATE football.t SET a = 1 RETURNING *) SELECT 1;",
+    "detach partition": "ALTER TABLE football.t DETACH PARTITION football.t_2026;",
+    "set schema": "ALTER TABLE football.t SET SCHEMA archive;",
+    "a digit dollar tag keeps its body whole": (
+        "DO $a1$ BEGIN PERFORM 1; END $a1$;\nDROP TABLE football.t;"),
     "drop inside a dollar body": "DO $do$ BEGIN EXECUTE 'DROP TABLE football.t'; END $do$;",
     "drop after a comment on the same line": "/* note */ DROP TABLE football.t;",
     "drop after a quoted dashes string": "SELECT '--'; DROP TABLE football.t;",
@@ -77,15 +108,34 @@ PASSED_FORMS = {
     "ordinary": ORDINARY,
     "the #443 widening pair": WIDENING,
     "two widening pairs": (
-        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\n\n"
-        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a', 'b'));\n\n"
-        "ALTER TABLE ops.q DROP CONSTRAINT q_chk_1;\n\n"
-        "ALTER TABLE ops.q ADD CONSTRAINT q_chk_2 CHECK (t IN (1, 2));\n"),
+        f"ALTER TABLE ops.r DROP CONSTRAINT {R1};\n\n"
+        f"ALTER TABLE ops.r ADD CONSTRAINT {R2} CHECK (s IN ('a', 'b'));\n\n"
+        "ALTER TABLE ops.q DROP CONSTRAINT q_chk_00000001;\n\n"
+        "ALTER TABLE ops.q ADD CONSTRAINT q_chk_ffffffff CHECK (t IN (1, 2));\n"),
+    "a widening on an unqualified table": (
+        f"ALTER TABLE r DROP CONSTRAINT {R1};\n{ADD_R2.replace('ops.r', 'r')}"),
     "a grant naming delete": "GRANT SELECT, INSERT, UPDATE, DELETE ON football.t TO etl_writer;",
+    "a revoke": "REVOKE EXECUTE ON FUNCTION shared.pii_token_hashes() FROM PUBLIC;",
+    "a revoke of table rights": "REVOKE UPDATE, DELETE ON football.t FROM etl_reader;",
+    "a policy for update": "CREATE POLICY p ON football.t FOR UPDATE TO etl_writer USING (true);",
+    "a select for update": "SELECT a FROM football.t FOR UPDATE;",
+    "a foreign key on update cascade": (
+        "ALTER TABLE football.t ADD CONSTRAINT t_a_fkey FOREIGN KEY (a) "
+        "REFERENCES football.u (a) ON UPDATE CASCADE;"),
+    "a column named updated_at": "ALTER TABLE football.t ADD COLUMN updated_at timestamptz;",
+    "a function with a digit dollar tag": (
+        "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $f1$ SELECT 1; SELECT 2 $f1$;"),
     "drop only in a comment": "-- DROP TABLE football.t\nALTER TABLE football.t ADD COLUMN c text;",
     "drop only in a block comment": "/* DROP TABLE x; */ CREATE INDEX t_c_idx ON football.t (c);",
     "a word that starts with drop": "ALTER TABLE football.t ADD COLUMN dropped_at timestamptz;",
 }
+
+
+def _registry_with_check(check):
+    return {"tables": [], "other_tables": [
+        {"name": "run_log", "schema": "ops", "pk": ["run_id"],
+         "columns": [{"name": "run_id", "sql_type": "uuid"}, {"name": "status", "sql_type": "text"}],
+         "checks": [check]}]}
 
 
 def folder(tmp_path, **files):
@@ -153,10 +203,28 @@ class TestTheGate:
     def test_a_safe_form_passes(self, sql):
         assert not mg.is_destructive(sql), mg.destructive(sql)
 
+    def test_the_generator_real_widening_output_passes(self):
+        import generate_migrations as gm
+        old = gm.desired_model(_registry_with_check("status IN ('running', 'failed')"))
+        new = gm.desired_model(_registry_with_check("status IN ('running', 'failed', 'done')"))
+        sql = gm.render(gm.diff(old, new))
+        assert "DROP CONSTRAINT run_log_chk_" in sql and "ADD CONSTRAINT run_log_chk_" in sql
+        assert not mg.is_destructive(sql), mg.destructive(sql)
+
+    def test_the_committed_widening_migration_passes(self):
+        widenings = [p for p in (REPO / "supabase" / "migrations").glob("*.sql")
+                     if "DROP CONSTRAINT" in p.read_text(encoding="utf-8")]
+        assert widenings
+        assert not any(mg.is_destructive(p.read_text(encoding="utf-8")) for p in widenings)
+
     def test_a_held_form_in_a_pending_file_holds_it_on_push(self, tmp_path, capsys):
         out = folder(tmp_path, **{"20261101000000_a": ORDINARY,
                                   "20261102000000_hand": HELD_FORMS["multi-action drop"]})
         assert gate(tmp_path, out, [], capsys).out == "held=20261102000000_hand.sql\n"
+
+    def test_a_digit_dollar_tag_is_one_statement(self):
+        assert mg.statements("DO $a1$ BEGIN PERFORM 1; END $a1$; SELECT 2;") == [
+            "DO $a1$ BEGIN PERFORM 1; END $a1$", "SELECT 2"]
 
     def test_statements_strip_comments_and_keep_quotes_whole(self):
         sql = "SELECT 'a;--b' /* x; DROP */ ; -- DROP TABLE t;\nSELECT $f$ ; $f$ ;"
