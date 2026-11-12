@@ -143,9 +143,12 @@ def final_status(code: int, commit_line: str) -> str:
     return "published" if data_merged(commit_line) else "committed"
 
 
-def failure_summary(results: list[dict], plan: dict | None, commit_line: str) -> str:
+def failure_summary(results: list[dict], plan: dict | None, commit_line: str,
+                    blocked: list[str] = ()) -> str:
     parts = [f"step {r['name']} {r['status']}" for r in results
              if r["status"] not in ("ok", "dry-run")]
+    if blocked:
+        parts.append(f"Fantrax login cap reached ({len(blocked)} step(s) blocked)")
     for chain, reasons in (plan or {}).get("failed", {}).items():
         parts.append(f"Chain {chain} held")
         parts += [r.split(":", 1)[0] for r in reasons if not r.startswith("step ")]

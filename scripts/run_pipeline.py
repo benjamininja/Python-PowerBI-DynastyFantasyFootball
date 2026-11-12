@@ -131,6 +131,7 @@ def derive_phase(today: date | None = None) -> str:
 
 FANTRAX_SESSION_DIR_ENV = "FANTRAX_SESSION_DIR"
 FANTRAX_LOGIN_LEDGER = "logins"
+FANTRAX_BLOCKED_LEDGER = "blocked"
 
 
 def open_fantrax_session() -> Path:
@@ -148,15 +149,23 @@ def close_fantrax_session(folder: Path | None) -> None:
     shutil.rmtree(folder, ignore_errors=True)
 
 
-def fantrax_logins(folder: Path | None) -> list[str]:
-    """The scripts that logged in to Fantrax this run, one entry per login."""
+def _ledger(folder: Path | None, name: str) -> list[str]:
     if folder is None:
         return []
     try:
-        text = (folder / FANTRAX_LOGIN_LEDGER).read_text(encoding="utf-8")
+        return (folder / name).read_text(encoding="utf-8").splitlines()
     except OSError:
         return []
-    return text.splitlines()
+
+
+def fantrax_logins(folder: Path | None) -> list[str]:
+    """The scripts that logged in to Fantrax this run, one entry per login."""
+    return _ledger(folder, FANTRAX_LOGIN_LEDGER)
+
+
+def fantrax_blocked(folder: Path | None) -> list[str]:
+    """The scripts whose login the per-run cap refused (no login was tried)."""
+    return _ledger(folder, FANTRAX_BLOCKED_LEDGER)
 
 
 def _script(p: str, *args: str) -> list[str]:
@@ -858,6 +867,7 @@ def main() -> int:
     runlog = etl_run_log.RunLog(args.trigger)
     session = None if args.dry_run else open_fantrax_session()
     logins: list[str] = []
+    blocked: list[str] = []
     if not args.dry_run:
         runlog.start(etl_run_log.head_sha(REPO))
     try:
@@ -876,9 +886,12 @@ def main() -> int:
         print(f"[cadence] {cadence_line(cadence)}")
         results = run_steps(steps, phase, only, args.dry_run, groups)
         logins = fantrax_logins(session)
+        blocked = fantrax_blocked(session)
         if session:
             print(f"[info] fantrax logins: {len(logins)}"
                   f"{' (' + ', '.join(logins) + ')' if logins else ''}")
+        if blocked:
+            print(f"[info] fantrax login cap reached, blocked: {', '.join(blocked)}")
 
         plan, filed = None, None
         if not args.dry_run:
@@ -930,7 +943,7 @@ def main() -> int:
                                      if etl_run_log.data_committed(commit_line) else None),
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
-                error=(etl_run_log.failure_summary(results, plan, commit_line)
+                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked)
                        if code else None),
                 cadence=cadence,
                 column_changes=(plan or {}).get("column_changes")
@@ -946,7 +959,10 @@ def main() -> int:
         close_fantrax_session(session)
 
     summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
-    if len(logins) > 1:
+    if blocked:
+        summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
+                   f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")
+    elif len(logins) > 1:
         summary = f"⚠️ {len(logins)} Fantrax logins in this run; one is expected.\n{summary}"
     if runlog.warning:
         summary = f"{runlog.warning}\n{summary}"

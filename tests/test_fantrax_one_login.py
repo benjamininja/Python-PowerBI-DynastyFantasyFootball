@@ -180,6 +180,59 @@ def test_a_session_the_server_kills_mid_run_is_a_second_counted_login(scrape):
         rp.close_fantrax_session(folder)
 
 
+def test_a_third_login_in_one_run_is_refused_and_its_step_fails(scrape):
+    server, step = scrape
+    folder = rp.open_fantrax_session()
+    try:
+        step(STEPS[0])
+        server.valid.clear()
+        step(STEPS[1])
+        server.valid.clear()
+        with pytest.raises(fx.LoginCapReached):
+            step(STEPS[2])
+        assert server.logins == 2
+        assert rp.fantrax_logins(folder) == [STEPS[0], STEPS[1]]
+        assert rp.fantrax_blocked(folder) == [STEPS[2]]
+    finally:
+        rp.close_fantrax_session(folder)
+
+
+def test_a_step_with_a_live_session_still_runs_after_the_cap_is_reached(scrape):
+    server, step = scrape
+    folder = rp.open_fantrax_session()
+    try:
+        step(STEPS[0])
+        server.valid.clear()
+        step(STEPS[1])
+        step(STEPS[2])
+        step(STEPS[4])
+        assert server.logins == 2
+        assert rp.fantrax_blocked(folder) == []
+    finally:
+        rp.close_fantrax_session(folder)
+
+
+def test_a_blocked_login_touches_no_page(scrape):
+    server, step = scrape
+    folder = rp.open_fantrax_session()
+    try:
+        for _ in range(2):
+            server.valid.clear()
+            step(STEPS[0])
+        server.valid.clear()
+        scraper = fx.FantraxScraper(dataclasses.replace(
+            fx.CFG, user_data_dir=str(folder / "p"), raw_dir=str(folder / "r")))
+
+        class NoPage:
+            def __getattr__(self, name):
+                raise AssertionError("the blocked login touched the page")
+        with pytest.raises(fx.LoginCapReached) as caught:
+            scraper._login(NoPage())
+        assert FAKE_PASSWORD not in str(caught.value)
+    finally:
+        rp.close_fantrax_session(folder)
+
+
 def test_a_run_with_no_ledger_counts_zero():
     folder = rp.open_fantrax_session()
     try:
@@ -284,6 +337,32 @@ def test_a_run_that_raises_still_writes_the_count_and_cleans_up(pipe, logged):
     assert params[-2] == 1
     assert not seen["folder"].exists()
     assert rp.FANTRAX_SESSION_DIR_ENV not in os.environ
+
+
+def test_a_blocked_step_holds_its_chain_and_the_run_log_names_the_cap(pipe, logged):
+    rec, seen, steps_log_in = logged
+    pipe.results = [{"name": "s1", "status": "failed", "detail": ""}]
+
+    def mid_run():
+        folder = Path(os.environ[rp.FANTRAX_SESSION_DIR_ENV])
+        (folder / rp.FANTRAX_LOGIN_LEDGER).write_text("a.py\nb.py\n", encoding="utf-8")
+        (folder / rp.FANTRAX_BLOCKED_LEDGER).write_text("04t_fantrax_transaction_history.py\n",
+                                                       encoding="utf-8")
+    pipe.mid_run = mid_run
+    assert pipe.run() == 1
+    sql, params = rec.updates[-1]
+    assert params[1] == "failed"
+    assert "Fantrax login cap reached (1 step(s) blocked)" in params[4]
+    assert "step s1 failed" in params[4]
+    assert params[-2] == 2
+    assert pipe.committed[0]["publish"] == []
+    assert pipe.committed[0]["restore"] == ["dim_a"]
+    assert pipe.notified[0].startswith("⚠️ Fantrax login cap reached")
+
+
+def test_failure_summary_names_the_cap_with_no_script_name():
+    text = rl.failure_summary([], None, "", ["04t_fantrax_transaction_history.py"])
+    assert text == "Fantrax login cap reached (1 step(s) blocked)"
 
 
 def test_a_dry_run_makes_no_folder(pipe, logged):

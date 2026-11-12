@@ -213,6 +213,10 @@ class TotpLoginError(RuntimeError):
     pass
 
 
+class LoginCapReached(RuntimeError):
+    pass
+
+
 class TotpSecretMissing(TotpLoginError):
     pass
 
@@ -239,6 +243,8 @@ class FantraxScraper:
     SENT_VERIFY_CLICK = "verify_click"
     SESSION_DIR_ENV = "FANTRAX_SESSION_DIR"
     LOGIN_LEDGER = "logins"
+    BLOCKED_LEDGER = "blocked"
+    LOGIN_CAP_PER_RUN = 2
     SESSION_FILE = "session.json"
 
     def __init__(self, cfg: LeagueConfig = CFG):
@@ -256,11 +262,21 @@ class FantraxScraper:
         return Path(raw) if raw else None
 
     def _note_login(self) -> None:
-        self._fresh_login = True
         folder = self._session_dir()
         if folder is not None:
-            with (folder / self.LOGIN_LEDGER).open("a", encoding="utf-8") as f:
-                f.write(Path(sys.argv[0]).name + "\n")
+            ledger = folder / self.LOGIN_LEDGER
+            used = len(ledger.read_text(encoding="utf-8").splitlines()) if ledger.exists() else 0
+            script = Path(sys.argv[0]).name
+            if used >= self.LOGIN_CAP_PER_RUN:
+                with (folder / self.BLOCKED_LEDGER).open("a", encoding="utf-8") as f:
+                    f.write(script + "\n")
+                raise LoginCapReached(
+                    f"Fantrax login cap reached: {used} logins already made in this "
+                    "run, so no further login was tried. The step catches up at the next run."
+                )
+            with ledger.open("a", encoding="utf-8") as f:
+                f.write(script + "\n")
+        self._fresh_login = True
 
     def _seed_session(self, ctx) -> None:
         self._seeded = True
