@@ -17,7 +17,8 @@ PR #536). Comments are stripped and the file is split into statements on `;`,
 both outside quotes. A statement is destructive when it holds, anywhere and
 in any case: DROP (any form), TRUNCATE, DELETE FROM, MERGE, UPDATE ... SET,
 RENAME, ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION or
-SET SCHEMA. GRANT and REVOKE are not held. The one exemption is the generator's check widening (#443): an
+SET SCHEMA. A file with a single-quoted string holding a backslash is held
+too. GRANT and REVOKE are not held. The one exemption is the generator's check widening (#443): an
 `ALTER TABLE t DROP CONSTRAINT t_chk_<8 hex>` statement directly followed by
 an `ALTER TABLE t ADD CONSTRAINT t_chk_<8 hex> CHECK (...)` statement on the
 same table. A key, foreign key or unique constraint dropped is held. A false
@@ -40,7 +41,8 @@ DESTRUCTIVE = [
     re.compile(rf"\bALTER\s+(?:COLUMN\s+)?{_NAME}\s+(?:SET\s+DATA\s+)?TYPE\b", re.IGNORECASE),
     re.compile(r"\bALTER\s+TYPE\b", re.IGNORECASE),
     re.compile(r"\bMERGE\b", re.IGNORECASE),
-    re.compile(rf"\bUPDATE\s+(?:ONLY\s+)?{_NAME}\s*\*?\s+(?:(?:AS\s+)?{_NAME}\s+)?SET\b", re.IGNORECASE),
+    re.compile(rf"\bUPDATE(?:\s+|(?=\"))(?:ONLY(?:\s+|(?=\")))?{_NAME}\s*\*?\s*"
+               rf"(?:(?:AS(?:\s+|(?=\")))?{_NAME}\s*)?\bSET\b", re.IGNORECASE),
     re.compile(r"\bDETACH\s+PARTITION\b", re.IGNORECASE),
     re.compile(r"\bSET\s+SCHEMA\b", re.IGNORECASE),
 ]
@@ -67,10 +69,21 @@ def _widening_pair(drop_stmt, add_stmt):
 _DOLLAR = re.compile(r"\$[A-Za-z0-9_]*\$")
 
 
+AMBIGUOUS = "a quoted string holding a backslash"
+
+
 def statements(sql):
     """The statements of `sql`, comments stripped and whitespace collapsed.
     Quotes, quoted names and dollar-quoted bodies are kept whole."""
-    out, buf, i, n = [], [], 0, len(sql)
+    return _scan(sql)[0]
+
+
+def _scan(sql):
+    """(statements, ambiguous). An E'...' string honours backslash escapes, as
+    Postgres does. Any single-quoted string holding a backslash makes the
+    file ambiguous, since how Postgres reads it depends on its settings and
+    prefix (#536 re-check B2): the gate then holds the file."""
+    out, buf, i, n, ambiguous = [], [], 0, len(sql), False
     while i < n:
         ch = sql[i]
         if sql.startswith("--", i):
@@ -88,8 +101,15 @@ def statements(sql):
                     i += 1
             buf.append(" ")
         elif ch in "'\"":
+            escapes = ch == "'" and i > 0 and sql[i - 1] in "eE" and (
+                i < 2 or not (sql[i - 2].isalnum() or sql[i - 2] in "_$"))
             end = i + 1
             while end < n:
+                if ch == "'" and sql[end] == "\\":
+                    ambiguous = True
+                    if escapes:
+                        end += 2
+                        continue
                 if sql[end] == ch:
                     if end + 1 < n and sql[end + 1] == ch:
                         end += 2
@@ -111,7 +131,7 @@ def statements(sql):
             buf.append(ch)
             i += 1
     out.append("".join(buf))
-    return [s for s in (" ".join(part.split()) for part in out) if s]
+    return [s for s in (" ".join(part.split()) for part in out) if s], ambiguous
 
 
 def _hits(stmt):
@@ -119,13 +139,15 @@ def _hits(stmt):
 
 
 def destructive(sql):
-    """The destructive statements of `sql`, past the #443 widening pair."""
-    stmts = statements(sql)
+    """The destructive statements of `sql`, past the #443 widening pair, and
+    AMBIGUOUS first when a quoted string holds a backslash."""
+    stmts, ambiguous = _scan(sql)
     exempt = set()
     for i in range(len(stmts) - 1):
         if _widening_pair(stmts[i], stmts[i + 1]):
             exempt.add(i)
-    return [s for i, s in enumerate(stmts) if i not in exempt and _hits(s)]
+    found = [s for i, s in enumerate(stmts) if i not in exempt and _hits(s)]
+    return ([AMBIGUOUS] if ambiguous else []) + found
 
 
 def is_destructive(sql):

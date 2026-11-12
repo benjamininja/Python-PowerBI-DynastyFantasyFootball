@@ -94,6 +94,15 @@ HELD_FORMS = {
     "update with an alias": "UPDATE football.t AS x SET a = 1;",
     "update with a bare alias": "UPDATE football.t x SET a = 1;",
     "update across lines": "UPDATE football.t\n   SET a = NULL;",
+    "update of a quoted name with no space": 'UPDATE"t" SET a=1;',
+    "update of a quoted name touching SET": 'UPDATE football."t"SET a=1;',
+    "update only of a quoted name": 'UPDATE ONLY"t"SET a=1;',
+    "update with a quoted alias touching SET": 'UPDATE football.t AS"x"SET a=1;',
+    "update of a starred table": "UPDATE football.t* SET a=1;",
+    "an escape string hiding a drop": "SELECT E'a\\'-- '; DROP TABLE football.t; --';",
+    "a lower-case escape string hiding a drop": "SELECT e'a\\'/* '; DROP TABLE football.t; -- */';",
+    "a plain string with a backslash": "SELECT 'a\\';",
+    "an escape string with a backslash": "SELECT E'line\\n';",
     "update in a cte": "WITH u AS (UPDATE football.t SET a = 1 RETURNING *) SELECT 1;",
     "detach partition": "ALTER TABLE football.t DETACH PARTITION football.t_2026;",
     "set schema": "ALTER TABLE football.t SET SCHEMA archive;",
@@ -221,6 +230,21 @@ class TestTheGate:
         out = folder(tmp_path, **{"20261101000000_a": ORDINARY,
                                   "20261102000000_hand": HELD_FORMS["multi-action drop"]})
         assert gate(tmp_path, out, [], capsys).out == "held=20261102000000_hand.sql\n"
+
+    def test_an_escape_string_is_read_as_postgres_reads_it(self):
+        stmts, ambiguous = mg._scan("SELECT E'a\\'-- '; DROP TABLE football.t; --';")
+        assert ambiguous
+        assert stmts[0] == "SELECT E'a\\'-- '"
+        assert stmts[1] == "DROP TABLE football.t"
+        assert mg.destructive("SELECT E'x\\\\';")[0] == mg.AMBIGUOUS
+
+    def test_a_name_ending_in_e_is_not_an_escape_prefix(self):
+        stmts, _ = mg._scan("SELECT name'a\\' ; SELECT 2;")
+        assert stmts == ["SELECT name'a\\'", "SELECT 2"]
+
+    def test_a_backslash_in_a_dollar_body_or_quoted_name_is_not_ambiguous(self):
+        assert not mg._scan("SELECT $f$ a\\b $f$;")[1]
+        assert not mg._scan('SELECT "a\\b";')[1]
 
     def test_a_digit_dollar_tag_is_one_statement(self):
         assert mg.statements("DO $a1$ BEGIN PERFORM 1; END $a1$; SELECT 2;") == [

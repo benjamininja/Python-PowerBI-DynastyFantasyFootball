@@ -2,15 +2,21 @@
 # applies supabase/migrations to a throwaway Postgres and tests the result.
 # push (merge to main) applies them to the real project with the secret
 # SUPABASE_MIGRATE_DB_URL from the etl environment, which is limited to main.
-# On a push it holds the first pending migration with a destructive statement,
-# and every one after it. Held, anywhere in a statement and in any case: DROP
-# (any form), TRUNCATE, DELETE FROM, MERGE, UPDATE ... SET, RENAME,
-# ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION, SET SCHEMA.
-# GRANT and REVOKE are not held. Exempt: DROP CONSTRAINT of a name matching
-# <table>_chk_[0-9a-f]{8}, directly followed by ADD CONSTRAINT of a name
-# matching the same pattern with CHECK, on the same table
-# (scripts/migration_gate.py). (#534, ADR-0018 decision 12): those apply only when
-# the owner runs this workflow by hand (workflow_dispatch) from main.
+#
+# The destructive-migration gate (#534, ADR-0018 decision 12,
+# scripts/migration_gate.py). On a push, the first pending migration with a
+# destructive statement is held, with every pending migration after it. Those
+# apply only when the owner runs this workflow by hand (workflow_dispatch)
+# from main.
+# - Held, anywhere in a statement and in any case: DROP (any form), TRUNCATE,
+#   DELETE FROM, MERGE, UPDATE ... SET, RENAME,
+#   ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION,
+#   SET SCHEMA.
+# - Also held: a file with a single-quoted string holding a backslash.
+# - Not held: GRANT and REVOKE.
+# - Exempt: DROP CONSTRAINT of a name matching <table>_chk_[0-9a-f]{8},
+#   directly followed by ADD CONSTRAINT of a name matching the same pattern
+#   with CHECK, on the same table.
 name: migrate
 
 on:
