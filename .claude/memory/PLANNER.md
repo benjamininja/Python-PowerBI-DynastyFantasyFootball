@@ -7,8 +7,11 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-- Run the source check on walterfootball.com and draftsharks.com (C1), Session f0a77999-7702-43c0-8b3e-ecfaf1eb9d61 (sent to the manager 2026-11-12 ~12:35Z).
-- Go for #513: Session d856b999 (old); the owner said go in the manager's chat, so it leaves the queue.
+Open entries raised by planner session f0a77999 (2026-11-12), all with `Session: f0a77999-7702-43c0-8b3e-ecfaf1eb9d61`; after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
+- Capture Fantrax getPlayerIds for #519
+- Paste the getMatchupScores docs and capture one period for #520
+- Tools #153: which runtime runs the owner-queue edit CLI?
+(Done and out: the C1 source run; the data-use mailbox and private repo.)
 
 ## START HERE (state 2026-11-09, before a clear)
 
@@ -16,7 +19,35 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-12, ~12:35Z by `date -u` (session f0a77999, after the clear). Adds to the 58-zero item, whose Resume and lists stand except as said here.**
+000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-12, ~15:30Z, before a CLEAR (session f0a77999). Self-contained; overrides everything below. The 59-zero item has this session's detail.**
+- **Resume rules:**
+  - The state worktree is the one on branch `docs/state-2026-11-07`; find its folder with `git worktree list`. It sits in an old session's Temp folder, which is fragile, so move it out of Temp at the next chance.
+  - Pull (`git pull --rebase origin docs/state-2026-11-07`) before reading and before every push. Run `git status --short`, then **commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`**. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+  - PR #455 merges only on Ben's word.
+  - Message the manager and the Tools planner by name.
+- **Ben's standing rules, new today (root preferences.md; sent to both peers):**
+  1. Nothing on GitHub points at local-only content. Identifiers (session ids, issue, PR and commit numbers) stay allowed in the queue and state files; local paths never. **This file still holds old Temp and scratchpad paths in the older items:** clean them at the next big touch.
+  2. Every question to Ben goes through the pop-up (AskUserQuestion) or a queue entry, never prose. Each option is a real alternative with its trade-off.
+  3. Call him **Ben** or **the owner**, and the agent **Claude**; never "you" and "I".
+  4. Private records go to Ben's mailbox plus the private repo `benjamininja/DeadMoney_FantasyFootball_Private`. There is no loose `private/` folder; reusable tools move into tracked code.
+- **Ben merges:** dotclaude PR #5 (https://github.com/benjamininja/dotclaude/pull/5), which holds today's rule edits. `~/.claude` stays checked out on its branch `memory/local-only-and-buttons-rules` until it merges; **then switch `~/.claude` back to main and pull.** Merges are now queued for Ben (the manager's "Queue merges for me").
+- **#429:** the statement grill is done (round 7, issuecomment-6824205990), and #429's body is fixed. **#517** (the docs page) has Ben's go and the manager dispatches it. **Next: draft the Fantrax letter after #517 merges.** It asks only to read the transaction log, links the page, and stays private: a draft for Ben, kept in the private repo, not on GitHub.
+- **Fantrax build tickets, filed today (#429 issuecomment-6824747108), all medium:**
+  - **Go now:** #526 (roster-diff spike, no network), #525 (one login per run), #521 (ADP out), #524 (minors).
+  - **After Ben's captures (queued):** #519 (identity), #520 (matchup scores).
+  - **After #473 briefs 2 to 4** (Ben: go, one at a time): #522 (points) and #523 (grid).
+  - **#93 brief 5:** amended for the login cap (issuecomment-6824746341); it dispatches when #525 merges.
+- **Other tickets today:**
+  - #515 (high): a reviewed drop path for pff_id, after a design grill, at Ben's go.
+  - #518 (low, go): track the manager's re-proof and check scripts.
+  - Tools #153 (medium, go; Claude owns the owner-queue mod): **its runtime is a queued Decision**. (b) is ruled: prepend_state stays out of the CLI.
+  - Tools #147 and #148: Claude plans their pane parts; **nothing done yet.**
+- **#454 C1:** both hosts came back `not_cleared` (the Safe Browsing `unwanted` control got no reading), issuecomment-6824242911. Ben reruns. If it fails again, file a low ticket so a failed control records why in `notes`.
+- **#93:** still waiting on the manager's report of the 11-12 run (GitHub was late). With no `salary_remaining` finding for a post-lock move, tick Salary Remaining and close #93's line on map #375.
+- **Waiting on Ben:** #505's approval, #455, tools #137's go, the #300 script rules, dotclaude #5's merge, the C1 rerun, the two captures, and the #153 runtime.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (60 zeros) first. The state worktree is the one on branch docs/state-2026-11-07 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-07 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; it merges only on Ben's word. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, call him Ben or the owner and yourself Claude, and nothing committed points at local-only files. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by name (session id local_9830794b-c1e9-400a-ba66-e6abb9432396 if the name fails; it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000. **2026-11-12, ~12:35Z by `date -u` (session f0a77999, after the clear). Adds to the 58-zero item, whose Resume and lists stand except as said here.**
 - Reconciled at 12:29Z: open PRs unchanged (dynasty #505 and #455; tools #140, held on Rule B). Mains dynasty `2196bf8`, tools `29f77d5`.
 - **No 11-12 daily run yet.** The last three ran at 18:40Z to 21:25Z, not 11:17Z. #93's Salary Remaining box waits on the manager's report of it.
 - **The owner said go on #513 and tools #144** in the manager's chat ("THEN go 513 and 144"); the manager dispatches both. Drop them from the waiting list.
