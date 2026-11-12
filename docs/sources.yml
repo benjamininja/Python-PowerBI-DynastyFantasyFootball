@@ -273,6 +273,7 @@ sources:
       - { notebook: 02a_fact_nfl_combine_pro_day_metrics.ipynb, table: fact_nfl_combine_pro_day_metrics }
       - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_snap_counts }
       - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_injuries }
+      - { notebook: 02j_nflverse_minor_eligibility.py, table: fact_nfl_minor_eligibility }
       - { notebook: 05a_startup_draft_board.py, table: "(career-games lookup)" }
     match: ["nflreadpy"]
 
