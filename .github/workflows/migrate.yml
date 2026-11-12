@@ -2,6 +2,9 @@
 # applies supabase/migrations to a throwaway Postgres and tests the result.
 # push (merge to main) applies them to the real project with the secret
 # SUPABASE_MIGRATE_DB_URL from the etl environment, which is limited to main.
+# On a push it holds the first pending migration with DROP COLUMN or DROP TABLE,
+# and every one after it (#534, ADR-0018 decision 12): those apply only when
+# the owner runs this workflow by hand (workflow_dispatch) from main.
 name: migrate
 
 on:
@@ -20,6 +23,7 @@ on:
       - 'docs/data_model.yml'
       - 'scripts/generate_migrations.py'
       - '.github/workflows/migrate.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -88,7 +92,7 @@ jobs:
           test "$applied" -eq "$expected"
 
   push:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: etl
     concurrency:
@@ -103,7 +107,28 @@ jobs:
         with:
           version: 2.122.0
 
+      - name: Install psql
+        if: github.event_name == 'push'
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Hold a destructive migration for the owner's dispatch
+        id: gate
+        if: github.event_name == 'push'
+        env:
+          SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
+        run: |
+          psql "$SUPABASE_MIGRATE_DB_URL" -v ON_ERROR_STOP=1 -At -c "SELECT version FROM supabase_migrations.schema_migrations" > "$RUNNER_TEMP/applied.txt"
+          python3 scripts/migration_gate.py --applied "$RUNNER_TEMP/applied.txt" --remove >> "$GITHUB_OUTPUT"
+
       - name: Push the migrations to the real project
         env:
           SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
         run: supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"
+
+      - name: Stop at the held migration
+        if: steps.gate.outputs.held != ''
+        env:
+          HELD: ${{ steps.gate.outputs.held }}
+        run: |
+          echo "::error::$HELD holds DROP COLUMN or DROP TABLE and was not applied. It and every later migration apply when the owner runs migrate by workflow_dispatch from main."
+          exit 1
