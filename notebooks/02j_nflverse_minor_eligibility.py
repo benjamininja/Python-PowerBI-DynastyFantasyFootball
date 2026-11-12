@@ -27,10 +27,11 @@
 # and the verdict per player. `week` is the Scoring Period holding the run
 # (two digits), or PRE when none does; each run replaces its own `(season,
 # week)`, as `04v` does, so the table keeps one capture per period. Every row
-# of a run carries the same `capture_date`. `02d` reads the rows with
-# `eligible` true for its Minor default; the drift check in `etl_checks.py`
-# compares them with Fantrax's verdict in `fact_minor_eligibility` while `04v`
-# still runs.
+# of a run carries the same `capture_date`. `02d` does not read it yet: its
+# Minor default stays on Fantrax's `fact_minor_eligibility` (owner's ruling on
+# PR #535, 2026-11-12). The drift check in `etl_checks.py` compares the two
+# while `04v` still runs; the switch is the owner's call after a week of drift
+# data.
 #
 # **Safe on a bad load:** an empty snap-count load would make every player look
 # fresh and eligible, so the step stops instead of writing.

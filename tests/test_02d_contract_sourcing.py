@@ -1403,66 +1403,6 @@ class TestNoLedgerCapHit:
         assert "cap_hit" not in rows.columns
 
 
-CROSSWALK = pd.DataFrame({"scorer_id": ["p1", "p2", "p3", "p4"],
-                          "gsis_id": ["g1", "g2", "g2", None]})
-
-
-def computed(by_day, season=YEAR):
-    """fact_nfl_minor_eligibility rows: {capture_date: [(gsis_id, eligible), ...]}."""
-    return pd.DataFrame([{"season": season, "capture_date": day, "gsis_id": gsis, "eligible": ok}
-                         for day, rows in by_day.items() for gsis, ok in rows])
-
-
-class TestComputedEligibility:
-    """02j's table (#524): nflverse's verdict by gsis_id, read for the Minor
-    default beside Fantrax's by scorer_id."""
-
-    def test_eligible_rows_become_the_scorer_ids_the_crosswalk_gives_them(self):
-        table = computed({"2026-09-17": [("g1", True), ("g2", True), ("g9", True)]})
-        assert rt.index_computed_eligibility(table, CROSSWALK, YEAR) == [
-            (pd.Timestamp("2026-09-17"), {"p1", "p2", "p3"})]
-
-    def test_a_player_nflverse_counts_past_the_limit_is_not_listed(self):
-        table = computed({"2026-09-17": [("g1", True), ("g2", False)]})
-        assert rt.index_computed_eligibility(table, CROSSWALK, YEAR) == [
-            (pd.Timestamp("2026-09-17"), {"p1"})]
-
-    def test_only_the_asked_season_is_read(self):
-        table = pd.concat([computed({"2025-09-17": [("g1", True)]}, season=2025),
-                           computed({"2026-09-17": [("g2", True)]})])
-        assert rt.index_computed_eligibility(table, CROSSWALK, YEAR) == [
-            (pd.Timestamp("2026-09-17"), {"p2", "p3"})]
-
-    def test_no_table_or_no_crosswalk_reads_nothing(self):
-        table = computed({"2026-09-17": [("g1", True)]})
-        assert rt.index_computed_eligibility(None, CROSSWALK, YEAR) == []
-        assert rt.index_computed_eligibility(table, None, YEAR) == []
-
-    def test_on_a_day_both_have_fantrax_s_capture_stands(self):
-        fantrax = rt.index_eligibility(eligibility({"2026-09-17": ["p9"]}))
-        nflverse = rt.index_computed_eligibility(computed({"2026-09-17": [("g1", True)]}), CROSSWALK, YEAR)
-        assert rt.merge_eligibility(fantrax, nflverse) == [(pd.Timestamp("2026-09-17"), {"p9"})]
-
-    def test_a_day_only_nflverse_has_is_filled_in_order(self):
-        fantrax = rt.index_eligibility(eligibility({"2026-09-10": ["p1"], "2026-09-24": ["p1"]}))
-        nflverse = rt.index_computed_eligibility(computed({"2026-09-17": [("g2", True)]}), CROSSWALK, YEAR)
-        merged = rt.merge_eligibility(fantrax, nflverse)
-        assert [day for day, _ in merged] == [pd.Timestamp(d) for d in
-                                              ("2026-09-10", "2026-09-17", "2026-09-24")]
-        assert merged[1][1] == {"p2", "p3"}
-
-    def test_the_source_defaults_a_claim_to_minor_on_nflverse_alone(self):
-        src = rt.contract_source(None, None, None, CONTRACTS, season_id=SEASON, season=YEAR,
-                                 computed=computed({"2026-09-17": [("g1", True)]}),
-                                 crosswalk=CROSSWALK)
-        assert rt.resolve_contract(src, rt.CLAIM_EVENT, "p1", pd.Timestamp("2026-09-10")).contract_id == "Minor"
-        assert rt.resolve_contract(src, rt.CLAIM_EVENT, "p2", pd.Timestamp("2026-09-10")).contract_id == "FA"
-
-    def test_the_source_without_nflverse_is_what_it_was(self):
-        elig = eligibility({"2026-09-17": ["p1"]})
-        assert source(elig=elig).elig == rt.index_eligibility(elig, YEAR)
-
-
 @pytest.fixture(scope="module")
 def dim():
     return pd.read_parquet(Path(__file__).resolve().parent.parent / "data" / "dim_contract.parquet")

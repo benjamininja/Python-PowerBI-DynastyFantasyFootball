@@ -1152,11 +1152,12 @@ tables:
       eligible. week is the Scoring Period holding the run (two digits), or PRE
       when none does; a run replaces its own (season, week), so there is one
       capture per period. capture_date is the run's league day and is the same
-      on every row of a run. 02d reads the rows with eligible true for its Minor
-      default, by capture_date, beside fact_minor_eligibility (Fantrax's own
-      verdict, 04v), whose capture wins on a day both have. The minor_drift
-      Review check compares the two on Fantrax's newest capture day (the
-      nearest nflverse capture within one day). A player whose snaps
+      on every row of a run. 02d does not read it yet: its Minor default stays
+      on fact_minor_eligibility (Fantrax's own verdict, 04v), by the owner's
+      ruling on PR #535 (2026-11-12); the switch comes to the owner after a
+      week of drift data. The minor_drift Review check compares the two on
+      Fantrax's newest capture day (the nearest nflverse capture within one
+      day). A player whose snaps
       sit under a pfr id no source maps to a gsis_id is undercounted (counted
       by position in the run's output; almost all offensive linemen and long
       snappers), which the drift check shows as an eligible player Fantrax does
