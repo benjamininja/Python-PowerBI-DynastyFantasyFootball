@@ -15,7 +15,38 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-11, ~23:06Z by `date -u` (session d856b999, after the clear). Adds to the 56-zero item, whose Resume and DO NEXT stand.**
+0000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-12, ~12:27Z by `date -u`, before a CLEAR (session d856b999). Self-contained; overrides everything below. The 57-zero item has this session's detail; the 56-zero item has the Resume rules and older open work.**
+- **Resume:** the same rules as the 56-zero item. Worktree ps1103 (in old session 4b9eacec's Temp scratchpad), branch `docs/state-2026-11-07`, PR #455 merges on the owner's word. Pull before reading and before every push; run `git status --short`; **commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`**; push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
+- **Reconcile first:**
+  - `gh pr list --state open` in both repos. At 12:27Z: dynasty #505 and #455; tools #140 (the Tools planner's).
+  - MANAGER.md's newest block.
+  - The manager's **11-12 daily-run report on #93**. If it files no `salary_remaining` finding for a post-lock move, tick #93's Salary Remaining box and close #93's line on map #375 (#514 merged as 2196bf8; #509 and #500 are closed).
+- **Waiting on the owner:**
+  - **The open question:** the data-use statement grill now, or the Fantrax build tickets first. Ask it first.
+  - #505's approval: relay the exact words to the manager, which merges. Dynasty code review starts after it.
+  - #455's merge.
+  - The go for #513 (PFF leftovers; the Decision is queued, Session d856b999).
+  - The go for tools #137 (Bring to Chat; register.tsx is free since #121 merged as e754faa, 0.10.0).
+  - The #300 script-rules question (the manager asked; the three rules are still at builders.settings.json lines 56-58).
+  - Older: Q16 is **settled**. Still parked until the owner raises it: the OLB/DE mapping. Also the root push, the DLF Action, the CFBD key, and #473's later briefs' timing.
+- **#429, the Fantrax grill:**
+  - Settled. Round 5: Q16 = (a), the letter asks **only** to read the transaction log; ADP leaves the letter **and the snapshot**. Round 6: the order is statement, then the owner's dedicated address, then a low docs-page PR, then the letter. Comments issuecomment-6809867986 and -6810451907.
+  - **Next, the statement grill** (#429 Change 1: who we are, why we publish, what we read and how gently, what we publish or keep private, credit, takedowns of 72 h plus a history scrub, contact). No amounts in any public record (Q15c). Then confirm a shared understanding.
+  - Fix #429's body: "no money taken" is wrong, and the Fantrax draft now asks for transactions only.
+- **Fantrax build tickets to write** (the owner said move to the public endpoints). Read #428's findings (issuecomment-6710895954) and #429 rounds 1-6 first.
+  1. `fxea` moves: identity from `getPlayerIds` (dim_fantrax_crosswalk), and `getMatchupScores` for fact_matchup.
+  2. ADP out of the snapshot. Its readers: discord_bot adp.py and player.py, trade-bud data_access.py, 05a, Power BI Fact_FantraxADP.
+  3. The three nflverse replacements: player points recomputed, gated on getMatchupScores; grid stats; minors from career GP <= 19. Check the overlap with #473's rules table first.
+  4. One login per Daily Run, plus at most 2 logged-in triggers a UTC day, only on a membership change. This is #93 brief 5; tell the manager it's unblocked.
+  5. The 04t roster-diff fallback spike.
+  6. The statement docs page, after the grill.
+  - The owner's wrapper links changed nothing: fantraxapi posts to fxpa/req getTransactionDetailsHistory, the same call as 04t.
+- **I owe the manager:** the owner's walterfootball/draftsharks source-run queue entry. #502 is fixed by #508 (83b170c); C1 waits on that run.
+- **Open tickets from this session:** #513 (PFF, medium, supabase-auditor); #511 and #512 (backlog, a new label); tools #137 (medium, F7 folded in) and #142 (F2 race, low, after #137). When #137 merges, send the Tools planner its plugin.json version for the handoff row. #506 waits for the next failure's text.
+- **Time-boxed and other items:** #458's Close Day proof on 2026-11-13; #459 has only B9 left, behind #413 (B11 and B12 are done, fcb045f); a sweep only on the owner's word; #473 brief 14's DraftSharks list at its dispatch.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (58 zeros) first. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading and before every push, run git status --short and commit with an explicit git add of PLANNER.md (never commit -a), and push with a standalone git push origin HEAD:docs/state-2026-11-07. The state batch PR for this branch is #455; merge only on the owner's word. Message the manager by name, dynastyFantasyFootball-central-builder-manager (session id local_39e3ac7a-9d6d-4524-82e4-9b5f0e6db274 if the name fails), and Tools-central-planner by name (session id local_9830794b-c1e9-400a-ba66-e6abb9432396 if the name fails; it owns skills-plugins-hooks-agents except the owner-queue mod, which is yours).
+
+000000000000000000000000000000000000000000000000000000000. **2026-11-11, ~23:06Z by `date -u` (session d856b999, after the clear). Adds to the 56-zero item, whose Resume and DO NEXT stand.**
 - **#500:** the 11-11 run filed B08 and B13 again, plus A13, A14 and B05. Fantrax's `salary_remaining` is identical for all 28 teams on 11-10 and 11-11, still at period 9. Brief amended (issuecomment-6808999021): all five teams; first test is ours at p9 against Fantrax's p9; if all five match, the cause is (d) and a follow-up ticket takes the fix. Also asks whether Minors, Bench and Starter moves should change charged salary. **Profile ruled probe** at the manager's ask (body lines 17–18: five snapshot tables only, ETL_STORAGE unset, no network, no Postgres, no data/raw; probe.py's text goes in the findings). The owner said go on #500, #502 and #506 (via the manager); the manager dispatches.
 - **PFF, the owner's question:** it stays rejected on its terms (#402: personal use only; league use counts as commercial; no bots; no AI prompting). It has no dynasty or IDP rankings. The dynasty IDP gap goes through #413 and #473. **Asked the owner** whether to file (1) a spike on nflverse PFR and Next Gen advanced stats as a stand-in for grades, and (2) a low ticket for an nflverse depth-chart feed. Not filed until they answer.
 - Hand item 2 (#110's /clear check) is in the owner's hands, in a throwaway session.
