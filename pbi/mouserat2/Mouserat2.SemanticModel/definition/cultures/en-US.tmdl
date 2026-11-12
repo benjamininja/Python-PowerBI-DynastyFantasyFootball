@@ -11288,22 +11288,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "fact_fantrax_ADP.adp": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_FantraxADP",
-			          "ConceptualProperty": "ADP"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "adp": {
-			            "State": "Generated"
-			          }
-			        }
-			      ]
-			    },
 			    "fact_fantrax_ADP.salary": {
 			      "Definition": {
 			        "Binding": {
