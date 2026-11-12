@@ -26,6 +26,12 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **Correspondence:** the mailbox holds the originals; a private GitHub repo the owner creates holds the .eml copies and a register. The manager queues the repo and the address.
   - **New standing rule (root preferences.md, Git section):** nothing committed points at local-only content. Identifiers (session ids, issue, PR and commit numbers) stay allowed in the queue and state files as lookup keys. **This file must drop its scratchpad and Temp paths:** name worktrees by branch. Clean the older blocks at the next big touch. Sent to the Tools planner for session-rules. A dynasty `private/` .gitignore ticket is held for the owner's confirmation (the private repo may cover it).
   - **#513:** the owner said keep pff_id; the drop path is **#515** (high, after a design grill, at the owner's go). The manager relayed it to the builder.
+- **Later, ~14:30Z:**
+  - Ben confirmed the statement outline; **#517** (low) publishes `docs/DATA-USE.md`. It dispatches after the mailbox-and-private-repo Action and at Ben's go; the name and address go in the dispatch brief only.
+  - **C1 run:** both hosts `not_cleared` (`controls_failed`: the Safe Browsing `unwanted` control got no reading), so nothing was read (#454 issuecomment-6824242911). Ben reruns it; if it fails again, file a low ticket so a failed control records why in `notes`.
+  - **private/ is superseded:** every durable private record goes to the private repo; reusable tools move into tracked code (ticket once the manager lists its scripts). No `.gitignore` ticket. Told the Tools planner to rework tools PR #151 and #148.
+  - **New standing rules (root preferences.md, on dotclaude PR #5, which Ben merges):** every owner question goes through a pop-up or the queue; call the owner Ben (or the owner) and the agent Claude, never "you" and "I". `~/.claude` stays on that PR's branch until it merges, then switch it back to main and pull.
+  - Tools gave Claude #147 and #148 (owner-queue pane parts) to plan. The id ruling is recorded on tools #149.
 - Resume note: the state worktree is the one on branch `docs/state-2026-11-07`; the old Temp location is fragile (files vanished on 11-11), so move it to a non-Temp worktree at the next chance.
 - Still waiting on the owner: the open question (statement grill or the Fantrax tickets first), #505, #455, tools #137, the #300 script rules, and Rule B for #140 (the Tools planner's).
 
