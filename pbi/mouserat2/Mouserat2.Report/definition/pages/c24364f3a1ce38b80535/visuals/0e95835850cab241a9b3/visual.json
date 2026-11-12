@@ -187,20 +187,6 @@
             "value": {
               "expr": {
                 "Literal": {
-                  "Value": "66.31985011796526D"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "CountNonNull(Fact_FantraxADP.ADP)"
-          }
-        },
-        {
-          "properties": {
-            "value": {
-              "expr": {
-                "Literal": {
                   "Value": "75.57256426279903D"
                 }
               }
