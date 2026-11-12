@@ -180,27 +180,6 @@
                           "Entity": "Fact_FantraxADP"
                         }
                       },
-                      "Property": "ADP"
-                    }
-                  },
-                  "Function": 1
-                }
-              },
-              "queryRef": "Avg(Fact_FantraxADP.ADP)",
-              "nativeQueryRef": "Average of adp",
-              "displayName": "ADP",
-              "format": "0.0"
-            },
-            {
-              "field": {
-                "Aggregation": {
-                  "Expression": {
-                    "Column": {
-                      "Expression": {
-                        "SourceRef": {
-                          "Entity": "Fact_FantraxADP"
-                        }
-                      },
                       "Property": "OverallRank"
                     }
                   },
@@ -329,20 +308,6 @@
           },
           "selector": {
             "metadata": "CountNonNull(Fact_FantraxADP.OverallRank)"
-          }
-        },
-        {
-          "properties": {
-            "value": {
-              "expr": {
-                "Literal": {
-                  "Value": "66.31985011796526D"
-                }
-              }
-            }
-          },
-          "selector": {
-            "metadata": "CountNonNull(Fact_FantraxADP.ADP)"
           }
         },
         {

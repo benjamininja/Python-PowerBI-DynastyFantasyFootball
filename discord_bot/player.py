@@ -25,7 +25,6 @@ log = logging.getLogger("league-bot.player")
 
 _METRICS_PATH = "data/fact_dynasty_ranking_metrics.parquet"
 _PLAYERS_PATH = "data/dim_nfl_players.parquet"
-_ADP_PATH = "data/fact_fantrax_adp.parquet"
 _OWNERSHIP_PATH = "data/fact_fantasy_teams.parquet"
 _TEAMS_PATH = "data/dim_fantasy_teams.parquet"
 
@@ -118,23 +117,7 @@ def build_player_embeds(cfg: Config, name: str) -> list[discord.Embed]:
         mine = mine[mine["snapshot_date"] == mine["snapshot_date"].max()]
     metrics = _metric_lookup(mine)
 
-    # ADP block — composite (dynasty) + Fantrax (redraft) where available.
     composite_adp = metrics.get(("Composite", "composite_adp"))
-    adp_df = fetch_parquet(_ADP_PATH, cfg)
-    fantrax_adp = None
-    # Newest capture that carries ADP, not simply the newest capture: the
-    # post-2026-07-31 Players-grid partitions have no ADP column (Fantrax
-    # retired the draft-ranking board post-draft), so an unconditional max()
-    # would silently blank this line for every player. See adp.py.
-    if not adp_df.empty:
-        with_adp = adp_df[adp_df["adp"].notna()]
-        if not with_adp.empty:
-            latest = with_adp[with_adp["capture_date"] == with_adp["capture_date"].max()]
-            hit = latest[latest["gsis_id"] == gsis]
-            if not hit.empty:
-                # Tie-break: lowest scorer_id, so row order cannot pick the row.
-                hit = hit.sort_values("scorer_id", kind="stable")
-                fantrax_adp = float(hit.iloc[0]["adp"])
 
     title = f"{p['display_name']} — {pos_group} · {render.safe_str(p['team_abbr']) or 'FA'}"
     age = _age(p.get("birth_date"))
@@ -146,13 +129,8 @@ def build_player_embeds(cfg: Config, name: str) -> list[discord.Embed]:
     identity = " · ".join(bits) or "—"
 
     fields: list[tuple[str, str]] = [(f"Dynasty ({fmt})", render.mono_block(_dynasty_lines(metrics, fmt)))]
-    adp_lines = []
     if composite_adp is not None:
-        adp_lines.append(f"Composite ADP  {composite_adp:.1f}")
-    if fantrax_adp is not None:
-        adp_lines.append(f"Fantrax ADP    {fantrax_adp:.2f}")
-    if adp_lines:
-        fields.append(("ADP", render.mono_block(adp_lines)))
+        fields.append(("ADP", render.mono_block([f"Composite ADP  {composite_adp:.1f}"])))
 
     league_lines = _league_lines(cfg, gsis)
     if league_lines:
