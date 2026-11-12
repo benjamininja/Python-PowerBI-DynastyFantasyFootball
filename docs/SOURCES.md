@@ -4,6 +4,8 @@ Every place data **crosses into this repo from the outside world**: scraped
 sites, third-party packages, the Fantrax league API, the Google Sheet, and
 hand-maintained Excel. One row per external source.
 
+How the project reads and publishes these sources: [DATA-USE.md](DATA-USE.md).
+
 **Scope — boundary only.** This file documents the *edge*. Internal lineage
 (which notebook builds which table, and downstream joins) already lives in
 [`.claude/memory/data-model.md`](../.claude/memory/data-model.md) (the `Source`
