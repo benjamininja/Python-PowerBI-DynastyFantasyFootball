@@ -508,8 +508,11 @@ def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFram
 def _ours_at_period(r, state: pd.DataFrame, dead: pd.DataFrame) -> float | None:
     """Our figure on Fantrax's basis at the reply's own period (#509): the
     team's Roster State of that period (Minors and IR not charged, IR salary
-    added back) less the season's Dead Money with drop_period <= that period.
-    None when Roster State holds no row for the team at that period."""
+    added back) less the season's Dead Money owed by then. A row from a drop
+    in an earlier season (`own_season` false) is owed in full; a row from a
+    drop in this season counts when drop_period <= that period, and a null
+    drop_period counts as already owed. None when Roster State holds no row
+    for the team at that period."""
     if pd.isna(r.fantrax_period):
         return None
     period = int(r.fantrax_period)
@@ -520,14 +523,15 @@ def _ours_at_period(r, state: pd.DataFrame, dead: pd.DataFrame) -> float | None:
     exempt = mine["roster_slot"].isin(cap.EXEMPT_SLOTS)
     charged = mine.loc[~exempt, "salary"].sum()
     ir = mine.loc[mine["roster_slot"] == cap.IR_SLOT, "salary"].sum()
+    owed = ~dead["own_season"] | dead["drop_period"].isna() | (dead["drop_period"] <= period)
     gone = dead[(dead["season_id"] == r.season_id) & (dead["team_key"] == r.team_key)
-                & (dead["drop_period"] <= period)]["dead_money"].sum()
+                & owed]["dead_money"].sum()
     return float(r.original_cap - charged - ir - gone)
 
 
 def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
-                              state: pd.DataFrame, dead: pd.DataFrame
-                              ) -> list[tuple[str, str]]:
+                              state: pd.DataFrame, dead: pd.DataFrame,
+                              ledger: pd.DataFrame) -> list[tuple[str, str]]:
     """Fantrax's Salary Remaining against our figure at Fantrax's own period
     (#509), on Fantrax's basis: IR salary added back, since Fantrax charges it
     (owner's ruling 2026-10-12, #97), and no reinvestment charge. Ours is built
@@ -548,8 +552,10 @@ def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
     if rows.empty:
         raise NotComparable(f"roster read {read_days.iloc[0]}, Fantrax captured {capture_days.iloc[0]}")
     led = pd.to_datetime(roster["ledger_captured_at"], utc=True).max()
-    ledger = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
-    out = []
+    ledger_day = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
+    drop_season = ledger.drop_duplicates("transaction_id").set_index("transaction_id")["season_id"]
+    dead = dead.assign(own_season=dead["season_id"].eq(dead["transaction_id"].map(drop_season)))
+    out, compared = [], 0
     for r in rows.itertuples():
         read_day = pd.Timestamp(r.roster_captured_at).tz_convert(cap.LEAGUE_TZ).date()
         ours = _ours_at_period(r, state, dead)
@@ -557,11 +563,14 @@ def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
             log.warning("salary_remaining: no fact_roster_state for %s %s period %s; not compared",
                         r.season_id, r.team_key, r.fantrax_period)
             continue
+        compared += 1
         if abs(ours - r.fantrax_salary_remaining) > SALARY_TOLERANCE:
             out.append((f"{r.season_id}|{r.team_key}",
                         f"{r.team_key} period {r.fantrax_period} on {read_day}: Fantrax's Salary "
                         f"Remaining {r.fantrax_salary_remaining:,.2f}, ours {ours:,.2f} on its "
-                        f"basis (ledger captured {ledger})"))
+                        f"basis (ledger captured {ledger_day})"))
+    if not compared:
+        raise NotComparable("no fact_roster_state at Fantrax's period for any team")
     return out
 
 
@@ -681,7 +690,8 @@ DOMAIN_CHECKS = [
                 lambda load: salary_remaining_findings(load("fact_team_cap"),
                                                        load("fact_fantasy_teams"),
                                                        load("fact_roster_state"),
-                                                       load("fact_dead_money"))),
+                                                       load("fact_dead_money"),
+                                                       load("fact_roster_transactions"))),
 ]
 
 

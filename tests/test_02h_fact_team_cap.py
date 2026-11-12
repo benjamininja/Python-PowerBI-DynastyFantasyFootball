@@ -314,12 +314,14 @@ def published(amount_a=213.0 + 7.0 - 32.0, amount_b=260.0, fantrax_at=READ):
                            ROSTER, newest, TEAMS)
 
 
-DEAD_P = DEAD.assign(drop_period=[3, 3, 3])
+DEAD_P = DEAD.assign(drop_period=[3, 3, 3], transaction_id=["t1", "t2", "t3"])
 STATE = ROSTER.assign(period=6, salary=ROSTER["contract_value"], season_id=THIS)
+LEDGER = pd.DataFrame({"transaction_id": ["t1", "t2", "t3", "t4", "t5"],
+                       "season_id": [THIS, THIS, THIS, THIS, "2025-2026"]})
 
 
-def sr_findings(table, roster=ROSTER, state=STATE, dead=DEAD_P):
-    return etl_checks.salary_remaining_findings(table, roster, state, dead)
+def sr_findings(table, roster=ROSTER, state=STATE, dead=DEAD_P, ledger=LEDGER):
+    return etl_checks.salary_remaining_findings(table, roster, state, dead, ledger)
 
 
 class TestSalaryRemainingAtFantraxsPeriod:
@@ -342,7 +344,8 @@ class TestSalaryRemainingAtFantraxsPeriod:
 
     def test_a_drop_after_the_lock_leaves_its_dead_money_out(self):
         late_drop = pd.DataFrame({"team_key": ["A01"], "season_id": [THIS],
-                                  "dead_money": [25.0], "drop_period": [7]})
+                                  "dead_money": [25.0], "drop_period": [7],
+                                  "transaction_id": ["t4"]})
         dead = pd.concat([DEAD_P, late_drop], ignore_index=True)
         table = ft.with_fantrax(cap.team_cap(ROSTER, dead, TEAMS, CONTRACTS, SEASONS), ROSTER,
                                 (Path("x"), {"captured_at": READ, "period": 6,
@@ -353,11 +356,35 @@ class TestSalaryRemainingAtFantraxsPeriod:
         on_time = dead.assign(drop_period=[3, 3, 3, 6])
         assert [k for k, _ in sr_findings(table, dead=on_time)] == [f"{THIS}|A01"]
 
-    def test_no_roster_state_at_the_period_files_nothing(self, caplog):
+    def test_a_prior_season_drops_dead_money_is_owed_whatever_its_drop_period(self):
+        carry = pd.DataFrame({"team_key": ["A01"], "season_id": [THIS], "dead_money": [5.0],
+                              "drop_period": [14], "transaction_id": ["t5"]})
+        dead = pd.concat([DEAD_P, carry], ignore_index=True)
+        table = ft.with_fantrax(cap.team_cap(ROSTER, dead, TEAMS, CONTRACTS, SEASONS), ROSTER,
+                                (Path("x"), {"captured_at": READ, "period": 6,
+                                             "standings": standings("183.0", "260.0")}), TEAMS)
+        assert sr_findings(table, dead=dead) == []
+        wrongly_waited = sr_findings(table, dead=dead, ledger=LEDGER.assign(
+            season_id=[THIS] * 5))
+        assert [k for k, _ in wrongly_waited] == [f"{THIS}|A01"]
+
+    def test_a_null_drop_period_counts_as_owed(self):
+        dead = DEAD_P.assign(drop_period=pd.array([pd.NA, 3, 3], dtype="Int64"))
+        assert sr_findings(published(), dead=dead) == []
+
+    def test_no_roster_state_at_the_period_is_not_compared_and_is_logged(self, caplog):
         other = STATE.assign(period=5)
-        with caplog.at_level("WARNING"):
-            assert sr_findings(published(amount_a=1.0), state=other) == []
+        with caplog.at_level("WARNING"), pytest.raises(etl_checks.NotComparable):
+            sr_findings(published(amount_a=1.0), state=other)
         assert "no fact_roster_state" in caplog.text
+
+    def test_an_empty_roster_state_is_not_compared(self):
+        with pytest.raises(etl_checks.NotComparable):
+            sr_findings(published(amount_a=1.0), state=STATE.iloc[0:0])
+
+    def test_one_team_without_state_files_nothing_for_it_only(self):
+        only_b = STATE[STATE["team_key"] == "B01"]
+        assert sr_findings(published(amount_a=1.0), state=only_b) == []
 
 
 class TestSalaryRemainingCheck:
@@ -414,7 +441,7 @@ class TestSalaryRemainingCheck:
         table = published(amount_a=1.0, fantrax_at="2026-10-13T12:00:00+00:00")
         for name, df in (("fact_team_cap", table), ("fact_fantasy_teams", ROSTER),
                          ("dim_fantasy_teams", TEAMS), ("fact_dead_money", DEAD_P),
-                         ("fact_roster_state", STATE),
+                         ("fact_roster_state", STATE), ("fact_roster_transactions", LEDGER),
                          ("dim_contract", CONTRACTS), ("dim_season", SEASONS)):
             df.to_parquet(tmp_path / f"{name}.parquet", index=False)
         results = etl_checks.run_suite(["fact_team_cap"], data_dir=tmp_path,
