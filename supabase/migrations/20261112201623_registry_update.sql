@@ -1,4 +1,4 @@
--- registry_state sha256: d97e414a7aaaaa42c13ad58377653b52053341439b72d9f503e66454c1bb5498
+-- registry_state sha256: 07d1e31812fbb1530dd29acac4a30bf1e1552812c1b6f7bf0ec7187fe05e8f14
 
 CREATE TABLE football.dim_fantrax_scoring_rule (
     season_id text NOT NULL,
