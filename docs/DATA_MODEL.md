@@ -45,6 +45,7 @@ graph LR
     fact_matchup[(fact_matchup)]
     fact_preseason_salary[(fact_preseason_salary)]
     fact_minor_eligibility[(fact_minor_eligibility)]
+    fact_nfl_minor_eligibility[(fact_nfl_minor_eligibility)]
     fact_nfl_snap_counts[(fact_nfl_snap_counts)]
     fact_nfl_injuries[(fact_nfl_injuries)]
     fact_rookie_rankings[(fact_rookie_rankings)]
@@ -119,6 +120,7 @@ graph LR
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_preseason_salary -.via dim_fantrax_crosswalk.-> dim_rookie_prospect
     fact_minor_eligibility -.via dim_fantrax_crosswalk.-> dim_nfl_players
+    fact_nfl_minor_eligibility --> dim_nfl_players
     fact_nfl_snap_counts --> dim_nfl_players
     fact_nfl_injuries --> dim_nfl_players
     fact_rookie_rankings --> dim_rookie_prospect
@@ -168,6 +170,7 @@ graph LR
     class fact_matchup fact;
     class fact_preseason_salary fact;
     class fact_minor_eligibility fact;
+    class fact_nfl_minor_eligibility fact;
     class fact_nfl_snap_counts fact;
     class fact_nfl_injuries fact;
     class fact_rookie_rankings fact;

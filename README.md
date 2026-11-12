@@ -37,7 +37,7 @@ Built by millennial excellence; you're welcome. [League principles](docs/PRINCIP
 | `data/` | The published snapshot: one parquet file per table | [docs/DATA_MODEL.md](docs/DATA_MODEL.md) |
 | `scripts/` | The scheduled orchestrator (`run_pipeline.py`) and the checks | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | `pbi/` | Power BI project (PBIP: TMDL semantic model + PBIR report) at `pbi/mouserat2/` | [pbi/README.md](pbi/README.md) |
-| `discord_bot/` | League Discord bot: `rankings`, `player`, `adp`, `roster`, `cap` | [discord_bot/README.md](discord_bot/README.md) |
+| `discord_bot/` | League Discord bot: `rankings`, `player`, `roster`, `cap` | [discord_bot/README.md](discord_bot/README.md) |
 | `mouserat_trade-bud/` | Trade-diagnostic web app, published as a static site | [mouserat_trade-bud/README.md](mouserat_trade-bud/README.md) |
 | `tests/` | Regression tests for the helpers, checks and tools | [ADR-0008](docs/adr/0008-regression-testing-standard.md) |
 | `docs/` | Principles, data model, source manifest, decision records, research | below |

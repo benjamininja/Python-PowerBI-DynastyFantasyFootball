@@ -10744,22 +10744,6 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
-			    "dim_NFL_player.pffid": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Dim_NFLPlayers",
-			          "ConceptualProperty": "PFFID"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "pffid": {
-			            "State": "Generated"
-			          }
-			        }
-			      ]
-			    },
 			    "dim_NFL_player.espnid": {
 			      "Definition": {
 			        "Binding": {
@@ -11284,22 +11268,6 @@ cultureInfo en-US
 			            "Type": "Noun",
 			            "State": "Generated",
 			            "Weight": 0.99
-			          }
-			        }
-			      ]
-			    },
-			    "fact_fantrax_ADP.adp": {
-			      "Definition": {
-			        "Binding": {
-			          "ConceptualEntity": "Fact_FantraxADP",
-			          "ConceptualProperty": "ADP"
-			        }
-			      },
-			      "State": "Generated",
-			      "Terms": [
-			        {
-			          "adp": {
-			            "State": "Generated"
 			          }
 			        }
 			      ]
@@ -24201,39 +24169,6 @@ cultureInfo en-US
 			          "State": "Generated",
 			          "Weight": 0.99,
 			          "ID": "dim_NFL_players_have_espnids"
-			        }
-			      ]
-			    },
-			    "dim_NFL_player_has_pffid": {
-			      "Binding": {
-			        "ConceptualEntity": "Dim_NFLPlayers"
-			      },
-			      "State": "Generated",
-			      "Roles": {
-			        "dim_NFL_player": {
-			          "Target": {
-			            "Entity": "dim_NFL_player"
-			          }
-			        },
-			        "dim_NFL_player.pffid": {
-			          "Target": {
-			            "Entity": "dim_NFL_player.pffid"
-			          }
-			        }
-			      },
-			      "Phrasings": [
-			        {
-			          "Attribute": {
-			            "Subject": {
-			              "Role": "dim_NFL_player"
-			            },
-			            "Object": {
-			              "Role": "dim_NFL_player.pffid"
-			            }
-			          },
-			          "State": "Generated",
-			          "Weight": 0.99,
-			          "ID": "dim_NFL_players_have_pffids"
 			        }
 			      ]
 			    },
