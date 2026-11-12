@@ -29,6 +29,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **#525 ruled by Ben** ("One retry, counts to day cap"): at most 2 logins per Daily Run, a third blocked; every login counts toward brief 5's 3-a-day cap (#525 issuecomment-6825766352; #93 issuecomment-6825766957).
 - **#524 ruled by Claude** (applies Ben's #473 Q7 games rule): REG snaps > 0 from 2012, REG stats rows before, no playoffs, eligible while <= 19 (issuecomment-6825767666). Gap ticket **#529** (low, backlog): 05a's REG+POST count, after #524.
 - **#521:** Ben's Decision is queued by the manager; planner's view D1-D4 yes, D5 (a) (issuecomment-6825776008).
+- **#148 done on the planner side.** Ben approved the Tools planner's session-rules contract and "Amend: add ceiling" for ADR-0001 (tools #148 issuecomment-6825758719). Filed **tools #161** (tier:high): the mod side, with the write route (path in the system prompt and `/owner id`; replace, never append); after #147; at Ben's go; first step checks what the mod host allows. **Dynasty PR #531**: the ADR-0001 amendment (keeps 125K-150K, adds ~255K ceiling); merges on Ben's word; the manager queues it. Tools #147 (comment written at once) is filed at medium and goes before #161.
+- Manager's queue now also holds Ben's #526 spike-script Action. Tools #150 is Green, merge queued for Ben.
 
 000000000000000000000000000000000000000000000000000000000000. **2026-11-12, ~15:30Z, before a CLEAR (session f0a77999). Self-contained; overrides everything below. The 59-zero item has this session's detail.**
 - **Resume rules:**
