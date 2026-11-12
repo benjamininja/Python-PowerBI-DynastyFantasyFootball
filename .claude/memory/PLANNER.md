@@ -32,6 +32,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **#525 follow-up:** the ruling comment now carries the owner's-word record (exact question, about 14:03Z, session 5285e989), which GOAL-RUN requires; **every relayed button answer needs those three at the time of the ruling.** Claude ruled a blocked logged-in step holds Chain `fantrax_core` as a failed step does today.
 - **Tools #153 runtime ruled by Ben:** (a) Node LTS, TypeScript CLI in the plugin on its parser (pane, 08:10:47 pane time; tools #153 issuecomment-6825954497). Relayed to the manager; asked it to queue Ben's Node install Action.
 - **#521:** Ben chose (a) (drop everywhere, pane 08:10). The generator refuses column drops, so a new Decision is queued (how adp leaves Postgres); planner's view (c), null it and drop via #515 or with the table at #523 (issuecomment-6825994281; noted on #515). Dynasty #516 Green, merge queued for Ben. `stintless_drop` 06anf/B09/2026-06-19 is the known standing repeat, no ticket.
+- **#516 merged by Ben (7b81b48); #513 closed** (pff_id kept empty until #515). Ben's Node install for tools #153 is done (LTS 26.13.1; tools #153 issuecomment-6826191020).
 - Tools PR #160 (session-rules clear boundary) approved by Ben at e4dcda1; it names no mechanism. **Tell the Tools planner only if #161's route stops being a whole-file replace.** #531 is queued for Ben as an Action (merge at 9cb92cf once CI is green).
 - Manager's queue now also holds Ben's #526 spike-script Action. Tools #150 is Green, merge queued for Ben.
 
