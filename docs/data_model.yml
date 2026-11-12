@@ -1305,6 +1305,7 @@ other_tables:
       - { name: error, sql_type: text }
       - { name: cadence, sql_type: jsonb }
       - { name: column_changes, sql_type: jsonb }
+      - { name: fantrax_logins, sql_type: integer }
 
   - name: change_poll_state
     schema: ops

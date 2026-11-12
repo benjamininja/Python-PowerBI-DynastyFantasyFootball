@@ -3186,6 +3186,11 @@
           "name": "column_changes",
           "not_null": false,
           "sql_type": "jsonb"
+        },
+        {
+          "name": "fantrax_logins",
+          "not_null": false,
+          "sql_type": "integer"
         }
       ],
       "fks": [],
