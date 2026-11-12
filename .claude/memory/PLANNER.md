@@ -25,6 +25,10 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - #517 not yet dispatched (manager's next session), so the Fantrax letter still waits.
 - Manager re-keyed the three entries to 5285e989; the manager is now session 0a088881. The 11-12 run fires about 18:40Z, so #93's report comes after. Tools #151 merged (Ben, 13:24Z, ee75490).
 - **#148 owner-queue grill settled** (Q1 to Q4 on tools #148, summary issuecomment-6825465563): reset prompt is one file per session in the mod's data folder outside every repo, Copy button; triggers idle 45 min, a hard ~255K tokens (Ben's words), or Ben's ask; tracked = main-agent role sessions, builders out; End of Day queues prep for busy sessions and flags closed ones red. Sent to the Tools planner, which owns the reset-prompt contract and any ADR-0001 amendment. **Next: when it sends the contract, Claude files the mod-side build ticket (tier set then).** #147's pane part is still unplanned.
+- **Dispatched today by the manager on Ben's goes:** #517, #526, #525, #521, #524, #473 brief 2. So the Fantrax letter waits only on #517's merge.
+- **#525 ruled by Ben** ("One retry, counts to day cap"): at most 2 logins per Daily Run, a third blocked; every login counts toward brief 5's 3-a-day cap (#525 issuecomment-6825766352; #93 issuecomment-6825766957).
+- **#524 ruled by Claude** (applies Ben's #473 Q7 games rule): REG snaps > 0 from 2012, REG stats rows before, no playoffs, eligible while <= 19 (issuecomment-6825767666). Gap ticket **#529** (low, backlog): 05a's REG+POST count, after #524.
+- **#521:** Ben's Decision is queued by the manager; planner's view D1-D4 yes, D5 (a) (issuecomment-6825776008).
 
 000000000000000000000000000000000000000000000000000000000000. **2026-11-12, ~15:30Z, before a CLEAR (session f0a77999). Self-contained; overrides everything below. The 59-zero item has this session's detail.**
 - **Resume rules:**
