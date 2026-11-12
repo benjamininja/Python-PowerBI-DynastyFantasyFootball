@@ -10,7 +10,6 @@ planner session can resume from the repository alone. The rules are in
 Open entries raised by the planner, keyed to `Session: 5285e989-c1d1-43f0-aac0-7b8afee3857a` (re-keyed by the manager 2026-11-12); after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
 - Capture Fantrax getPlayerIds for #519
 - Paste the getMatchupScores docs and capture one period for #520
-- Tools #153: which runtime runs the owner-queue edit CLI?
 (Done and out: the C1 source run; the data-use mailbox and private repo.)
 
 ## START HERE (state 2026-11-09, before a clear)
@@ -31,6 +30,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **#521:** Ben's Decision is queued by the manager; planner's view D1-D4 yes, D5 (a) (issuecomment-6825776008).
 - **#148 done on the planner side.** Ben approved the Tools planner's session-rules contract and "Amend: add ceiling" for ADR-0001 (tools #148 issuecomment-6825758719). Filed **tools #161** (tier:high): the mod side, with the write route (path in the system prompt and `/owner id`; replace, never append); after #147; at Ben's go; first step checks what the mod host allows. **Dynasty PR #531**: the ADR-0001 amendment (keeps 125K-150K, adds ~255K ceiling); merges on Ben's word; the manager queues it. Tools #147 (comment written at once) is filed at medium and goes before #161.
 - **#525 follow-up:** the ruling comment now carries the owner's-word record (exact question, about 14:03Z, session 5285e989), which GOAL-RUN requires; **every relayed button answer needs those three at the time of the ruling.** Claude ruled a blocked logged-in step holds Chain `fantrax_core` as a failed step does today.
+- **Tools #153 runtime ruled by Ben:** (a) Node LTS, TypeScript CLI in the plugin on its parser (pane, 08:10:47 pane time; tools #153 issuecomment-6825954497). Relayed to the manager; asked it to queue Ben's Node install Action.
 - Tools PR #160 (session-rules clear boundary) approved by Ben at e4dcda1; it names no mechanism. **Tell the Tools planner only if #161's route stops being a whole-file replace.** #531 is queued for Ben as an Action (merge at 9cb92cf once CI is green).
 - Manager's queue now also holds Ben's #526 spike-script Action. Tools #150 is Green, merge queued for Ben.
 
