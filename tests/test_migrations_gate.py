@@ -108,6 +108,11 @@ HELD_FORMS = {
     "a lone dollar": "SELECT $ ;",
     "an unterminated dollar body": "SELECT $f$ never closed;",
     "a dollar after an identifier": "SELECT a$b FROM football.t;",
+    "an identifier ending in $$ hiding a drop": "SELECT 1 AS x$$; DROP TABLE football.t; SELECT 1 AS y$$;",
+    "an identifier ending in a tag hiding a drop": (
+        "SELECT 1 AS x$f$; DROP TABLE football.t; SELECT 1 AS y$f$;"),
+    "a dollar after a non-ascii letter": "SELECT 1 AS é$$; SELECT 2 AS z$$;",
+    "a dollar after a digit": "SELECT 1 AS a1$$; SELECT 2 AS b$$;",
     "update in a cte": "WITH u AS (UPDATE football.t SET a = 1 RETURNING *) SELECT 1;",
     "detach partition": "ALTER TABLE football.t DETACH PARTITION football.t_2026;",
     "set schema": "ALTER TABLE football.t SET SCHEMA archive;",
@@ -258,6 +263,19 @@ class TestTheGate:
     def test_a_non_ascii_dollar_tag_holds_the_file(self, opener):
         sql = f"SELECT $é$ {opener} $é$; DROP TABLE football.t;"
         assert mg.destructive(sql)[0] == mg.AMBIGUOUS
+
+    @pytest.mark.parametrize("tag", ["$$", "$f$"])
+    def test_an_identifier_dollar_holds_the_file(self, tag):
+        sql = f"SELECT 1 AS x{tag}; DROP TABLE football.t; SELECT 1 AS y{tag};"
+        assert mg.destructive(sql)[0] == mg.AMBIGUOUS
+
+    def test_the_initial_schema_dollar_bodies_still_pass(self):
+        initial = next((REPO / "supabase" / "migrations").glob("*_initial_schema.sql"))
+        text = initial.read_text(encoding="utf-8")
+        assert "$do$" in text and "$fn$" in text
+        stmts, ambiguous = mg._scan(text)
+        assert not ambiguous
+        assert not mg.is_destructive(text)
 
     def test_a_digit_dollar_tag_is_one_statement(self):
         assert mg.statements("DO $a1$ BEGIN PERFORM 1; END $a1$; SELECT 2;") == [
