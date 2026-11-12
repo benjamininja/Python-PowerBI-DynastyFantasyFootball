@@ -7,7 +7,7 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: f0a77999-7702-43c0-8b3e-ecfaf1eb9d61` until the manager re-keys them to `5285e989-c1d1-43f0-aac0-7b8afee3857a` (asked 2026-11-12 13:35Z); after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: 5285e989-c1d1-43f0-aac0-7b8afee3857a` (re-keyed by the manager 2026-11-12); after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
 - Capture Fantrax getPlayerIds for #519
 - Paste the getMatchupScores docs and capture one period for #520
 - Tools #153: which runtime runs the owner-queue edit CLI?
@@ -23,6 +23,8 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - Reconciled: open PRs dynasty #527 (#518 scripts), #516 (#513 PFF), #505, #455; tools #150 (#144). Dynasty main `2196bf8`. No 11-12 run yet; #93 still waits.
 - The three planner queue entries were not re-keyed; asked the manager to re-key them to 5285e989. Told the Tools planner the new id.
 - #517 not yet dispatched (manager's next session), so the Fantrax letter still waits.
+- Manager re-keyed the three entries to 5285e989; the manager is now session 0a088881. The 11-12 run fires about 18:40Z, so #93's report comes after. Tools #151 merged (Ben, 13:24Z, ee75490).
+- **#148 owner-queue grill settled** (Q1 to Q4 on tools #148, summary issuecomment-6825465563): reset prompt is one file per session in the mod's data folder outside every repo, Copy button; triggers idle 45 min, a hard ~255K tokens (Ben's words), or Ben's ask; tracked = main-agent role sessions, builders out; End of Day queues prep for busy sessions and flags closed ones red. Sent to the Tools planner, which owns the reset-prompt contract and any ADR-0001 amendment. **Next: when it sends the contract, Claude files the mod-side build ticket (tier set then).** #147's pane part is still unplanned.
 
 000000000000000000000000000000000000000000000000000000000000. **2026-11-12, ~15:30Z, before a CLEAR (session f0a77999). Self-contained; overrides everything below. The 59-zero item has this session's detail.**
 - **Resume rules:**
