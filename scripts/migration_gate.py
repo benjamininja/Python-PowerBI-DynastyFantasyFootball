@@ -17,8 +17,8 @@ PR #536). Comments are stripped and the file is split into statements on `;`,
 both outside quotes. A statement is destructive when it holds, anywhere and
 in any case: DROP (any form), TRUNCATE, DELETE FROM, MERGE, UPDATE ... SET,
 RENAME, ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION or
-SET SCHEMA. A file with a single-quoted string holding a backslash is held
-too. GRANT and REVOKE are not held. The one exemption is the generator's check widening (#443): an
+SET SCHEMA. A file with a single-quoted string holding a backslash, or a `$`
+that is not a closed ASCII dollar tag or a positional `$n`, is held too. GRANT and REVOKE are not held. The one exemption is the generator's check widening (#443): an
 `ALTER TABLE t DROP CONSTRAINT t_chk_<8 hex>` statement directly followed by
 an `ALTER TABLE t ADD CONSTRAINT t_chk_<8 hex> CHECK (...)` statement on the
 same table. A key, foreign key or unique constraint dropped is held. A false
@@ -67,9 +67,10 @@ def _widening_pair(drop_stmt, add_stmt):
     return (_is_check_name(table, drop.group(2)) and _is_check_name(table, add.group(2))
             and not _hits(add_stmt))
 _DOLLAR = re.compile(r"\$[A-Za-z0-9_]*\$")
+_POSITIONAL = re.compile(r"\$[0-9]+(?![0-9A-Za-z_$])")
 
 
-AMBIGUOUS = "a quoted string holding a backslash"
+AMBIGUOUS = "a quoted string holding a backslash, or a $ that is not an ASCII dollar tag or $n"
 
 
 def statements(sql):
@@ -82,7 +83,9 @@ def _scan(sql):
     """(statements, ambiguous). An E'...' string honours backslash escapes, as
     Postgres does. Any single-quoted string holding a backslash makes the
     file ambiguous, since how Postgres reads it depends on its settings and
-    prefix (#536 re-check B2): the gate then holds the file."""
+    prefix (#536 re-check B2): the gate then holds the file. So does any `$`
+    that is not a closed ASCII dollar tag (`$tag$`) or a positional `$n`
+    (B3): Postgres accepts tags this scanner does not read, such as `$é$`."""
     out, buf, i, n, ambiguous = [], [], 0, len(sql), False
     while i < n:
         ch = sql[i]
@@ -121,9 +124,18 @@ def _scan(sql):
         elif ch == "$" and _DOLLAR.match(sql, i):
             tag = _DOLLAR.match(sql, i).group(0)
             end = sql.find(tag, i + len(tag))
+            if end < 0:
+                ambiguous = True
             end = n if end < 0 else end + len(tag)
             buf.append(sql[i:end])
             i = end
+        elif ch == "$":
+            positional = _POSITIONAL.match(sql, i)
+            if positional is None:
+                ambiguous = True
+            span = positional.group(0) if positional else ch
+            buf.append(span)
+            i += len(span)
         elif ch == ";":
             out.append("".join(buf))
             buf, i = [], i + 1

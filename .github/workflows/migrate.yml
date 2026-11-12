@@ -12,7 +12,8 @@
 #   DELETE FROM, MERGE, UPDATE ... SET, RENAME,
 #   ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION,
 #   SET SCHEMA.
-# - Also held: a file with a single-quoted string holding a backslash.
+# - Also held: a file with a single-quoted string holding a backslash, or a
+#   $ that is not a closed ASCII dollar tag or a positional $n.
 # - Not held: GRANT and REVOKE.
 # - Exempt: DROP CONSTRAINT of a name matching <table>_chk_[0-9a-f]{8},
 #   directly followed by ADD CONSTRAINT of a name matching the same pattern

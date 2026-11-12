@@ -103,6 +103,11 @@ HELD_FORMS = {
     "a lower-case escape string hiding a drop": "SELECT e'a\\'/* '; DROP TABLE football.t; -- */';",
     "a plain string with a backslash": "SELECT 'a\\';",
     "an escape string with a backslash": "SELECT E'line\\n';",
+    "a non-ascii dollar tag hiding a drop behind --": "SELECT $é$ -- $é$; DROP TABLE football.t;",
+    "a non-ascii dollar tag hiding a drop behind /*": "SELECT $é$ /* $é$; DROP TABLE football.t; -- */",
+    "a lone dollar": "SELECT $ ;",
+    "an unterminated dollar body": "SELECT $f$ never closed;",
+    "a dollar after an identifier": "SELECT a$b FROM football.t;",
     "update in a cte": "WITH u AS (UPDATE football.t SET a = 1 RETURNING *) SELECT 1;",
     "detach partition": "ALTER TABLE football.t DETACH PARTITION football.t_2026;",
     "set schema": "ALTER TABLE football.t SET SCHEMA archive;",
@@ -132,6 +137,9 @@ PASSED_FORMS = {
         "ALTER TABLE football.t ADD CONSTRAINT t_a_fkey FOREIGN KEY (a) "
         "REFERENCES football.u (a) ON UPDATE CASCADE;"),
     "a column named updated_at": "ALTER TABLE football.t ADD COLUMN updated_at timestamptz;",
+    "a positional parameter": (
+        "CREATE FUNCTION f(int) RETURNS int LANGUAGE sql AS $f$ SELECT $1 $f$;\nSELECT 1 WHERE $1 = 2;"),
+    "an empty dollar tag": "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;",
     "a function with a digit dollar tag": (
         "CREATE FUNCTION f() RETURNS int LANGUAGE sql AS $f1$ SELECT 1; SELECT 2 $f1$;"),
     "drop only in a comment": "-- DROP TABLE football.t\nALTER TABLE football.t ADD COLUMN c text;",
@@ -245,6 +253,11 @@ class TestTheGate:
     def test_a_backslash_in_a_dollar_body_or_quoted_name_is_not_ambiguous(self):
         assert not mg._scan("SELECT $f$ a\\b $f$;")[1]
         assert not mg._scan('SELECT "a\\b";')[1]
+
+    @pytest.mark.parametrize("opener", ["--", "/*"])
+    def test_a_non_ascii_dollar_tag_holds_the_file(self, opener):
+        sql = f"SELECT $é$ {opener} $é$; DROP TABLE football.t;"
+        assert mg.destructive(sql)[0] == mg.AMBIGUOUS
 
     def test_a_digit_dollar_tag_is_one_statement(self):
         assert mg.statements("DO $a1$ BEGIN PERFORM 1; END $a1$; SELECT 2;") == [
