@@ -7,13 +7,21 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-None. Planner sessions 9ed00e32, dee9ffa9 and d21ed5d8 raised no entries.
+- Run the source check on walterfootball.com and draftsharks.com (C1), Session f0a77999-7702-43c0-8b3e-ecfaf1eb9d61 (sent to the manager 2026-11-12 ~12:35Z).
+- Go for #513: Session d856b999 (old); the owner said go in the manager's chat, so it leaves the queue.
 
 ## START HERE (state 2026-11-09, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+
+00000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-12, ~12:35Z by `date -u` (session f0a77999, after the clear). Adds to the 58-zero item, whose Resume and lists stand except as said here.**
+- Reconciled at 12:29Z: open PRs unchanged (dynasty #505 and #455; tools #140, held on Rule B). Mains dynasty `2196bf8`, tools `29f77d5`.
+- **No 11-12 daily run yet.** The last three ran at 18:40Z to 21:25Z, not 11:17Z. #93's Salary Remaining box waits on the manager's report of it.
+- **The owner said go on #513 and tools #144** in the manager's chat ("THEN go 513 and 144"); the manager dispatches both. Drop them from the waiting list.
+- **Paid what I owed the manager:** the C1 source-run Action (walterfootball.com and draftsharks.com), recorded on #454 (issuecomment-6823655781), with Session f0a77999. When the owner runs it, the manager reads the two files; then I write C1's re-cite brief.
+- Still waiting on the owner: the open question (statement grill or the Fantrax tickets first), #505, #455, tools #137, the #300 script rules, and Rule B for #140 (the Tools planner's).
 
 0000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-12, ~12:27Z by `date -u`, before a CLEAR (session d856b999). Self-contained; overrides everything below. The 57-zero item has this session's detail; the 56-zero item has the Resume rules and older open work.**
 - **Resume:** the same rules as the 56-zero item. Worktree ps1103 (in old session 4b9eacec's Temp scratchpad), branch `docs/state-2026-11-07`, PR #455 merges on the owner's word. Pull before reading and before every push; run `git status --short`; **commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`**; push with a standalone `git push origin HEAD:docs/state-2026-11-07`.
