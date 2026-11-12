@@ -12,7 +12,8 @@ then ADD CONSTRAINT in one migration. Anything not exactly that form is
 refused as before. The drop path (#534): a column the registry names in its
 table's `drops:` list, or a table it names in `dropped_tables:`, becomes
 DROP COLUMN or DROP TABLE when the state file still holds it; an entry whose
-item the state no longer holds is history and writes nothing. Every other drop
+item the state no longer holds is history and writes nothing. Drops go in a
+migration of their own, after the run's other changes. Every other drop
 stays refused. No change writes nothing and exits 0. A registry that breaks a
 rule exits 2.
 
@@ -21,11 +22,12 @@ Line 1 of the migration holds the sha256 of the state file it produces. The
 script connects to no database.
 """
 import argparse
+import copy
 import hashlib
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -437,6 +439,37 @@ def render(changes):
     return "\n\n".join(out) + "\n"
 
 
+DROP_KINDS = ("column_drops", "table_drops")
+
+
+def _with_dropped(old, new, changes):
+    """`new` with the flagged items still in place: the state after the ordinary
+    migration applies and before the drop migration does."""
+    state = copy.deepcopy(new)
+    for key, name in changes["column_drops"]:
+        kept = {c["name"] for c in state["tables"][key]["columns"]} | {name}
+        before = [c for c in old["tables"][key]["columns"] if c["name"] in kept]
+        added = [c for c in state["tables"][key]["columns"] if c["name"] not in _by_name(before)]
+        state["tables"][key]["columns"] = copy.deepcopy(before) + added
+    for key in changes["table_drops"]:
+        state["tables"][key] = copy.deepcopy(old["tables"][key])
+    state["tables"] = dict(sorted(state["tables"].items()))
+    return state
+
+
+def split_drops(old, new, changes):
+    """[(changes, state it produces)], one per migration file. A drop sits in a
+    migration of its own (#534, planner ruling on PR #536): when a run holds
+    drops and other changes, the ordinary changes come first and the drops
+    alone follow, so the push gate holds only the drops."""
+    drops = {k: changes[k] for k in DROP_KINDS}
+    ordinary = {**changes, **{k: [] for k in DROP_KINDS}}
+    if not any(drops.values()) or not has_changes(ordinary):
+        return [(changes, new)]
+    only_drops = {**{k: [] for k in changes}, **drops}
+    return [(ordinary, _with_dropped(old, new, changes)), (only_drops, new)]
+
+
 def dump_state(model):
     return json.dumps(model, indent=2, sort_keys=True) + "\n"
 
@@ -483,18 +516,27 @@ def main(argv=None, now=None):
     if not has_changes(changes):
         print("generate_migrations: no change")
         return 0
-    stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%d%H%M%S")
-    path = out / "migrations" / f"{stamp}_{name}.sql"
+    start = now or datetime.now(timezone.utc)
+    files = []
+    for i, (part, state) in enumerate(split_drops(old, new, changes)):
+        stamp = (start + timedelta(seconds=i)).strftime("%Y%m%d%H%M%S")
+        suffix = "_drops" if i else ""
+        files.append((out / "migrations" / f"{stamp}_{name}{suffix}.sql", part, state))
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("x", encoding="utf-8", newline="\n") as fh:
-            fh.write(f"-- registry_state sha256: {state_sha(new)}\n\n{render(changes)}")
+        files[0][0].parent.mkdir(parents=True, exist_ok=True)
+        taken = [p for p, _, _ in files if p.exists()]
+        if taken:
+            raise FileExistsError(f"{taken[0]} already exists")
+        for path, part, state in files:
+            with path.open("x", encoding="utf-8", newline="\n") as fh:
+                fh.write(f"-- registry_state sha256: {state_sha(state)}\n\n{render(part)}")
     except OSError as exc:
         print(f"generate_migrations: {exc}", file=sys.stderr)
         return 2
     with (out / STATE_FILE).open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(dump_state(new))
-    print(f"generate_migrations: wrote {path}")
+    for path, _, _ in files:
+        print(f"generate_migrations: wrote {path}")
     return 0
 
 

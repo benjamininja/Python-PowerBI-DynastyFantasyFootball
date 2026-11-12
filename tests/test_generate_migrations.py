@@ -858,6 +858,56 @@ class TestDropRoundTrip:
         assert state_file.read_bytes() == before_state
         assert "no change" in capsys.readouterr().out
 
+    def test_a_mixed_run_writes_the_ordinary_changes_then_the_drops_alone(self, tmp_path):
+        import migration_gate as mg
+        run(tmp_path, fixture_registry())
+        reg = flag_table(flag_column(fixture_registry()))
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 0
+        files = migrations(tmp_path)
+        assert [f.name for f in files] == ["20261031120005_initial_schema.sql",
+                                           "20261101093000_registry_update.sql",
+                                           "20261101093001_registry_update_drops.sql"]
+        ordinary, dropping = (f.read_text(encoding="utf-8") for f in files[1:])
+        assert ordinary.split("\n\n", 1)[1] == "ALTER TABLE football.dim_player ADD COLUMN born date;\n"
+        assert dropping.split("\n\n", 1)[1] == ("ALTER TABLE football.dim_team DROP COLUMN nickname;\n\n"
+                                                "DROP TABLE football.resolver_alias;\n")
+        assert not mg.is_destructive(ordinary) and mg.is_destructive(dropping)
+        state_file = tmp_path / "supabase" / "registry_state.json"
+        assert json.loads(state_file.read_text(encoding="utf-8")) == model(reg)
+        assert dropping.splitlines()[0] == f"-- registry_state sha256: {hashlib.sha256(state_file.read_bytes()).hexdigest()}"
+        middle = gm.split_drops(model(), model(reg), drop_diff(reg))[0][1]
+        assert "football.resolver_alias" in middle["tables"]
+        assert [c["name"] for c in middle["tables"]["football.dim_team"]["columns"]] == [
+            "team_key", "conference", "nickname"]
+        assert [c["name"] for c in middle["tables"]["football.dim_player"]["columns"]] == [
+            "gsis_id", "display_name", "born"]
+        assert ordinary.splitlines()[0] == f"-- registry_state sha256: {gm.state_sha(middle)}"
+        assert run(tmp_path, reg, now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert len(migrations(tmp_path)) == 3
+
+    def test_the_gate_applies_the_ordinary_file_and_holds_only_the_drops(self, tmp_path, capsys):
+        import migration_gate as mg
+        run(tmp_path, fixture_registry())
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        run(tmp_path, reg, now=LATER)
+        held = mg.held(migrations(tmp_path), {"20261031120005"})
+        assert [p.name for p in held] == ["20261101093001_registry_update_drops.sql"]
+
+    def test_a_mixed_run_whose_second_name_is_taken_writes_nothing(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        state = tmp_path / "supabase" / "registry_state.json"
+        before = state.read_bytes()
+        taken = tmp_path / "supabase" / "migrations" / "20261101093001_registry_update_drops.sql"
+        taken.write_text("x", encoding="utf-8")
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 2
+        assert [f.name for f in migrations(tmp_path)] == ["20261031120005_initial_schema.sql",
+                                                          "20261101093001_registry_update_drops.sql"]
+        assert state.read_bytes() == before
+
     @pytest.mark.parametrize("case", UNFLAGGED_REFUSALS)
     def test_an_unflagged_change_still_exits_1_and_writes_nothing(self, tmp_path, capsys, case):
         run(tmp_path, fixture_registry())
