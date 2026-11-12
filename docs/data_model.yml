@@ -51,10 +51,11 @@
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
-#             stays as history after the drop applies.
+#             stays as history after the drop applies. A rollback deletes
+#             the entry and re-adds the column in the same PR.
 #   dropped_tables : top level, tables removed on purpose, each {table,
 #             ticket}. The table leaves `tables:`; the generator writes DROP
-#             TABLE. Also kept as history.
+#             TABLE. Kept as history, and deleted the same way on rollback.
 #             A drop migration does not apply on merge: migrate.yml holds it
 #             until the owner runs the workflow by hand (decision 12
 #             amendment). Every other drop, rename or type change is refused.

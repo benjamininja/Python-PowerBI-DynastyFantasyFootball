@@ -470,6 +470,17 @@ def split_drops(old, new, changes):
     return [(ordinary, _with_dropped(old, new, changes)), (only_drops, new)]
 
 
+def newest_stamp(folder):
+    """The time of the newest migration in `folder`, or None. A drop file is
+    stamped after it, so it never sorts before a version already applied
+    (#536 audit A5)."""
+    stamps = [p.name[:14] for p in Path(folder).glob("*.sql")
+              if p.name[:14].isdigit() and p.name[14:15] == "_"]
+    if not stamps:
+        return None
+    return datetime.strptime(max(stamps), "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+
+
 def dump_state(model):
     return json.dumps(model, indent=2, sort_keys=True) + "\n"
 
@@ -517,9 +528,13 @@ def main(argv=None, now=None):
         print("generate_migrations: no change")
         return 0
     start = now or datetime.now(timezone.utc)
+    newest = newest_stamp(out / "migrations")
     files = []
     for i, (part, state) in enumerate(split_drops(old, new, changes)):
-        stamp = (start + timedelta(seconds=i)).strftime("%Y%m%d%H%M%S")
+        when = start + timedelta(seconds=i)
+        if any(part[k] for k in DROP_KINDS) and newest is not None and when <= newest:
+            when = newest + timedelta(seconds=1)
+        stamp = when.strftime("%Y%m%d%H%M%S")
         suffix = "_drops" if i else ""
         files.append((out / "migrations" / f"{stamp}_{name}{suffix}.sql", part, state))
     try:

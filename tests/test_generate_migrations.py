@@ -895,18 +895,63 @@ class TestDropRoundTrip:
         held = mg.held(migrations(tmp_path), {"20261031120005"})
         assert [p.name for p in held] == ["20261101093001_registry_update_drops.sql"]
 
-    def test_a_mixed_run_whose_second_name_is_taken_writes_nothing(self, tmp_path):
+    def test_a_mixed_run_whose_first_name_is_taken_writes_nothing(self, tmp_path):
         run(tmp_path, fixture_registry())
         state = tmp_path / "supabase" / "registry_state.json"
         before = state.read_bytes()
-        taken = tmp_path / "supabase" / "migrations" / "20261101093001_registry_update_drops.sql"
+        taken = tmp_path / "supabase" / "migrations" / "20261101093000_registry_update.sql"
         taken.write_text("x", encoding="utf-8")
         reg = flag_column(fixture_registry())
         table(reg, "dim_player")["columns"].append(col("born", "date"))
         assert run(tmp_path, reg, now=LATER) == 2
         assert [f.name for f in migrations(tmp_path)] == ["20261031120005_initial_schema.sql",
-                                                          "20261101093001_registry_update_drops.sql"]
+                                                          "20261101093000_registry_update.sql"]
         assert state.read_bytes() == before
+
+    @pytest.mark.parametrize("mixed", [True, False], ids=["mixed run", "drops only"])
+    def test_a_drop_file_sorts_after_the_newest_existing_migration(self, tmp_path, mixed):
+        run(tmp_path, fixture_registry())
+        ahead = tmp_path / "supabase" / "migrations" / "20261205000000_from_another_branch.sql"
+        ahead.write_text("-- x\n\nSELECT 1;\n", encoding="utf-8")
+        reg = flag_column(fixture_registry())
+        if mixed:
+            table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 0
+        names = [f.name for f in migrations(tmp_path)]
+        drop_file = "20261205000001_registry_update_drops.sql" if mixed else "20261205000001_registry_update.sql"
+        assert names[-1] == drop_file
+        assert "DROP COLUMN nickname" in migrations(tmp_path)[-1].read_text(encoding="utf-8")
+        if mixed:
+            assert "20261101093000_registry_update.sql" in names
+
+    def test_a_drop_file_already_after_the_newest_keeps_its_stamp(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        assert run(tmp_path, flag_column(fixture_registry()), now=LATER) == 0
+        assert migrations(tmp_path)[-1].name == "20261101093000_registry_update.sql"
+
+    def test_a_rollback_deletes_the_entry_and_re_adds_the_column(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        dropped = flag_column(fixture_registry())
+        assert run(tmp_path, dropped, now=LATER) == 0
+        back = fixture_registry()
+        table(back, "dim_team")["columns"].remove(col("nickname"))
+        table(back, "dim_team")["columns"].append(col("nickname"))
+        assert gm.registry_drops(back) == gm.NO_DROPS
+        assert run(tmp_path, back, now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        last = migrations(tmp_path)[-1].read_text(encoding="utf-8")
+        assert last.split("\n\n", 1)[1] == "ALTER TABLE football.dim_team ADD COLUMN nickname text;\n"
+
+    def test_a_rollback_that_keeps_the_entry_is_refused(self, tmp_path):
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_team")["columns"].append(col("nickname"))
+        with pytest.raises(gm.RegistryError, match="the column is still declared"):
+            gm.registry_drops(reg)
+
+    def test_a_table_rollback_deletes_the_entry_and_re_adds_the_table(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        assert run(tmp_path, flag_table(fixture_registry()), now=LATER) == 0
+        assert run(tmp_path, fixture_registry(), now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert "CREATE TABLE football.resolver_alias (" in migrations(tmp_path)[-1].read_text(encoding="utf-8")
 
     @pytest.mark.parametrize("case", UNFLAGGED_REFUSALS)
     def test_an_unflagged_change_still_exits_1_and_writes_nothing(self, tmp_path, capsys, case):

@@ -2,8 +2,9 @@
 # applies supabase/migrations to a throwaway Postgres and tests the result.
 # push (merge to main) applies them to the real project with the secret
 # SUPABASE_MIGRATE_DB_URL from the etl environment, which is limited to main.
-# On a push it holds the first pending migration with DROP COLUMN or DROP TABLE,
-# and every one after it (#534, ADR-0018 decision 12): those apply only when
+# On a push it holds the first pending migration with a destructive statement
+# (any DROP, TRUNCATE, DELETE, RENAME or column type change; see
+# scripts/migration_gate.py), and every one after it (#534, ADR-0018 decision 12): those apply only when
 # the owner runs this workflow by hand (workflow_dispatch) from main.
 name: migrate
 
@@ -13,6 +14,7 @@ on:
       - 'supabase/**'
       - 'docs/data_model.yml'
       - 'scripts/generate_migrations.py'
+      - 'scripts/migration_gate.py'
       - 'tests/test_migrations_*.py'
       - '.github/workflows/migrate.yml'
   push:
@@ -22,6 +24,7 @@ on:
       - 'supabase/**'
       - 'docs/data_model.yml'
       - 'scripts/generate_migrations.py'
+      - 'scripts/migration_gate.py'
       - '.github/workflows/migrate.yml'
   workflow_dispatch:
 
@@ -130,5 +133,5 @@ jobs:
         env:
           HELD: ${{ steps.gate.outputs.held }}
         run: |
-          echo "::error::$HELD holds DROP COLUMN or DROP TABLE and was not applied. It and every later migration apply when the owner runs migrate by workflow_dispatch from main."
+          echo "::error::$HELD holds a destructive statement and was not applied. It and every later migration apply when the owner runs migrate by workflow_dispatch from main."
           exit 1

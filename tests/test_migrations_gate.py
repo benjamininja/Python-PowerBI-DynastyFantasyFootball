@@ -11,6 +11,7 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
@@ -26,6 +27,65 @@ WIDENING = ("-- registry_state sha256: x\n\nALTER TABLE ops.r DROP CONSTRAINT r_
             "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a', 'b'));\n")
 COLUMN_DROP = "-- registry_state sha256: x\n\nALTER TABLE football.t DROP COLUMN c;\n"
 TABLE_DROP = "-- registry_state sha256: x\n\nDROP TABLE football.t;\n"
+
+HELD_FORMS = {
+    "drop column": COLUMN_DROP,
+    "drop table": TABLE_DROP,
+    "lower case": "alter table football.t drop column c;",
+    "drop without COLUMN": "ALTER TABLE football.t DROP c;",
+    "alter table if exists": "ALTER TABLE IF EXISTS football.t DROP COLUMN c;",
+    "alter table only": "ALTER TABLE ONLY football.t DROP COLUMN c;",
+    "drop table if exists": "DROP TABLE IF EXISTS football.t;",
+    "multi-action drop": "ALTER TABLE football.t ADD COLUMN a integer, DROP COLUMN b;",
+    "drop after another statement on one line": "SELECT 1; DROP TABLE football.t;",
+    "drop across lines": "ALTER TABLE football.t\n    DROP\n    COLUMN c;",
+    "drop schema": "DROP SCHEMA archive;",
+    "drop type": "DROP TYPE football.kind;",
+    "drop function": "DROP FUNCTION shared.pii_token_hashes();",
+    "drop index": "DROP INDEX football.t_c_idx;",
+    "drop policy": "DROP POLICY etl_writer_all ON football.t;",
+    "lone drop constraint": "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;",
+    "drop constraint then add on another table": (
+        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\n"
+        "ALTER TABLE ops.s ADD CONSTRAINT s_chk_2 CHECK (s IN ('a'));"),
+    "drop constraint then a non-check add": (
+        "ALTER TABLE ops.r DROP CONSTRAINT r_pkey;\n"
+        "ALTER TABLE ops.r ADD CONSTRAINT r_pkey PRIMARY KEY (a);"),
+    "drop constraint not directly followed": (
+        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\nSELECT 1;\n"
+        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a'));"),
+    "drop constraint if exists": (
+        "ALTER TABLE ops.r DROP CONSTRAINT IF EXISTS r_chk_1;\n"
+        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a'));"),
+    "truncate": "TRUNCATE football.t;",
+    "truncate table": "truncate table football.t restart identity;",
+    "delete": "DELETE FROM football.t WHERE a = 1;",
+    "delete in a cte": "WITH gone AS (DELETE FROM football.t RETURNING *) SELECT count(*) FROM gone;",
+    "rename table": "ALTER TABLE football.t RENAME TO u;",
+    "rename column": "ALTER TABLE football.t RENAME COLUMN a TO b;",
+    "alter column type": "ALTER TABLE football.t ALTER COLUMN a TYPE integer;",
+    "alter column set data type": "ALTER TABLE football.t ALTER COLUMN a SET DATA TYPE text;",
+    "alter without COLUMN type": "ALTER TABLE football.t ALTER a TYPE integer USING a::integer;",
+    "alter quoted column type": 'ALTER TABLE football.t ALTER COLUMN "a b" TYPE integer;',
+    "alter type": "ALTER TYPE football.kind RENAME VALUE 'a' TO 'b';",
+    "drop inside a dollar body": "DO $do$ BEGIN EXECUTE 'DROP TABLE football.t'; END $do$;",
+    "drop after a comment on the same line": "/* note */ DROP TABLE football.t;",
+    "drop after a quoted dashes string": "SELECT '--'; DROP TABLE football.t;",
+}
+
+PASSED_FORMS = {
+    "ordinary": ORDINARY,
+    "the #443 widening pair": WIDENING,
+    "two widening pairs": (
+        "ALTER TABLE ops.r DROP CONSTRAINT r_chk_1;\n\n"
+        "ALTER TABLE ops.r ADD CONSTRAINT r_chk_2 CHECK (s IN ('a', 'b'));\n\n"
+        "ALTER TABLE ops.q DROP CONSTRAINT q_chk_1;\n\n"
+        "ALTER TABLE ops.q ADD CONSTRAINT q_chk_2 CHECK (t IN (1, 2));\n"),
+    "a grant naming delete": "GRANT SELECT, INSERT, UPDATE, DELETE ON football.t TO etl_writer;",
+    "drop only in a comment": "-- DROP TABLE football.t\nALTER TABLE football.t ADD COLUMN c text;",
+    "drop only in a block comment": "/* DROP TABLE x; */ CREATE INDEX t_c_idx ON football.t (c);",
+    "a word that starts with drop": "ALTER TABLE football.t ADD COLUMN dropped_at timestamptz;",
+}
 
 
 def folder(tmp_path, **files):
@@ -85,11 +145,22 @@ class TestTheGate:
         assert gate(tmp_path, out, [], capsys).out == "held=20261101000000_d1.sql\n"
         assert names(out) == []
 
-    def test_what_counts_as_destructive(self):
-        assert mg.is_destructive(COLUMN_DROP) and mg.is_destructive(TABLE_DROP)
-        assert mg.is_destructive("alter table football.t drop column c;")
-        assert not mg.is_destructive(ORDINARY) and not mg.is_destructive(WIDENING)
-        assert not mg.is_destructive("ALTER TABLE ops.r DROP CONSTRAINT x;")
+    @pytest.mark.parametrize("sql", HELD_FORMS.values(), ids=list(HELD_FORMS))
+    def test_a_destructive_form_is_held(self, sql):
+        assert mg.is_destructive(sql), sql
+
+    @pytest.mark.parametrize("sql", PASSED_FORMS.values(), ids=list(PASSED_FORMS))
+    def test_a_safe_form_passes(self, sql):
+        assert not mg.is_destructive(sql), mg.destructive(sql)
+
+    def test_a_held_form_in_a_pending_file_holds_it_on_push(self, tmp_path, capsys):
+        out = folder(tmp_path, **{"20261101000000_a": ORDINARY,
+                                  "20261102000000_hand": HELD_FORMS["multi-action drop"]})
+        assert gate(tmp_path, out, [], capsys).out == "held=20261102000000_hand.sql\n"
+
+    def test_statements_strip_comments_and_keep_quotes_whole(self):
+        sql = "SELECT 'a;--b' /* x; DROP */ ; -- DROP TABLE t;\nSELECT $f$ ; $f$ ;"
+        assert mg.statements(sql) == ["SELECT 'a;--b'", "SELECT $f$ ; $f$"]
 
     def test_the_generator_drop_lines_are_destructive(self):
         import generate_migrations as gm
@@ -127,6 +198,11 @@ class TestTheWorkflow:
         assert set(on) == {"pull_request", "push", "workflow_dispatch"}
         assert on["push"]["branches"] == ["main"]
         assert on["workflow_dispatch"] is None
+
+    def test_a_change_to_the_gate_runs_the_workflow(self):
+        on = _on(_load())
+        assert "scripts/migration_gate.py" in on["pull_request"]["paths"]
+        assert "scripts/migration_gate.py" in on["push"]["paths"]
 
     def test_the_push_job_runs_from_main_only(self):
         assert _load()["jobs"]["push"]["if"] == (
