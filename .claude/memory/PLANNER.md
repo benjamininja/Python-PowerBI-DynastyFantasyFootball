@@ -41,7 +41,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - #515 (high): a reviewed drop path for pff_id, after a design grill, at Ben's go.
   - #518 (low, go): track the manager's re-proof and check scripts.
   - Tools #153 (medium, go; Claude owns the owner-queue mod): **its runtime is a queued Decision**. (b) is ruled: prepend_state stays out of the CLI.
-  - Tools #147 and #148: Claude plans their pane parts; **nothing done yet.**
+  - Tools #147 and #148: Claude plans their pane parts; **nothing done yet.** **Claude leads #148's owner-led design grill with Ben** (accepted from the Tools planner). Ben's scope is in #148 issuecomment-6824810985: reset prompts at a clear boundary, the pane shows each with a Copy button, and an End of Day button. Open questions: where a prompt is stored, what counts as cold or near the threshold, which sessions are tracked, and End of Day for a mid-turn or stopped session. Send the session-rules answers to the Tools planner.
 - **#454 C1:** both hosts came back `not_cleared` (the Safe Browsing `unwanted` control got no reading), issuecomment-6824242911. Ben reruns. If it fails again, file a low ticket so a failed control records why in `notes`.
 - **#93:** still waiting on the manager's report of the 11-12 run (GitHub was late). With no `salary_remaining` finding for a post-lock move, tick Salary Remaining and close #93's line on map #375.
 - **Waiting on Ben:** #505's approval, #455, tools #137's go, the #300 script rules, dotclaude #5's merge, the C1 rerun, the two captures, and the #153 runtime.
