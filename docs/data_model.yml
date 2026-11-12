@@ -432,6 +432,42 @@ tables:
       and nothing re-opens it until #93's --reclose. A period that fails its
       checks stays closing.
 
+  - name: dim_fantrax_scoring_rule
+    type: dim
+    grain: "(season_id, category_id, position)"
+    pk: [season_id, category_id, position]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+    chain: fantrax_core
+    required_keys: [season_id, category_id, position, points]
+    columns:
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: category_id, dtype: str, sql_type: text }
+      - { name: category_code, dtype: str, sql_type: text }
+      - { name: category_name, dtype: str, sql_type: text }
+      - { name: scoring_group, dtype: str, sql_type: text }
+      - { name: position, dtype: str, sql_type: text }
+      - { name: points, dtype: float64, sql_type: double precision }
+      - { name: captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+    notes: >
+      The league's scoring rules: Fantrax points per unit of each scoring
+      category, one row per category and league position (QB, RB, WR, TE, DL,
+      LB, DB), from public getLeagueInfo.scoringSystem.scoringCategorySettings
+      (04p; #473 brief 2, ADR-0023). Rules are Fantrax's, read every run,
+      never typed. A category's default points fill every position without
+      an override, so a reader joins on position with no special value.
+      category_id is Fantrax's category id, the middle part of a live-scoring
+      stat id (for example 3218, 256g). scoring_group is the Fantrax block
+      the category is listed in, Offense or Defense; a category listed in
+      both (return yards) keeps its first row. category_code is Fantrax's
+      short name, which is not unique (TD, YDS and Int each name more than
+      one category), so key on category_id. A run replaces its own season's
+      rows only; 04p fails, nothing is written, on a category with no
+      default, a position it does not know, or one category listed twice
+      with different points.
+
   # ----------------------------------------------------------- resolvers
   - name: dim_fantrax_crosswalk
     type: resolver

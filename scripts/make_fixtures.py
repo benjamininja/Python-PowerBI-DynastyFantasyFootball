@@ -70,6 +70,16 @@ ALLOWLIST: dict[str, object] = {
         "scoringPeriods": [{k: KEEP for k in ("number", "startDate", "endDate")}],
         "playoffs": {k: KEEP for k in ("lastRegularSeasonPeriod", "firstPlayoffPeriod")},
         "teamInfo": {ANY: {"id": KEEP, "division": KEEP}},
+        # 04p parse_scoring_rules: the authoritative rule list. The lossy
+        # `scoringCategories` tree is not read.
+        "scoringSystem": {"scoringCategorySettings": [{
+            "group": {"id": KEEP},
+            "configs": [{
+                "position": {"code": KEEP},
+                "scoringCategory": {k: KEEP for k in ("id", "shortName", "name")},
+                "points": KEEP,
+            }],
+        }]},
     },
     # 04r check_reply / rosters_to_state: public getTeamRosters for one period.
     # A roster's `teamName` is the team's display name and is not listed.

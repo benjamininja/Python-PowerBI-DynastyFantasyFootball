@@ -108,5 +108,408 @@
    "id": "6nhnbkuqmmwi166w",
    "division": "Wilson"
   }
+ },
+ "scoringSystem": {
+  "scoringCategorySettings": [
+   {
+    "group": {
+     "id": "1010"
+    },
+    "configs": [
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2657",
+       "shortName": "1D",
+       "name": "First Downs"
+      },
+      "points": 1.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2670",
+       "shortName": "FL",
+       "name": "Fumbles Lost"
+      },
+      "points": -2.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2760",
+       "shortName": "Int",
+       "name": "Interceptions Thrown"
+      },
+      "points": -2.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2860",
+       "shortName": "TD",
+       "name": "Passing Touchdowns"
+      },
+      "points": 4.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2870",
+       "shortName": "YDS",
+       "name": "Passing Yards"
+      },
+      "points": 0.04
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2880",
+       "shortName": "TD",
+       "name": "Receiving Touchdowns"
+      },
+      "points": 6.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2890",
+       "shortName": "YDS",
+       "name": "Receiving Yards"
+      },
+      "points": 0.1
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2900",
+       "shortName": "REC",
+       "name": "Receptions"
+      },
+      "points": 1.0
+     },
+     {
+      "position": {
+       "code": "TIGHT_END"
+      },
+      "scoringCategory": {
+       "id": "2900",
+       "shortName": "REC",
+       "name": "Receptions"
+      },
+      "points": 1.5
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2970",
+       "shortName": "RU-ATT",
+       "name": "Rushing Attempts"
+      },
+      "points": 0.25
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3040",
+       "shortName": "TD",
+       "name": "Rushing Touchdowns"
+      },
+      "points": 6.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3050",
+       "shortName": "YDS",
+       "name": "Rushing Yards"
+      },
+      "points": 0.1
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3147",
+       "shortName": "2RR",
+       "name": "Two Point Conversion Rushes & Receptions"
+      },
+      "points": 2.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3218",
+       "shortName": "RtY",
+       "name": "Kickoff/Punt Return Yards"
+      },
+      "points": 0.1
+     }
+    ]
+   },
+   {
+    "group": {
+     "id": "1020"
+    },
+    "configs": [
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "256g",
+       "shortName": "BK",
+       "name": "Blocked Kicks"
+      },
+      "points": 4.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2680",
+       "shortName": "FF",
+       "name": "Forced Fumbles"
+      },
+      "points": 6.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2690",
+       "shortName": "FR",
+       "name": "Fumbles Recovered"
+      },
+      "points": 4.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2710",
+       "shortName": "FRYd",
+       "name": "Fumbles Recovered Yards"
+      },
+      "points": 0.1
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2730",
+       "shortName": "Int",
+       "name": "Interceptions Caught"
+      },
+      "points": 5.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2750",
+       "shortName": "IntYd",
+       "name": "Interception Yards"
+      },
+      "points": 0.1
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "2770",
+       "shortName": "PD",
+       "name": "Passes Defensed (Deflected)"
+      },
+      "points": 2.0
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_BACK"
+      },
+      "scoringCategory": {
+       "id": "2770",
+       "shortName": "PD",
+       "name": "Passes Defensed (Deflected)"
+      },
+      "points": 3.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3060",
+       "shortName": "Sk",
+       "name": "Sacks"
+      },
+      "points": 3.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3092",
+       "shortName": "Sft",
+       "name": "Safeties by the Defense"
+      },
+      "points": 6.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3110",
+       "shortName": "TkA",
+       "name": "Tackles - Assisted"
+      },
+      "points": 1.0
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_LINE"
+      },
+      "scoringCategory": {
+       "id": "3110",
+       "shortName": "TkA",
+       "name": "Tackles - Assisted"
+      },
+      "points": 1.75
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_BACK"
+      },
+      "scoringCategory": {
+       "id": "3110",
+       "shortName": "TkA",
+       "name": "Tackles - Assisted"
+      },
+      "points": 1.25
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3117",
+       "shortName": "TFL",
+       "name": "Tackles For Loss"
+      },
+      "points": 2.0
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_LINE"
+      },
+      "scoringCategory": {
+       "id": "3117",
+       "shortName": "TFL",
+       "name": "Tackles For Loss"
+      },
+      "points": 3.0
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_BACK"
+      },
+      "scoringCategory": {
+       "id": "3117",
+       "shortName": "TFL",
+       "name": "Tackles For Loss"
+      },
+      "points": 2.5
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3120",
+       "shortName": "TkS",
+       "name": "Tackles - Solo"
+      },
+      "points": 2.0
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_LINE"
+      },
+      "scoringCategory": {
+       "id": "3120",
+       "shortName": "TkS",
+       "name": "Tackles - Solo"
+      },
+      "points": 3.5
+     },
+     {
+      "position": {
+       "code": "DEFENSIVE_BACK"
+      },
+      "scoringCategory": {
+       "id": "3120",
+       "shortName": "TkS",
+       "name": "Tackles - Solo"
+      },
+      "points": 2.5
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3130",
+       "shortName": "TDD",
+       "name": "Touchdowns - Defense"
+      },
+      "points": 6.0
+     },
+     {
+      "position": {
+       "code": "DEFAULT"
+      },
+      "scoringCategory": {
+       "id": "3218",
+       "shortName": "RtY",
+       "name": "Kickoff/Punt Return Yards"
+      },
+      "points": 0.1
+     }
+    ]
+   }
+  ]
  }
 }
