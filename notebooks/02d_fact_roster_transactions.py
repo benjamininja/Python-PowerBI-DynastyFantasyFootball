@@ -647,13 +647,44 @@ def index_eligibility(eligibility, season=None) -> list:
             for day, rows in eligibility.groupby("capture_date", sort=True)]
 
 
+def index_computed_eligibility(computed, crosswalk, season=None) -> list:
+    """fact_nfl_minor_eligibility (02j, #524) -> the same shape as
+    `index_eligibility`: one set of scorer_ids per capture day, the rows with
+    `eligible` true. nflverse knows a player by his gsis_id, so each is taken
+    to every scorer_id the crosswalk gives it; one with none is no Fantrax
+    player and drops out."""
+    if computed is None or computed.empty or crosswalk is None or crosswalk.empty:
+        return []
+    rows = computed[computed["eligible"].astype(bool)]
+    if season is not None:
+        rows = rows[rows["season"] == season]
+    scorers = crosswalk.dropna(subset=["gsis_id", "scorer_id"]).groupby("gsis_id")["scorer_id"].agg(set)
+    return [(_day(day), set().union(*(scorers.get(g, set()) for g in group["gsis_id"])))
+            for day, group in rows.groupby("capture_date", sort=True)]
+
+
+def merge_eligibility(observed: list, computed: list) -> list:
+    """Fantrax's captures and the computed ones as one list, oldest first. On a
+    day both have, Fantrax's capture stands: the contract is observed, never
+    derived (ADR-0019 decision 4), and `computed` fills the days Fantrax has
+    none. Once 04v is retired its frozen captures hold the days before, and
+    the computed ones every day after."""
+    have = {day for day, _ in observed}
+    return sorted(observed + [(day, ids) for day, ids in computed if day not in have],
+                  key=lambda capture: capture[0])
+
+
 def contract_source(state, preseason, eligibility, contracts,
-                    season_id=SEASON_ID, season=CFG.draft_year) -> ContractSource:
+                    season_id=SEASON_ID, season=CFG.draft_year,
+                    computed=None, crosswalk=None) -> ContractSource:
     """Everything a move's contract and salary are read from. `season_id` picks
-    the Roster State and preseason rows; `season` the eligibility captures."""
+    the Roster State and preseason rows; `season` the eligibility captures,
+    Fantrax's (`eligibility`) and nflverse's (`computed`, with the `crosswalk`
+    that turns its gsis_ids into scorer_ids)."""
     return ContractSource(
         snaps=index_state(state, season_id),
-        elig=index_eligibility(eligibility, season),
+        elig=merge_eligibility(index_eligibility(eligibility, season),
+                               index_computed_eligibility(computed, crosswalk, season)),
         years=dict(zip(contracts["contract_id"], contracts["contract_year"])),
         preseason=index_preseason(preseason, season_id),
         season=season_id)
@@ -771,7 +802,7 @@ def sourcing_report(elig: list, tallies: list) -> list:
     if n["stale_capture"]:
         lines.append(f"[warn] {n['stale_capture']} move(s) defaulted more than "
                      f"{STALE_ELIGIBILITY_DAYS} days after the newest eligibility capture "
-                     f"({newest}) -- their contract rests on an old list (run 04v)")
+                     f"({newest}) -- their contract rests on an old list (run 02j or 04v)")
     return lines
 
 
@@ -1496,11 +1527,13 @@ def main():
     fa = fa_terms(contracts)
 
     # ---- Contract source: Roster State (04r), the preseason capture, and
-    #      minors eligibility (04v) ------------------------------------------
-    state, preseason, eligibility = (
+    #      minors eligibility (04v, 02j) -------------------------------------
+    state, preseason, eligibility, computed = (
         etl.read_table(name) if etl.table_exists(name) else None
-        for name in ("fact_roster_state", "fact_preseason_salary", "fact_minor_eligibility"))
-    src = contract_source(state, preseason, eligibility, contracts)
+        for name in ("fact_roster_state", "fact_preseason_salary", "fact_minor_eligibility",
+                     "fact_nfl_minor_eligibility"))
+    src = contract_source(state, preseason, eligibility, contracts,
+                          computed=computed, crosswalk=px)
     read_periods = sorted({s.period for seen in src.snaps.values() for s in seen})
     print(f"[info] contract source: Roster State of {len(read_periods)} Scoring Period(s) "
           f"{read_periods} ({SEASON_ID}), {len(src.elig)} eligibility snapshot(s)")
@@ -1510,8 +1543,8 @@ def main():
         print("[warn] no fact_roster_state for this season (run 04r) -- every move "
               "takes its default contract and salary")
     if not src.elig:
-        print(f"[warn] no fact_minor_eligibility (run 04v) -- no move can default "
-              f"to '{MINOR_CONTRACT_ID}'")
+        print(f"[warn] no minors eligibility capture (run 02j or 04v) -- no move can "
+              f"default to '{MINOR_CONTRACT_ID}'")
 
     # Every made pick must resolve to a team (captured divisions only) and a player.
     made = picks[picks["scorerId"].notna()].copy()

@@ -2176,6 +2176,61 @@
       ],
       "schema": "football"
     },
+    "football.fact_nfl_minor_eligibility": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "gsis_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "week",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "capture_date",
+          "not_null": false,
+          "sql_type": "date"
+        },
+        {
+          "name": "career_games",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "eligible",
+          "not_null": false,
+          "sql_type": "boolean"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_nfl_minor_eligibility_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_nfl_minor_eligibility",
+      "pk": [
+        "gsis_id",
+        "season",
+        "week"
+      ],
+      "schema": "football"
+    },
     "football.fact_nfl_snap_counts": {
       "checks": [],
       "columns": [
