@@ -30,6 +30,7 @@ Run the whole suite against the current snapshot:
 from __future__ import annotations
 
 import io
+import logging
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ import yaml
 import etl_cap as cap
 from etl_helpers import DATA, REVIEW, TableNotFound, is_private, read_stored
 
+log = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MODEL_YML = REPO / "docs" / "data_model.yml"
 REVIEW_CSV = REVIEW / "review_check.csv"
@@ -503,14 +505,39 @@ def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFram
     return errs
 
 
-def salary_remaining_findings(table: pd.DataFrame,
-                              roster: pd.DataFrame) -> list[tuple[str, str]]:
-    """Fantrax's Salary Remaining against cap room, on Fantrax's basis: IR
-    salary added back, since Fantrax charges it (owner's ruling 2026-10-12,
-    #97), and no reinvestment charge. One finding per team off by more than
-    $1. Compared only when the roster read and Fantrax's capture fall on the
-    same league day: Fantrax serves today's value alone. Otherwise it raises
-    NotComparable, so the open findings stay open."""
+def _ours_at_period(r, state: pd.DataFrame, dead: pd.DataFrame) -> float | None:
+    """Our figure on Fantrax's basis at the reply's own period (#509): the
+    team's Roster State of that period (Minors and IR not charged, IR salary
+    added back) less the season's Dead Money with drop_period <= that period.
+    None when Roster State holds no row for the team at that period."""
+    if pd.isna(r.fantrax_period):
+        return None
+    period = int(r.fantrax_period)
+    mine = state[(state["season_id"] == r.season_id) & (state["period"] == period)
+                 & (state["team_key"] == r.team_key)]
+    if mine.empty:
+        return None
+    exempt = mine["roster_slot"].isin(cap.EXEMPT_SLOTS)
+    charged = mine.loc[~exempt, "salary"].sum()
+    ir = mine.loc[mine["roster_slot"] == cap.IR_SLOT, "salary"].sum()
+    gone = dead[(dead["season_id"] == r.season_id) & (dead["team_key"] == r.team_key)
+                & (dead["drop_period"] <= period)]["dead_money"].sum()
+    return float(r.original_cap - charged - ir - gone)
+
+
+def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
+                              state: pd.DataFrame, dead: pd.DataFrame
+                              ) -> list[tuple[str, str]]:
+    """Fantrax's Salary Remaining against our figure at Fantrax's own period
+    (#509), on Fantrax's basis: IR salary added back, since Fantrax charges it
+    (owner's ruling 2026-10-12, #97), and no reinvestment charge. Ours is built
+    from fact_roster_state at the reply's period plus Dead Money dropped by
+    then, so a move after the lock files nothing. A team with no Roster State
+    at that period files nothing and is logged; the live roster is never used.
+    One finding per team off by more than $1. Compared only when the roster
+    read and Fantrax's capture fall on the same league day: Fantrax serves
+    today's value alone. Otherwise it raises NotComparable, so the open
+    findings stay open."""
     rows = table[table["is_current_season"] & table["fantrax_salary_remaining"].notna()
                  & table["roster_captured_at"].notna() & table["fantrax_captured_at"].notna()]
     if rows.empty:
@@ -525,7 +552,11 @@ def salary_remaining_findings(table: pd.DataFrame,
     out = []
     for r in rows.itertuples():
         read_day = pd.Timestamp(r.roster_captured_at).tz_convert(cap.LEAGUE_TZ).date()
-        ours = r.original_cap - r.charged_salary - r.ir_salary - r.dead_money
+        ours = _ours_at_period(r, state, dead)
+        if ours is None:
+            log.warning("salary_remaining: no fact_roster_state for %s %s period %s; not compared",
+                        r.season_id, r.team_key, r.fantrax_period)
+            continue
         if abs(ours - r.fantrax_salary_remaining) > SALARY_TOLERANCE:
             out.append((f"{r.season_id}|{r.team_key}",
                         f"{r.team_key} period {r.fantrax_period} on {read_day}: Fantrax's Salary "
@@ -648,7 +679,9 @@ DOMAIN_CHECKS = [
                                              load("dim_contract"), load("dim_season"))),
     DomainCheck("salary_remaining", "review", "fact_team_cap",
                 lambda load: salary_remaining_findings(load("fact_team_cap"),
-                                                       load("fact_fantasy_teams"))),
+                                                       load("fact_fantasy_teams"),
+                                                       load("fact_roster_state"),
+                                                       load("fact_dead_money"))),
 ]
 
 
