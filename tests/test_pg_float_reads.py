@@ -54,7 +54,7 @@ def zero_digits(monkeypatch):
 def float_tables(frames):
     state = pg._state()
     return [t for t in sorted(frames)
-            if any(c["sql_type"] == "double precision" for c in state[t]["columns"])]
+            if len(frames[t]) and any(c["sql_type"] == "double precision" for c in state[t]["columns"])]
 
 
 class TestExactDoubles:
