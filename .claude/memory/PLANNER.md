@@ -7,23 +7,275 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 5285e989-c1d1-43f0-aac0-7b8afee3857a` (re-keyed by the manager 2026-11-12); after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
-- Capture Fantrax getPlayerIds for #519
-- Paste the getMatchupScores docs and capture one period for #520
-(Done and out: the C1 source run; the data-use mailbox and private repo.)
+Open entries raised by the planner, keyed to `Session: 2bd54542-4e0b-4676-bc1e-6e9980d6c308` (re-keyed by the manager 2026-11-14 ~22:00Z). After a clear, send the manager the new id and these titles:
+- Start the owner crosswalk Excel on Drive for #548
+- Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
+(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture; the #519 getPlayerIds capture and the #545 webhook entry, pruned 2026-11-14.)
 
 ## START HERE (state 2026-11-09, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
-Find the manager with `ListAgents`, by name. Approved plans: this block and
-`C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+Find the manager with `ListAgents`, by name. Approved plans: this block. The scoping plan the owner approved on
+2026-10-30 is now the role file's rule, Scoping a high ticket.
 
-0000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, ~14:00Z by `date -u` (session c214870a, after the clear). Adds to the 63-zero item, whose rules and lists stand.**
+00000000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 22:31Z by `date -u` (session 2bd54542, after the clear). Self-contained for what is next; the 73-zero item holds the earlier record.**
+- **Peers:** the manager cleared mid-session; its id is now 6d478b2d-32fa-4453-9c0d-ede04a08401d (key a queue entry for the manager to it). It re-keyed the planner's two #548 entries to 2bd54542. The Tools planner has the planner's new id.
+- **Ben's button answers this session (planner chat, word for word, each recorded on its ticket):**
+  - **#545** (issuecomment-6885052736): "Keep the flag (Recommended)": `shrinks_by_design: true` for `fact_contract_move` only, with an ADR-0008 decision 6 amendment line, a test pinning the flag to one table, and `02k` raising on an empty Roster State. "Only due rows (Recommended)": a list row exists only inside its window; an unopened empty list says when it opens.
+  - **#558** (issuecomment-6885115780): "Hold both ways (Recommended)": the renewal hold applies whenever Fantrax's season differs from the run date's season. "Roster's season (Recommended)": #206 part 1 stands; the ticket body's changes 2 and 4 are reworded. The body's old change 2 was the planner's error, never put to Ben.
+  - **#548** (issuecomment-6885194229): "SQL file, Ben pastes (Recommended)" (the loaders write a SQL file; no agent connects); "Stay on Free (Recommended)" (ADR-0014 decision 7's trigger recorded as fired, not needing Pro); "23:59:59 Eastern (Recommended)" (the deadline instant).
+- **Done from the 73-zero item's owed list:**
+  1. The manager has the new id.
+  2. The interaction-limit claim: GitHub's docs are silent on GitHub Apps. Ben set both limits on 2026-11-14 (dynasty a 24-hour trial to 2026-11-15T22:23Z, tools six months to 2027-05-14; #93 issuecomment-6885159414). The 11-15 Daily Run's data PR is the live check; the manager reads it and raises the six-month Action or reports a failure.
+  3. The four process tickets: tools #190 (threat-model ADR), #191 (builders' least-privilege credential), #192 (settings linter in CI), #193 (rulesets on every branch), all `Tier: unset`, linked from #564, tools #188 and the draft advisory, and sent to the Tools planner.
+  9. (in part) Tools #161's finding is ruled: store-and-pull, each tracked session's own mod reports and pulls, no push between sessions (tools #161 issuecomment-6884740330). The builder is building.
+- **Scoping checks done; both builds may start (the manager has the tiers):**
+  - **#558:** briefs 1, 2, 5 medium, 4 low; brief 3 is replaced by the planner's text in issuecomment-6885115780 (the cap module across the rollover, roster's season the anchor; three things to find out first). Q3 (a) a runner step, not a Gate; Q4 (a) `CFG.draft_year` stays the startup season; ADR number 0024.
+  - **#548:** four briefs, all medium; the ADR is number 0025 and merges on Ben's acceptance at review; PR 2 waits for #554 (Q4). Planner's rulings Q1, Q2, Q3, Q6, Q7, Q10, Q11, Q12 are all the scoping session's (a).
+- **Other rulings and tickets:**
+  - **#519** (issuecomment-6885211941): the universe stays; the done condition is narrowed to name, position and NFL team; items 2 and 3 wait for the compare script's counts, which the manager runs at re-proof and the planner reads before the merge of PR #565.
+  - **#556:** the three parked measures are ticketed as **#567** (low, blocked by PR #563). Counted on the snapshot at c6c8eae: 0 of 1,118 rows differ between the stored cap hit and what the measures compute.
+  - **#568** (low): a tracked script writes a new published table's first empty snapshot; #545 and #554 both parked on that the same day.
+  - **#523** (issuecomment-6885227380): before `04a` is retired, `is_rookie` needs another source, and the season pin breaks in-season detection in September 2027.
+- **Owed by the planner, in order:**
+  1. **State PR #542:** asked by button at this save; see the next item for the answer, or ask again if none is recorded.
+  2. **Verify first** (73-zero item, point 4): each proposed settings fix checked against the commands the roles really ran, then one queue entry per fix with paste-ready text.
+  3. **The resume-prompt redesign** as a planner PR, design posted on tools #161 (73-zero item, point 5).
+  4. **#505** conflicts with main in `GOAL-RUN.md`: merge main into its branch, resolve, ask Ben's approval by button.
+  5. **Tools #185's** three questions to Ben by pop-up, one at a time.
+  6. **#562's** rehearsal in a throwaway clone; post the output on #562.
+  7. **Reads and checks as they come due:**
+     - #545: read `Move to` and `Why` against bylaws 5.2, 11.4.1 and 12.2 to 12.3 at the PR read; tier b545's ledger-gap ticket and place it on map #557.
+     - #519: the compare counts before PR #565 merges.
+     - #548: write the brief for the after-deadline publish step (Q6) when PR 2 is in review; send the manager the `GOAL-RUN.md` replacement line and the supabase-auditor's new basis as queue entries when PR 3 opens; rule Q4 again if #554 has not merged by 2026-11-28; ticket moving #545's deadline reader to #548's deadline table once that table is live.
+     - #567 and #568: no milestone set yet.
+     - #551's briefs after #93 brief 5. The 02d switch question to Ben before 2026-12-03. The #561 grill after 12-03.
+     - The draft advisory GHSA-27j5-qx96-v8w3: publish when its fixes land or on 2026-11-28.
+- **Nothing waits on Ben from the planner in prose.** His open items are the planner's two queue entries (the #548 crosswalk Excel; the 2026 FA handover after 11-19) and whatever the manager has queued.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (74 zeros) first; it is self-contained for what is next. The state worktree is the one on the current docs/state branch (find it with git worktree list). Run git pull --rebase origin on that branch before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD to that branch and never force-push. First send the manager this session's new id so it re-keys the planner's two queue entries (now keyed to 2bd54542). Then work the 74-zero item's owed list in order. Follow Ben's standing rules in root preferences.md: every question, and every item that waits on Ben, goes through the pop-up or the queue with the context to agree; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 21:46Z by `date -u`, before a CLEAR at Ben's word (session 80f5b34f). Self-contained for what is next; the 72- and 71-zero items hold the earlier record, and the 69-zero item the resume rules.**
+- **Ben's standing correction (planner chat, ~20:30Z):** a Waiting-on-Ben list is itself an ask. Every item is a queue entry or a pop-up as soon as it is ready, with the context to agree (what it is, pros, cons, the recommendation). An item blocked by something else is not waiting on Ben: say what blocks it. **Never carry a prose Waiting-on-Ben list again.**
+- **In Ben's queue now, all keyed to the manager's session (c21a2d5b), so a pane answer is Ben's word there:**
+  - Go Decisions: #519; #554; the scoping session for #558; the scoping session for #548; #556 (Power BI Desktop closed); #545 as soon as #549 merges (it has merged).
+  - Actions: rerun the C1 source check (#454); limit comments to collaborators on both repositories (the draft advisory below).
+  - The planner's own two entries (the #548 crosswalk Excel; the 2026 FA handover) are keyed to 80f5b34f.
+  - Off the list: the reproof.py allow rule (already in the managers' settings file). #559 and #553 are blocked by other tickets, not by Ben.
+- **Ben's button answers this session:**
+  - **#542:** End of day (#542 issuecomment-6884364241). Ask again by button at the day's last state save, then pause the manager's state pushes, merge head-pinned, cut a fresh branch from main, send the manager its name.
+  - **Review record:** Advisory, then publish. **Settings fixes:** Verify first. **Resume prompts:** Draft now. **Process tickets:** all four (threat-model ADR, least-privilege builder token, settings linter in CI, server-side rulesets).
+- **Done:**
+  - #549 merged at e737068. **#130 closed** (issuecomment-6884334360), with a pointer line on map #70.
+  - **Tools #183 split:** #562 (untrack dynasty's queue file; owner-led, owner-attended, rehearsal first) and tools #185 (the mod: fixed order, per-project numbers; tier medium; three questions for Ben). Both are linked on tools #183.
+  - **The two reviews Ben asked for** (owner-queue mod; settings and dispatch profiles; one read-only subagent each, spot-checked by the planner): tools #188 holds the mod's 19 findings; #564 holds the profiles' efficiency and drift findings; the profiles' security findings are in a draft security advisory in the tools repository, GHSA-27j5-qx96-v8w3, **to publish when its fixes land or on 2026-11-28**.
+  - #412 holds the note on the `stintless_drop` label (72-zero item).
+- **Owed by the planner, in order:**
+  1. Send the manager the new session id (the two #548 entries).
+  2. Check one claim in the interaction-limit Action before Ben acts on it, or tell Ben it is unchecked: that the pipeline's GitHub App still opens and merges its data PR under a collaborators-only limit.
+  3. File the four process tickets in the tools repository, `Tier: unset`, and send their numbers to the Tools planner. Link them from #564, tools #188 and the advisory.
+  4. **Verify first:** check each proposed settings fix against the commands the roles really ran (session transcripts), and settle the one unproven item with a live look (whether the main checkout's local settings reach a builder). Then send the manager one queue entry per fix with paste-ready text, the top five first: the user-level `gh api` and `gh pr merge` allows; the managers' file (two session-start rules, two script rules pinned, the unpinned merge rule, plus the state-save and `claude rm` rules it lacks); absolute-path Read denies for the main checkout's `.env` files and raw-data folder; the leftover one-ticket rules in the builders' file; the builders' `readLine`.
+  5. **The resume-prompt redesign, as a planner PR for Ben's approval,** with its design posted on tools #161. The shape, after Ben's second-look ask: the prompt is a pointer (role, state branch, state file); each state file keeps one current block with fixed sections, rewritten at each save, every decision linked to its ticket comment, the daily state PR's diff as the review; standing rules live in the one rule source (`session-rules`, `GOAL-RUN.md`), not in role files or prompts; no untracked notes file (reusable scripts get tracked, a one-off local file is named in the queue entry that uses it).
+  6. #505 conflicts with main in `GOAL-RUN.md`: merge main into its branch, resolve, then ask Ben's approval by button.
+  7. Tools #185's three questions to Ben by pop-up, one at a time (where the short key comes from; stable entry ids; one heading name per project).
+  8. #562's rehearsal in a throwaway clone; post the output on #562.
+  9. Rule on tools #161's finding when it posts. Check #551's briefs after #93 brief 5. The 02d switch question to Ben before 2026-12-03 (a week of `minor_drift` data from 11-15). The #561 grill after 12-03.
+- **Told:** the manager (the queue entries, #130, #542, a stale #300 queue entry to check); the Tools planner (tools #185, #562, the two rule-text findings).
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (73 zeros) first; it is self-contained for what is next. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. First send the manager this session's new id so it re-keys the planner's two queue entries (now keyed to 80f5b34f). Then work the 73-zero item's owed list in order. State PR #542: Ben answered End of day, so ask again by button at the day's last save. Follow Ben's standing rules in root preferences.md: every question, and every item that waits on Ben, goes through the pop-up or the queue with the context to agree; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+000000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 20:13Z by `date -u` (session 80f5b34f, after the clear). Adds to the 71-zero item, whose lists stand except where this item differs. The 69-zero item's resume rules stand.**
+- **Peers told the new id.** The manager re-keyed the planner's two #548 entries to 80f5b34f, then cleared; its reset prompt carries the new id and a one-line message to the planner when #549 merges. The Tools planner was told.
+- **Checked at 20:00Z:**
+  - #549 is open at 85773c0; the manager's re-proof is owed. #130 is open.
+  - State PR #542 is open (head f91cfaf before this commit).
+  - Tools #161's finding has not posted (its last comment is issuecomment-6881790327).
+  - Main is `76f795e`: #550 merged, so `02j` is in the nflverse Chain (#538 done) and `minor_drift` can compare again from the next daily run.
+- **The `stintless_drop` item is closed, with no ticket.** The daily run labels the standing finding new because the filing CSV does not survive between Actions runs: runs 43284534340 (11-12) and 43619175936 (11-14) both print `1 open (1 new, 0 cleared)`. That is #412's first cost line, which Ben accepted with the #93 cutover. Record: #412 issuecomment-6883548655. The fix is #412's `review_*` wiring.
+- **Housekeeping done:** every local path and named scratch file is out of this file (two plan-file paths, three Temp worktree paths, one worktree folder path, the two #505 worktree mentions, two scratch file names, four placeholders). Older items still use the bare word scratchpad where they say a worktree was temporary; none holds a path. The older "housekeeping still owed" lines are answered by this one.
+- **Owed by the planner:**
+  - Close #130 when #549 merges.
+  - Rule on tools #161's finding when it posts.
+  - The 02d switch question to Ben before 2026-12-03. It needs #549 merged and about a week of `minor_drift` data, which #550 makes measurable again.
+  - Check #551's scoping briefs after #93 brief 5.
+  - The #561 grill after 12-03.
+- **Waiting on Ben:** unchanged from the 71-zero item's list.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (72 zeros) first, then the 71- and 69-zero items. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main. First send the manager this session's new id so it re-keys the planner's queue entries (now keyed to 80f5b34f). Then rule on tools #161's finding when it posts, and close #130 when #549 merges. The season-rollover map is #557; its builds (#554, #558, #559, then #553) and #548's ADR (due before 2027-03-01) wait on Ben's go. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 19:51Z by `date -u` (session 2033d299). Adds to the 70-zero item. The 69-zero item's resume rules stand.**
+- **The season-rollover grill is COMPLETE** (Ben chose "Grill now"). Map **#557** (decisions 1 to 4 in the body, 5 to 10 at #557 issuecomment-6883245395; Ben confirmed the shared understanding and the ticket split).
+  - The commissioners relabel in Fantrax, which stays the record. The repo works out each copy's expected label, gives the commissioners a one-off xlsx per conference before rollover, and checks Fantrax after it.
+  - The first build covers the 2027 moves only: `1st`→`2nd` (same salary); an eligible `Minor` stays; an overdue `Minor` becomes `2nd` (rule 3); a kept FA becomes `X` at the 11-12 pull value; the commissioners release unkept FAs before Mar 1.
+  - 2027-28 starts Mar 1. If Fantrax is renewed earlier, the Fantrax chain holds and a check is filed until then.
+  - Keep choices load into #548's table through a tracked loader, so **#548's ADR must land before Mar 1**.
+  - **Locked values:** one pull a year, after the post-deadline Recalculate Salaries; Ben's hand Players export is the source; the pull is the price list.
+- **Correction found in the grill:** `fact_fantrax_adp` does **not** hold the generated values. Its 11-12 capture matches Ben's export on 1,070 of 1,982 players. Only Ben's export holds them. Ben confirmed that Q3 stands with the export as its source.
+- **Tickets (all at Ben's go; live by Mar 1; nothing switches between 12-03 and 01-07):**
+  - **#558** (tier:high): season two in the pipeline. Its first PR is the rollover ADR.
+  - **#554** re-scoped to tier:medium: the yearly price-list table and its loader; the 11-12 export loads first.
+  - **#559** (tier:medium): the contract step (expected labels, the xlsx, the check, the `X` seed fix from 0.5 to 0%), after #548's table, #554 and #558.
+  - **#553**: now after #559.
+  - **Grills:** #560 (the 2028 ladder; grill before the 2027 trade deadline) and #561 (the 2027-28 ledger's new events: rookie draft, auction, cut day; grill after 12-03).
+  - #548 has a comment on the new ordering. The bylaws lines are added to #116 issuecomment-6880314749.
+- **#552 follow-ups:**
+  - #554 is above.
+  - **#555 is ruled and closed:** no dead ids are recorded, and `04z` adds the `fact_roster_state` scorers, folded into #523. #523 now depends on #554.
+  - **#556** (tier:low): `Fact_FantasyTeams` gets `CapHit`, and its stale description is fixed.
+  - **Item 4:** Ben answered (a), the pull is the price list, in both this session and the manager's pane, with Ben's note that the new salary takes effect next year. The entry has left the queue.
+- **#549:** the main-to-head counts show 14 of 327 rows changing, all `Minor` to `FA`, and 0 Q2 drops, so no Fantrax check is owed. b544's fixes are at 85773c0. The re-proof is the next manager session's first dynasty item. The manager has cleared (state d27f225).
+- **Owed by the planner:**
+  - Close #130 when #549 merges.
+  - Rule on tools #161's finding when it posts.
+  - The 02d switch question to Ben before 2026-12-03.
+  - The #561 grill after 12-03.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go; the #548 crosswalk Excel, the 2026 FA handover and #548's go (its ADR now has a Mar 1 deadline); the goes for #554, #556, #558 and #559; the C1 rerun.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (71 zeros) first, then the 70- and 69-zero items. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main. First send the manager this session's new id so it re-keys the planner's queue entries. Then rule on tools #161's finding when it posts, and close #130 when #549 merges. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 18:59Z by `date -u` (session 2033d299, after the clear). Adds to the 69-zero item, whose resume rules and lists stand except where this item differs.**
+- **Peers told the new id.** The manager (93fec6e9) re-keyed the planner's two #548 entries to 2033d299. The Tools planner was told.
+- **From the manager:**
+  - #543 (Closes #515) merged at fdd98ea on Ben's button. The DROP stays held until Ben runs migrate.yml by hand, and the #521 schema half dispatches at Ben's go.
+  - b552-fagaps is dispatched (medium, findings only, session d2e2dc11).
+  - Tools #174 merged (609247e).
+  - #528's re-proof is running.
+- **#549's Q1 and Q2 ruled** (#549 issuecomment-6882624508). Neither needs Ben. The answers went to the manager for b544.
+  - **Q1:** bylaws §12.5 and §5.4 and Ben's rule 5 settle the rule: a contract carries until a whole season unrostered. The same-season carry (02d line 1402 at #549's head) is older than #549 and resets every contract type, and no leg crosses a season yet. So the code goes to **#553** (tier:medium, Project "Dynasty FF: plan"; it lands with or after the season-rollover contract step, at Ben's go, before the first 2027-28 move). #549 fixes only the ADR-0019 amendment's "left to the owner" sentence and the PR body.
+  - **Q2:** keep 1st and 50%, per ADR-0019 decisions 4 and 6 (#96) and Ben's #535 ruling ("02d stays Fantrax"). #549 adds a test, fixes the docstring, and posts counts of the ledger rows that change, by path. A drop where Fantrax disagrees comes back to the planner before merge.
+  - **Advisories 1 to 4:** all fixed in #549 now, apart from the cross-season test, which is #553's.
+- **Owed by the planner:**
+  - Close **#130** when #549 merges (Ben's rule 2 answers its question 1).
+  - **File the season-rollover gap ticket.** Nothing advances contracts at a season boundary (1st to 2nd, the `contract_year` clock ADR-0019 lists as unbuilt, FA keeps to X, tags). It needs a grill with Ben before the 2027 rollover, and #553 waits on its contract step.
+- **Tools #161:** the finding has still not posted (checked 18:58Z).
+
+000000000000000000000000000000000000000000000000000000000000000000000. ** 2026-11-14, 18:50Z by `date -u`, before a CLEAR (session 84e1c668). Self-contained with the 68-zero item (its record stands) and the 67-zero item's resume rules.**
+- **Resume rules (unchanged):** the state branch is `docs/state-2026-11-14` (find its worktree with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`; push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push. **State PR #542** (open, head 71f30d6 before this commit) merges on Ben's word. After it merges, retire the branch and cut a fresh one from main: first pause the manager's state pushes, merge head-pinned, cut the new branch, send the manager its name.
+- **Peers:** the manager is session **93fec6e9** (name `dynastyFantasyFootball-central-builder-manager`); the Tools planner is `Tools-central-planner`. After the clear, send the manager the new planner id; the planner's two queue entries (#548 crosswalk Excel, 2026 FA handover) are keyed to 84e1c668.
+- **Main** is `c6c8eae`.
+- **FIRST after the clear: rule on #549's two audit items** (#544's PR; the manager asked at ~18:50Z; the record is #549 issuecomment-6882489790). Answer each item one of three ways: fix in #549 now; a follow-up ticket; or Ben's decision (send the manager a ready queue entry). The manager relays the answers to b544, by `resume_plain.ps1` if b544 is not listed.
+  - **Q1:** a Minor dropped, then claimed in a later season, now comes out FA (02d's same-season rule); on main it came out Minor. Read it against Ben's ruling (#116 issuecomment-6880314749): rule 5 says a dropped Minor claimed while still eligible keeps Minor until game 21, and only a full season unrostered resets the contract (§12.5). On that reading, "same season" is narrower than Ben's rule. Check before ruling.
+  - **Q2:** an eligible drop whose copy inherits 1st now gives 1st and 50% Dead Money (was Minor, 0%). This may conflict with ADR-0019 rule 4 and Ben's rule 4 (a Minor drop costs 0%).
+  - **Advisory:** stale 19s (ADR-0019 lines 27, 31, 33; ADR-0008 line 167; `notebooks/README.md` line 78; the nflreadpy research note at line 141); ADR-0008 decision 9 calls an eligible FA "drift"; a docstring; the sourcing counters.
+- **Ben confirmed in the manager's session (buttons):** #552 dispatches now; tools #179 dispatches after tools #159 merges and the tools closeout pull (the held tools checkout at 29f77d5 lacks its file); #551 dispatches after #93 brief 5 merges.
+- **Then:**
+  - Rule on **tools #161**'s read-only mod-host finding when it posts (it carries Ben's two added requirements: a toast for an item sent to a stopped session, and a pane list of carries held for one).
+  - Take **#552**'s findings to Ben where a decision is needed (item 4, the salary of an add after a pull, is Ben's).
+  - Check **#551**'s scoping briefs against the ADR and the done condition, and set their tiers.
+  - **Owed to Ben before 2026-12-03:** the 02d switch question, after #544 lands and #538 makes `minor_drift` measurable again (a week of drift data).
+- **FA workbook:** v6 is final and is the one to send (it is in Ben's Downloads; Ben's copy of the resume prompt names the files). The commissioners collect keeps by Discord post or DM until Thu 2026-11-19, and Ben hands them over after (queue Action).
+- **Still open, older:** the `stintless_drop` repeat (06anf/B09) that the daily run labels new (look into it and ticket it if real); clean old Temp and scratchpad paths out of older items in this file.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go (after #544); the #548 crosswalk Excel, the 2026 FA handover and #548's go; the C1 rerun.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (69 zeros) first, then the 68- and 67-zero items. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main. First send the manager this session's new id so it re-keys the planner's queue entries. Then rule on #549's two audit items (#549 issuecomment-6882489790) and send the answers to the manager, then rule on tools #161's finding when it posts. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 18:40Z by `date -u` (session 84e1c668, after the clear). Adds to the 67-zero item, whose resume rules and lists stand except where this item differs.**
+- **Peers told the new id:** the manager re-keyed the two #548 entries and pruned the #519 and #545 ones; it then paused for a clear (its next session sends its id). The Tools planner was told. From the manager: #538 dispatched on Ben's button as b538-02jstep (session 46b9e0d1); tools #174 re-proof GREEN at 5ea612b (the next manager session merges it); #543's narrow audit found nothing.
+- **v5 FA workbook: BUILT** (in Ben's Downloads next to v4; v4 untouched; the build script is side work and not committed; Ben's copy of the resume prompt names it). Tabs: Summary (text plus Riddell and Wilson team grids, 75 and 86), Riddell and Wilson re-sign tables (rosters as of 11-14), FA pool (8,922 rows, opens on the Shortlist filter, 25 per primary position per conference).
+  - **Differences from the 67-zero plan, found in the data:** (1) duplicates are 5 people under 2 ids each (10 ids), not 10 people; one id kept each (NFL team first, else Ros %). (2) The export's Salary is not the contract salary: it equals the snapshot's `contract_value` for only 21 of 86 Wilson FA, 15 of 307 `1st`, 43 of 166 `Minor`; the roster holds $2M for 85 of 86 Wilson FA. So the Salary column is labelled per tab: Wilson and the pool "Salary (Fantrax, 2026-11-12)", Riddell "Salary (roster contract)", and the Summary says Riddell's is the $2M contract value, not a generated value. (3) Ledger contract holders: a held contract whose source is 02d's claim `default` and whose player was never drafted in that conference reads as FA (Ben's #116 Minor ruling; the Wilson export agrees for its one such case, and matches the default in both drafted cases). That moved 4 Riddell players into the pool; Riddell holders are 14 from the ledger plus the 29 assumed tags. Wilson holders: 45 from the export plus 2 dropped after the pull.
+- **#526 closed;** its follow-up is **#551** (tier:high, Stage D, Project 2): the shadow fallback ledger plus Ben's reconstruction tests, blocked by #93 brief 5, ADR first, scoped before built, dispatch at Ben's go.
+- **#552 filed** (tier:medium, Project 2): reconcile the FA-contract gaps: salary field mismatch, Riddell's missing generated values, the 29 assumed tags, adds after a pull (a Ben decision), the duplicate ids; cross-check of the claim-default holders after #544. Dispatch at Ben's go.
+- **Bylaws gaps:** the salary-lock line is added to #116 issuecomment-6880314749 (dated addition, points at #552). The list there: draft-only Minor rule; §5.2; FA salaries are generated values locked at the pull.
+- **#525 ruled:** the 11-14 scheduled run settles the live check (#525 issuecomment-6882340466: one login, then 04s, 04a, 04t and the 04a games backfill ran logged in; fantrax_core published). Ben's workflow_dispatch is not needed.
+- **Tools #161:** the builder's finding has not posted (it queues behind tools #174 and #159). Rule on it when it posts.
+- **Tools #179, the planner's call:** a separate `--with-answers` override beside the existing `--with-notes` (an Answer line is Ben's unrecorded decision; one flag for both would let a Note override drop an answer; renaming `--with-notes` would break existing callers). The held report names which line held each entry. Also in scope: README line 239's Session wording (#179's comment). **Waits on Ben's go.**
+- **Ben's pop-up answers (18:41Z), recorded on each ticket and sent to the manager:**
+  - **Riddell salaries:** Ben: the values on the Players export are already correct, so no Riddell export. The data agrees that the grid's Salary is player-level (it matches the roster's `contract_value` equally rarely in both conferences, and the 269 players on a `1st` in both have identical contract values in each). **v6 built** (new file beside v5; v5 and v4 untouched): every salary, Riddell's included, comes from the export by Fantrax ID, under one header "Salary (Fantrax, 2026-11-12)"; the pool's blank-where-rostered-in-Wilson rule is dropped; the Summary uses Ben's line "Salaries are Fantrax's generated values, locked at the 2026-11-12 pull." Riddell's re-sign total is $402,322,000 and Wilson's $412,877,000. **v6 is the one to send.**
+  - **#552:** go now (issuecomment-6882412338 narrows items 1 and 2; item 2 is settled).
+  - **#551:** go after brief 5 (issuecomment-6882415758).
+  - **Tools #179:** two flags, go (tools issuecomment-6882417914). The Tools planner was told.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go (after #544); the #548 crosswalk Excel, the 2026 FA handover and #548's go; the C1 rerun.
+- **Manager is now session 93fec6e9** (~18:50Z). It holds the three goes and confirms each with Ben by button before dispatch (its relay rule). Its report: tools #174 merged (609247e, 399 passed); #543's re-proof is running (CI green at 1dbb569; `dim_nfl_players` 25,016 rows, the same gsis_id set as main, only `pff_id` dropped); the cap-ledger-auditor is on #549 (#544's PR); #550 (#538's PR) waits for storage-pg.
+
+0000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 18:10Z by `date -u`, before a CLEAR (session 30d0affa). Self-contained with the 66-zero item (its lists stand, except where this item differs) and the 65-zero item's resume rules.**
+- **Resume rules (unchanged):** the state branch is `docs/state-2026-11-14` (find its worktree with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`, and push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push. **State PR #542** merges on Ben's word. After it merges, retire the branch and cut a fresh one from main: pause the manager's state pushes first, merge head-pinned, cut the new branch, send the manager its name.
+- **Main** is `c6c8eae` (data PR #547, the 11-14 run).
+- **#526 fallback-ledger grill: COMPLETE** (#526 issuecomment-6881830669 and issuecomment-6881989551).
+  - **Ben's premise:** the minimized `04t` pull continues until Fantrax answers; only a refusal switches.
+  - **The answers:** shadow build now; captured history kept, forward only; the Change Poll persists rosters and picks on change; minted `diff:` ids; the trade rule plus a review, open to revision; claim type guessed from the 10:00 AM waiver run with rechecks; a claim paired with its drop only when unique; a removal is a drop unless re-rostered in the same step; log-first provenance; slots stay out.
+  - **Owed:** file the follow-up ticket (the shadow fallback build plus Ben's reconstruction tests: hand-checked examples rebuilt from public files only and scored against the published ledger; it builds on #93 brief 5; set its tier), then close #526.
+- **Shareable FA workbook v5: IN FLIGHT, not built.** This is side work for Ben, outside the repo, with no ticket. It is the league's FA re-sign stopgap until #548. **Ben approved the plan by pop-up and said "Build it". Build it first after the clear.** Write a new v5 next to v4 in Ben's Downloads; v4 is open in Excel, so never overwrite it. The reset prompt carries the local file names.
+  - **Tab 1, Summary (owner-facing).** Short text: every rostered FA contract needs keep or let go; **deadline Thu 2026-11-19** (trade deadline Mon 2026-11-16); send keeps to the commissioners by Discord post or DM. **Keep** = he stays on the roster after the season and moves to an X contract next season. **Let go** = he plays through the season, then returns to the FA pool. **No answer by the deadline = let go** (Ben). Salaries are Fantrax's generated values, locked at the 2026-11-12 pull. Below the text, a grid with a Riddell block and a Wilson block side by side (each conference is one division: A = Riddell, B = Wilson): Team, Abbr, FA contracts to decide, with a total for each.
+  - **Tabs 2 and 3, Riddell and Wilson:** only the re-sign list, every rostered FA contract, from today's rosters (`fact_fantasy_teams` at c6c8eae: Riddell 75, Wilson 86), sorted by team, as an Excel table with filters.
+    - Salary as provided: Wilson from Ben's 11-12 export by Fantrax ID, which is the locked value, including the 2 players added after the pull, whose export row holds the pool value. Riddell from the roster's `contract_value` (all $2,000,000).
+    - Player figures (Ros %, Age, Pos, Bye) from the export. The owner column is the team, as of 2026-11-14.
+  - **Tab 4, the whole FA pool plus a Shortlist filter.** No fantasy-team owner columns: it is the fallback if an owner adds someone before the deadline.
+    - The rows are the unrostered FA-contract players for each conference, with a Conference column. The filter opens on the top 25 per primary position per conference by Ros % (tiebreak Wk FPts), and can be cleared.
+    - **Data checks are handled in the data, not shown:** no Data checks tab and no Checks column.
+    - Duplicates (10 people under two Fantrax ids each, all unrostered; Myles Murphy matters) keep one id: the one with an NFL team, else the higher Ros %.
+    - Contract holders stay out of the pool. Wilson's come from the export (status FA, contract not FA). Riddell's come from the ledger (last event a drop holding a non-FA contract, and not on a Riddell roster now), plus the 29 player-level tags taken from Wilson with no ledger record (an assumption).
+    - Pool salary is the export's, blank where the player is rostered in Wilson.
+  - **Ben's follow-ups from the same answer:** (1) the next bylaws edition states that FA salaries are generated values locked at the time they are pulled; (2) **file an issue to reconcile the gaps found:** the duplicate Fantrax ids, Riddell's assumed contract tags (a Riddell export would settle them), Riddell's flat $2M against Wilson's generated values, and adds after a pull.
+- **From the manager (#93 issuecomment-6881828841):** the 11-14 run succeeded and nflverse published, so the 11-13 hold cleared. `fantrax logins: 1` in the first live run after #533. **Planner's call: does this scheduled run settle #525's live check** (Ben's workflow_dispatch check)? **New:** `minor_drift` did not compare (`notran`) because `fact_nfl_minor_eligibility` has no capture within a day, so the drift check is blind every day until #538 lands. #538 waits only on Ben's button in the manager's session. #544's builder re-runs 02j locally, so its count still measures.
+- **Tools #161:** Ben's go (tools issuecomment-6880538296). The builder posts the read-only mod-host finding first, then stops for **the dynasty planner's ruling** before building. **Two requirements added by Ben** (tools #161 issuecomment-6881790327): a toast when an answer, Note or done mark goes to a session that isn't running, and a pane list of carries waiting on one. Both depend on the finding.
+- **Tools #179 (low, from Ben's #178 rulings):** the queue CLI's prune and remove also hold an entry that has an Answer line. **The dynasty planner decides** the override flag's name and whether one flag covers both kinds, then asks Ben's go. Also from #178: a Session line names the session that acts on the answer, so a builder's park names the manager.
+- **#519 capture done** (Ben, pane, 12:09 local). The file is on disk in the main checkout (about 1 MB). The manager prunes the ticked entry; #519 dispatches at Ben's go.
+- **Bylaws gaps for the next edition:** the draft-only Minor rule; §5.2 (a kept FA becomes X the next year; no answer = let go); FA salary values locked at the pull time.
+- **#545 webhook switched** (Ben's queue note, 12:15 local; entry ticked): the daily post uses the existing `DISCORD_WEBHOOK_URL_ADMIN`; no new secret (#545 issuecomment-6882068825, body updated). #545 waits only on #544, then Ben's go.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go (after #544); the #548 crosswalk Excel, the 2026 FA handover and #548's go; #538's button (manager); tools #179's go; the C1 rerun.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (67 zeros) first, then the 66- and 65-zero items. Use the docs/state-2026-11-14 worktree (git worktree list); pull with rebase before reading and before every push; commit with an explicit git add of .claude/memory/PLANNER.md; push with a standalone git push origin HEAD:docs/state-2026-11-14; never force-push. First send the manager this session's new id so it re-keys the planner's queue entries. Then build the v5 FA workbook to the plan in the 67-zero item, then file the #526 follow-up and close #526, then file the reconcile-gaps issue. Follow Ben's standing rules in root preferences.md. Message dynastyFantasyFootball-central-builder-manager and Tools-central-planner by name.
+
+000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 17:26Z by `date -u` (session 30d0affa, after the clear). Adds to the 65-zero item, whose resume rules stand; this item overrides its lists where they differ.**
+- **Reconciled:** main is `f508b86`, then `1f8b5ac`. Merged today: #530 (747b152), #533 (f508b86, Ben, 16:14Z) and #546 (1f8b5ac, on Ben's word by pop-up, head 558cc23). #546's worktree is removed and its remote branch is gone. Data PR #547 merged; the 11-14 daily run 43619175936 **succeeded** (17:05Z). The manager reports whether nflverse published.
+- **Peers told the new id:** the manager (re-keyed the #519 entry, pruned the #520 one) and the Tools planner. The manager is now session f54d5a5a.
+- **Goes from Ben by pop-up:** #538 "Go now" and #544 "Go now". #544 is dispatched as b544-minorrules (session 4e23cebf; #544 issuecomment-6881360724). The manager's standing rule confirms a relayed go by button in its own session, so it asks Ben once about #538 before dispatching it.
+- **#545 grilled and re-scoped with Ben** (body rewritten; record at #545 issuecomment-6881415506). Three lists (Minor → 1st; Expiring = `X`, `6th`, `Tag`; Decision table = rostered `2nd` + `FA`). Each row is due now or due within 7 days. The workbook has two conference tabs, each with a List column and 13 columns. `/contract-moves list/format/team`; the table form is split across embeds. The daily post goes to the new secret `DISCORD_WEBHOOK_URL_COMMISH` with no ping, and only on a new row (key: list, conference, team, player, status). The re-sign deadline and final-period dates become `LeagueConfig` settings. Still medium tier. **Dispatch after #544 and Ben's webhook Action, at Ben's go.**
+- **New #548 (tier:high, Project 2):** the owners' contract-choice surface in the app, in place of trade-bud until rollover. Discord sign-in through Supabase Auth; RLS on a DB-only owner crosswalk (team ↔ Discord user id, co-owners allowed; source is Ben's Excel on Drive; a tracked `scripts/load_owner_crosswalk.py` that Claude runs on Ben's word). Choices are private, with one per-team share toggle; commissioners see only shared choices; choices are editable until the deadline, then lock and go public; the snapshot exports a choice only after its deadline. **The ADR is its first PR** (it amends ADR-0012 and ADR-0014; supabase-auditor). File shapes are at #548 issuecomment-6881427613. Open for 2027: the Year-2 "New Value" is not in the data.
+- **Facts found:** season one (2026-27) rosters hold only `1st` 613, `Minor` 346 and `FA` 159, so this season's decision is FA keeps only. Trade deadline Mon 2026-11-16; **re-sign deadline Thu 2026-11-19** (Ben). **2026 stopgap:** the commissioners collect FA keeps by Discord post or DM; Ben hands the file over after 11-19 (queue Action).
+- **Owed by the planner:** close out #526 and run its 12-question grill (b526's findings at #526 issuecomment-6881273291; question 10 may need Ben: a fresh 04t capture is a login run).
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; the #519 capture; the webhook Action (#545); the crosswalk Excel and the 2026 FA handover (#548); #548's go; tools #161; the C1 rerun.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (66 zeros) first, then the 65-zero item's resume rules. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main for the next batch (Ben, 2026-11-14). First send the manager this session's new id so it re-keys the planner's queue entries. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 16:12Z by `date -u`, before a CLEAR (session c214870a). Self-contained; overrides everything below. The 64-zero item has this session's detail.**
+- **Resume rules:**
+  - The state branch is now **`docs/state-2026-11-14`**, in a worktree outside Temp (find it with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push.
+  - Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`. Push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push.
+  - **State PR #542** merges on Ben's word. **Ben's rule (2026-11-14):** after a state PR merges, its branch is retired and the next batch gets a fresh branch cut from main. First pause the manager's state pushes and wait for its confirmation, then merge head-pinned, then cut the new branch, then send the manager the name.
+  - #540 merged (80f6ee5); the old branch `docs/state-2026-11-07` is deleted.
+- **Merging:** Claude merges on Ben's word, head-pinned (`gh pr merge N --squash --match-head-commit <sha>`), with all CI SUCCESS.
+- **Peers:** the manager is `dynastyFantasyFootball-central-builder-manager` (now session 01a436c4). The Tools planner is `Tools-central-planner`, paused for a clear; its state is tools PR #174. Message both by name. **After the clear, send the manager the new session id** and ask it to re-key the planner's queue entries (now keyed to c214870a).
+- **Planner queue entries (c214870a):**
+  - "Capture Fantrax getPlayerIds for #519": the command is fixed to `curl.exe`, with a full path. Not run yet.
+  - The #520 capture: ticked `[x]` after Ben ran it. The manager deletes it at its next state-back.
+- **Main** is 80f6ee5.
+- **Open PRs:**
+  - #542 (state, Ben's word).
+  - **#546:** the bylaws copy `docs/league/BYLAWS-2026-27.md`, branch `docs/bylaws-2026-27`, the planner's PR, Ben's word. Its worktree has a throwaway `.venv` (a real folder, not a junction). Remove the worktree after the merge.
+  - #533: GREEN at 40f059a (re-proof from Ben's run); a merge Action is in the queue.
+  - #530 (re-check, then local Green).
+  - #528, #505.
+- **Settled today:**
+  - **#515 test rule:** ruled at #515 issuecomment-6878316726. The manager relays it to b515 (session c96c1508).
+  - **Minor rules:** Ben's ruling is at #116 issuecomment-6880314749.
+    - Eligible through 20 games; a 1st at game 21.
+    - A Minor comes only from the startup, rookie or auction draft; a pure free-agent claim stays FA.
+    - A dropped Minor claimed while eligible keeps Minor until game 21.
+    - §12.5: a full season unrostered resets the contract.
+    - Today 48 players past 20 games are still on Minor.
+  - **New tickets:** **#544** (low tier; ADR-0019 and CONTEXT amendment, 02j at ≤20, 02d's claim default; land before 2026-12-03; cap-ledger-auditor) and **#545** (medium tier, after #544; the commissioners' xlsx with one tab per conference, a daily webhook post on change, and a bot command any member can run, private by default). **#545 is not dispatchable** until the planner settles three things with Ben: its columns, its change key, and the commissioners' webhook Action.
+  - **Bylaws gaps for the next edition:** state the draft-only Minor rule, and update §5.2 (a kept FA stays at $2M, then becomes X the next year, taggable at tag prices).
+  - **#520:** the docs are pasted (no login; any period; per-category points), and the period-9 capture is made (14 matchups, 26 categories). Its first step is complete; dispatch at Ben's go, not during periods 13 to 17.
+  - "Terms checks due 3" means three sources never checked for terms of use.
+- **Watch:**
+  - **The 11-14 daily run (~18:40Z).** The 11-13 run held nflverse because the shrink gate read an empty DB copy of `fact_nfl_minor_eligibility`. If 11-14 holds again, ask Ben by button whether #538 goes ahead of #533. If it passes, #538 stays behind #533; #533 is GREEN now, so it can follow its merge. The manager reports the result.
+  - #538 must land by ~2026-11-25.
+  - The 02d switch question goes to Ben before 2026-12-03. #544's ≤20 fix changes the drift count, so re-read the drift after #544.
+- **Waiting on Ben:** #542, #546, #533's merge, #505, #526 script Action, the reproof.py allow rule, the #519 capture, the go on #544, #538 (after #533), tools #161, the C1 rerun.
+- **Housekeeping still owed:** clean old Temp/scratchpad paths from older items in this file.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (65 zeros) first. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main for the next batch (Ben, 2026-11-14). First send the manager this session's new id so it re-keys the planner's queue entries. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, ~14:00Z by `date -u` (session c214870a, after the clear). Adds to the 63-zero item, whose rules and lists stand.**
 - Reconciled: main still `1259e85`; open PRs unchanged (#540, #533, #530, #528, #505). The manager's state reports the 11-13 etl-daily run 43483298438 **failed** (exit 1), although data PR #541 landed. The manager reads it and reports to the planner.
 - **#515 ruled** (#515 issuecomment-6878316726): replace `test_no_committed_migration_is_held_today` with `test_every_committed_held_migration_is_a_flagged_drop`, using no allowlist of ids. Every destructive committed migration must be drop-only, and each drop must be flagged by `registry_drops`. b515 may edit the test on its branch. The manager relays it.
 - The manager was asked to re-key the two planner queue entries to Session c214870a-3cfa-457e-af7b-2061055c7a21. The Tools planner was told the new id.
 - **Correction from the Tools planner:** tools #163 **merged** 2026-11-12 (3be0767, on Ben's "merge 166 and 163"), and #153 is closed. Drop "#163 merges after re-proof" from the waiting lists below. Tools #161 still waits on Ben's go. The Tools planner is paused for a clear; its state-back is tools PR #174.
 - **Ben's ruling, "Fresh branch per batch":** each state PR merges and its branch is deleted, never reused. The next batch starts on a new branch cut from main, in a worktree outside Temp. #540 merges once the manager confirms it has paused its state pushes; then comes `docs/state-2026-11-14`.
+- **Done (~14:25Z):** #540 merged (80f6ee5, head 9a2008e, CI all SUCCESS); GitHub deleted the old remote branch. **The state branch is now `docs/state-2026-11-14`**, cut from 80f6ee5, worktree outside Temp (find it with `git worktree list`). The manager (now session 01a436c4) has the name. Its queued work: relay the #515 ruling, re-key the queue, read the 11-13 run.
+- **11-13 run read** (manager, #93 issuecomment-6879134305): the nflverse chain was HELD by the shrink gate on `fact_nfl_minor_eligibility`: 0 rows against HEAD's 3460. Under postgres the gate reads the DB copy, and no cron step writes that table until #538, so the copy was empty. fantrax_core and rookie published (#541); nflverse's other tables did not. No new findings: the stintless_drop repeat, minor_drift 56 (same set) and salary_remaining 0 are all carried. Terms due 3, crosswalk review 28, fuzzy 43. **Next:** the 11-14 run (~18:40Z). The held-chain reload should fill the DB copy from the snapshot. **If 11-14 holds again,** nflverse is not publishing daily. Claude then brings Ben, by button, whether #538 goes ahead of #533, rather than waiting on #533's re-proof Action.
+- **Minor rules settled with Ben (~15:30Z):**
+  - Records: the measurement at #116 issuecomment-6879364595, Ben's ruling at issuecomment-6880314749.
+  - Rules: eligible through 20 games, a 1st at game 21. A Minor comes only from the startup, rookie or auction draft; a pure free-agent claim stays FA. A dropped Minor claimed while still eligible keeps Minor until game 21. §12.5 resets a contract after a full season unrostered.
+  - Today 48 players past 20 games are still on Minor.
+  - "Terms checks due 3" means three sources never checked for terms of use, not player contracts.
+  - Filed: **#544** (low tier: the ADR-0019 and CONTEXT amendment, 02j at ≤20, 02d's claim default; land before 2026-12-03) and **#545** (medium tier, after #544: the decision 4 check, an xlsx per conference, the daily commissioners' webhook post and a bot command for any member, private unless shared). #545 is open on its columns, its change key, and Ben's webhook Action.
+  - **PR #546:** a versioned bylaws copy at `docs/league/BYLAWS-2026-27.md`, on branch docs/bylaws-2026-27 (merges on Ben's word).
+  - Next bylaws edition: state the draft-only Minor rule, and update §5.2 (a kept FA becomes X the next year).
+- **Resume prompt (supersedes every older one):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (64 zeros) first. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. The state PR for this branch merges only on Ben's word; after it merges, the branch is retired and the next batch gets a fresh branch cut from main (Ben, 2026-11-14). Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, call the owner Ben or the owner and yourself Claude, and nothing committed points at local-only files. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
 
 000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 13:25Z by `date -u`, before a CLEAR (session 5285e989). Self-contained; overrides everything below. The 62-zero item and its "after" notes have the detail.**
 - **Resume rules:** the state worktree is on branch `docs/state-2026-11-07` (find it with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`, never a force push (one was denied). If a push is refused, fetch and `git merge` the remote branch. **State PR #540** carries this branch and merges only on Ben's word. If it conflicts after a squash merge, merge origin/main in rather than rebasing.
@@ -37,7 +289,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Waiting on Ben:** #505; #533's re-proof Action; #526 spike-script Action; the reproof.py allow rule; #538's go (after #533); tools #161's go; the C1 rerun; the #519 and #520 captures; #540's merge.
 - **Waiting on others:** #528 merges, then Claude drafts the Fantrax letter (private, for Ben, kept in the private repo). Tools #161's first step reports, then Claude rules on any gaps. Tell the Tools planner only if the route stops being a whole-file replace. Tools #163 (Node) merges after re-proof on Ben's word.
 - **Open gap:** the daily run labels the known `stintless_drop` repeat (06anf/B09/2026-06-19) as new, not carried. Look into it and ticket it if real.
-- **Housekeeping still owed:** move the state worktree out of Temp; clean old Temp/scratchpad paths from older items in this file.
+- **Housekeeping still owed:** clean old Temp/scratchpad paths from older items in this file.
 - **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (63 zeros) first. The state worktree is the one on branch docs/state-2026-11-07 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-07 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-07 and never force-push. State PR #540 merges only on Ben's word. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, call the owner Ben or the owner and yourself Claude, and nothing committed points at local-only files. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
 
 00000000000000000000000000000000000000000000000000000000000000. **2026-11-12, 18:48Z by `date -u`, before a COMPACT (session 5285e989). Self-contained; overrides everything below. The 61-zero item has this session's detail.**
@@ -58,7 +310,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **20:16Z:** #535 merged (3df59ee, head c9510e1; Ben's "merge 535 when green"). The manager is now session a4659fc3. After the re-run there are 56 `minor_drift` findings, all one direction: 48 free agents (24 on game count, 24 outside nflverse's pool) and 8 rostered (7 on game count, 1 outside the pool). The daily drift record for the 02d switch question begins once #538 adds 02j's run_pipeline row; #538 waits only on #533. #524 stays open (Fantrax match and 04v retirement not met). #530 is being regenerated on #535. #536's B4 re-check passed, and its local Green is next.
 - **21:21Z:** #536 merged (1555f99, head dca5f0b; Ben's queue (a) accepted the ADR-0018 amendments); #534 closed. The manager posts the first live migrate gate run on #534. Ben's go by pop-up was "Both, #515 first": #515 now; #521's schema half when #515 merges (shared registry). Records at #515 and #521 issuecomments 6836267210 and 6836267830. #530 is regenerating under the new generator.
 - **21:30Z:** #515 dispatched as b515-pffdrop (session c96c1508, low, from 1555f99). Its brief covers a re-merge if #530 lands first. The first live migrate gate run (43308668882, on #534 issuecomment-6836204701) succeeded: nothing held, db push was a no-op. Claude read migrate.yml on main: the live hold query is `SELECT version FROM supabase_migrations.schema_migrations`, read-only.
-- **Housekeeping still owed:** move the state worktree out of Temp; clean old Temp/scratchpad paths from older items in this file.
+- **Housekeeping still owed:** clean old Temp/scratchpad paths from older items in this file.
 - **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (62 zeros) first. The state worktree is the one on branch docs/state-2026-11-07 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-07 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-07. PR #455 has merged; the next state batch gets a new PR that merges only on Ben's word. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, call the owner Ben or the owner and yourself Claude, and nothing committed points at local-only files. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
 
 0000000000000000000000000000000000000000000000000000000000000. **2026-11-12, 13:35Z by `date -u` (session 5285e989, after the clear). Adds to the 60-zero item, whose Resume rules and lists stand.**
@@ -188,7 +440,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **The manager:** `dynastyFantasyFootball-central-builder-manager`, by name (session 14815791, cleared ~22:45Z; app `local_39e3ac7a…`). **The Tools planner:** `Tools-central-planner`, by name, or app id `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
   - **Reconcile first:** run `gh pr list --state open` in both repos, read #93, #500, #459, #502 and #506 for comments since 2026-11-11 01:40Z, and MANAGER.md's newest block (22:45Z or later).
 - **Open at the clear:**
-  - **Dynasty PR #505** (my planner PR, `docs/planner-490-review-skill`, head `2d94c39`, worktree `scratchpad/p490` of session d21ed5d8 with a `.venv` junction; Closes #490): the `mrp-dff-code-review` skill, the GOAL-RUN Green line and `.gitignore` `!/.claude/skills/`. **It waits on the owner's approval.** Relay their exact words to the manager, which merges. #504 merged as `f185617`. Code review goes live for dynasty after #505.
+  - **Dynasty PR #505** (my planner PR, `docs/planner-490-review-skill`, head `2d94c39`, in its own worktree with a `.venv` junction; Closes #490): the `mrp-dff-code-review` skill, the GOAL-RUN Green line and `.gitignore` `!/.claude/skills/`. **It waits on the owner's approval.** Relay their exact words to the manager, which merges. #504 merged as `f185617`. Code review goes live for dynasty after #505.
   - **Dynasty #455:** the state batch, on the owner's word. The manager says it conflicts with #504 in CLAUDE.md.
   - **Tools #121** (#110): waits on the owner's live check. When it merges, send the Tools planner the merge commit and confirm `plugins/owner-queue/.claude-plugin/plugin.json` reads 0.10.0. **Tools #131** (#117): the Tools planner's.
 - **Time-boxed: #459 B11 and B12.** The owner's B11 (delete, recompute, export) can run now, after the 11-11 cron. **B12 must merge before the 11-12 11:17Z cron.** The manager posts the counts on #459 and dispatches B12. Then B9 goes behind #413.
@@ -233,7 +485,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **#490, ruled at issuecomment-6784004441:** B10 merged (`ed40900`). b490 was refused `.claude/` writes and parked.
   - Route (b) then (a): the builder's PR carries only the CLAUDE.md line (Refs), and its body holds SKILL.md's text plus the GOAL-RUN line.
   - **I owe a planner PR**, on its own branch off main, that copies both and says `Closes #490`; the owner approves it. Light-review checks are labelled L1 and L2, traced to tools P10 and P2.
-  - Builder PR #504 (CLAUDE.md line). **My PR #505** (`docs/planner-490-review-skill`, worktree `scratchpad/p490` of session d21ed5d8, Closes #490) has the skill, the GOAL-RUN line and a `.gitignore` exception `!/.claude/skills/`, because bare `skills/` ignored it. L1 and L2 take tools P10's and P2's classes. **It waits on the owner's approval**; relay the words to the manager, which merges.
+  - Builder PR #504 (CLAUDE.md line). **My PR #505** (`docs/planner-490-review-skill`, in its own worktree, Closes #490) has the skill, the GOAL-RUN line and a `.gitignore` exception `!/.claude/skills/`, because bare `skills/` ignored it. L1 and L2 take tools P10's and P2's classes. **It waits on the owner's approval**; relay the words to the manager, which merges.
 - **Also:** #503 (#473 brief 1) merged `8bb95f5`, and ADR-0023 is accepted. New bug **#506** (low): the test_02d_main 'moves from before the key' test flaked once in a full local run. It dispatches at the owner's go.
 - **Open PRs at 00:01Z:** dynasty #497, #455; tools #121 (waits on the owner's live check), #126 (waits on the owner's approval, via the Tools planner).
 - **Next:** DO NEXT items 2 to 7 of the 54-zero item. Q16 and OLB/DE stay parked until the owner raises them.
@@ -859,7 +1111,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Resume prompt:** "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 00000000000000000000000000000000000000000 first, then 0000000000000000000000000000000000000000. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading, and push with a standalone `git push origin HEAD:docs/state-2026-11-07`. No state batch PR is open; open one at the end of a day and merge only on the owner's word. Find the manager with ListAgents and send by name; Tools-central-planner owns skills-plugins-hooks-agents."
 
 0000000000000000000000000000000000000000. **2026-11-07, after the compact (session cbf95079). Overrides everything below; read 000000000000000000000000000000000000000 next.**
-- **Resume:** as below (ps1103, `docs/state-2026-11-07`, standalone push). The manager restarted mid-session; find it with ListAgents by name, and resend anything that failed (`scratchpad/m-unsent.md` was resent).
+- **Resume:** as below (ps1103, `docs/state-2026-11-07`, standalone push). The manager restarted mid-session; find it with ListAgents by name, and resend anything that failed (the unsent message was resent).
 - **Waiting on the owner, in priority order:**
   1. **#93 round 2, Q3 to Q6** (the critical path for the cutover), re-put with decision context. Q3: one PC loader command after the migrate run (980 slots, 5 unmade; 33 overrides; prints counts; refuses to reload). Q4: the apply script writes the new decisions table (today it writes the crosswalk directly, so the next 04z rebuild drops a fix not in the CSV). Q5: neither table is published. Q6: a new medium builder with its own PR, now. All four recommended yes. When answered: record them on #93, write the supply brief and send it to the manager.
   2. **Q13 to Q15 (Fantrax terms):** record Fantrax `unresolved` in #421; a medium spike on moving pulls to the public `fxea` API, which also makes the Change Poll never log in per poll; and draft a permission request for the owner to send. The terms were read in the built-in browser and show no date. §8.6(c) allows published interfaces only (fxpa/req isn't one; fxea is). §8.6(g) bars crawling and scraping. §8.7 bars showing Fantrax info on another site. Fantrax may suspend at its discretion. So the real risk is the commissioner account. My lean was to cut over today anyway.
@@ -892,7 +1144,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Pane, 09:02 to 09:44:**
   - #397: (a), a Pre-Game capture finishing after kickoff counts; the body is amended.
   - **#372's dry-run is today** (the owner's Notes, recorded in issuecomment-6709262824): `--dry-run --cadence all` now; plain `--dry-run` after today's first good run (Actions at the cutover, or a hand PC run if the cutover slips). The manager rewrites the entry.
-  - The owner asked that pane comments be staged and sent with Submit, not at once (the README says they go out at once, `plugins/owner-queue/README.md:48`). My issue create on skills-plugins-hooks-agents was **denied** (External System Writes). The text is in the scratchpad (`t-oq.md`) for the owner to open. Don't retry without the owner's say-so.
+  - The owner asked that pane comments be staged and sent with Submit, not at once (the README says they go out at once, `plugins/owner-queue/README.md:48`). My issue create on skills-plugins-hooks-agents was **denied** (External System Writes). The text was kept privately for the owner to open. Don't retry without the owner's say-so.
 - **New today:** #407, #408, #412, #413, #414, #415, #416 and #417. Closed today: #373 (not planned), #380, #385, #390, #400, #401 and #402. #354 is resolved.
 - **Lessons:**
   - Before telling the owner which secrets exist, check RESUME.md's records. `gh secret list` is denied, and workflow files show only what each environment's workflow names.
@@ -1016,7 +1268,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 
 00000000000000000000000000000. **2026-11-05 night, grill-with-docs pass. Overrides everything below.** I ran grill-with-docs on the cadence plan (Q1 to Q20, recorded in closed #376). Fixes: 04s daily in season; Close Day from `dim_scoring_period` with catch-up; Zensical instead of Material for MkDocs. New owner requirement: daily runs, one Weekly Final per week in history. #372, #373 and #374 rewritten; new #377 (low, ADR and glossary, not blocked, dispatch on the owner's word) and #378 (medium, week keys, blocked by #336, before #373). Map #375 rewritten. Order: #377 any time; then #336, then #372 and #378 in parallel, then #373, then #374. #370 merged as PR #371 `ac61da5`, kept open for the 11-12 sidecar. Lesson: when a design is open, invoke grill-with-docs first, not my own question prompts.
 
-0000000000000000000000000000. **2026-11-05 night, cadence session. Overrides everything below; read 0000000000000000000000000 next.** The owner approved the plan `C:\Usersenha\.claude\plans\snug-floating-blum.md`: daily runs with on_close steps on Thursday; ADR-0015 and #93 stay the destination; the PC goes daily first; 04t joins daily; docs site on Pages under `/docs/` with MkDocs, linked from the README. New map #375 "ETL flow and refresh cadence". Tickets: #372 (medium, cadence field and 04t, blocked by #336), #373 (low, PC daily, blocked by #372), #374 (medium, docs site, blocked by #372; can run beside #373). Cross-linked on #93, #70 and #336. Dispatch after #336 closes, on the owner's word. #370 in flight. Parked: #352, #354, #355.
+0000000000000000000000000000. **2026-11-05 night, cadence session. Overrides everything below; read 0000000000000000000000000 next.** The owner approved the cadence plan (the plan file is kept privately by the owner): daily runs with on_close steps on Thursday; ADR-0015 and #93 stay the destination; the PC goes daily first; 04t joins daily; docs site on Pages under `/docs/` with MkDocs, linked from the README. New map #375 "ETL flow and refresh cadence". Tickets: #372 (medium, cadence field and 04t, blocked by #336), #373 (low, PC daily, blocked by #372), #374 (medium, docs site, blocked by #372; can run beside #373). Cross-linked on #93, #70 and #336. Dispatch after #336 closes, on the owner's word. #370 in flight. Parked: #352, #354, #355.
 
 000000000000000000000000000. **2026-11-05 night. Overrides everything below.** #348 closed (PR #369 `a6630d5`) and #350 closed (PR #368 `d66d08a`), both verified. No builders running; main `d66d08a`. The owner cleared the stale git locks, so `git fetch --prune` works again. Waiting on the 2026-11-12 06:00 scheduled run, the final proof for #336, #361 and #362 (checks in 00000000000000000000000). Parked: #352, #354, #355 (after that run) and #370 (owner word; recommended after that run). #359 stays open, blocked by #370.
 
@@ -1115,8 +1367,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
-   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
-   `C:/Users/benha/AppData/Local/Temp/claude/c--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/ps1103`,
+   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` (a scratch worktree, since replaced),
    on `docs/state-2026-11-01b`, with a `.venv` junction (remove it first). Push with `HEAD:docs/state-2026-11-01b`; the manager also pushes there.
    `ps1101` is gone. Save state with a python insert before the anchor `"   **#300:** Brief 3 is PR #313"`, then commit, pull --rebase and push.
    **Peers (find with ListAgents):** `dynastyFantasyFootball-central-builder-manager`, `Supabase-consultant`,
@@ -1135,7 +1386,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
        re-prove with the roster-to-rankings measure, then Brief 5 (low, Closes #300).
    (4) The batch PR for `docs/state-2026-11-01b`: merge it on the owner's approval.
    **Added after the clear prep (~21:00):** skills#68 merged via skills#72 (`0d8ee1e`). My skills PR #73 adds `builder-state/` to .gitignore, a miss in #71;
-   the worktree is `skbs` in the NEW scratchpad `C:/Users/benha/AppData/Local/Temp/claude/91da30c6664f42e7/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/skbs`
+   the worktree is `skbs` (a scratch worktree)
    (no junction). Remove it and delete its branch once #73 merges. The haiku GOAL-RUN text is on #218 issuecomment-6621169662, queued with the manager, (a) recommended.
    Dispatch runs the plugin from a separate clone, `C:/Users/benha/claude-live/skills-plugins-hooks-agents` (at `d09dcbd`). Plugin changes go live only when
    the owner updates that clone; the manager raised it with them.
@@ -1378,7 +1629,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    scratchpad has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the owner's
    yes before removing it. Earlier worktree `ps8` holds a merged branch.
    **Session ended here at the owner's word (2026-10-31), with a clear to follow.** A new planner
-   starts from this block. `w218` is at `C:\Users\benha\AppData\Local\Temp\claude\C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac\scratchpad\w218`,
+   starts from this block. `w218` is a scratch worktree,
    on `docs/state-2026-10-31`. This session's id is `b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac`; a queue
    entry it raised answers back to it, so a new session re-raises any it needs. If today's state
    PR has not merged, this block is on its branch, not on main. The local branch
@@ -1438,7 +1689,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`,
    `fix/dispatch-plugin-dir`; skills worktree `C:/Users/benha/fr`;
    `docs/planner-state-6`, `-7`, `-8`, `-9`; local `docs/builder-state-234`;
-   `.claude/worktrees/metadata-principles` (leftover cherry-pick, unpushed `4f23f16`).
+   the worktree on branch `docs/planner-state-7` (leftover cherry-pick, unpushed `4f23f16`).
 9. **Working notes.** The owner will not restart the app: verify before listing a hand
    item. A relayed answer is never approval; ask in this session. A skills-repo
    worktree needs a short path on Windows. Gate a merge on the test's exit code, and
@@ -1457,14 +1708,14 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **PR #244** (branch `docs/builder-rules-234`): the two role files
     and `.gitignore`. Waits on the owner's approval; entry in the queue.
   - **Skills PR 61** (branch `builder-state-rules`, scratch worktree
-    `<planner scratchpad>\tpl`): the same rules in the plugin. Waits on
+    `tpl`): the same rules in the plugin. Waits on
     the owner's word to merge; entry sent to the manager.
   - The manager has the text for `GOAL-RUN.md` and an optional Action
     for the owner (two dead allow rules in the builders' settings).
   - **Closes on proof:** the next dispatched builder posts its plan and
     a state-back comment with no denied call. The manager reports it.
   - A stray local branch `docs/builder-state-234` sits in the scratch
-    worktree `<planner scratchpad>\b234`, unpushed and unused.
+    worktree `b234`, unpushed and unused.
 - **The brief for #230 is written** (2026-10-12): a comment on the
   ticket (issuecomment-6135590120), medium, built against the owner's
   pasted markup, fakes only. The PR says Refs #230; the ticket closes
@@ -1493,7 +1744,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - The guardrail hook blocks `git reset --hard` in any command. Do not
   route around it.
 - **#167 step 2, the dispatch plugin (skills PR 46, merged; see below)**
-  (branch `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+  (branch `session-dispatch-plugin`; scratch worktree `sd`).
   - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
     and `session-dispatch` (manual only), thirteen templates, ADR 0013,
     12 tests.
@@ -1521,7 +1772,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **`owner-queue` 0.7.1 is live and merged** (skills PR 39, merged by
   the planner on the owner's word "merge PR 39", 2026-10-12; merge
   commit `45e7030`). 26 tests pass. The scratch worktree
-  `<planner scratchpad>\oq6` (branch `owner-queue-060`) equals it.
+  `oq6` (branch `owner-queue-060`) equals it.
   - In it since 0.5.0: `Post comment` (a `Note:` line, or a typed
     `Answer: (other) ...`), sent at once; a `Time:` line on every chat
     message; every code span copied from under its field, a numbered
