@@ -30,7 +30,7 @@ rule-generated flag strings. Missing file -> script writes a prefilled template.
 Output: data/outputs/startup_draft_board.xlsx
   "Offense" / "Defense" sheets — 250 each, per-side tier ladders + side Rank,
       with cross-side Score and Ovr Rank kept for comparison at the pick.
-      Defense drops the offense-only metric columns (ADP/DS projections).
+      Defense drops the offense-only metric columns (DS projections).
   "Data" sheet — full scored pool, flat, pivot/slicer-ready.
 
 Run from repo root or notebooks/:  python notebooks/05a_startup_draft_board.py
@@ -66,7 +66,6 @@ TIER_BANDS = [(8, "1a", 26), (25, "1b", 27), (60, "2a", 28),
               (100, "2b", None), (175, "3", None), (BOARD_SIZE, "4", None)]
 # Positional age-curve offsets (effective age = age - offset)
 AGE_OFFSET = {"QB": 3, "TE": 1, "RB": -1}
-ADP_OUTLIER_GAP = 40                   # composite rank vs ADP rank review flag
 
 OUT_DIR = DATA / "outputs"
 NOTES_CSV = DATA / "raw" / "draft_board_notes.csv"
@@ -219,10 +218,6 @@ def score(pool: pd.DataFrame) -> pd.DataFrame:
     df["board_rank"] = df.index + 1                      # cross-side (overall)
     df["side_rank"] = df.groupby("side_of_ball")["composite"] \
                         .rank(ascending=False, method="first")
-
-    # ADP sanity flag (offense only — IDP has no Fantrax ADP).
-    adp_rank = df["adp"].rank()
-    df["adp_outlier"] = (df["board_rank"] - adp_rank).abs() > ADP_OUTLIER_GAP
     return df
 
 
@@ -319,22 +314,22 @@ BOARD_COLS = {
     "player_name": "Player", "position_raw": "Position",
     "position_group": "Pos Group", "nfl_team": "NFL Team", "age": "Age",
     "draft_year": "Draft Year", "years_in_league": "Years In League",
-    "overall_rank": "Fantrax Rank", "adp": "ADP",
+    "overall_rank": "Fantrax Rank",
     "salary": "Salary", "fpts_per_game": "FP/G", "percent_drafted": "Ros%",
     "proj_1yr": "Proj 1-Yr", "proj_5yr": "Proj 5-Yr",
     "proj_10yr": "Proj 10-Yr",
     "ml_games_left": "ML Games Left", "composite": "Score",
     "arc_note": "Arc Note", "strategic_note": "Strategic Note",
 }
-# IDP has no Fantrax ADP / DS coverage — drop those columns on Defense.
-DEFENSE_DROP = ["adp", "proj_1yr", "proj_5yr", "proj_10yr"]
+# IDP has no DS coverage — drop those columns on Defense.
+DEFENSE_DROP = ["proj_1yr", "proj_5yr", "proj_10yr"]
 # Data sheet adds the rest of the metric block + pillar scores for pivots.
 DATA_EXTRA_COLS = {
     "side_of_ball": "Side of Ball", "ds_value": "DS 3D Value+",
     "proj_3yr": "Proj 3-Yr",
     "proj_traj": "Proj Traj",
     "career_games": "Career Games", "ml_eligible": "ML Eligible",
-    "adp_outlier": "ADP Outlier", "market_score": "Market Score",
+    "market_score": "Market Score",
     "production_score": "Production Score", "age_arc_score": "Window Score",
     "salary_eff_score": "Salary Eff Score",
 }
@@ -342,7 +337,7 @@ TIER_FILL = {"1a": "FFD966", "1b": "FFE699", "2a": "A9D08E", "2b": "C6E0B4",
              "3": "BDD7EE", "4": "D9D9D9"}
 
 
-NUM_FMT = {"Salary": '"$"#,##0.0,,"M"', "ADP": "0.0", "FP/G": "0.0",
+NUM_FMT = {"Salary": '"$"#,##0.0,,"M"', "FP/G": "0.0",
            "Ros%": '0.0"%"', "Age": "0", "Score": "0.0",
            "Draft Year": "0", "Years In League": "0", "Fantrax Rank": "0",
            "Rank": "0", "Ovr Rank": "0",

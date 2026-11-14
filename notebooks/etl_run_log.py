@@ -20,7 +20,8 @@ INSERT = ("INSERT INTO ops.etl_run_log (run_id, trigger, started_at, status, git
           "VALUES (%s, %s, %s, 'running', %s)")
 UPDATE = ("UPDATE ops.etl_run_log SET finished_at = %s, status = %s, "
           "snapshot_commit_sha = %s, rows_written = %s::jsonb, error = %s, "
-          "cadence = %s::jsonb, column_changes = %s::jsonb WHERE run_id = %s")
+          "cadence = %s::jsonb, column_changes = %s::jsonb, fantrax_logins = %s "
+          "WHERE run_id = %s")
 STEPS_DONE = ("SELECT DISTINCT d FROM ops.etl_run_log, "
               "jsonb_array_elements_text(cadence -> 'done') AS d "
               "WHERE cadence ->> 'week_key' = %s AND status <> 'running'")
@@ -142,9 +143,12 @@ def final_status(code: int, commit_line: str) -> str:
     return "published" if data_merged(commit_line) else "committed"
 
 
-def failure_summary(results: list[dict], plan: dict | None, commit_line: str) -> str:
+def failure_summary(results: list[dict], plan: dict | None, commit_line: str,
+                    blocked: list[str] = ()) -> str:
     parts = [f"step {r['name']} {r['status']}" for r in results
              if r["status"] not in ("ok", "dry-run")]
+    if blocked:
+        parts.append(f"Fantrax login cap reached ({len(blocked)} step(s) blocked)")
     for chain, reasons in (plan or {}).get("failed", {}).items():
         parts.append(f"Chain {chain} held")
         parts += [r.split(":", 1)[0] for r in reasons if not r.startswith("step ")]
@@ -198,7 +202,8 @@ class RunLog:
 
     def finish(self, status: str, snapshot_commit_sha: str | None = None,
                rows_written: dict | None = None, error: str | None = None,
-               cadence: dict | None = None, column_changes: dict | None = None) -> None:
+               cadence: dict | None = None, column_changes: dict | None = None,
+               fantrax_logins: int | None = None) -> None:
         if self.run_id is None:
             return
         rows = None if rows_written is None else json.dumps(rows_written)
@@ -206,7 +211,7 @@ class RunLog:
         changes = json.dumps(column_changes) if column_changes else None
         try:
             _write(UPDATE, (datetime.now(timezone.utc), status, snapshot_commit_sha,
-                            rows, error, cad, changes, self.run_id))
+                            rows, error, cad, changes, fantrax_logins, self.run_id))
         except Exception as exc:
             self._failed(exc)
             return

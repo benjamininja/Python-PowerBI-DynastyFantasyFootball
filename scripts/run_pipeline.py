@@ -42,8 +42,10 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -125,6 +127,45 @@ def derive_phase(today: date | None = None) -> str:
     if week == fx.CFG.preseason_label and 0 <= (w1_thu - today).days <= 45:
         return "PRESEASON"
     return "OFFSEASON"
+
+
+FANTRAX_SESSION_DIR_ENV = "FANTRAX_SESSION_DIR"
+FANTRAX_LOGIN_LEDGER = "logins"
+FANTRAX_BLOCKED_LEDGER = "blocked"
+
+
+def open_fantrax_session() -> Path:
+    """One folder per run. It carries the Fantrax session and the login
+    count between the steps' processes (#525); removed when the run ends."""
+    folder = Path(tempfile.mkdtemp(prefix="fantrax_session_"))
+    os.environ[FANTRAX_SESSION_DIR_ENV] = str(folder)
+    return folder
+
+
+def close_fantrax_session(folder: Path | None) -> None:
+    if folder is None:
+        return
+    os.environ.pop(FANTRAX_SESSION_DIR_ENV, None)
+    shutil.rmtree(folder, ignore_errors=True)
+
+
+def _ledger(folder: Path | None, name: str) -> list[str]:
+    if folder is None:
+        return []
+    try:
+        return (folder / name).read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+
+def fantrax_logins(folder: Path | None) -> list[str]:
+    """The scripts that logged in to Fantrax this run, one entry per login."""
+    return _ledger(folder, FANTRAX_LOGIN_LEDGER)
+
+
+def fantrax_blocked(folder: Path | None) -> list[str]:
+    """The scripts whose login the per-run cap refused (no login was tried)."""
+    return _ledger(folder, FANTRAX_BLOCKED_LEDGER)
 
 
 def _script(p: str, *args: str) -> list[str]:
@@ -824,6 +865,9 @@ def main() -> int:
         return check_only(args.accept_shrink)
 
     runlog = etl_run_log.RunLog(args.trigger)
+    session = None if args.dry_run else open_fantrax_session()
+    logins: list[str] = []
+    blocked: list[str] = []
     if not args.dry_run:
         runlog.start(etl_run_log.head_sha(REPO))
     try:
@@ -841,6 +885,13 @@ def main() -> int:
                                        today, etl_run_log.steps_done)
         print(f"[cadence] {cadence_line(cadence)}")
         results = run_steps(steps, phase, only, args.dry_run, groups)
+        logins = fantrax_logins(session)
+        blocked = fantrax_blocked(session)
+        if session:
+            print(f"[info] fantrax logins: {len(logins)}"
+                  f"{' (' + ', '.join(logins) + ')' if logins else ''}")
+        if blocked:
+            print(f"[info] fantrax login cap reached, blocked: {', '.join(blocked)}")
 
         plan, filed = None, None
         if not args.dry_run:
@@ -892,18 +943,27 @@ def main() -> int:
                                      if etl_run_log.data_committed(commit_line) else None),
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
-                error=(etl_run_log.failure_summary(results, plan, commit_line)
+                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked)
                        if code else None),
                 cadence=cadence,
                 column_changes=(plan or {}).get("column_changes")
-                if not commit_line.startswith("ABORTED") else None)
+                if not commit_line.startswith("ABORTED") else None,
+                fantrax_logins=len(logins))
     except BaseException as exc:
-        runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished")
+        runlog.finish("failed", error=f"{type(exc).__name__} raised before the run finished",
+                      fantrax_logins=len(fantrax_logins(session)) if session else None)
         if runlog.warning and not args.dry_run:
             notify(f"{runlog.warning}\nThe pipeline raised {type(exc).__name__} before it finished.")
         raise
+    finally:
+        close_fantrax_session(session)
 
     summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
+    if blocked:
+        summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
+                   f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")
+    elif len(logins) > 1:
+        summary = f"⚠️ {len(logins)} Fantrax logins in this run; one is expected.\n{summary}"
     if runlog.warning:
         summary = f"{runlog.warning}\n{summary}"
     OUT_DIR.mkdir(parents=True, exist_ok=True)

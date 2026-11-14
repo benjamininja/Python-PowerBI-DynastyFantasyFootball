@@ -25,6 +25,11 @@
 # step runs before 04r and 04s, so a period closes on the rows the previous
 # run wrote, and 04r and 04s then skip it.
 #
+# - `scoringSystem.scoringCategorySettings` -> `dim_fantrax_scoring_rule`:
+#   the league's scoring rules, one row per category and position. A
+#   category's default points fill every position without an override
+#   (#473 brief 2; ADR-0023).
+#
 # **Division Gate:** each Fantrax division must map to exactly one Conference
 # and each Conference to one division. A violation raises here, so the step
 # fails, the Chain is held and nothing is written.
@@ -33,6 +38,7 @@
 # - `data/raw/fantrax_public_leagueinfo.json` -- verbatim response (untracked)
 # - `dim_scoring_period.parquet` -- grain `(season_id, period)`
 # - `dim_division.parquet` -- grain `(season_id, conference)`
+# - `dim_fantrax_scoring_rule.parquet` -- grain `(season_id, category_id, position)`
 #
 # **Run:**  python notebooks/04p_fantrax_league_info.py
 
@@ -58,6 +64,7 @@ FX_CFG = fx.CFG
 
 PERIODS_PATH = DATA / "dim_scoring_period.parquet"
 DIVISION_PATH = DATA / "dim_division.parquet"
+RULES_PATH = DATA / "dim_fantrax_scoring_rule.parquet"
 RAW_NAME = "fantrax_public_leagueinfo.json"
 
 # Fantrax serves period bounds with an Eastern offset; the calendar dates
@@ -68,6 +75,14 @@ OPEN, CLOSING, CLOSED = "open", "closing", "closed"
 PERIOD_COLUMNS = ["season_id", "period", "start_date", "end_date", "start_at",
                   "end_at", "is_playoff", "update_set_state", "closed_at"]
 DIVISION_COLUMNS = ["season_id", "conference", "division_name"]
+RULE_COLUMNS = ["season_id", "category_id", "category_code", "category_name",
+                "scoring_group", "position", "points", "captured_at"]
+
+# The league's lineup positions: one rule row each, per category.
+LEAGUE_POSITIONS = ("QB", "RB", "WR", "TE", "DL", "LB", "DB")
+# Fantrax names an override's position in full; DEFAULT is the fill.
+RULE_POSITION = {"TIGHT_END": "TE", "DEFENSIVE_LINE": "DL", "DEFENSIVE_BACK": "DB"}
+RULE_GROUP = {"1010": "Offense", "1020": "Defense"}
 
 
 # %%
@@ -225,11 +240,74 @@ def parse_divisions(info: dict, teams: pd.DataFrame, season_id: str) -> pd.DataF
     return df[DIVISION_COLUMNS]
 
 
+def parse_scoring_rules(info: dict, season_id: str, captured_at) -> pd.DataFrame:
+    """getLeagueInfo.scoringSystem.scoringCategorySettings -> dim_fantrax_scoring_rule.
+
+    One row per category and league position. A category's DEFAULT points
+    fill every position without an override. Raises on a group or position
+    code it does not know, a category with no default, a category listed
+    twice with different points, or a non-numeric points value.
+    """
+    blocks = (info.get("scoringSystem") or {}).get("scoringCategorySettings")
+    if not blocks:
+        raise ValueError("getLeagueInfo.scoringSystem has no scoringCategorySettings")
+
+    meta: dict[str, tuple[str, str, str]] = {}
+    default: dict[str, float] = {}
+    override: dict[tuple[str, str], float] = {}
+    for block in blocks:
+        group_id = str(block["group"]["id"])
+        if group_id not in RULE_GROUP:
+            raise ValueError(f"scoringCategorySettings: unknown group {group_id}")
+        for cfg in block["configs"]:
+            cat = cfg["scoringCategory"]
+            cid = str(cat["id"])
+            pos_code = cfg["position"]["code"]
+            points = cfg["points"]
+            if isinstance(points, bool) or not isinstance(points, (int, float)):
+                raise ValueError(f"category {cid} ({pos_code}): points {points!r} is not a number")
+            points = float(points)
+            if pos_code == "DEFAULT":
+                pos = None
+            elif pos_code in RULE_POSITION:
+                pos = RULE_POSITION[pos_code]
+            else:
+                raise ValueError(f"category {cid}: unknown position code {pos_code}")
+            known = default.get(cid) if pos is None else override.get((cid, pos))
+            if known is not None:
+                # A category listed in two groups (return yards) keeps its first row.
+                if known != points:
+                    raise ValueError(f"category {cid} ({pos_code}) is listed twice "
+                                     f"with different points: {known} and {points}")
+                continue
+            if cid not in meta:
+                meta[cid] = (cat["shortName"], cat["name"], RULE_GROUP[group_id])
+            if pos is None:
+                default[cid] = points
+            else:
+                override[(cid, pos)] = points
+
+    missing = sorted(set(meta) - set(default))
+    if missing:
+        raise ValueError(f"scoringCategorySettings: no DEFAULT points for category {missing}")
+
+    rows = []
+    for cid in sorted(meta):
+        code, name, group = meta[cid]
+        for pos in LEAGUE_POSITIONS:
+            rows.append((season_id, cid, code, name, group, pos,
+                         override.get((cid, pos), default[cid]), captured_at))
+    df = pd.DataFrame(rows, columns=RULE_COLUMNS)
+    df["points"] = df["points"].astype("float64")
+    df["captured_at"] = pd.to_datetime(df["captured_at"], utc=True).dt.as_unit("us")
+    return df
+
+
 # %%
 def main() -> int:
     info = fantrax_public_get(
         "getLeagueInfo", FX_CFG.league_id,
-        expect=("seasonYear", "scoringPeriods", "playoffs", "teamInfo"))
+        expect=("seasonYear", "scoringPeriods", "playoffs", "teamInfo", "scoringSystem"))
     raw_dir = Path(FX_CFG.raw_dir)
     raw_dir.mkdir(parents=True, exist_ok=True)
     (raw_dir / RAW_NAME).write_text(json.dumps(info, indent=2), encoding="utf-8")
@@ -252,9 +330,11 @@ def main() -> int:
         raise ValueError(f"season {season_id} is not in dim_season -- run 01f first")
     divisions = parse_divisions(
         info, read_table("dim_fantasy_teams"), season_id)
+    rules = parse_scoring_rules(info, season_id, now)
 
     n_periods = write_table("dim_scoring_period", periods, mode="replace_partition", keys=("season_id",))
     n_divisions = write_table("dim_division", divisions, mode="replace_partition", keys=("season_id",))
+    n_rules = write_table("dim_fantrax_scoring_rule", rules, mode="replace_partition", keys=("season_id",))
 
     for n, errs in checked.items():
         if errs:
@@ -268,6 +348,9 @@ def main() -> int:
           f"open {in_play}) -> {n_periods} total rows -> {PERIODS_PATH.name}")
     print(f"[ok] dim_division: {len(divisions)} divisions for {season_id} "
           f"-> {n_divisions} total rows -> {DIVISION_PATH.name}")
+    print(f"[ok] dim_fantrax_scoring_rule: {rules['category_id'].nunique()} categories x "
+          f"{len(LEAGUE_POSITIONS)} positions for {season_id} "
+          f"-> {n_rules} total rows -> {RULES_PATH.name}")
     return 0
 
 

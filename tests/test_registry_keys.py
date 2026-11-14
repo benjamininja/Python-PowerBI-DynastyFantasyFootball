@@ -136,6 +136,31 @@ class TestOtherTables:
         assert errs == ["[x] duplicate name"]
 
 
+class TestDropFlags:
+    """`drops:` and `dropped_tables:` (#534): an entry whose item is gone from the
+    registry is accepted, pending or history; one still declared is not."""
+
+    def test_a_history_entry_is_accepted(self):
+        data = {"tables": [small(drops=[{"column": "gone", "ticket": 534}])],
+                "dropped_tables": [{"table": "gone_table", "ticket": 534}]}
+        assert cdm.drop_errors(data) == []
+
+    def test_a_flag_on_a_declared_column_fails(self):
+        data = {"tables": [small(drops=[{"column": "b", "ticket": 534}])]}
+        assert cdm.drop_errors(data) == ["[drops] football.t drops b: the column is still declared"]
+
+    def test_a_flag_on_a_declared_table_fails(self):
+        data = {"tables": [small()], "dropped_tables": [{"table": "t", "ticket": 534}]}
+        assert cdm.drop_errors(data) == ["[drops] dropped_tables t: the table is still declared"]
+
+    def test_a_flag_needs_a_ticket(self):
+        data = {"tables": [small(drops=[{"column": "gone"}])]}
+        assert cdm.drop_errors(data) == ["[drops] football.t drops gone: needs a ticket number"]
+
+    def test_the_registry_has_sound_flags(self):
+        assert cdm.drop_errors(DATA) == []
+
+
 class TestTheRegistry:
     def test_it_passes_the_key_rules(self):
         assert [e for t in TABLES + OTHERS for e in cdm.key_errors(t, BY_NAME)] == []
@@ -149,7 +174,7 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(PUBLISHED) == 36 and len(PRIVATE) == 3
+        assert len(PUBLISHED) == 38 and len(PRIVATE) == 3
         for t in TABLES:
             assert t["pk"] == [c.strip() for c in t["grain"].strip("()").split(",")], t["name"]
 
@@ -188,13 +213,14 @@ class TestTheRegistry:
         for dirty in ("player_key", "position_raw", "scorer_id", "school_raw", "team_abbr"):
             assert not any(dirty in cols for _, cols, _ in edges), dirty
         assert not any(len(cols) > 1 for _, cols, _ in edges)
-        assert len(edges) == 48
+        assert len(edges) == 50
 
     def test_the_zone_aware_columns_are_timestamptz(self):
         aware = {(t["name"], c["name"]) for t in TABLES for c in t["columns"]
                  if "," in str(c["dtype"])}
         assert aware == {("dim_scoring_period", "start_at"), ("dim_scoring_period", "end_at"),
                          ("dim_scoring_period", "closed_at"),
+                         ("dim_fantrax_scoring_rule", "captured_at"),
                          ("fact_fantasy_teams", "roster_captured_at"),
                          ("fact_fantasy_teams", "ledger_captured_at"),
                          ("fact_team_cap", "roster_captured_at"),
