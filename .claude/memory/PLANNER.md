@@ -7,7 +7,7 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 80f5b34f-ae7c-4c9f-8c51-ef980d1fd63f` (re-keyed by the manager 2026-11-14 ~20:00Z). After a clear, send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: 2bd54542-4e0b-4676-bc1e-6e9980d6c308` (re-keyed by the manager 2026-11-14 ~22:00Z). After a clear, send the manager the new id and these titles:
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
 (Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture; the #519 getPlayerIds capture and the #545 webhook entry, pruned 2026-11-14.)
@@ -18,7 +18,43 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block. The scoping plan the owner approved on
 2026-10-30 is now the role file's rule, Scoping a high ticket.
 
-0000000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 21:46Z by `date -u`, before a CLEAR at Ben's word (session 80f5b34f). Self-contained for what is next; the 72- and 71-zero items hold the earlier record, and the 69-zero item the resume rules.**
+00000000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 22:31Z by `date -u` (session 2bd54542, after the clear). Self-contained for what is next; the 73-zero item holds the earlier record.**
+- **Peers:** the manager cleared mid-session; its id is now 6d478b2d-32fa-4453-9c0d-ede04a08401d (key a queue entry for the manager to it). It re-keyed the planner's two #548 entries to 2bd54542. The Tools planner has the planner's new id.
+- **Ben's button answers this session (planner chat, word for word, each recorded on its ticket):**
+  - **#545** (issuecomment-6885052736): "Keep the flag (Recommended)": `shrinks_by_design: true` for `fact_contract_move` only, with an ADR-0008 decision 6 amendment line, a test pinning the flag to one table, and `02k` raising on an empty Roster State. "Only due rows (Recommended)": a list row exists only inside its window; an unopened empty list says when it opens.
+  - **#558** (issuecomment-6885115780): "Hold both ways (Recommended)": the renewal hold applies whenever Fantrax's season differs from the run date's season. "Roster's season (Recommended)": #206 part 1 stands; the ticket body's changes 2 and 4 are reworded. The body's old change 2 was the planner's error, never put to Ben.
+  - **#548** (issuecomment-6885194229): "SQL file, Ben pastes (Recommended)" (the loaders write a SQL file; no agent connects); "Stay on Free (Recommended)" (ADR-0014 decision 7's trigger recorded as fired, not needing Pro); "23:59:59 Eastern (Recommended)" (the deadline instant).
+- **Done from the 73-zero item's owed list:**
+  1. The manager has the new id.
+  2. The interaction-limit claim: GitHub's docs are silent on GitHub Apps. Ben set both limits on 2026-11-14 (dynasty a 24-hour trial to 2026-11-15T22:23Z, tools six months to 2027-05-14; #93 issuecomment-6885159414). The 11-15 Daily Run's data PR is the live check; the manager reads it and raises the six-month Action or reports a failure.
+  3. The four process tickets: tools #190 (threat-model ADR), #191 (builders' least-privilege credential), #192 (settings linter in CI), #193 (rulesets on every branch), all `Tier: unset`, linked from #564, tools #188 and the draft advisory, and sent to the Tools planner.
+  9. (in part) Tools #161's finding is ruled: store-and-pull, each tracked session's own mod reports and pulls, no push between sessions (tools #161 issuecomment-6884740330). The builder is building.
+- **Scoping checks done; both builds may start (the manager has the tiers):**
+  - **#558:** briefs 1, 2, 5 medium, 4 low; brief 3 is replaced by the planner's text in issuecomment-6885115780 (the cap module across the rollover, roster's season the anchor; three things to find out first). Q3 (a) a runner step, not a Gate; Q4 (a) `CFG.draft_year` stays the startup season; ADR number 0024.
+  - **#548:** four briefs, all medium; the ADR is number 0025 and merges on Ben's acceptance at review; PR 2 waits for #554 (Q4). Planner's rulings Q1, Q2, Q3, Q6, Q7, Q10, Q11, Q12 are all the scoping session's (a).
+- **Other rulings and tickets:**
+  - **#519** (issuecomment-6885211941): the universe stays; the done condition is narrowed to name, position and NFL team; items 2 and 3 wait for the compare script's counts, which the manager runs at re-proof and the planner reads before the merge of PR #565.
+  - **#556:** the three parked measures are ticketed as **#567** (low, blocked by PR #563). Counted on the snapshot at c6c8eae: 0 of 1,118 rows differ between the stored cap hit and what the measures compute.
+  - **#568** (low): a tracked script writes a new published table's first empty snapshot; #545 and #554 both parked on that the same day.
+  - **#523** (issuecomment-6885227380): before `04a` is retired, `is_rookie` needs another source, and the season pin breaks in-season detection in September 2027.
+- **Owed by the planner, in order:**
+  1. **State PR #542:** asked by button at this save; see the next item for the answer, or ask again if none is recorded.
+  2. **Verify first** (73-zero item, point 4): each proposed settings fix checked against the commands the roles really ran, then one queue entry per fix with paste-ready text.
+  3. **The resume-prompt redesign** as a planner PR, design posted on tools #161 (73-zero item, point 5).
+  4. **#505** conflicts with main in `GOAL-RUN.md`: merge main into its branch, resolve, ask Ben's approval by button.
+  5. **Tools #185's** three questions to Ben by pop-up, one at a time.
+  6. **#562's** rehearsal in a throwaway clone; post the output on #562.
+  7. **Reads and checks as they come due:**
+     - #545: read `Move to` and `Why` against bylaws 5.2, 11.4.1 and 12.2 to 12.3 at the PR read; tier b545's ledger-gap ticket and place it on map #557.
+     - #519: the compare counts before PR #565 merges.
+     - #548: write the brief for the after-deadline publish step (Q6) when PR 2 is in review; send the manager the `GOAL-RUN.md` replacement line and the supabase-auditor's new basis as queue entries when PR 3 opens; rule Q4 again if #554 has not merged by 2026-11-28; ticket moving #545's deadline reader to #548's deadline table once that table is live.
+     - #567 and #568: no milestone set yet.
+     - #551's briefs after #93 brief 5. The 02d switch question to Ben before 2026-12-03. The #561 grill after 12-03.
+     - The draft advisory GHSA-27j5-qx96-v8w3: publish when its fixes land or on 2026-11-28.
+- **Nothing waits on Ben from the planner in prose.** His open items are the planner's two queue entries (the #548 crosswalk Excel; the 2026 FA handover after 11-19) and whatever the manager has queued.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (74 zeros) first; it is self-contained for what is next. The state worktree is the one on the current docs/state branch (find it with git worktree list). Run git pull --rebase origin on that branch before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD to that branch and never force-push. First send the manager this session's new id so it re-keys the planner's two queue entries (now keyed to 2bd54542). Then work the 74-zero item's owed list in order. Follow Ben's standing rules in root preferences.md: every question, and every item that waits on Ben, goes through the pop-up or the queue with the context to agree; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 21:46Z by `date -u`, before a CLEAR at Ben's word (session 80f5b34f). Self-contained for what is next; the 72- and 71-zero items hold the earlier record, and the 69-zero item the resume rules.**
 - **Ben's standing correction (planner chat, ~20:30Z):** a Waiting-on-Ben list is itself an ask. Every item is a queue entry or a pop-up as soon as it is ready, with the context to agree (what it is, pros, cons, the recommendation). An item blocked by something else is not waiting on Ben: say what blocks it. **Never carry a prose Waiting-on-Ben list again.**
 - **In Ben's queue now, all keyed to the manager's session (c21a2d5b), so a pane answer is Ben's word there:**
   - Go Decisions: #519; #554; the scoping session for #558; the scoping session for #548; #556 (Power BI Desktop closed); #545 as soon as #549 merges (it has merged).
