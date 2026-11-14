@@ -1711,7 +1711,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block. The sco
    `needs-owner-template-rules`, `builder-state-rules`,
    `fix/session-rules-frontmatter`, `test/skill-frontmatter`,
    `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`,
-   `fix/dispatch-plugin-dir`; skills worktree `C:/Users/benha/fr`;
+   `fix/dispatch-plugin-dir`; a skills worktree on that branch;
    `docs/planner-state-6`, `-7`, `-8`, `-9`; local `docs/builder-state-234`;
    the worktree on branch `docs/planner-state-7` (leftover cherry-pick, unpushed `4f23f16`).
 9. **Working notes.** The owner will not restart the app: verify before listing a hand
