@@ -7,9 +7,12 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: c214870a-3cfa-457e-af7b-2061055c7a21` (re-keyed 2026-11-14). After a clear, send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: 30d0affa-dc73-4acc-932c-43b660d4d261` (re-keyed 2026-11-14). After a clear, send the manager the new id and these titles:
 - Capture Fantrax getPlayerIds for #519
-(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture, which is ticked and awaiting deletion.)
+- Create the commissioners' Discord webhook and its secret for #545
+- Start the owner crosswalk Excel on Drive for #548
+- Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
+(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture, pruned.)
 
 ## START HERE (state 2026-11-09, before a clear)
 
@@ -17,7 +20,18 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-00000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 16:12Z by `date -u`, before a CLEAR (session c214870a). Self-contained; overrides everything below. The 64-zero item has this session's detail.**
+000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 17:26Z by `date -u` (session 30d0affa, after the clear). Adds to the 65-zero item, whose resume rules stand; this item overrides its lists where they differ.**
+- **Reconciled:** main is `f508b86`, then `1f8b5ac`. Merged today: #530 (747b152), #533 (f508b86, Ben, 16:14Z) and #546 (1f8b5ac, on Ben's word by pop-up, head 558cc23). #546's worktree is removed and its remote branch is gone. Data PR #547 merged; the 11-14 daily run 43619175936 **succeeded** (17:05Z). The manager reports whether nflverse published.
+- **Peers told the new id:** the manager (re-keyed the #519 entry, pruned the #520 one) and the Tools planner. The manager is now session f54d5a5a.
+- **Goes from Ben by pop-up:** #538 "Go now" and #544 "Go now". #544 is dispatched as b544-minorrules (session 4e23cebf; #544 issuecomment-6881360724). The manager's standing rule confirms a relayed go by button in its own session, so it asks Ben once about #538 before dispatching it.
+- **#545 grilled and re-scoped with Ben** (body rewritten; record at #545 issuecomment-6881415506). Three lists (Minor → 1st; Expiring = `X`, `6th`, `Tag`; Decision table = rostered `2nd` + `FA`). Each row is due now or due within 7 days. The workbook has two conference tabs, each with a List column and 13 columns. `/contract-moves list/format/team`; the table form is split across embeds. The daily post goes to the new secret `DISCORD_WEBHOOK_URL_COMMISH` with no ping, and only on a new row (key: list, conference, team, player, status). The re-sign deadline and final-period dates become `LeagueConfig` settings. Still medium tier. **Dispatch after #544 and Ben's webhook Action, at Ben's go.**
+- **New #548 (tier:high, Project 2):** the owners' contract-choice surface in the app, in place of trade-bud until rollover. Discord sign-in through Supabase Auth; RLS on a DB-only owner crosswalk (team ↔ Discord user id, co-owners allowed; source is Ben's Excel on Drive; a tracked `scripts/load_owner_crosswalk.py` that Claude runs on Ben's word). Choices are private, with one per-team share toggle; commissioners see only shared choices; choices are editable until the deadline, then lock and go public; the snapshot exports a choice only after its deadline. **The ADR is its first PR** (it amends ADR-0012 and ADR-0014; supabase-auditor). File shapes are at #548 issuecomment-6881427613. Open for 2027: the Year-2 "New Value" is not in the data.
+- **Facts found:** season one (2026-27) rosters hold only `1st` 613, `Minor` 346 and `FA` 159, so this season's decision is FA keeps only. Trade deadline Mon 2026-11-16; **re-sign deadline Thu 2026-11-19** (Ben). **2026 stopgap:** the commissioners collect FA keeps by Discord post or DM; Ben hands the file over after 11-19 (queue Action).
+- **Owed by the planner:** close out #526 and run its 12-question grill (b526's findings at #526 issuecomment-6881273291; question 10 may need Ben: a fresh 04t capture is a login run).
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; the #519 capture; the webhook Action (#545); the crosswalk Excel and the 2026 FA handover (#548); #548's go; tools #161; the C1 rerun.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (66 zeros) first, then the 65-zero item's resume rules. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main for the next batch (Ben, 2026-11-14). First send the manager this session's new id so it re-keys the planner's queue entries. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 16:12Z by `date -u`, before a CLEAR (session c214870a). Self-contained; overrides everything below. The 64-zero item has this session's detail.**
 - **Resume rules:**
   - The state branch is now **`docs/state-2026-11-14`**, in a worktree outside Temp (find it with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push.
   - Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`. Push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push.
