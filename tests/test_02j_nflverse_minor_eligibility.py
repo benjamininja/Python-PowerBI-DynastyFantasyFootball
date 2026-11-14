@@ -2,7 +2,7 @@
 
 The rule (planner ruling on #524, the games rule of #473 Q7): a game is a
 regular-season game with a snap from 2012 on, a regular-season stats row
-before it; playoffs never count; eligible while the count is 19 or fewer.
+before it; playoffs never count; eligible while the count is 20 or fewer.
 The builders are I/O free and tested on small frames; main() runs against a
 temp data dir with the nflverse loads patched out.
 """
@@ -110,11 +110,11 @@ class TestBuildEligibility:
         return ne.build_eligibility(players_frame, pd.Series(games, dtype="int64"), 2026, "02",
                                     "2026-09-18", links).set_index("gsis_id")
 
-    def test_nineteen_games_is_eligible_and_twenty_is_not(self):
-        df = self.build({"g1": 19, "g2": 20},
+    def test_twenty_games_is_eligible_and_twenty_one_is_not(self):
+        df = self.build({"g1": 20, "g2": 21},
                         players(("g1", "p1", 2026), ("g2", "p2", 2026)))
         assert df["eligible"].to_dict() == {"g1": True, "g2": False}
-        assert df["career_games"].to_dict() == {"g1": 19, "g2": 20}
+        assert df["career_games"].to_dict() == {"g1": 20, "g2": 21}
 
     def test_a_player_with_no_game_has_zero_and_is_eligible(self):
         df = self.build({"g1": 3}, players(("g1", "p1", 2026), ("g5", "p5", 2026)))

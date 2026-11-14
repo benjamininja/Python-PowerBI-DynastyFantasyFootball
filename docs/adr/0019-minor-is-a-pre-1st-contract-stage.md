@@ -1,6 +1,6 @@
 # `Minor` is a pre-1st contract stage
 
-- Status: accepted. Designed through HITL grilling on 2026-10-02. Built 2026-10-03 (#113): the `dim_contract` row and `02d` contract sourcing. The drift check (decision 4) and the `contract_year` clock are still unbuilt.
+- Status: accepted. *Amended 2026-11-14 (#544): the eligibility limit is 20 games, and a pure free-agent claim stays `FA`; see the amendment below.* Designed through HITL grilling on 2026-10-02. Built 2026-10-03 (#113): the `dim_contract` row and `02d` contract sourcing. The drift check (decision 4) and the `contract_year` clock are still unbuilt.
 - Date: 2026-10-02
 - **Supersedes the headline of** [ADR-0011](0011-minors-is-placement-not-contract.md) ("there is no Minor contract type"). The rest of ADR-0011 stands: `04v` is read-only, the repo has no Fantrax write path, IR charges full salary, and only the Minors slot is cap-exempt. *2026-10-14 (#97): the IR part no longer stands. By the owner's ruling of 2026-10-12 the IR slot is cap-exempt too; dropping an IR player still creates Dead Money ([ADR-0016's #97 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-14-the-cap-module-the-current-roster-and-the-cap-table-97), decision 3).*
 - [ADR-0010](0010-minors-stash-season-boundary.md) stays superseded. Its stash rule does not come back (decision 5).
@@ -75,6 +75,18 @@
    - `cap_exempt = False` because the contract never exempts anyone; only the Minors slot does.
    - *Built in #113. Both year columns are nullable integers (`Int64`), so the NULLs do not turn them into floats.*
    - *`dim_contract.cap_exempt` is True on `FA` and `Pick` and read by nothing. The owner chose to document it as a descriptive flag rather than drop it (2026-10-03).*
+
+## Amendment 2026-11-14: the Minor ruling (#544)
+
+Ben's Minor ruling of 2026-11-14 ([#116 comment](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/116#issuecomment-6880314749)), checked against the [2026-27 bylaws](../league/BYLAWS-2026-27.md), amends decisions 1, 3, 5 and the default of 6. Where the decisions above say 19, claim or "any eligible player", this amendment wins.
+
+1. **Eligibility is 20 or fewer games (decision 1).** A player with 20 or fewer career-plus-current regular-season games is Minor-eligible; game 21 is not. This is bylaws section 3.4, "(20 NFL games played)". The 19 in decisions 1 and 3 was off by one. Fantrax's own list agrees: at 20 nflverse games, 20 of 22 players are still listed as eligible; at 22 or more, none are. `02j`'s `GAMES_LIMIT` is 20.
+2. **Who gets a Minor (decision 5, and the default of decision 6).** Only an eligible player acquired through the startup, rookie or auction draft. A free agent never acquired that way stays on `FA`, even when eligible: a pure free-agent claim takes `FA`. This reverses decision 5's "or claim" for pure free agents. The bylaws do not state this yet (the next edition's wording, not this ticket). Bylaws section 5.4 keeps a contracted player's terms through waivers, which is why a dropped Minor keeps its contract (rule 5).
+3. **Graduation (decision 3).** At game 21 a Minor becomes a `1st` in the next Scoring Period. That season is year 1 of 3 and the salary carries over.
+4. **Cut cost (decision 2).** A `Minor` drop costs 0%. As a `1st`, the 50% penalty applies (bylaws penalty table: `Minor` 0% cap hit, non-guaranteed).
+5. **Drop and claim.** A dropped Minor claimed by another team while still eligible stays `Minor` on the new team until game 21, then becomes a `1st`. A full season unrostered in free agency resets the contract (bylaws section 12.5).
+
+`02d`'s default follows: `Minor` for an eligible draft pick or auction win; for a claim only when the claimed copy's contract is `Minor`; `FA` for a pure free-agent claim. A contract read from Roster State still wins. A Minor dropped and claimed after the season ends is not settled by the ruling (`02d` reads only a contract held in the same season, so it gives `FA`); it is left to the owner.
 
 ## Alternatives considered
 

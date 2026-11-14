@@ -3,8 +3,8 @@
 #
 # **Purpose:** the replacement for the logged-in `04v` (#524, #429 round 4
 # Q10). A player is Minors-eligible while his career regular-season games
-# played, this season included, are 19 or fewer (ADR-0019 decision 1; the
-# league setting reads "Career+Current regular season total GP <= 19"). This
+# played, this season included, are 20 or fewer (ADR-0019 decision 1, amended
+# 2026-11-14; bylaws section 3.4: "20 NFL games played"). This
 # step works that count out for every player, rostered or free agent, from
 # nflverse. It signs in nowhere.
 #
@@ -51,7 +51,7 @@ import etl_helpers as etl
 from etl_helpers import read_table, write_table
 
 TABLE = "fact_nfl_minor_eligibility"
-GAMES_LIMIT = 19          # eligible while the count is this or fewer (ADR-0019 decision 1)
+GAMES_LIMIT = 20          # eligible while the count is this or fewer (ADR-0019 decision 1, amended 2026-11-14)
 SNAPS_FROM = 2012         # load_snap_counts starts here; earlier seasons use stats rows
 STATS_FROM = 1999         # load_player_stats starts here
 REGULAR = "REG"

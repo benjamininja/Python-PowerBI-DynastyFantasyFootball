@@ -720,12 +720,20 @@ def stale_capture(elig: list, event_dt) -> bool:
 def default_contract(eligible: bool, kind: str, inherited=None):
     """The contract when no Roster State row covers the move.
 
-    - minors-eligible -> `Minor` (ADR-0019 decision 1);
+    - minors-eligible draft pick -> `Minor` (a startup, rookie or auction pick);
+    - minors-eligible and inheriting `Minor` (a dropped Minor claimed or
+      traded while still eligible) -> `Minor` until game 21 (ADR-0019, 2026-11-14,
+      rules 2 and 5);
+    - minors-eligible with no inherited contract, a drop or a trade -> `Minor`
+      as before; a pure free-agent claim is not a draft pick, so it takes `FA`
+      (rule 2);
     - else the contract the copy already held -- but an inherited `Minor` on a
       player who is no longer eligible is `1st`: they graduated (decision 3);
     - else `1st` for a draft pick, `FA` for a claim or drop with no history,
       and unknown (NA) for a trade with no source row."""
-    if eligible:
+    held = inherited is not None and pd.notna(inherited)
+    if eligible and (kind == EVENT_TYPE or (held and inherited == MINOR_CONTRACT_ID)
+                     or (kind != CLAIM_EVENT and not held)):
         return MINOR_CONTRACT_ID
     if inherited is not None and pd.notna(inherited):
         return DRAFT_CONTRACT_ID if inherited == MINOR_CONTRACT_ID else inherited

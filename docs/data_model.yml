@@ -1193,7 +1193,7 @@ tables:
       a regular-season game with a snap (load_snap_counts, any Unit), before
       2012 a regular-season stats row (load_player_stats, reg level). A playoff
       game never counts (planner ruling on #524, the games rule of #473 Q7).
-      eligible is career_games <= 19. The pool is every dim_nfl_players row
+      eligible is career_games <= 20. The pool is every dim_nfl_players row
       whose last_season is this NFL season or the one before and that no newer
       id replaced (dim_gsis_link), so a player with no game yet has 0 and is
       eligible. week is the Scoring Period holding the run (two digits), or PRE

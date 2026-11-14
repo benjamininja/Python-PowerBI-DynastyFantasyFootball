@@ -123,7 +123,7 @@ sources:
     status: live
     terms: *fantrax_terms
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN)"
-    purpose: "Minors eligibility (read-only): the site's own verdict on who is minors-eligible (GP<=19). 02d reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from the public getTeamRosters entry below, not from here"
+    purpose: "Minors eligibility (read-only): the site's own verdict on who is minors-eligible (GP<=20). 02d reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from the public getTeamRosters entry below, not from here"
     auth: "Same Fantrax session as the Players-grid source (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
     cadence: "Weekly (Windows Task Scheduler, after 04a)"
     feeds:
