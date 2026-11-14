@@ -30,7 +30,7 @@ REPO = Path(__file__).resolve().parent.parent
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 
 # Exact addresses, then domain suffixes, that are safe to publish.
-ALLOW_EXACT = {"noreply@anthropic.com"}
+ALLOW_EXACT = {"noreply@anthropic.com", "benjamin.hanna77@gmail.com"}
 ALLOW_DOMAIN_SUFFIX = ("users.noreply.github.com", "example.com", "example.org", "example.net")
 
 # Notebooks that read the owner registry sheet: outputs would republish it.
