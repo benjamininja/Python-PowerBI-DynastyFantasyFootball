@@ -18,7 +18,12 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 13:25Z by `date -u`, before a CLEAR (session 5285e989). Self-contained; overrides everything below. The 62-zero item and its "after" notes have the detail.**
+0000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, ~14:00Z by `date -u` (session c214870a, after the clear). Adds to the 63-zero item, whose rules and lists stand.**
+- Reconciled: main still `1259e85`; open PRs unchanged (#540, #533, #530, #528, #505). The manager's state reports the 11-13 etl-daily run 43483298438 **failed** (exit 1), although data PR #541 landed. The manager reads it and reports to the planner.
+- **#515 ruled** (#515 issuecomment-6878316726): replace `test_no_committed_migration_is_held_today` with `test_every_committed_held_migration_is_a_flagged_drop`, using no allowlist of ids. Every destructive committed migration must be drop-only, and each drop must be flagged by `registry_drops`. b515 may edit the test on its branch. The manager relays it.
+- The manager was asked to re-key the two planner queue entries to Session c214870a-3cfa-457e-af7b-2061055c7a21. The Tools planner was told the new id.
+
+000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 13:25Z by `date -u`, before a CLEAR (session 5285e989). Self-contained; overrides everything below. The 62-zero item and its "after" notes have the detail.**
 - **Resume rules:** the state worktree is on branch `docs/state-2026-11-07` (find it with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-07` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`. Push with a standalone `git push origin HEAD:docs/state-2026-11-07`, never a force push (one was denied). If a push is refused, fetch and `git merge` the remote branch. **State PR #540** carries this branch and merges only on Ben's word. If it conflicts after a squash merge, merge origin/main in rather than rebasing.
 - **Merging:** Claude may merge on Ben's word in chat, head-pinned (`gh pr merge N --squash --match-head-commit <sha>`), with all CI SUCCESS (tools #170).
 - **Peers:** manager = `dynastyFantasyFootball-central-builder-manager` (last session a4659fc3); Tools planner = `Tools-central-planner`. Message them by name.
