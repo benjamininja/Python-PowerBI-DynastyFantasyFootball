@@ -1412,7 +1412,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block. The sco
    **Added after the clear prep (~21:00):** skills#68 merged via skills#72 (`0d8ee1e`). My skills PR #73 adds `builder-state/` to .gitignore, a miss in #71;
    the worktree is `skbs` (a scratch worktree)
    (no junction). Remove it and delete its branch once #73 merges. The haiku GOAL-RUN text is on #218 issuecomment-6621169662, queued with the manager, (a) recommended.
-   Dispatch runs the plugin from a separate clone, `C:/Users/benha/claude-live/skills-plugins-hooks-agents` (at `d09dcbd`). Plugin changes go live only when
+   Dispatch runs the plugin from a separate clone, the live plugin clone (a separate local checkout of the tools repository) (at `d09dcbd`). Plugin changes go live only when
    the owner updates that clone; the manager raised it with them.
    **Small carry-overs:** at the next edit of `supabase-auditor.md`, add "a missing `needs:` on validate is no finding". Two stale ref locks from
    2026-10-12 sit in the dynasty `.git` (`worktree-b92-runner-spike`, `feat/225-runner-spike-workflow`); they are not approved for removal.
@@ -1821,7 +1821,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block. The sco
   line marks such a repeat.
 - **Skills PR 46 is merged** (by the owner, 2026-10-12; merge commit
   `804ea65`). The plugin is on GitHub, not on disk: no live clone
-  exists (`C:\Users\benha\claude-live` is not there), and the owner's
+  exists (the live plugin clone's folder is not there), and the owner's
   checkout of the skills repository has not pulled.
 - **Open, the owner's hand, in the queue through the manager:** the
   saved `CLAUDE_CODE_PLUGIN_DIRS` names only the session-dispatch
@@ -1850,7 +1850,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block. The sco
   (uncommitted, the manager's to commit on the owner's word);
   `.claude/dispatch.json` is missing; skills PR 46 is open, so the
   plugin is not in the live clone
-  (`C:\Users\benha\claude-live\skills-plugins-hooks-agents`) and
+  (the live plugin clone, a separate local checkout of the tools repository) and
   `CLAUDE_CODE_PLUGIN_DIRS` names only the `owner-queue` folder. The
   manager kept the three entries open.
   - `/security-review` now loads in the planner's session but reviews
