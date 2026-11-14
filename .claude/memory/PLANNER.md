@@ -18,7 +18,45 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, ~14:00Z by `date -u` (session c214870a, after the clear). Adds to the 63-zero item, whose rules and lists stand.**
+00000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 16:12Z by `date -u`, before a CLEAR (session c214870a). Self-contained; overrides everything below. The 64-zero item has this session's detail.**
+- **Resume rules:**
+  - The state branch is now **`docs/state-2026-11-14`**, in a worktree outside Temp (find it with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push.
+  - Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`. Push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push.
+  - **State PR #542** merges on Ben's word. **Ben's rule (2026-11-14):** after a state PR merges, its branch is retired and the next batch gets a fresh branch cut from main. First pause the manager's state pushes and wait for its confirmation, then merge head-pinned, then cut the new branch, then send the manager the name.
+  - #540 merged (80f6ee5); the old branch `docs/state-2026-11-07` is deleted.
+- **Merging:** Claude merges on Ben's word, head-pinned (`gh pr merge N --squash --match-head-commit <sha>`), with all CI SUCCESS.
+- **Peers:** the manager is `dynastyFantasyFootball-central-builder-manager` (now session 01a436c4). The Tools planner is `Tools-central-planner`, paused for a clear; its state is tools PR #174. Message both by name. **After the clear, send the manager the new session id** and ask it to re-key the planner's queue entries (now keyed to c214870a).
+- **Planner queue entries (c214870a):**
+  - "Capture Fantrax getPlayerIds for #519": the command is fixed to `curl.exe`, with a full path. Not run yet.
+  - The #520 capture: ticked `[x]` after Ben ran it. The manager deletes it at its next state-back.
+- **Main** is 80f6ee5.
+- **Open PRs:**
+  - #542 (state, Ben's word).
+  - **#546:** the bylaws copy `docs/league/BYLAWS-2026-27.md`, branch `docs/bylaws-2026-27`, the planner's PR, Ben's word. Its worktree has a throwaway `.venv` (a real folder, not a junction). Remove the worktree after the merge.
+  - #533: GREEN at 40f059a (re-proof from Ben's run); a merge Action is in the queue.
+  - #530 (re-check, then local Green).
+  - #528, #505.
+- **Settled today:**
+  - **#515 test rule:** ruled at #515 issuecomment-6878316726. The manager relays it to b515 (session c96c1508).
+  - **Minor rules:** Ben's ruling is at #116 issuecomment-6880314749.
+    - Eligible through 20 games; a 1st at game 21.
+    - A Minor comes only from the startup, rookie or auction draft; a pure free-agent claim stays FA.
+    - A dropped Minor claimed while eligible keeps Minor until game 21.
+    - §12.5: a full season unrostered resets the contract.
+    - Today 48 players past 20 games are still on Minor.
+  - **New tickets:** **#544** (low tier; ADR-0019 and CONTEXT amendment, 02j at ≤20, 02d's claim default; land before 2026-12-03; cap-ledger-auditor) and **#545** (medium tier, after #544; the commissioners' xlsx with one tab per conference, a daily webhook post on change, and a bot command any member can run, private by default). **#545 is not dispatchable** until the planner settles three things with Ben: its columns, its change key, and the commissioners' webhook Action.
+  - **Bylaws gaps for the next edition:** state the draft-only Minor rule, and update §5.2 (a kept FA stays at $2M, then becomes X the next year, taggable at tag prices).
+  - **#520:** the docs are pasted (no login; any period; per-category points), and the period-9 capture is made (14 matchups, 26 categories). Its first step is complete; dispatch at Ben's go, not during periods 13 to 17.
+  - "Terms checks due 3" means three sources never checked for terms of use.
+- **Watch:**
+  - **The 11-14 daily run (~18:40Z).** The 11-13 run held nflverse because the shrink gate read an empty DB copy of `fact_nfl_minor_eligibility`. If 11-14 holds again, ask Ben by button whether #538 goes ahead of #533. If it passes, #538 stays behind #533; #533 is GREEN now, so it can follow its merge. The manager reports the result.
+  - #538 must land by ~2026-11-25.
+  - The 02d switch question goes to Ben before 2026-12-03. #544's ≤20 fix changes the drift count, so re-read the drift after #544.
+- **Waiting on Ben:** #542, #546, #533's merge, #505, #526 script Action, the reproof.py allow rule, the #519 capture, the go on #544, #538 (after #533), tools #161, the C1 rerun.
+- **Housekeeping still owed:** clean old Temp/scratchpad paths from older items in this file.
+- **Resume prompt:** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (65 zeros) first. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main for the next batch (Ben, 2026-11-14). First send the manager this session's new id so it re-keys the planner's queue entries. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, ~14:00Z by `date -u` (session c214870a, after the clear). Adds to the 63-zero item, whose rules and lists stand.**
 - Reconciled: main still `1259e85`; open PRs unchanged (#540, #533, #530, #528, #505). The manager's state reports the 11-13 etl-daily run 43483298438 **failed** (exit 1), although data PR #541 landed. The manager reads it and reports to the planner.
 - **#515 ruled** (#515 issuecomment-6878316726): replace `test_no_committed_migration_is_held_today` with `test_every_committed_held_migration_is_a_flagged_drop`, using no allowlist of ids. Every destructive committed migration must be drop-only, and each drop must be flagged by `registry_drops`. b515 may edit the test on its branch. The manager relays it.
 - The manager was asked to re-key the two planner queue entries to Session c214870a-3cfa-457e-af7b-2061055c7a21. The Tools planner was told the new id.
