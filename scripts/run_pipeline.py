@@ -217,6 +217,11 @@ def build_steps(profile: str | None) -> list[dict]:
         # Its own group, so `--group injury` refreshes it between weekly runs.
         {"name": "02g_nflverse_inseason", "cmd": _script("02g_nflverse_inseason.py"),
          "phases": {"INSEASON"}, "needs": ["01e_dim_nfl_players"], "chain": "nflverse", "group": "injury"},
+        # Minors eligibility of every player from nflverse (no login; #524,
+        # #538). It reads 01e's player list and 04p's Scoring Periods, and
+        # writes the table the minor_drift check compares with 04v's.
+        {"name": "02j_minor_eligibility", "cmd": _script("02j_nflverse_minor_eligibility.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["01e_dim_nfl_players", "04p_league_info"], "chain": "nflverse", "group": "pre_season"},
         {"name": "04a_scrape", "cmd": _script("04a_fantrax_weekly_scrape.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "regular_season"},
         # Logged-in transaction history (04a's session, like 04v): the raw
