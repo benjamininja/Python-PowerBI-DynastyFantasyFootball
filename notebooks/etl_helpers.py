@@ -1324,7 +1324,7 @@ def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd
 
 GSIS_LINK_TABLE = "dim_gsis_link"
 GSIS_LINK_COLUMNS = ["old_gsis_id", "new_gsis_id", "method", "decided_date"]
-GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id")
+GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "nfl_id", "otc_id")
 
 
 def _gsis_link_map(links: pd.DataFrame) -> dict:

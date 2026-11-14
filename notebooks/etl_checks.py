@@ -60,6 +60,7 @@ CLOSED = "closed"             # dim_scoring_period.update_set_state (04p's CLOSE
 DROP = "drop"                 # fact_roster_transactions.event_type
 NO_STINT = "no_stint"         # fact_roster_transactions.contract_source (02d)
 DEFAULT_SOURCE = "default"
+MINOR_DRIFT_GAP_DAYS = 1      # the nflverse capture compared sits this near Fantrax's newest (#524)
 
 # ops.review_check columns (ADR-0018 decision 11, as amended by ADR-0008 d8/d9).
 FILING_COLUMNS = ["check_name", "table_name", "row_key", "detail", "run_id",
@@ -574,6 +575,64 @@ def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
     return out
 
 
+def minor_drift_findings(fantrax: pd.DataFrame, computed: pd.DataFrame,
+                         state: pd.DataFrame, crosswalk: pd.DataFrame) -> list[tuple[str, str]]:
+    """Fantrax's minors-eligibility verdict against nflverse's (#524; ADR-0008
+    decision 9, one Scoring Period of grace). Both are read on Fantrax's newest
+    capture day: `fantrax` is fact_minor_eligibility (04v, whose rows are the
+    players Fantrax lists), `computed` fact_nfl_minor_eligibility (02j), taken
+    on that day or, failing that, the nearest capture within one day (a run
+    that crossed midnight, or the two steps run apart).
+
+    The players compared are those Fantrax lists plus those on a fantasy roster
+    in the newest Roster State, except a free agent the crosswalk has no gsis_id
+    for (a prospect or an unmatched player: nflverse has nothing to say about
+    him). One finding per scorer_id the two disagree on, in either direction,
+    with the reason:
+      - Fantrax lists the player, nflverse does not: the crosswalk has no
+        gsis_id for the scorer, or nflverse's pool lacks the gsis_id, or
+        nflverse counts 20 or more games;
+      - a rostered player nflverse counts at 19 or fewer games, Fantrax does
+        not list.
+    No nflverse capture that near is not compared."""
+    if fantrax.empty:
+        raise NotComparable("fact_minor_eligibility holds no capture")
+    day = fantrax["capture_date"].max()
+    gap = (pd.to_datetime(computed["capture_date"]) - pd.Timestamp(day)).abs()
+    near = computed[gap <= pd.Timedelta(days=MINOR_DRIFT_GAP_DAYS)]
+    if near.empty:
+        raise NotComparable(f"fact_nfl_minor_eligibility has no capture within "
+                            f"{MINOR_DRIFT_GAP_DAYS} day(s) of {day}, Fantrax's newest")
+    nearest = min(set(near["capture_date"]),
+                  key=lambda d: (abs(pd.Timestamp(d) - pd.Timestamp(day)), d))
+    mine = near[near["capture_date"] == nearest].drop_duplicates("gsis_id", keep="last")
+    listed = set(fantrax.loc[fantrax["capture_date"] == day, "scorer_id"])
+    rostered = set(newest_period(state)["scorer_id"])
+    gsis = dict(zip(crosswalk["scorer_id"], crosswalk["gsis_id"]))
+    counted = mine.set_index("gsis_id")
+    out = []
+    for sid in sorted(listed | rostered):
+        g = gsis.get(sid)
+        known = pd.notna(g) and g in counted.index
+        games = int(counted.at[g, "career_games"]) if known else None
+        nflverse = bool(counted.at[g, "eligible"]) if known else False
+        if (sid in listed) == nflverse:
+            continue
+        if pd.isna(g) and sid not in rostered:
+            continue   # a free agent the crosswalk never matched to an NFL player: nothing to compare
+        if sid in listed:
+            why = ("the crosswalk has no gsis_id for it" if pd.isna(g)
+                   else "its gsis_id is not in nflverse's pool" if not known
+                   else f"nflverse counts {games} games")
+            side = "on a roster" if sid in rostered else "a free agent"
+            out.append((sid, f"Fantrax lists {sid} ({side}) as minors-eligible; "
+                             f"nflverse does not: {why}"))
+        else:
+            out.append((sid, f"{sid} is on a fantasy roster and nflverse counts {games} games "
+                             f"(eligible); Fantrax does not list it as minors-eligible"))
+    return out
+
+
 STARTUP_SLOTS, STARTUP_UNMADE = 980, 5   # the finished 2026 Startup draft
 LOADER = "scripts/load_draft_and_overrides.py"
 
@@ -682,6 +741,12 @@ DOMAIN_CHECKS = [
     DomainCheck("roster_membership", "review", "fact_fantasy_teams",
                 lambda load: roster_membership_findings(load("fact_fantasy_teams"),
                                                         load("fact_roster_transactions"))),
+    DomainCheck("minor_drift", "review", "fact_minor_eligibility",
+                lambda load: minor_drift_findings(
+                    load("fact_minor_eligibility"),
+                    private_table(load, "fact_nfl_minor_eligibility"),
+                    load("fact_roster_state"), load("dim_fantrax_crosswalk")),
+                grace_periods=1),
     DomainCheck("team_cap", "gate", "fact_team_cap",
                 lambda load: team_cap_errors(load("fact_team_cap"), load("fact_fantasy_teams"),
                                              load("fact_dead_money"), load("dim_fantasy_teams"),

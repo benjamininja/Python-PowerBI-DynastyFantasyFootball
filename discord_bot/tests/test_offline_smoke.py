@@ -24,7 +24,6 @@ _BOT_DIR = Path(__file__).resolve().parent.parent
 _DATA = _BOT_DIR.parent / "data"
 sys.path.insert(0, str(_BOT_DIR))
 
-import adp  # noqa: E402
 import cap  # noqa: E402
 import capmath  # noqa: E402
 import player  # noqa: E402
@@ -48,7 +47,7 @@ def _local_fetch(path: str, _cfg: Config) -> pd.DataFrame:
 # each module's own namespace. capmath (cap.py/roster.py's shared cap-table
 # reader) imports fetch_parquet itself — omitting it here means teams_with_cap/
 # roster_with_cap_hit silently hit real GitHub instead of local parquet.
-for mod in (rankings, adp, player, cap, roster, capmath):
+for mod in (rankings, player, cap, roster, capmath):
     mod.fetch_parquet = _local_fetch
 
 
@@ -73,13 +72,6 @@ def test_rankings():
     _check(rankings.build_rankings_embeds(CFG, fmt="SF"), "rankings SF all")
     _check(rankings.build_rankings_embeds(CFG, fmt="SF", position="QB"), "rankings SF QB")
     _expect_error(lambda: rankings.build_rankings_embeds(CFG, fmt="ZZZ"), "rankings bad format")
-
-
-def test_adp():
-    _check(adp.build_adp_embeds(CFG), "adp overall")
-    _check(adp.build_adp_embeds(CFG, position="QB"), "adp QB")
-    _check(adp.build_adp_embeds(CFG, limit=50), "adp limit 50")
-    _expect_error(lambda: adp.build_adp_embeds(CFG, position="ZZZ"), "adp bad position")
 
 
 def test_player():

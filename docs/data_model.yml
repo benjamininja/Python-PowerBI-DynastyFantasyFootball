@@ -48,6 +48,17 @@
 #   checks  : SQL boolean expressions, one CHECK constraint each.
 #   other_tables : tables with no parquet file (the `ops` and `shared`
 #             tables), read only by the migration generator.
+#   drops   : on a table, columns removed on purpose, each {column, ticket}
+#             (#534, ADR-0018 decision 3 amendment). The column leaves
+#             `columns:`; the generator writes DROP COLUMN for it. The entry
+#             stays as history after the drop applies. A rollback deletes
+#             the entry and re-adds the column in the same PR.
+#   dropped_tables : top level, tables removed on purpose, each {table,
+#             ticket}. The table leaves `tables:`; the generator writes DROP
+#             TABLE. Kept as history, and deleted the same way on rollback.
+#             A drop migration does not apply on merge: migrate.yml holds it
+#             until the owner runs the workflow by hand (decision 12
+#             amendment). Every other drop, rename or type change is refused.
 #   edges   : outbound relationships: {to: <table>, via: direct|<resolver
 #             table name>, on: <join column(s)>}. `via: direct` = joins
 #             straight to the target's key. `via: <resolver>` = the real
@@ -431,6 +442,42 @@ tables:
       instant of that run. A closed period is frozen: 04r and 04s skip it,
       and nothing re-opens it until #93's --reclose. A period that fails its
       checks stays closing.
+
+  - name: dim_fantrax_scoring_rule
+    type: dim
+    grain: "(season_id, category_id, position)"
+    pk: [season_id, category_id, position]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+    chain: fantrax_core
+    required_keys: [season_id, category_id, position, points]
+    columns:
+      - { name: season_id, dtype: str, sql_type: text }
+      - { name: category_id, dtype: str, sql_type: text }
+      - { name: category_code, dtype: str, sql_type: text }
+      - { name: category_name, dtype: str, sql_type: text }
+      - { name: scoring_group, dtype: str, sql_type: text }
+      - { name: position, dtype: str, sql_type: text }
+      - { name: points, dtype: float64, sql_type: double precision }
+      - { name: captured_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+    edges:
+      - { to: dim_season, via: direct, on: season_id }
+    notes: >
+      The league's scoring rules: Fantrax points per unit of each scoring
+      category, one row per category and league position (QB, RB, WR, TE, DL,
+      LB, DB), from public getLeagueInfo.scoringSystem.scoringCategorySettings
+      (04p; #473 brief 2, ADR-0023). Rules are Fantrax's, read every run,
+      never typed. A category's default points fill every position without
+      an override, so a reader joins on position with no special value.
+      category_id is Fantrax's category id, the middle part of a live-scoring
+      stat id (for example 3218, 256g). scoring_group is the Fantrax block
+      the category is listed in, Offense or Defense; a category listed in
+      both (return yards) keeps its first row. category_code is Fantrax's
+      short name, which is not unique (TD, YDS and Int each name more than
+      one category), so key on category_id. A run replaces its own season's
+      rows only; 04p fails, nothing is written, on a category with no
+      default, a position it does not know, or one category listed twice
+      with different points.
 
   # ----------------------------------------------------------- resolvers
   - name: dim_fantrax_crosswalk
@@ -1121,6 +1168,47 @@ tables:
       (2026-11-07 06:32, week 08); ops.etl_run_log's git_sha tells the two
       apart. The switch is a label change only: the grain and the columns are
       the same.
+
+  - name: fact_nfl_minor_eligibility
+    type: fact
+    grain: "(gsis_id, season, week)"
+    pk: [gsis_id, season, week]
+    fk:
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+    chain: nflverse
+    required_keys: [gsis_id, season, week]
+    columns:
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: week, dtype: str, sql_type: text }
+      - { name: capture_date, dtype: str, sql_type: date }
+      - { name: career_games, dtype: int64, sql_type: integer }
+      - { name: eligible, dtype: bool, sql_type: boolean }
+    edges:
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+    notes: >
+      Minors eligibility of every player in the pool, worked out from nflverse
+      (02j, #524, #429 round 4 Q10; ADR-0019 decision 1). career_games is the
+      player's career regular-season games, this season included: from 2012 on
+      a regular-season game with a snap (load_snap_counts, any Unit), before
+      2012 a regular-season stats row (load_player_stats, reg level). A playoff
+      game never counts (planner ruling on #524, the games rule of #473 Q7).
+      eligible is career_games <= 19. The pool is every dim_nfl_players row
+      whose last_season is this NFL season or the one before and that no newer
+      id replaced (dim_gsis_link), so a player with no game yet has 0 and is
+      eligible. week is the Scoring Period holding the run (two digits), or PRE
+      when none does; a run replaces its own (season, week), so there is one
+      capture per period. capture_date is the run's league day and is the same
+      on every row of a run. 02d does not read it yet: its Minor default stays
+      on fact_minor_eligibility (Fantrax's own verdict, 04v), by the owner's
+      ruling on PR #535 (2026-11-12); the switch comes to the owner after a
+      week of drift data. The minor_drift Review check compares the two on
+      Fantrax's newest capture day (the nearest nflverse capture within one
+      day). A player whose snaps
+      sit under a pfr id no source maps to a gsis_id is undercounted (counted
+      by position in the run's output; almost all offensive linemen and long
+      snappers), which the drift check shows as an eligible player Fantrax does
+      not list. Not an Update-Set: no freeze, no Drift.
 
   - name: fact_nfl_snap_counts
     type: fact

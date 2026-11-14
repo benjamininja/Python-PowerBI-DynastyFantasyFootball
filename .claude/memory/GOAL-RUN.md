@@ -39,7 +39,11 @@ line under that skill's "Never".
 - `check_pii.py` clean on every changed file;
 - `check_data_model.py` and `--check` OK; `check_sources.py --check` OK;
 - `run_pipeline.py --check-only`: 0 Gate failures, 0 new Review findings;
-- for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding.
+- for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding;
+- the manager runs the whole list with
+  `.venv/Scripts/python.exe scripts/reproof.py <pr> [head]` after
+  `git fetch origin`; it prints `RESULT: GREEN` or `RESULT: NOT GREEN`.
+  The CI read and the `cap-ledger-auditor` item stay separate.
 
 A finding that needs a design choice parks the ticket with its PR left open.
 

@@ -9,19 +9,25 @@ refused: the script names it, exits 1 and writes nothing. The one exception
 (#443): a check `<col> IN (<literals>)` replaced by another on the same column
 whose list holds every old literal is a widening; it becomes DROP CONSTRAINT
 then ADD CONSTRAINT in one migration. Anything not exactly that form is
-refused as before. No change writes
-nothing and exits 0. A registry that breaks a rule exits 2.
+refused as before. The drop path (#534): a column the registry names in its
+table's `drops:` list, or a table it names in `dropped_tables:`, becomes
+DROP COLUMN or DROP TABLE when the state file still holds it; an entry whose
+item the state no longer holds is history and writes nothing. Drops go in a
+migration of their own, after the run's other changes. Every other drop
+stays refused. No change writes nothing and exits 0. A registry that breaks a
+rule exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
 Line 1 of the migration holds the sha256 of the state file it produces. The
 script connects to no database.
 """
 import argparse
+import copy
 import hashlib
 import json
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import yaml
@@ -209,6 +215,57 @@ def desired_model(registry):
 
 
 EMPTY_MODEL = {"schemas": [], "roles": [], "tables": {}, "functions": {}}
+NO_DROPS = {"columns": {}, "tables": {}}
+
+
+def _ticket(entry, what):
+    ticket = entry.get("ticket")
+    if isinstance(ticket, bool) or not isinstance(ticket, int) or ticket < 1:
+        raise RegistryError(f"{what}: needs a ticket number")
+    return ticket
+
+
+def registry_drops(registry):
+    """The drops the registry flags (#534): {"columns": {(table key, column):
+    ticket}, "tables": {table name: ticket}}. A flagged item still declared is
+    an error. Table names are unique across the schemas, so a name is enough."""
+    if not isinstance(registry, dict):
+        raise RegistryError("the registry is not a mapping")
+    declared_tables, columns, tables = set(), {}, {}
+    for section, default_schema in (("tables", "football"), ("other_tables", None)):
+        for entry in registry.get(section) or []:
+            if not isinstance(entry, dict):
+                continue
+            declared_tables.add(entry.get("name"))
+            key = f"{entry.get('schema') or default_schema}.{entry.get('name')}"
+            declared = {c.get("name") for c in entry.get("columns") or [] if isinstance(c, dict)}
+            raw = entry.get("drops") or []
+            if not isinstance(raw, list):
+                raise RegistryError(f"{key} drops: expected a list")
+            for drop in raw:
+                if not isinstance(drop, dict):
+                    raise RegistryError(f"{key} drops: {drop!r}: expected a mapping")
+                name = _ident(drop.get("column"), f"{key} drops column")
+                ticket = _ticket(drop, f"{key} drops {name}")
+                if name in declared:
+                    raise RegistryError(f"{key} drops {name}: the column is still declared")
+                if (key, name) in columns:
+                    raise RegistryError(f"{key} drops {name}: named twice")
+                columns[(key, name)] = ticket
+    raw = registry.get("dropped_tables") or []
+    if not isinstance(raw, list):
+        raise RegistryError("dropped_tables: expected a list")
+    for drop in raw:
+        if not isinstance(drop, dict):
+            raise RegistryError(f"dropped_tables: {drop!r}: expected a mapping")
+        name = _ident(drop.get("table"), "dropped_tables table")
+        ticket = _ticket(drop, f"dropped_tables {name}")
+        if name in declared_tables:
+            raise RegistryError(f"dropped_tables {name}: the table is still declared")
+        if name in tables:
+            raise RegistryError(f"dropped_tables {name}: named twice")
+        tables[name] = ticket
+    return {"columns": columns, "tables": tables}
 
 
 def _by_name(items):
@@ -234,13 +291,16 @@ def _widens(old_expr, new_expr):
             and set(before[1]) <= set(after[1]))
 
 
-def _table_changes(key, old, new, out):
+def _table_changes(key, old, new, out, flagged):
     refuse = out["refusals"]
     old_cols, new_cols = _by_name(old["columns"]), _by_name(new["columns"])
     removed = [c for c in old["columns"] if c["name"] not in new_cols]
     added = [c for c in new["columns"] if c["name"] not in old_cols]
     claimed = set()
     for col in removed:
+        if (key, col["name"]) in flagged:
+            out["column_drops"].append((key, col["name"]))
+            continue
         twin = next((a for a in added if a["sql_type"] == col["sql_type"] and a["name"] not in claimed), None)
         if twin is not None:
             claimed.add(twin["name"])
@@ -284,11 +344,12 @@ def _table_changes(key, old, new, out):
                 out[kind].append((key, item))
 
 
-def diff(old, new):
-    """What `new` adds to `old`, and the changes it holds that a migration may
-    not make (`refusals`)."""
+def diff(old, new, drops=NO_DROPS):
+    """What `new` adds to `old`, the drops `drops` flags (#534), and the
+    changes it holds that a migration may not make (`refusals`)."""
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
-           "checks": [], "fks": [], "indexes": [], "functions": [], "refusals": []}
+           "checks": [], "fks": [], "indexes": [], "functions": [],
+           "column_drops": [], "table_drops": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -296,12 +357,15 @@ def diff(old, new):
     for key in old["tables"]:
         if key in new["tables"]:
             continue
+        if key.split(".", 1)[1] in drops["tables"]:
+            out["table_drops"].append(key)
+            continue
         columns = [c["name"] for c in old["tables"][key]["columns"]]
         twin = next((a for a in added if [c["name"] for c in new["tables"][a]["columns"]] == columns), None)
         out["refusals"].append(f"{key}: rename of table to {twin}" if twin else f"{key}: drop of table")
     for key, spec in new["tables"].items():
         if key in old["tables"]:
-            _table_changes(key, old["tables"][key], spec, out)
+            _table_changes(key, old["tables"][key], spec, out, drops["columns"])
         else:
             out["tables"].append(spec)
             out["fks"] += [(key, fk) for fk in spec["fks"]]
@@ -370,7 +434,51 @@ def render(changes):
         where = f" WHERE {idx['where']}" if idx["where"] else ""
         out.append(f"CREATE {'UNIQUE ' if idx['unique'] else ''}INDEX {idx['name']} ON {key} "
                    f"({', '.join(idx['columns'])}){where};")
+    out += [f"ALTER TABLE {key} DROP COLUMN {name};" for key, name in changes["column_drops"]]
+    out += [f"DROP TABLE {key};" for key in changes["table_drops"]]
     return "\n\n".join(out) + "\n"
+
+
+DROP_KINDS = ("column_drops", "table_drops")
+
+
+def _with_dropped(old, new, changes):
+    """`new` with the flagged items still in place: the state after the ordinary
+    migration applies and before the drop migration does."""
+    state = copy.deepcopy(new)
+    for key, name in changes["column_drops"]:
+        kept = {c["name"] for c in state["tables"][key]["columns"]} | {name}
+        before = [c for c in old["tables"][key]["columns"] if c["name"] in kept]
+        added = [c for c in state["tables"][key]["columns"] if c["name"] not in _by_name(before)]
+        state["tables"][key]["columns"] = copy.deepcopy(before) + added
+    for key in changes["table_drops"]:
+        state["tables"][key] = copy.deepcopy(old["tables"][key])
+    state["tables"] = dict(sorted(state["tables"].items()))
+    return state
+
+
+def split_drops(old, new, changes):
+    """[(changes, state it produces)], one per migration file. A drop sits in a
+    migration of its own (#534, planner ruling on PR #536): when a run holds
+    drops and other changes, the ordinary changes come first and the drops
+    alone follow, so the push gate holds only the drops."""
+    drops = {k: changes[k] for k in DROP_KINDS}
+    ordinary = {**changes, **{k: [] for k in DROP_KINDS}}
+    if not any(drops.values()) or not has_changes(ordinary):
+        return [(changes, new)]
+    only_drops = {**{k: [] for k in changes}, **drops}
+    return [(ordinary, _with_dropped(old, new, changes)), (only_drops, new)]
+
+
+def newest_stamp(folder):
+    """The time of the newest migration in `folder`, or None. A drop file is
+    stamped after it, so it never sorts before a version already applied
+    (#536 audit A5)."""
+    stamps = [p.name[:14] for p in Path(folder).glob("*.sql")
+              if p.name[:14].isdigit() and p.name[14:15] == "_"]
+    if not stamps:
+        return None
+    return datetime.strptime(max(stamps), "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
 
 
 def dump_state(model):
@@ -404,12 +512,13 @@ def main(argv=None, now=None):
     try:
         registry = yaml.safe_load(Path(args.registry).read_text(encoding="utf-8"))
         new = desired_model(registry)
+        drops = registry_drops(registry)
         old = load_state(out / STATE_FILE)
         name = _ident(args.name or ("registry_update" if old["tables"] else "initial_schema"), "migration name")
     except (RegistryError, OSError, yaml.YAMLError) as exc:
         print(f"generate_migrations: {exc}", file=sys.stderr)
         return 2
-    changes = diff(old, new)
+    changes = diff(old, new, drops)
     if changes["refusals"]:
         print("generate_migrations: refused, no file written:", file=sys.stderr)
         for line in changes["refusals"]:
@@ -418,18 +527,31 @@ def main(argv=None, now=None):
     if not has_changes(changes):
         print("generate_migrations: no change")
         return 0
-    stamp = (now or datetime.now(timezone.utc)).strftime("%Y%m%d%H%M%S")
-    path = out / "migrations" / f"{stamp}_{name}.sql"
+    start = now or datetime.now(timezone.utc)
+    newest = newest_stamp(out / "migrations")
+    files = []
+    for i, (part, state) in enumerate(split_drops(old, new, changes)):
+        when = start + timedelta(seconds=i)
+        if any(part[k] for k in DROP_KINDS) and newest is not None and when <= newest:
+            when = newest + timedelta(seconds=1)
+        stamp = when.strftime("%Y%m%d%H%M%S")
+        suffix = "_drops" if i else ""
+        files.append((out / "migrations" / f"{stamp}_{name}{suffix}.sql", part, state))
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("x", encoding="utf-8", newline="\n") as fh:
-            fh.write(f"-- registry_state sha256: {state_sha(new)}\n\n{render(changes)}")
+        files[0][0].parent.mkdir(parents=True, exist_ok=True)
+        taken = [p for p, _, _ in files if p.exists()]
+        if taken:
+            raise FileExistsError(f"{taken[0]} already exists")
+        for path, part, state in files:
+            with path.open("x", encoding="utf-8", newline="\n") as fh:
+                fh.write(f"-- registry_state sha256: {state_sha(state)}\n\n{render(part)}")
     except OSError as exc:
         print(f"generate_migrations: {exc}", file=sys.stderr)
         return 2
     with (out / STATE_FILE).open("w", encoding="utf-8", newline="\n") as fh:
         fh.write(dump_state(new))
-    print(f"generate_migrations: wrote {path}")
+    for path, _, _ in files:
+        print(f"generate_migrations: wrote {path}")
     return 0
 
 

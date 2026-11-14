@@ -58,3 +58,13 @@ each compact falls.
   overhead.
 - CLAUDE.md carries the one-line pointer to this discipline; PLAN.md carries
   the live buckets/stages/⟂ markers.
+
+## Amendment 2026-11-12: a hard ceiling for a tracked session's clear prep (tools #148)
+
+Ben's ruling (tools #148, issuecomment-6825758719): keep the compact budget, add a ceiling.
+
+- **The compact budget is unchanged**: ~125K to 150K tokens is still the seam a stage aims for.
+- **A new hard ceiling, about 255K tokens**, for a *tracked* session: a session started with a main-agent role (the planners, the builder manager, the consultants). By then it must prep its clear boundary: finish the current step, record, state-back, flush memory on real signal, then write its reset prompt. Stage builders are not tracked; they keep their own push-and-comment rule.
+- The budget is a target; the ceiling is the latest point. A session that missed the budget does not coast past the ceiling.
+- **The session does not count for itself.** The owner-queue mod measures context size and idle time and sends the prep instruction (tools #161). The other two triggers are idle 45 minutes, and Ben's ask.
+- What the prep does and what a reset prompt holds live in the `session-rules` skill (tools #148, issuecomment-6825487690), not here.

@@ -18,7 +18,7 @@ import yaml
 import etl_helpers as etl
 
 COLUMNS = ["gsis_id", "display_name", "birth_date", "status", "entry_year",
-           "smart_id", "esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id"]
+           "smart_id", "esb_id", "espn_id", "pfr_id", "nfl_id", "otc_id"]
 LINK = etl.GSIS_LINK_TABLE
 
 REGISTRY = {"tables": [
@@ -113,7 +113,7 @@ class TestTheRule:
         assert links(frame(player("OLD", "s1", "DROPPED", year=2026),
                            player("NEW", "s1", year=None))).empty
 
-    @pytest.mark.parametrize("column", ["esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id"])
+    @pytest.mark.parametrize("column", ["esb_id", "espn_id", "pfr_id", "nfl_id", "otc_id"])
     def test_a_shared_id_that_disagrees_is_no_link(self, column):
         old = player("OLD", "s1", "DROPPED", **{column: "X1"})
         new = player("NEW", "s1", **{column: "X2"})
