@@ -7,10 +7,9 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 5285e989-c1d1-43f0-aac0-7b8afee3857a` (re-keyed by the manager 2026-11-12); after a clear, check the owner-queue mod re-keyed them, else send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: c214870a-3cfa-457e-af7b-2061055c7a21` (re-keyed 2026-11-14). After a clear, send the manager the new id and these titles:
 - Capture Fantrax getPlayerIds for #519
-- Paste the getMatchupScores docs and capture one period for #520
-(Done and out: the C1 source run; the data-use mailbox and private repo.)
+(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture, which is ticked and awaiting deletion.)
 
 ## START HERE (state 2026-11-09, before a clear)
 
