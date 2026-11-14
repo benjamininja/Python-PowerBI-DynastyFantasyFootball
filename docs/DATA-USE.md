@@ -7,7 +7,7 @@ through a pull request.
 
 ## 1. Who we are
 
-This page is signed by [SIGNATURE], co-commissioner of the "Dead Money"
+This page is signed by Benjamin Hanna, co-commissioner of the "Dead Money"
 Fantasy Football league. The league is one private league of 28 teams. This
 project, Mouserat, is its data pipeline, report, Discord bot and trade tool.
 
@@ -74,8 +74,7 @@ stop at any robots.txt line that names them.
 
 ## 8. Contact
 
-Write to [CONTACT ADDRESS], a mailbox kept only for data-use questions and
-takedown requests.
+Write to benjamin.hanna77@gmail.com for data-use questions and takedown requests.
 
 ## 9. Each source in detail
 
