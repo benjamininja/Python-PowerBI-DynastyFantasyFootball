@@ -53,6 +53,8 @@ and each is checked by a script so it cannot drift from the tables:
   Generated from `docs/data_model.yml`.
 - [docs/SOURCES.md](docs/SOURCES.md): every outside source, what it feeds
   and how often. Generated from `docs/sources.yml`.
+- [docs/DATA-USE.md](docs/DATA-USE.md): how this project reads and
+  publishes other sites' data, and who to contact.
 - [CONTEXT.md](CONTEXT.md): the league's vocabulary (Roster Asset, Draft
   Pick, Sign, Exercise, Trade and the rest).
 

@@ -110,7 +110,7 @@ DATA.mkdir(exist_ok=True)
 REVIEW.mkdir(parents=True, exist_ok=True)
 
 ETL_USER_AGENT = ("MouseratDynastyETL/1.0 "
-                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
+                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/blob/main/docs/DATA-USE.md)")
 
 DEFAULT_HEADERS = {
     "User-Agent": ETL_USER_AGENT,
