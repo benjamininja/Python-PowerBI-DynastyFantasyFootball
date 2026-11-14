@@ -7,7 +7,7 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 84e1c668-47a4-492f-9670-38a58dc70eb1` (re-keyed by the manager 2026-11-14 ~18:30Z). After a clear, send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: 2033d299-e010-4826-b23a-ba698478bcbc` (re-keyed by the manager 2026-11-14 ~18:55Z). After a clear, send the manager the new id and these titles:
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
 (Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture; the #519 getPlayerIds capture and the #545 webhook entry, pruned 2026-11-14.)
@@ -18,7 +18,23 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 18:50Z by `date -u`, before a CLEAR (session 84e1c668). Self-contained with the 68-zero item (its record stands) and the 67-zero item's resume rules.**
+0000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 18:59Z by `date -u` (session 2033d299, after the clear). Adds to the 69-zero item, whose resume rules and lists stand except where this item differs.**
+- **Peers told the new id.** The manager (93fec6e9) re-keyed the planner's two #548 entries to 2033d299. The Tools planner was told.
+- **From the manager:**
+  - #543 (Closes #515) merged at fdd98ea on Ben's button. The DROP stays held until Ben runs migrate.yml by hand, and the #521 schema half dispatches at Ben's go.
+  - b552-fagaps is dispatched (medium, findings only, session d2e2dc11).
+  - Tools #174 merged (609247e).
+  - #528's re-proof is running.
+- **#549's Q1 and Q2 ruled** (#549 issuecomment-6882624508). Neither needs Ben. The answers went to the manager for b544.
+  - **Q1:** bylaws §12.5 and §5.4 and Ben's rule 5 settle the rule: a contract carries until a whole season unrostered. The same-season carry (02d line 1402 at #549's head) is older than #549 and resets every contract type, and no leg crosses a season yet. So the code goes to **#553** (tier:medium, Project "Dynasty FF: plan"; it lands with or after the season-rollover contract step, at Ben's go, before the first 2027-28 move). #549 fixes only the ADR-0019 amendment's "left to the owner" sentence and the PR body.
+  - **Q2:** keep 1st and 50%, per ADR-0019 decisions 4 and 6 (#96) and Ben's #535 ruling ("02d stays Fantrax"). #549 adds a test, fixes the docstring, and posts counts of the ledger rows that change, by path. A drop where Fantrax disagrees comes back to the planner before merge.
+  - **Advisories 1 to 4:** all fixed in #549 now, apart from the cross-season test, which is #553's.
+- **Owed by the planner:**
+  - Close **#130** when #549 merges (Ben's rule 2 answers its question 1).
+  - **File the season-rollover gap ticket.** Nothing advances contracts at a season boundary (1st to 2nd, the `contract_year` clock ADR-0019 lists as unbuilt, FA keeps to X, tags). It needs a grill with Ben before the 2027 rollover, and #553 waits on its contract step.
+- **Tools #161:** the finding has still not posted (checked 18:58Z).
+
+000000000000000000000000000000000000000000000000000000000000000000000. ** 2026-11-14, 18:50Z by `date -u`, before a CLEAR (session 84e1c668). Self-contained with the 68-zero item (its record stands) and the 67-zero item's resume rules.**
 - **Resume rules (unchanged):** the state branch is `docs/state-2026-11-14` (find its worktree with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`; push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push. **State PR #542** (open, head 71f30d6 before this commit) merges on Ben's word. After it merges, retire the branch and cut a fresh one from main: first pause the manager's state pushes, merge head-pinned, cut the new branch, send the manager its name.
 - **Peers:** the manager is session **93fec6e9** (name `dynastyFantasyFootball-central-builder-manager`); the Tools planner is `Tools-central-planner`. After the clear, send the manager the new planner id; the planner's two queue entries (#548 crosswalk Excel, 2026 FA handover) are keyed to 84e1c668.
 - **Main** is `c6c8eae`.
