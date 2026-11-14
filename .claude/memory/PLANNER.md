@@ -7,7 +7,7 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 2033d299-e010-4826-b23a-ba698478bcbc` (re-keyed by the manager 2026-11-14 ~18:55Z). After a clear, send the manager the new id and these titles:
+Open entries raised by the planner, keyed to `Session: 80f5b34f-ae7c-4c9f-8c51-ef980d1fd63f` (re-keyed by the manager 2026-11-14 ~20:00Z). After a clear, send the manager the new id and these titles:
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
 (Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture; the #519 getPlayerIds capture and the #545 webhook entry, pruned 2026-11-14.)
@@ -15,10 +15,28 @@ Open entries raised by the planner, keyed to `Session: 2033d299-e010-4826-b23a-b
 ## START HERE (state 2026-11-09, before a clear)
 
 Read this block first. Anything below that disagrees with it is older.
-Find the manager with `ListAgents`, by name. Approved plans: this block and
-`C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
+Find the manager with `ListAgents`, by name. Approved plans: this block. The scoping plan the owner approved on
+2026-10-30 is now the role file's rule, Scoping a high ticket.
 
-00000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 19:51Z by `date -u` (session 2033d299). Adds to the 70-zero item. The 69-zero item's resume rules stand.**
+000000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 20:13Z by `date -u` (session 80f5b34f, after the clear). Adds to the 71-zero item, whose lists stand except where this item differs. The 69-zero item's resume rules stand.**
+- **Peers told the new id.** The manager re-keyed the planner's two #548 entries to 80f5b34f, then cleared; its reset prompt carries the new id and a one-line message to the planner when #549 merges. The Tools planner was told.
+- **Checked at 20:00Z:**
+  - #549 is open at 85773c0; the manager's re-proof is owed. #130 is open.
+  - State PR #542 is open (head f91cfaf before this commit).
+  - Tools #161's finding has not posted (its last comment is issuecomment-6881790327).
+  - Main is `76f795e`: #550 merged, so `02j` is in the nflverse Chain (#538 done) and `minor_drift` can compare again from the next daily run.
+- **The `stintless_drop` item is closed, with no ticket.** The daily run labels the standing finding new because the filing CSV does not survive between Actions runs: runs 43284534340 (11-12) and 43619175936 (11-14) both print `1 open (1 new, 0 cleared)`. That is #412's first cost line, which Ben accepted with the #93 cutover. Record: #412 issuecomment-6883548655. The fix is #412's `review_*` wiring.
+- **Housekeeping done:** every local path and named scratch file is out of this file (two plan-file paths, three Temp worktree paths, one worktree folder path, the two #505 worktree mentions, two scratch file names, four placeholders). Older items still use the bare word scratchpad where they say a worktree was temporary; none holds a path. The older "housekeeping still owed" lines are answered by this one.
+- **Owed by the planner:**
+  - Close #130 when #549 merges.
+  - Rule on tools #161's finding when it posts.
+  - The 02d switch question to Ben before 2026-12-03. It needs #549 merged and about a week of `minor_drift` data, which #550 makes measurable again.
+  - Check #551's scoping briefs after #93 brief 5.
+  - The #561 grill after 12-03.
+- **Waiting on Ben:** unchanged from the 71-zero item's list.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (72 zeros) first, then the 71- and 69-zero items. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main. First send the manager this session's new id so it re-keys the planner's queue entries (now keyed to 80f5b34f). Then rule on tools #161's finding when it posts, and close #130 when #549 merges. The season-rollover map is #557; its builds (#554, #558, #559, then #553) and #548's ADR (due before 2027-03-01) wait on Ben's go. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+00000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 19:51Z by `date -u` (session 2033d299). Adds to the 70-zero item. The 69-zero item's resume rules stand.**
 - **The season-rollover grill is COMPLETE** (Ben chose "Grill now"). Map **#557** (decisions 1 to 4 in the body, 5 to 10 at #557 issuecomment-6883245395; Ben confirmed the shared understanding and the ticket split).
   - The commissioners relabel in Fantrax, which stays the record. The repo works out each copy's expected label, gives the commissioners a one-off xlsx per conference before rollover, and checks Fantrax after it.
   - The first build covers the 2027 moves only: `1st`→`2nd` (same salary); an eligible `Minor` stays; an overdue `Minor` becomes `2nd` (rule 3); a kept FA becomes `X` at the 11-12 pull value; the commissioners release unkept FAs before Mar 1.
@@ -358,7 +376,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **The manager:** `dynastyFantasyFootball-central-builder-manager`, by name (session 14815791, cleared ~22:45Z; app `local_39e3ac7a…`). **The Tools planner:** `Tools-central-planner`, by name, or app id `local_9830794b-c1e9-400a-ba66-e6abb9432396`.
   - **Reconcile first:** run `gh pr list --state open` in both repos, read #93, #500, #459, #502 and #506 for comments since 2026-11-11 01:40Z, and MANAGER.md's newest block (22:45Z or later).
 - **Open at the clear:**
-  - **Dynasty PR #505** (my planner PR, `docs/planner-490-review-skill`, head `2d94c39`, worktree `scratchpad/p490` of session d21ed5d8 with a `.venv` junction; Closes #490): the `mrp-dff-code-review` skill, the GOAL-RUN Green line and `.gitignore` `!/.claude/skills/`. **It waits on the owner's approval.** Relay their exact words to the manager, which merges. #504 merged as `f185617`. Code review goes live for dynasty after #505.
+  - **Dynasty PR #505** (my planner PR, `docs/planner-490-review-skill`, head `2d94c39`, in its own worktree with a `.venv` junction; Closes #490): the `mrp-dff-code-review` skill, the GOAL-RUN Green line and `.gitignore` `!/.claude/skills/`. **It waits on the owner's approval.** Relay their exact words to the manager, which merges. #504 merged as `f185617`. Code review goes live for dynasty after #505.
   - **Dynasty #455:** the state batch, on the owner's word. The manager says it conflicts with #504 in CLAUDE.md.
   - **Tools #121** (#110): waits on the owner's live check. When it merges, send the Tools planner the merge commit and confirm `plugins/owner-queue/.claude-plugin/plugin.json` reads 0.10.0. **Tools #131** (#117): the Tools planner's.
 - **Time-boxed: #459 B11 and B12.** The owner's B11 (delete, recompute, export) can run now, after the 11-11 cron. **B12 must merge before the 11-12 11:17Z cron.** The manager posts the counts on #459 and dispatches B12. Then B9 goes behind #413.
@@ -403,7 +421,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **#490, ruled at issuecomment-6784004441:** B10 merged (`ed40900`). b490 was refused `.claude/` writes and parked.
   - Route (b) then (a): the builder's PR carries only the CLAUDE.md line (Refs), and its body holds SKILL.md's text plus the GOAL-RUN line.
   - **I owe a planner PR**, on its own branch off main, that copies both and says `Closes #490`; the owner approves it. Light-review checks are labelled L1 and L2, traced to tools P10 and P2.
-  - Builder PR #504 (CLAUDE.md line). **My PR #505** (`docs/planner-490-review-skill`, worktree `scratchpad/p490` of session d21ed5d8, Closes #490) has the skill, the GOAL-RUN line and a `.gitignore` exception `!/.claude/skills/`, because bare `skills/` ignored it. L1 and L2 take tools P10's and P2's classes. **It waits on the owner's approval**; relay the words to the manager, which merges.
+  - Builder PR #504 (CLAUDE.md line). **My PR #505** (`docs/planner-490-review-skill`, in its own worktree, Closes #490) has the skill, the GOAL-RUN line and a `.gitignore` exception `!/.claude/skills/`, because bare `skills/` ignored it. L1 and L2 take tools P10's and P2's classes. **It waits on the owner's approval**; relay the words to the manager, which merges.
 - **Also:** #503 (#473 brief 1) merged `8bb95f5`, and ADR-0023 is accepted. New bug **#506** (low): the test_02d_main 'moves from before the key' test flaked once in a full local run. It dispatches at the owner's go.
 - **Open PRs at 00:01Z:** dynasty #497, #455; tools #121 (waits on the owner's live check), #126 (waits on the owner's approval, via the Tools planner).
 - **Next:** DO NEXT items 2 to 7 of the 54-zero item. Q16 and OLB/DE stay parked until the owner raises them.
@@ -1029,7 +1047,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Resume prompt:** "Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, item 00000000000000000000000000000000000000000 first, then 0000000000000000000000000000000000000000. Use worktree ps1103 on local branch docs/state-2026-11-07; git pull --rebase origin docs/state-2026-11-07 before reading, and push with a standalone `git push origin HEAD:docs/state-2026-11-07`. No state batch PR is open; open one at the end of a day and merge only on the owner's word. Find the manager with ListAgents and send by name; Tools-central-planner owns skills-plugins-hooks-agents."
 
 0000000000000000000000000000000000000000. **2026-11-07, after the compact (session cbf95079). Overrides everything below; read 000000000000000000000000000000000000000 next.**
-- **Resume:** as below (ps1103, `docs/state-2026-11-07`, standalone push). The manager restarted mid-session; find it with ListAgents by name, and resend anything that failed (`scratchpad/m-unsent.md` was resent).
+- **Resume:** as below (ps1103, `docs/state-2026-11-07`, standalone push). The manager restarted mid-session; find it with ListAgents by name, and resend anything that failed (the unsent message was resent).
 - **Waiting on the owner, in priority order:**
   1. **#93 round 2, Q3 to Q6** (the critical path for the cutover), re-put with decision context. Q3: one PC loader command after the migrate run (980 slots, 5 unmade; 33 overrides; prints counts; refuses to reload). Q4: the apply script writes the new decisions table (today it writes the crosswalk directly, so the next 04z rebuild drops a fix not in the CSV). Q5: neither table is published. Q6: a new medium builder with its own PR, now. All four recommended yes. When answered: record them on #93, write the supply brief and send it to the manager.
   2. **Q13 to Q15 (Fantrax terms):** record Fantrax `unresolved` in #421; a medium spike on moving pulls to the public `fxea` API, which also makes the Change Poll never log in per poll; and draft a permission request for the owner to send. The terms were read in the built-in browser and show no date. §8.6(c) allows published interfaces only (fxpa/req isn't one; fxea is). §8.6(g) bars crawling and scraping. §8.7 bars showing Fantrax info on another site. Fantrax may suspend at its discretion. So the real risk is the commissioner account. My lean was to cut over today anyway.
@@ -1062,7 +1080,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **Pane, 09:02 to 09:44:**
   - #397: (a), a Pre-Game capture finishing after kickoff counts; the body is amended.
   - **#372's dry-run is today** (the owner's Notes, recorded in issuecomment-6709262824): `--dry-run --cadence all` now; plain `--dry-run` after today's first good run (Actions at the cutover, or a hand PC run if the cutover slips). The manager rewrites the entry.
-  - The owner asked that pane comments be staged and sent with Submit, not at once (the README says they go out at once, `plugins/owner-queue/README.md:48`). My issue create on skills-plugins-hooks-agents was **denied** (External System Writes). The text is in the scratchpad (`t-oq.md`) for the owner to open. Don't retry without the owner's say-so.
+  - The owner asked that pane comments be staged and sent with Submit, not at once (the README says they go out at once, `plugins/owner-queue/README.md:48`). My issue create on skills-plugins-hooks-agents was **denied** (External System Writes). The text was kept privately for the owner to open. Don't retry without the owner's say-so.
 - **New today:** #407, #408, #412, #413, #414, #415, #416 and #417. Closed today: #373 (not planned), #380, #385, #390, #400, #401 and #402. #354 is resolved.
 - **Lessons:**
   - Before telling the owner which secrets exist, check RESUME.md's records. `gh secret list` is denied, and workflow files show only what each environment's workflow names.
@@ -1186,7 +1204,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 
 00000000000000000000000000000. **2026-11-05 night, grill-with-docs pass. Overrides everything below.** I ran grill-with-docs on the cadence plan (Q1 to Q20, recorded in closed #376). Fixes: 04s daily in season; Close Day from `dim_scoring_period` with catch-up; Zensical instead of Material for MkDocs. New owner requirement: daily runs, one Weekly Final per week in history. #372, #373 and #374 rewritten; new #377 (low, ADR and glossary, not blocked, dispatch on the owner's word) and #378 (medium, week keys, blocked by #336, before #373). Map #375 rewritten. Order: #377 any time; then #336, then #372 and #378 in parallel, then #373, then #374. #370 merged as PR #371 `ac61da5`, kept open for the 11-12 sidecar. Lesson: when a design is open, invoke grill-with-docs first, not my own question prompts.
 
-0000000000000000000000000000. **2026-11-05 night, cadence session. Overrides everything below; read 0000000000000000000000000 next.** The owner approved the plan `C:\Usersenha\.claude\plans\snug-floating-blum.md`: daily runs with on_close steps on Thursday; ADR-0015 and #93 stay the destination; the PC goes daily first; 04t joins daily; docs site on Pages under `/docs/` with MkDocs, linked from the README. New map #375 "ETL flow and refresh cadence". Tickets: #372 (medium, cadence field and 04t, blocked by #336), #373 (low, PC daily, blocked by #372), #374 (medium, docs site, blocked by #372; can run beside #373). Cross-linked on #93, #70 and #336. Dispatch after #336 closes, on the owner's word. #370 in flight. Parked: #352, #354, #355.
+0000000000000000000000000000. **2026-11-05 night, cadence session. Overrides everything below; read 0000000000000000000000000 next.** The owner approved the cadence plan (the plan file is kept privately by the owner): daily runs with on_close steps on Thursday; ADR-0015 and #93 stay the destination; the PC goes daily first; 04t joins daily; docs site on Pages under `/docs/` with MkDocs, linked from the README. New map #375 "ETL flow and refresh cadence". Tickets: #372 (medium, cadence field and 04t, blocked by #336), #373 (low, PC daily, blocked by #372), #374 (medium, docs site, blocked by #372; can run beside #373). Cross-linked on #93, #70 and #336. Dispatch after #336 closes, on the owner's word. #370 in flight. Parked: #352, #354, #355.
 
 000000000000000000000000000. **2026-11-05 night. Overrides everything below.** #348 closed (PR #369 `a6630d5`) and #350 closed (PR #368 `d66d08a`), both verified. No builders running; main `d66d08a`. The owner cleared the stale git locks, so `git fetch --prune` works again. Waiting on the 2026-11-12 06:00 scheduled run, the final proof for #336, #361 and #362 (checks in 00000000000000000000000). Parked: #352, #354, #355 (after that run) and #370 (owner word; recommended after that run). #359 stays open, blocked by #370.
 
@@ -1285,8 +1303,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    **Loose ends:** delete the remote branch `data/refresh-2026-11-04` (needs the owner's word or the PR's button). Carry-over: add "a missing `needs:` on validate is no finding" at the next edit of supabase-auditor.md.
 
 0000. **Newest: clear boundary, 2026-11-03 ~20:50. Overrides 000 and everything older where they differ.**
-   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` at
-   `C:/Users/benha/AppData/Local/Temp/claude/c--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/ps1103`,
+   Session `4b9eacec-28e7-4933-9da7-ba57c05fbb14`. Queue entries it raises answer here. **Worktree:** `ps1103` (a scratch worktree, since replaced),
    on `docs/state-2026-11-01b`, with a `.venv` junction (remove it first). Push with `HEAD:docs/state-2026-11-01b`; the manager also pushes there.
    `ps1101` is gone. Save state with a python insert before the anchor `"   **#300:** Brief 3 is PR #313"`, then commit, pull --rebase and push.
    **Peers (find with ListAgents):** `dynastyFantasyFootball-central-builder-manager`, `Supabase-consultant`,
@@ -1305,7 +1322,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
        re-prove with the roster-to-rankings measure, then Brief 5 (low, Closes #300).
    (4) The batch PR for `docs/state-2026-11-01b`: merge it on the owner's approval.
    **Added after the clear prep (~21:00):** skills#68 merged via skills#72 (`0d8ee1e`). My skills PR #73 adds `builder-state/` to .gitignore, a miss in #71;
-   the worktree is `skbs` in the NEW scratchpad `C:/Users/benha/AppData/Local/Temp/claude/91da30c6664f42e7/4b9eacec-28e7-4933-9da7-ba57c05fbb14/scratchpad/skbs`
+   the worktree is `skbs` (a scratch worktree)
    (no junction). Remove it and delete its branch once #73 merges. The haiku GOAL-RUN text is on #218 issuecomment-6621169662, queued with the manager, (a) recommended.
    Dispatch runs the plugin from a separate clone, `C:/Users/benha/claude-live/skills-plugins-hooks-agents` (at `d09dcbd`). Plugin changes go live only when
    the owner updates that clone; the manager raised it with them.
@@ -1548,7 +1565,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    scratchpad has the venv for PII scans of tracker text (`workspace/_tracker/`). Ask the owner's
    yes before removing it. Earlier worktree `ps8` holds a merged branch.
    **Session ended here at the owner's word (2026-10-31), with a clear to follow.** A new planner
-   starts from this block. `w218` is at `C:\Users\benha\AppData\Local\Temp\claude\C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac\scratchpad\w218`,
+   starts from this block. `w218` is a scratch worktree,
    on `docs/state-2026-10-31`. This session's id is `b5cc7ae9-4bbb-48bd-a801-d3ccc1bd07ac`; a queue
    entry it raised answers back to it, so a new session re-raises any it needs. If today's state
    PR has not merged, this block is on its branch, not on main. The local branch
@@ -1608,7 +1625,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
    `fix/owner-queue-no-auto-open`, `fix/owner-queue-version-test`,
    `fix/dispatch-plugin-dir`; skills worktree `C:/Users/benha/fr`;
    `docs/planner-state-6`, `-7`, `-8`, `-9`; local `docs/builder-state-234`;
-   `.claude/worktrees/metadata-principles` (leftover cherry-pick, unpushed `4f23f16`).
+   the worktree on branch `docs/planner-state-7` (leftover cherry-pick, unpushed `4f23f16`).
 9. **Working notes.** The owner will not restart the app: verify before listing a hand
    item. A relayed answer is never approval; ask in this session. A skills-repo
    worktree needs a short path on Windows. Gate a merge on the test's exit code, and
@@ -1627,14 +1644,14 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
   - **PR #244** (branch `docs/builder-rules-234`): the two role files
     and `.gitignore`. Waits on the owner's approval; entry in the queue.
   - **Skills PR 61** (branch `builder-state-rules`, scratch worktree
-    `<planner scratchpad>\tpl`): the same rules in the plugin. Waits on
+    `tpl`): the same rules in the plugin. Waits on
     the owner's word to merge; entry sent to the manager.
   - The manager has the text for `GOAL-RUN.md` and an optional Action
     for the owner (two dead allow rules in the builders' settings).
   - **Closes on proof:** the next dispatched builder posts its plan and
     a state-back comment with no denied call. The manager reports it.
   - A stray local branch `docs/builder-state-234` sits in the scratch
-    worktree `<planner scratchpad>\b234`, unpushed and unused.
+    worktree `b234`, unpushed and unused.
 - **The brief for #230 is written** (2026-10-12): a comment on the
   ticket (issuecomment-6135590120), medium, built against the owner's
   pasted markup, fakes only. The PR says Refs #230; the ticket closes
@@ -1663,7 +1680,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - The guardrail hook blocks `git reset --hard` in any command. Do not
   route around it.
 - **#167 step 2, the dispatch plugin (skills PR 46, merged; see below)**
-  (branch `session-dispatch-plugin`; scratch worktree `<planner scratchpad>\sd`).
+  (branch `session-dispatch-plugin`; scratch worktree `sd`).
   - In it: `scripts/dispatch.ps1`, skills `session-rules` (loadable)
     and `session-dispatch` (manual only), thirteen templates, ADR 0013,
     12 tests.
@@ -1691,7 +1708,7 @@ Find the manager with `ListAgents`, by name. Approved plans: this block and
 - **`owner-queue` 0.7.1 is live and merged** (skills PR 39, merged by
   the planner on the owner's word "merge PR 39", 2026-10-12; merge
   commit `45e7030`). 26 tests pass. The scratch worktree
-  `<planner scratchpad>\oq6` (branch `owner-queue-060`) equals it.
+  `oq6` (branch `owner-queue-060`) equals it.
   - In it since 0.5.0: `Post comment` (a `Note:` line, or a typed
     `Answer: (other) ...`), sent at once; a `Time:` line on every chat
     message; every code span copied from under its field, a numbered
