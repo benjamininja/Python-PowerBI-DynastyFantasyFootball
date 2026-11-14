@@ -110,12 +110,13 @@ tables:
       - { name: height, dtype: float64, sql_type: "double precision" }
       - { name: weight, dtype: float64, sql_type: integer }
       - { name: pfr_id, dtype: str, sql_type: text }
-      - { name: pff_id, dtype: str, sql_type: text }
       - { name: espn_id, dtype: str, sql_type: text }
       - { name: esb_id, dtype: str, sql_type: text }
       - { name: nfl_id, dtype: str, sql_type: text }
       - { name: otc_id, dtype: str, sql_type: text }
       - { name: smart_id, dtype: str, sql_type: text }
+    drops:
+      - { column: pff_id, ticket: 515 }
     edges:
       - { to: dim_nfl_teams, via: direct, on: team_abbr }
 

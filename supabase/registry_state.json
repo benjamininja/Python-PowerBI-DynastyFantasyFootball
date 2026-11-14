@@ -525,11 +525,6 @@
           "sql_type": "text"
         },
         {
-          "name": "pff_id",
-          "not_null": false,
-          "sql_type": "text"
-        },
-        {
           "name": "espn_id",
           "not_null": false,
           "sql_type": "text"

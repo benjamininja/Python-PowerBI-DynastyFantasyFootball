@@ -294,9 +294,24 @@ class TestTheGate:
         changes["column_drops"], changes["table_drops"] = [], ["football.t"]
         assert mg.is_destructive(gm.render(changes))
 
-    def test_no_committed_migration_is_held_today(self, tmp_path, capsys):
-        assert not any(mg.is_destructive(p.read_text(encoding="utf-8"))
-                       for p in (REPO / "supabase" / "migrations").glob("*.sql"))
+    def test_every_committed_held_migration_is_a_flagged_drop(self):
+        import generate_migrations as gm
+        flagged = gm.registry_drops(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
+        column_drop = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) DROP COLUMN ([a-z][a-z0-9_]*)")
+        table_drop = re.compile(r"DROP TABLE (?:[a-z_]+\.)?([a-z][a-z0-9_]*)")
+        for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
+            sql = path.read_text(encoding="utf-8")
+            if not mg.is_destructive(sql):
+                continue
+            for stmt in mg.statements(sql):
+                col, tab = column_drop.fullmatch(stmt), table_drop.fullmatch(stmt)
+                assert col or tab, f"{path.name}: a held migration holds only drops, found {stmt!r}"
+                if col:
+                    assert (col.group(1), col.group(2)) in flagged["columns"], \
+                        f"{path.name}: {stmt!r} has no drops entry in docs/data_model.yml"
+                else:
+                    assert tab.group(1) in flagged["tables"], \
+                        f"{path.name}: {stmt!r} has no dropped_tables entry in docs/data_model.yml"
 
 
 def _load():
