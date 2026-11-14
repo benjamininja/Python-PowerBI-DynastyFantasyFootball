@@ -451,7 +451,7 @@ class TestStepsDone:
         log.finish("published", cadence={"filter": "due", "done": ["03d_draftsharks_rookie"]})
         sql, params = sent[0]
         assert "cadence = %s::jsonb" in sql
-        assert params[-3] == '{"filter": "due", "done": ["03d_draftsharks_rookie"]}' and params[-1] == "r"
+        assert params[-4] == '{"filter": "due", "done": ["03d_draftsharks_rookie"]}' and params[-1] == "r"
         assert params[-2] is None
 
     def test_finish_without_cadence_writes_null(self, monkeypatch):

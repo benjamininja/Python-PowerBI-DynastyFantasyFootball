@@ -14,10 +14,10 @@ stages:
       when each Scoring Period starts and ends, and what each team's roster
       looked like. Owners see it as the dates on every deadline and the
       lineups behind every score.
-    tables: [dim_season, dim_scoring_period, dim_division, fact_roster_state]
+    tables: [dim_season, dim_scoring_period, dim_division, dim_fantrax_scoring_rule, fact_roster_state]
     steps:
       - {name: 01f_dim_season, summary: "Seeds the season calendar."}
-      - {name: 04p_league_info, summary: "Reads the league's scoring periods and divisions from Fantrax's public page."}
+      - {name: 04p_league_info, summary: "Reads the league's scoring periods, divisions and scoring rules from Fantrax's public page."}
       - {name: 04r_roster_state, summary: "Reads every team's roster for each period that has started and is not closed."}
 
   - id: nflverse
@@ -27,11 +27,12 @@ stages:
       prospects tested at the combine, and in season their snap counts and
       injury status. Owners see it as the player facts behind every rankings
       and trade screen.
-    tables: [dim_nfl_players, fact_nfl_combine_pro_day_metrics, fact_nfl_snap_counts, fact_nfl_injuries]
+    tables: [dim_nfl_players, fact_nfl_combine_pro_day_metrics, fact_nfl_snap_counts, fact_nfl_injuries, fact_nfl_minor_eligibility]
     steps:
       - {name: 01e_dim_nfl_players, summary: "Rebuilds the NFL player list."}
       - {name: 02a_combine_metrics, summary: "Rebuilds the combine and pro-day measurements."}
       - {name: 02g_nflverse_inseason, summary: "Loads snap counts and the injury report during the season."}
+      - {name: 02j_minor_eligibility, summary: "Works out from nflverse who is still minors-eligible."}
 
   - id: fantrax_pulls
     name: Fantrax pulls

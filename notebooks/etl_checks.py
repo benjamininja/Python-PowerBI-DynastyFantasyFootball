@@ -30,6 +30,7 @@ Run the whole suite against the current snapshot:
 from __future__ import annotations
 
 import io
+import logging
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -43,6 +44,7 @@ import yaml
 import etl_cap as cap
 from etl_helpers import DATA, REVIEW, TableNotFound, is_private, read_stored
 
+log = logging.getLogger(__name__)
 REPO = Path(__file__).resolve().parent.parent
 MODEL_YML = REPO / "docs" / "data_model.yml"
 REVIEW_CSV = REVIEW / "review_check.csv"
@@ -58,6 +60,7 @@ CLOSED = "closed"             # dim_scoring_period.update_set_state (04p's CLOSE
 DROP = "drop"                 # fact_roster_transactions.event_type
 NO_STINT = "no_stint"         # fact_roster_transactions.contract_source (02d)
 DEFAULT_SOURCE = "default"
+MINOR_DRIFT_GAP_DAYS = 1      # the nflverse capture compared sits this near Fantrax's newest (#524)
 
 # ops.review_check columns (ADR-0018 decision 11, as amended by ADR-0008 d8/d9).
 FILING_COLUMNS = ["check_name", "table_name", "row_key", "detail", "run_id",
@@ -503,14 +506,43 @@ def team_cap_errors(table: pd.DataFrame, roster: pd.DataFrame, dead: pd.DataFram
     return errs
 
 
-def salary_remaining_findings(table: pd.DataFrame,
-                              roster: pd.DataFrame) -> list[tuple[str, str]]:
-    """Fantrax's Salary Remaining against cap room, on Fantrax's basis: IR
-    salary added back, since Fantrax charges it (owner's ruling 2026-10-12,
-    #97), and no reinvestment charge. One finding per team off by more than
-    $1. Compared only when the roster read and Fantrax's capture fall on the
-    same league day: Fantrax serves today's value alone. Otherwise it raises
-    NotComparable, so the open findings stay open."""
+def _ours_at_period(r, state: pd.DataFrame, dead: pd.DataFrame) -> float | None:
+    """Our figure on Fantrax's basis at the reply's own period (#509): the
+    team's Roster State of that period (Minors and IR not charged, IR salary
+    added back) less the season's Dead Money owed by then. A row from a drop
+    in an earlier season (`own_season` false) is owed in full; a row from a
+    drop in this season counts when drop_period <= that period, and a null
+    drop_period counts as already owed. None when Roster State holds no row
+    for the team at that period."""
+    if pd.isna(r.fantrax_period):
+        return None
+    period = int(r.fantrax_period)
+    mine = state[(state["season_id"] == r.season_id) & (state["period"] == period)
+                 & (state["team_key"] == r.team_key)]
+    if mine.empty:
+        return None
+    exempt = mine["roster_slot"].isin(cap.EXEMPT_SLOTS)
+    charged = mine.loc[~exempt, "salary"].sum()
+    ir = mine.loc[mine["roster_slot"] == cap.IR_SLOT, "salary"].sum()
+    owed = ~dead["own_season"] | dead["drop_period"].isna() | (dead["drop_period"] <= period)
+    gone = dead[(dead["season_id"] == r.season_id) & (dead["team_key"] == r.team_key)
+                & owed]["dead_money"].sum()
+    return float(r.original_cap - charged - ir - gone)
+
+
+def salary_remaining_findings(table: pd.DataFrame, roster: pd.DataFrame,
+                              state: pd.DataFrame, dead: pd.DataFrame,
+                              ledger: pd.DataFrame) -> list[tuple[str, str]]:
+    """Fantrax's Salary Remaining against our figure at Fantrax's own period
+    (#509), on Fantrax's basis: IR salary added back, since Fantrax charges it
+    (owner's ruling 2026-10-12, #97), and no reinvestment charge. Ours is built
+    from fact_roster_state at the reply's period plus Dead Money dropped by
+    then, so a move after the lock files nothing. A team with no Roster State
+    at that period files nothing and is logged; the live roster is never used.
+    One finding per team off by more than $1. Compared only when the roster
+    read and Fantrax's capture fall on the same league day: Fantrax serves
+    today's value alone. Otherwise it raises NotComparable, so the open
+    findings stay open."""
     rows = table[table["is_current_season"] & table["fantrax_salary_remaining"].notna()
                  & table["roster_captured_at"].notna() & table["fantrax_captured_at"].notna()]
     if rows.empty:
@@ -521,16 +553,83 @@ def salary_remaining_findings(table: pd.DataFrame,
     if rows.empty:
         raise NotComparable(f"roster read {read_days.iloc[0]}, Fantrax captured {capture_days.iloc[0]}")
     led = pd.to_datetime(roster["ledger_captured_at"], utc=True).max()
-    ledger = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
-    out = []
+    ledger_day = "no capture" if pd.isna(led) else str(led.tz_convert(cap.LEAGUE_TZ).date())
+    drop_season = ledger.drop_duplicates("transaction_id").set_index("transaction_id")["season_id"]
+    dead = dead.assign(own_season=dead["season_id"].eq(dead["transaction_id"].map(drop_season)))
+    out, compared = [], 0
     for r in rows.itertuples():
         read_day = pd.Timestamp(r.roster_captured_at).tz_convert(cap.LEAGUE_TZ).date()
-        ours = r.original_cap - r.charged_salary - r.ir_salary - r.dead_money
+        ours = _ours_at_period(r, state, dead)
+        if ours is None:
+            log.warning("salary_remaining: no fact_roster_state for %s %s period %s; not compared",
+                        r.season_id, r.team_key, r.fantrax_period)
+            continue
+        compared += 1
         if abs(ours - r.fantrax_salary_remaining) > SALARY_TOLERANCE:
             out.append((f"{r.season_id}|{r.team_key}",
                         f"{r.team_key} period {r.fantrax_period} on {read_day}: Fantrax's Salary "
                         f"Remaining {r.fantrax_salary_remaining:,.2f}, ours {ours:,.2f} on its "
-                        f"basis (ledger captured {ledger})"))
+                        f"basis (ledger captured {ledger_day})"))
+    if not compared:
+        raise NotComparable("no fact_roster_state at Fantrax's period for any team")
+    return out
+
+
+def minor_drift_findings(fantrax: pd.DataFrame, computed: pd.DataFrame,
+                         state: pd.DataFrame, crosswalk: pd.DataFrame) -> list[tuple[str, str]]:
+    """Fantrax's minors-eligibility verdict against nflverse's (#524; ADR-0008
+    decision 9, one Scoring Period of grace). Both are read on Fantrax's newest
+    capture day: `fantrax` is fact_minor_eligibility (04v, whose rows are the
+    players Fantrax lists), `computed` fact_nfl_minor_eligibility (02j), taken
+    on that day or, failing that, the nearest capture within one day (a run
+    that crossed midnight, or the two steps run apart).
+
+    The players compared are those Fantrax lists plus those on a fantasy roster
+    in the newest Roster State, except a free agent the crosswalk has no gsis_id
+    for (a prospect or an unmatched player: nflverse has nothing to say about
+    him). One finding per scorer_id the two disagree on, in either direction,
+    with the reason:
+      - Fantrax lists the player, nflverse does not: the crosswalk has no
+        gsis_id for the scorer, or nflverse's pool lacks the gsis_id, or
+        nflverse counts 21 or more games;
+      - a rostered player nflverse counts at 20 or fewer games, Fantrax does
+        not list.
+    No nflverse capture that near is not compared."""
+    if fantrax.empty:
+        raise NotComparable("fact_minor_eligibility holds no capture")
+    day = fantrax["capture_date"].max()
+    gap = (pd.to_datetime(computed["capture_date"]) - pd.Timestamp(day)).abs()
+    near = computed[gap <= pd.Timedelta(days=MINOR_DRIFT_GAP_DAYS)]
+    if near.empty:
+        raise NotComparable(f"fact_nfl_minor_eligibility has no capture within "
+                            f"{MINOR_DRIFT_GAP_DAYS} day(s) of {day}, Fantrax's newest")
+    nearest = min(set(near["capture_date"]),
+                  key=lambda d: (abs(pd.Timestamp(d) - pd.Timestamp(day)), d))
+    mine = near[near["capture_date"] == nearest].drop_duplicates("gsis_id", keep="last")
+    listed = set(fantrax.loc[fantrax["capture_date"] == day, "scorer_id"])
+    rostered = set(newest_period(state)["scorer_id"])
+    gsis = dict(zip(crosswalk["scorer_id"], crosswalk["gsis_id"]))
+    counted = mine.set_index("gsis_id")
+    out = []
+    for sid in sorted(listed | rostered):
+        g = gsis.get(sid)
+        known = pd.notna(g) and g in counted.index
+        games = int(counted.at[g, "career_games"]) if known else None
+        nflverse = bool(counted.at[g, "eligible"]) if known else False
+        if (sid in listed) == nflverse:
+            continue
+        if pd.isna(g) and sid not in rostered:
+            continue   # a free agent the crosswalk never matched to an NFL player: nothing to compare
+        if sid in listed:
+            why = ("the crosswalk has no gsis_id for it" if pd.isna(g)
+                   else "its gsis_id is not in nflverse's pool" if not known
+                   else f"nflverse counts {games} games")
+            side = "on a roster" if sid in rostered else "a free agent"
+            out.append((sid, f"Fantrax lists {sid} ({side}) as minors-eligible; "
+                             f"nflverse does not: {why}"))
+        else:
+            out.append((sid, f"{sid} is on a fantasy roster and nflverse counts {games} games "
+                             f"(eligible); Fantrax does not list it as minors-eligible"))
     return out
 
 
@@ -642,13 +741,22 @@ DOMAIN_CHECKS = [
     DomainCheck("roster_membership", "review", "fact_fantasy_teams",
                 lambda load: roster_membership_findings(load("fact_fantasy_teams"),
                                                         load("fact_roster_transactions"))),
+    DomainCheck("minor_drift", "review", "fact_minor_eligibility",
+                lambda load: minor_drift_findings(
+                    load("fact_minor_eligibility"),
+                    private_table(load, "fact_nfl_minor_eligibility"),
+                    load("fact_roster_state"), load("dim_fantrax_crosswalk")),
+                grace_periods=1),
     DomainCheck("team_cap", "gate", "fact_team_cap",
                 lambda load: team_cap_errors(load("fact_team_cap"), load("fact_fantasy_teams"),
                                              load("fact_dead_money"), load("dim_fantasy_teams"),
                                              load("dim_contract"), load("dim_season"))),
     DomainCheck("salary_remaining", "review", "fact_team_cap",
                 lambda load: salary_remaining_findings(load("fact_team_cap"),
-                                                       load("fact_fantasy_teams"))),
+                                                       load("fact_fantasy_teams"),
+                                                       load("fact_roster_state"),
+                                                       load("fact_dead_money"),
+                                                       load("fact_roster_transactions"))),
 ]
 
 

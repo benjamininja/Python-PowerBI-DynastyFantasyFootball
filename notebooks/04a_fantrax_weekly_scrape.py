@@ -213,6 +213,10 @@ class TotpLoginError(RuntimeError):
     pass
 
 
+class LoginCapReached(RuntimeError):
+    pass
+
+
 class TotpSecretMissing(TotpLoginError):
     pass
 
@@ -237,12 +241,60 @@ class FantraxScraper:
     TOTP_ENV = "FANTRAX_TOTP_SECRET"
     SENT_SELF_SUBMIT = "self_submit"
     SENT_VERIFY_CLICK = "verify_click"
+    SESSION_DIR_ENV = "FANTRAX_SESSION_DIR"
+    LOGIN_LEDGER = "logins"
+    BLOCKED_LEDGER = "blocked"
+    LOGIN_CAP_PER_RUN = 2
+    SESSION_FILE = "session.json"
 
     def __init__(self, cfg: LeagueConfig = CFG):
         self.cfg = cfg
         self.code_sent_by = None
+        self._seeded = False
+        self._fresh_login = False
         Path(cfg.raw_dir).mkdir(parents=True, exist_ok=True)
         Path(cfg.user_data_dir).mkdir(parents=True, exist_ok=True)
+
+    # --- one login per run (#525) ---------------------------------------------
+    @classmethod
+    def _session_dir(cls) -> Path | None:
+        raw = os.environ.get(cls.SESSION_DIR_ENV)
+        return Path(raw) if raw else None
+
+    def _note_login(self) -> None:
+        folder = self._session_dir()
+        if folder is not None:
+            ledger = folder / self.LOGIN_LEDGER
+            used = len(ledger.read_text(encoding="utf-8").splitlines()) if ledger.exists() else 0
+            script = Path(sys.argv[0]).name
+            if used >= self.LOGIN_CAP_PER_RUN:
+                with (folder / self.BLOCKED_LEDGER).open("a", encoding="utf-8") as f:
+                    f.write(script + "\n")
+                raise LoginCapReached(
+                    f"Fantrax login cap reached: {used} logins already made in this "
+                    "run, so no further login was tried. The step catches up at the next run."
+                )
+            with ledger.open("a", encoding="utf-8") as f:
+                f.write(script + "\n")
+        self._fresh_login = True
+
+    def _seed_session(self, ctx) -> None:
+        self._seeded = True
+        folder = self._session_dir()
+        if folder is None or self._fresh_login:
+            return
+        try:
+            cookies = json.loads((folder / self.SESSION_FILE).read_text(encoding="utf-8"))
+            ctx.add_cookies(cookies)
+        except Exception:
+            pass
+
+    def _keep_session(self, ctx) -> None:
+        self._fresh_login = False
+        folder = self._session_dir()
+        if folder is not None:
+            (folder / self.SESSION_FILE).write_text(
+                json.dumps(ctx.cookies()), encoding="utf-8")
 
     # --- auth -----------------------------------------------------------------
     def _creds(self) -> tuple[str, str]:
@@ -286,6 +338,7 @@ class FantraxScraper:
         """
         self.code_sent_by = None
         email, pwd = self._creds()
+        self._note_login()
         page.goto(self.cfg.login_url, wait_until="domcontentloaded",
                   timeout=self.cfg.nav_timeout_ms)
         try:
@@ -418,6 +471,8 @@ class FantraxScraper:
 
     def _post_json(self, ctx, payload: dict, what: str = "request") -> dict:
         """POST an fxpa payload via the authenticated request context."""
+        if not self._seeded:
+            self._seed_session(ctx)
         url = f"{self.cfg.endpoint}?leagueId={self.cfg.league_id}"
         resp = ctx.request.post(
             url, data=json.dumps(payload),
@@ -425,7 +480,10 @@ class FantraxScraper:
         )
         if not resp.ok:
             raise RuntimeError(f"{what} HTTP {resp.status}")
-        return resp.json()
+        raw = resp.json()
+        if self._fresh_login and not self._session_dead(raw):
+            self._keep_session(ctx)
+        return raw
 
     def _post_draftranks(self, ctx) -> dict:
         """POST getDraftRanks via the authenticated request context."""

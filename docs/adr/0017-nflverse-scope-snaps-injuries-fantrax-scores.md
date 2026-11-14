@@ -41,7 +41,16 @@
 ## Alternatives considered
 
 - **Keep the wide nflverse stats table.** Rejected: no consumer, and it duplicates Fantrax.
-- **Score nflverse or Fantrax stat counts with our own copy of the rules.** Rejected: it re-implements position-weighted scoring that Fantrax already applies per stat.
+- **Score nflverse or Fantrax stat counts with our own copy of the rules.** Rejected: it re-implements position-weighted scoring that Fantrax already applies per stat. *Amended 2026-11-08: allowed for the baseline only, with the rules read from Fantrax; see [the amendment below](#amendment-2026-11-08-the-baseline-scores-nflverse-counts-with-fantraxs-rules-432-473).*
 - **Roll snaps up to the Scoring Period.** Rejected: it loses per-game detail, and playoff periods don't map one-to-one.
 - **Treat these facts as Update-Sets.** Rejected: nflverse is external and can always be re-pulled. Freezing it only adds Drift noise.
 - **Backfill career snaps.** Deferred by the owner: current season only.
+
+## Amendment 2026-11-08: the baseline scores nflverse counts with Fantrax's rules (#432, #473)
+
+- Decided in the owner grill #432 (rounds 1 and 5; design record issuecomment-6724713427). Recorded in [ADR-0023](0023-mouserat-baseline-own-source.md).
+
+1. **Scoring nflverse counts is allowed for the baseline only,** with the rules read from Fantrax's `getLeagueInfo.scoringSystem` by 04p and never copied by hand. The rejection of our own copy of the rules (Alternatives considered, bullet 2) stands for everything else.
+2. **League points stay Fantrax's.** Period Scoring, Team Scores and every cap or matchup figure keep Fantrax as their source (decision 1 unchanged). The baseline's scored points are a model input, checked against Fantrax by a drift check that fails its step.
+3. **The league's scored categories' counts are stored,** one row per player, season and category, for the 15 most recent full seasons plus the current one, with a second table of one row per player and season for games, position and the rules season. This narrows the Consequences line on per-stat detail: stats outside league scoring are still not stored and are still re-pulled whenever a need appears.
+4. Decisions 2 to 6 are unchanged: no wide stats table, and the snap and injury facts keep their grain and lifecycle.

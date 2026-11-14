@@ -110,7 +110,7 @@ DATA.mkdir(exist_ok=True)
 REVIEW.mkdir(parents=True, exist_ok=True)
 
 ETL_USER_AGENT = ("MouseratDynastyETL/1.0 "
-                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball)")
+                  "(+https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/blob/main/docs/DATA-USE.md)")
 
 DEFAULT_HEADERS = {
     "User-Agent": ETL_USER_AGENT,
@@ -1324,7 +1324,7 @@ def keep_dropped_ids(name: str, fresh: pd.DataFrame, key: str = "gsis_id") -> pd
 
 GSIS_LINK_TABLE = "dim_gsis_link"
 GSIS_LINK_COLUMNS = ["old_gsis_id", "new_gsis_id", "method", "decided_date"]
-GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "pff_id", "nfl_id", "otc_id")
+GSIS_LINK_AGREE_IDS = ("esb_id", "espn_id", "pfr_id", "nfl_id", "otc_id")
 
 
 def _gsis_link_map(links: pd.DataFrame) -> dict:

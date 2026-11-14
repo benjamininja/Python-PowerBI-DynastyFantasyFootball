@@ -1,4 +1,4 @@
-/// Fantrax snapshots: one row per scorer, season, and week. Projection board preseason and YTD actuals in-season (ADP, salary, FPts, GP).
+/// Fantrax snapshots: one row per scorer, season, and week. Projection board preseason and YTD actuals in-season (salary, FPts, GP).
 table Fact_FantraxADP
 	lineageTag: 05ed4866-691f-4bd5-bd35-693f2a75f004
 
@@ -85,21 +85,6 @@ table Fact_FantraxADP
 		annotation Synonyms = rookie|is rookie|first year
 
 		annotation SynonymCollection = ["rookie","is rookie","first year"]
-
-	/// Average draft position on the board. Lower is drafted earlier.
-	column ADP
-		dataType: double
-		lineageTag: a58a90fd-cfd9-4940-9fed-a545c3e53326
-		summarizeBy: none
-		sourceColumn: adp
-
-		annotation SummarizationSetBy = User
-
-		annotation PBI_FormatHint = {"isGeneralNumber":true}
-
-		annotation Synonyms = adp|average draft position|draft position
-
-		annotation SynonymCollection = ["adp","average draft position","draft position"]
 
 	/// Fantrax auction salary value ($).
 	column Salary

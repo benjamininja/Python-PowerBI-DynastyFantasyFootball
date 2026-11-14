@@ -667,6 +667,305 @@ class TestCheckWidening:
         assert state.read_bytes() == before_state
 
 
+def flag_column(reg, tbl="dim_team", column="nickname", ticket=534):
+    table(reg, tbl)["columns"] = [c for c in table(reg, tbl)["columns"] if c["name"] != column]
+    table(reg, tbl).setdefault("drops", []).append({"column": column, "ticket": ticket})
+    return reg
+
+
+def flag_table(reg, name="resolver_alias", ticket=534):
+    reg["tables"] = [t for t in reg["tables"] if t["name"] != name]
+    reg.setdefault("dropped_tables", []).append({"table": name, "ticket": ticket})
+    return reg
+
+
+def drop_diff(reg, old=None):
+    return gm.diff(old or model(), model(reg), gm.registry_drops(reg))
+
+
+class TestFlaggedDrops:
+    def test_a_flagged_column_drop_is_rendered(self):
+        changes = drop_diff(flag_column(fixture_registry()))
+        assert changes["refusals"] == []
+        assert gm.render(changes).strip() == "ALTER TABLE football.dim_team DROP COLUMN nickname;"
+
+    def test_a_flagged_table_drop_is_rendered(self):
+        changes = drop_diff(flag_table(fixture_registry()))
+        assert changes["refusals"] == []
+        assert gm.render(changes).strip() == "DROP TABLE football.resolver_alias;"
+
+    def test_a_flagged_table_in_another_schema_is_found_by_name(self):
+        reg = fixture_registry()
+        reg["other_tables"] = [t for t in reg["other_tables"] if t["name"] != "run_log"]
+        reg["dropped_tables"] = [{"table": "run_log", "ticket": 9}]
+        assert gm.render(drop_diff(reg)).strip() == "DROP TABLE ops.run_log;"
+
+    def test_no_drop_is_cascaded(self):
+        sql = gm.render(drop_diff(flag_table(flag_column(fixture_registry()))))
+        assert "CASCADE" not in sql.upper()
+
+    def test_drops_come_after_every_addition(self):
+        reg = flag_table(flag_column(fixture_registry()))
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        table(reg, "dim_player")["indexes"] = [{"columns": ["born"]}]
+        sql = gm.render(drop_diff(reg))
+        marks = ["ADD COLUMN born", "CREATE INDEX", "DROP COLUMN nickname", "DROP TABLE football.resolver_alias"]
+        positions = [sql.index(m) for m in marks]
+        assert positions == sorted(positions)
+
+    def test_a_flagged_drop_beside_a_new_same_type_column_is_not_a_rename(self):
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_team")["columns"].append(col("short_name"))
+        changes = drop_diff(reg)
+        assert changes["refusals"] == []
+        assert changes["column_drops"] == [("football.dim_team", "nickname")]
+        assert [(k, c["name"]) for k, c in changes["columns"]] == [("football.dim_team", "short_name")]
+
+    def test_a_flagged_table_with_a_same_columned_new_table_is_not_a_rename(self):
+        reg = flag_table(fixture_registry())
+        reg["tables"].append({"name": "resolver_aliases", "pk": ["alias"], "columns": [col("alias")]})
+        changes = drop_diff(reg)
+        assert changes["refusals"] == []
+        assert changes["table_drops"] == ["football.resolver_alias"]
+
+    def test_an_entry_the_state_no_longer_holds_is_history_and_writes_nothing(self):
+        reg = flag_table(flag_column(fixture_registry()))
+        assert not gm.has_changes(drop_diff(reg, old=model(reg)))
+
+    def test_a_flag_never_drops_a_column_still_in_another_table(self):
+        reg = fixture_registry()
+        table(reg, "dim_player")["drops"] = [{"column": "nickname", "ticket": 1}]
+        assert not gm.has_changes(drop_diff(reg))
+
+    def test_the_flags_stay_out_of_the_state(self):
+        reg = flag_table(flag_column(fixture_registry()))
+        assert "drops" not in json.dumps(model(reg)) and "ticket" not in json.dumps(model(reg))
+
+    def test_a_flagged_column_in_a_key_or_index_is_still_refused(self):
+        reg = flag_column(fixture_registry(), "fact_score", "gsis_id")
+        table(reg, "fact_score")["fk"] = [f for f in table(reg, "fact_score")["fk"] if f["columns"] != "gsis_id"]
+        table(reg, "fact_score")["indexes"] = [i for i in table(reg, "fact_score")["indexes"]
+                                               if i["columns"] != ["gsis_id"]]
+        refusals = drop_diff(reg)["refusals"]
+        assert "football.fact_score: drop of foreign key fact_score_gsis_id_fkey" in refusals
+        assert "football.fact_score: drop of index fact_score_gsis_id_idx" in refusals
+
+    def test_a_flagged_table_another_table_points_at_is_refused(self):
+        reg = flag_table(fixture_registry(), "dim_player")
+        with pytest.raises(gm.RegistryError, match="unknown table 'dim_player'"):
+            model(reg)
+        table(reg, "fact_score")["fk"] = [f for f in table(reg, "fact_score")["fk"] if f["to"] != "dim_player"]
+        assert ("football.fact_score: drop of foreign key fact_score_gsis_id_fkey"
+                in drop_diff(reg)["refusals"])
+
+
+UNFLAGGED_REFUSALS = {
+    "un-flagged column drop": (drop_column, "football.dim_team: drop of column nickname"),
+    "un-flagged table drop": (drop_table, "football.resolver_alias: drop of table"),
+    "column rename": (rename_column, "rename of column nickname to short_name"),
+    "table rename": (rename_table, "rename of table to football.resolver_aliases"),
+    "type change": (change_type, "football.dim_team.nickname: type change from text to integer"),
+}
+
+
+class TestRefusalsBesideTheDropPath:
+    @pytest.mark.parametrize("case", UNFLAGGED_REFUSALS)
+    def test_still_refused_with_a_flag_elsewhere(self, case):
+        mutate, message = UNFLAGGED_REFUSALS[case]
+        reg = _broken(mutate)
+        table(reg, "dim_player")["columns"].remove(col("display_name"))
+        table(reg, "dim_player")["drops"] = [{"column": "display_name", "ticket": 534}]
+        refusals = drop_diff(reg)["refusals"]
+        assert any(message in r for r in refusals), refusals
+
+    def test_a_flag_on_another_column_does_not_cover_a_drop(self):
+        reg = _broken(drop_column)
+        table(reg, "dim_team")["drops"] = [{"column": "retired_long_ago", "ticket": 1}]
+        assert drop_diff(reg)["refusals"] == ["football.dim_team: drop of column nickname"]
+
+    def test_a_flag_on_another_table_does_not_cover_a_drop(self):
+        reg = _broken(drop_table)
+        reg["dropped_tables"] = [{"table": "retired_long_ago", "ticket": 1}]
+        assert drop_diff(reg)["refusals"] == ["football.resolver_alias: drop of table"]
+
+
+BAD_FLAGS = {
+    "column still declared": (lambda r: table(r, "dim_team").update(
+        drops=[{"column": "nickname", "ticket": 534}]), "the column is still declared"),
+    "table still declared": (lambda r: r.update(
+        dropped_tables=[{"table": "dim_team", "ticket": 534}]), "the table is still declared"),
+    "table still in other_tables": (lambda r: r.update(
+        dropped_tables=[{"table": "run_log", "ticket": 534}]), "the table is still declared"),
+    "column with no ticket": (lambda r: flag_column(r)["tables"][0]["drops"][0].pop("ticket"),
+                              "needs a ticket number"),
+    "table with no ticket": (lambda r: flag_table(r)["dropped_tables"][0].pop("ticket"),
+                             "needs a ticket number"),
+    "ticket that is text": (lambda r: flag_column(r)["tables"][0]["drops"][0].update(ticket="#534"),
+                            "needs a ticket number"),
+    "ticket that is zero": (lambda r: flag_table(r)["dropped_tables"][0].update(ticket=0),
+                            "needs a ticket number"),
+    "ticket that is a bool": (lambda r: flag_table(r)["dropped_tables"][0].update(ticket=True),
+                              "needs a ticket number"),
+    "column named twice": (lambda r: flag_column(r)["tables"][0]["drops"].append(
+        {"column": "nickname", "ticket": 1}), "named twice"),
+    "table named twice": (lambda r: flag_table(r)["dropped_tables"].append(
+        {"table": "resolver_alias", "ticket": 1}), "named twice"),
+    "drops not a list": (lambda r: table(r, "dim_team").update(drops={"column": "x"}), "expected a list"),
+    "dropped_tables not a list": (lambda r: r.update(dropped_tables="resolver_alias"), "expected a list"),
+    "entry not a mapping": (lambda r: table(r, "dim_team").update(drops=["nickname"]), "expected a mapping"),
+    "bad column name": (lambda r: table(r, "dim_team").update(drops=[{"column": "Nick", "ticket": 1}]),
+                        "not unquoted snake_case"),
+}
+
+
+class TestBadFlags:
+    @pytest.mark.parametrize("case", BAD_FLAGS)
+    def test_the_flag_is_refused(self, case):
+        mutate, message = BAD_FLAGS[case]
+        with pytest.raises(gm.RegistryError, match=re.escape(message)):
+            gm.registry_drops(_broken(mutate))
+
+    def test_a_bad_flag_exits_2_and_writes_nothing(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        state = tmp_path / "supabase" / "registry_state.json"
+        before_state, before_files = state.read_bytes(), migrations(tmp_path)
+        assert run(tmp_path, _broken(BAD_FLAGS["column with no ticket"][0]), now=LATER) == 2
+        assert migrations(tmp_path) == before_files
+        assert state.read_bytes() == before_state
+
+
+class TestDropRoundTrip:
+    def test_a_flagged_drop_writes_a_migration_then_stays_as_history(self, tmp_path, capsys):
+        run(tmp_path, fixture_registry())
+        reg = flag_table(flag_column(fixture_registry()))
+        assert run(tmp_path, reg, "--name", "drop_nickname", now=LATER) == 0
+        files = migrations(tmp_path)
+        assert [f.name for f in files] == ["20261031120005_initial_schema.sql",
+                                           "20261101093000_drop_nickname.sql"]
+        second = files[1].read_text(encoding="utf-8")
+        assert second.endswith("ALTER TABLE football.dim_team DROP COLUMN nickname;\n\n"
+                               "DROP TABLE football.resolver_alias;\n")
+        state_file = tmp_path / "supabase" / "registry_state.json"
+        state = json.loads(state_file.read_text(encoding="utf-8"))
+        assert "football.resolver_alias" not in state["tables"]
+        assert "nickname" not in [c["name"] for c in state["tables"]["football.dim_team"]["columns"]]
+        assert state == model(reg)
+        assert second.splitlines()[0] == f"-- registry_state sha256: {hashlib.sha256(state_file.read_bytes()).hexdigest()}"
+        before_state, before_files = state_file.read_bytes(), migrations(tmp_path)
+        capsys.readouterr()
+        assert run(tmp_path, reg, now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert migrations(tmp_path) == before_files
+        assert state_file.read_bytes() == before_state
+        assert "no change" in capsys.readouterr().out
+
+    def test_a_mixed_run_writes_the_ordinary_changes_then_the_drops_alone(self, tmp_path):
+        import migration_gate as mg
+        run(tmp_path, fixture_registry())
+        reg = flag_table(flag_column(fixture_registry()))
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 0
+        files = migrations(tmp_path)
+        assert [f.name for f in files] == ["20261031120005_initial_schema.sql",
+                                           "20261101093000_registry_update.sql",
+                                           "20261101093001_registry_update_drops.sql"]
+        ordinary, dropping = (f.read_text(encoding="utf-8") for f in files[1:])
+        assert ordinary.split("\n\n", 1)[1] == "ALTER TABLE football.dim_player ADD COLUMN born date;\n"
+        assert dropping.split("\n\n", 1)[1] == ("ALTER TABLE football.dim_team DROP COLUMN nickname;\n\n"
+                                                "DROP TABLE football.resolver_alias;\n")
+        assert not mg.is_destructive(ordinary) and mg.is_destructive(dropping)
+        state_file = tmp_path / "supabase" / "registry_state.json"
+        assert json.loads(state_file.read_text(encoding="utf-8")) == model(reg)
+        assert dropping.splitlines()[0] == f"-- registry_state sha256: {hashlib.sha256(state_file.read_bytes()).hexdigest()}"
+        middle = gm.split_drops(model(), model(reg), drop_diff(reg))[0][1]
+        assert "football.resolver_alias" in middle["tables"]
+        assert [c["name"] for c in middle["tables"]["football.dim_team"]["columns"]] == [
+            "team_key", "conference", "nickname"]
+        assert [c["name"] for c in middle["tables"]["football.dim_player"]["columns"]] == [
+            "gsis_id", "display_name", "born"]
+        assert ordinary.splitlines()[0] == f"-- registry_state sha256: {gm.state_sha(middle)}"
+        assert run(tmp_path, reg, now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert len(migrations(tmp_path)) == 3
+
+    def test_the_gate_applies_the_ordinary_file_and_holds_only_the_drops(self, tmp_path, capsys):
+        import migration_gate as mg
+        run(tmp_path, fixture_registry())
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        run(tmp_path, reg, now=LATER)
+        held = mg.held(migrations(tmp_path), {"20261031120005"})
+        assert [p.name for p in held] == ["20261101093001_registry_update_drops.sql"]
+
+    def test_a_mixed_run_whose_first_name_is_taken_writes_nothing(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        state = tmp_path / "supabase" / "registry_state.json"
+        before = state.read_bytes()
+        taken = tmp_path / "supabase" / "migrations" / "20261101093000_registry_update.sql"
+        taken.write_text("x", encoding="utf-8")
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 2
+        assert [f.name for f in migrations(tmp_path)] == ["20261031120005_initial_schema.sql",
+                                                          "20261101093000_registry_update.sql"]
+        assert state.read_bytes() == before
+
+    @pytest.mark.parametrize("mixed", [True, False], ids=["mixed run", "drops only"])
+    def test_a_drop_file_sorts_after_the_newest_existing_migration(self, tmp_path, mixed):
+        run(tmp_path, fixture_registry())
+        ahead = tmp_path / "supabase" / "migrations" / "20261205000000_from_another_branch.sql"
+        ahead.write_text("-- x\n\nSELECT 1;\n", encoding="utf-8")
+        reg = flag_column(fixture_registry())
+        if mixed:
+            table(reg, "dim_player")["columns"].append(col("born", "date"))
+        assert run(tmp_path, reg, now=LATER) == 0
+        names = [f.name for f in migrations(tmp_path)]
+        drop_file = "20261205000001_registry_update_drops.sql" if mixed else "20261205000001_registry_update.sql"
+        assert names[-1] == drop_file
+        assert "DROP COLUMN nickname" in migrations(tmp_path)[-1].read_text(encoding="utf-8")
+        if mixed:
+            assert "20261101093000_registry_update.sql" in names
+
+    def test_a_drop_file_already_after_the_newest_keeps_its_stamp(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        assert run(tmp_path, flag_column(fixture_registry()), now=LATER) == 0
+        assert migrations(tmp_path)[-1].name == "20261101093000_registry_update.sql"
+
+    def test_a_rollback_deletes_the_entry_and_re_adds_the_column(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        dropped = flag_column(fixture_registry())
+        assert run(tmp_path, dropped, now=LATER) == 0
+        back = fixture_registry()
+        table(back, "dim_team")["columns"].remove(col("nickname"))
+        table(back, "dim_team")["columns"].append(col("nickname"))
+        assert gm.registry_drops(back) == gm.NO_DROPS
+        assert run(tmp_path, back, now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        last = migrations(tmp_path)[-1].read_text(encoding="utf-8")
+        assert last.split("\n\n", 1)[1] == "ALTER TABLE football.dim_team ADD COLUMN nickname text;\n"
+
+    def test_a_rollback_that_keeps_the_entry_is_refused(self, tmp_path):
+        reg = flag_column(fixture_registry())
+        table(reg, "dim_team")["columns"].append(col("nickname"))
+        with pytest.raises(gm.RegistryError, match="the column is still declared"):
+            gm.registry_drops(reg)
+
+    def test_a_table_rollback_deletes_the_entry_and_re_adds_the_table(self, tmp_path):
+        run(tmp_path, fixture_registry())
+        assert run(tmp_path, flag_table(fixture_registry()), now=LATER) == 0
+        assert run(tmp_path, fixture_registry(), now=datetime(2026, 11, 2, tzinfo=timezone.utc)) == 0
+        assert "CREATE TABLE football.resolver_alias (" in migrations(tmp_path)[-1].read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("case", UNFLAGGED_REFUSALS)
+    def test_an_unflagged_change_still_exits_1_and_writes_nothing(self, tmp_path, capsys, case):
+        run(tmp_path, fixture_registry())
+        state = tmp_path / "supabase" / "registry_state.json"
+        before_state, before_files = state.read_bytes(), migrations(tmp_path)
+        capsys.readouterr()
+        mutate, message = UNFLAGGED_REFUSALS[case]
+        assert run(tmp_path, _broken(mutate), now=LATER) == 1
+        assert message in capsys.readouterr().err
+        assert migrations(tmp_path) == before_files
+        assert state.read_bytes() == before_state
+
+
 class TestMain:
     def test_the_first_run_writes_a_migration_and_the_state_file(self, tmp_path, capsys):
         assert run(tmp_path, fixture_registry()) == 0

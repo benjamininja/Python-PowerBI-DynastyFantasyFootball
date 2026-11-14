@@ -13,7 +13,6 @@ import logging
 import discord
 from discord.ext import commands
 
-from adp import setup_adp
 from cap import setup_cap
 from config import Config, load_config
 from player import setup_player
@@ -36,7 +35,6 @@ class LeagueBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         await setup_rankings(self, self.cfg)
-        await setup_adp(self, self.cfg)
         await setup_player(self, self.cfg)
         await setup_cap(self, self.cfg)
         await setup_roster(self, self.cfg)

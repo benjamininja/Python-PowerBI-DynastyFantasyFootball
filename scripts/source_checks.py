@@ -1961,9 +1961,12 @@ class RecordingChecker:
         self.checker = checker
         self.results: dict[str, SecurityResult] = {}
         self._active: set[str] = set()
+        self.scope: set[str] | None = None
 
     def check(self, host: str) -> SecurityResult:
         host = host.lower()
+        if self.scope is not None:
+            self.scope.add(host)
         if host in self.results:
             return self.results[host]
         if host in self._active:
@@ -1988,6 +1991,7 @@ class HostRun:
     reading: HostReading | None = None
     evidence: Evidence | None = None
     read: str = READ_DONE
+    touched: set = field(default_factory=set)
 
 
 @dataclass
@@ -2060,7 +2064,11 @@ class CheckRun:
         self.fetcher.run_deferred()
         for item in runs:
             if item.reading is not None and item.reading.pending:
-                item.reading = self.reader.read(item.host)
+                self.checker.scope = item.touched
+                try:
+                    item.reading = self.reader.read(item.host)
+                finally:
+                    self.checker.scope = None
         outputs = []
         for item in runs:
             if item.reading is not None:
@@ -2070,6 +2078,16 @@ class CheckRun:
         return outputs
 
     def _read_host(self, host: str) -> HostRun:
+        touched: set = set()
+        self.checker.scope = touched
+        try:
+            item = self._read_host_scoped(host)
+        finally:
+            self.checker.scope = None
+        item.touched = touched
+        return item
+
+    def _read_host_scoped(self, host: str) -> HostRun:
         result = self.checker.check(host)
         if result.failed is not None:
             return HostRun(host, result, read=READ_CHECK_FAILED)
@@ -2098,7 +2116,8 @@ class CheckRun:
         }
         run: dict = {
             "read": item.read,
-            "security_checks": {h: security_record(r) for h, r in self.checker.results.items()},
+            "security_checks": {h: security_record(r) for h, r in self.checker.results.items()
+                                if h in item.touched or h == item.host},
         }
         if reading is not None:
             payload["terms"] = {

@@ -283,19 +283,6 @@ table Dim_NFLPlayers
 
 		annotation SynonymCollection = ["pfr id","pro football reference","pfr"]
 
-	/// Pro Football Focus id.
-	column PFFID
-		dataType: string
-		lineageTag: efe888bd-3eea-4d06-b5c3-431a9f0affb4
-		summarizeBy: none
-		sourceColumn: pff_id
-
-		annotation SummarizationSetBy = User
-
-		annotation Synonyms = pff id|pro football focus|pff
-
-		annotation SynonymCollection = ["pff id","pro football focus","pff"]
-
 	/// ESPN player id.
 	column ESPNID
 		dataType: string

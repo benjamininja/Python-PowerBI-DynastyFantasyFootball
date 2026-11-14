@@ -37,8 +37,10 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 # The schema rule is shared with the publish gate (notebooks/etl_checks.py).
 sys.path.insert(0, str(REPO / "notebooks"))
+sys.path.insert(0, str(REPO / "scripts"))
 import etl_checks  # noqa: E402
 import etl_helpers  # noqa: E402
+import generate_migrations  # noqa: E402
 
 MODEL_YML = REPO / "docs" / "data_model.yml"
 MODEL_MD = REPO / "docs" / "DATA_MODEL.md"
@@ -183,6 +185,17 @@ def other_table_errors(table: dict, seen: set[str]) -> list[str]:
     return errs
 
 
+def drop_errors(data: dict) -> list[str]:
+    """The `drops:` and `dropped_tables:` flags (#534). An entry whose item is
+    gone from the registry is accepted whether or not the migrations still hold
+    it: before the drop applies it is pending, after it is history."""
+    try:
+        generate_migrations.registry_drops(data)
+    except generate_migrations.RegistryError as exc:
+        return [f"[drops] {exc}"]
+    return []
+
+
 def validate(data: dict) -> int:
     tables = data.get("tables", []) or []
     errors: list[str] = []
@@ -212,6 +225,7 @@ def validate(data: dict) -> int:
         seen_names.add(t.get("name"))
         errors += sql_type_errors(t)
         errors += key_errors(t, by_name)
+    errors += drop_errors(data)
 
     # column-drift check: declared columns vs real parquet schema
     for t in tables:

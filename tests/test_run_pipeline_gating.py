@@ -190,6 +190,26 @@ class TestDeadMoneyStep:
         assert ec.load_registry()["fact_dead_money"]["chain"] == "fantrax_core"
 
 
+class TestMinorEligibilityStep:
+    """02j is a daily step of the nflverse Chain, after what it reads (#538)."""
+
+    STEPS = rp.build_steps(None)
+
+    def test_it_follows_the_player_dim_and_the_periods(self):
+        names = [s["name"] for s in self.STEPS]
+        step = self.STEPS[names.index("02j_minor_eligibility")]
+        assert (step["chain"], step["group"]) == ("nflverse", "pre_season")
+        assert step["needs"] == ["01e_dim_nfl_players", "04p_league_info"]
+        assert step["phases"] == {"INSEASON", "PRESEASON", "OFFSEASON"}
+        assert step["cadence"] == "daily"
+        assert names.index("01e_dim_nfl_players") < names.index("02j_minor_eligibility")
+        assert names.index("04p_league_info") < names.index("02j_minor_eligibility")
+        assert step["cmd"][-1].endswith("02j_nflverse_minor_eligibility.py")
+
+    def test_its_table_is_in_the_same_chain(self):
+        assert ec.load_registry()["fact_nfl_minor_eligibility"]["chain"] == "nflverse"
+
+
 class TestTeamCapStep:
     """02h publishes the cap table after what it reads, in the core Chain (#97)."""
 
