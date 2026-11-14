@@ -1,4 +1,4 @@
-/// Roster fact: one row per team and player, with contract and squad placement. A kept player charges full ContractValue (CapHit is not stored). Dead money lives in Fact_DeadMoney.
+/// Roster fact: one row per team and player, with contract and squad placement. The cap charge is CapHit; ContractValue is the contract's salary. Dead money lives in Fact_DeadMoney.
 table Fact_FantasyTeams
 	lineageTag: b58ec7a6-bc8d-4d83-9a8f-888ae2dc2692
 
@@ -67,6 +67,20 @@ table Fact_FantasyTeams
 		annotation Synonyms = contract value|deal value|salary total
 
 		annotation SynonymCollection = ["contract value","deal value","salary total"]
+
+	/// Cap charge ($) the player counts against the team's cap; zero for cap-exempt Minors and IR slots. ContractValue is the contract's salary.
+	column CapHit
+		dataType: double
+		formatString: \$#,0;(\$#,0);\$#,0
+		lineageTag: 5d0c7e4a-3b1f-4c62-9a8e-7f2b6d19c3e5
+		summarizeBy: sum
+		sourceColumn: cap_hit
+
+		annotation SummarizationSetBy = User
+
+		annotation Synonyms = cap hit|cap charge|cap number|salary cap hit
+
+		annotation SynonymCollection = ["cap hit","cap charge","cap number","salary cap hit"]
 
 	/// Current year within the player's contract cycle.
 	column ContractYear
