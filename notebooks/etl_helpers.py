@@ -1395,6 +1395,26 @@ def current_gsis(ids: pd.Series, links: pd.DataFrame | None = None) -> pd.Series
     return ids.where(~ids.isin(list(newest)), ids.map(newest))
 
 
+PRICE_LIST_TABLE = "fact_salary_price_list"
+
+
+def price_list(season: int | None = None) -> pd.Series:
+    """The yearly price list (#554) as salary by scorer_id, for `season` (the
+    season the prices take effect for) or, with none given, the newest one
+    stored. A player the pull did not hold is absent: the caller decides what
+    that means. Raises TableNotFound when the table, or that season, holds no
+    row."""
+    prices = read_table(PRICE_LIST_TABLE)
+    if season is None:
+        if prices.empty:
+            raise TableNotFound(f"{PRICE_LIST_TABLE}: no rows")
+        season = int(prices["season"].max())
+    prices = prices[prices["season"] == season]
+    if prices.empty:
+        raise TableNotFound(f"{PRICE_LIST_TABLE}: no rows for season {season}")
+    return prices.set_index("scorer_id")["salary"].sort_index()
+
+
 def classify_draft_type(rounds: pd.Series, threshold: int = 5) -> pd.Series:
     """Per write-batch draft_type ("Startup" vs "Rookie"): a startup draft runs
     many more rounds than an annual rookie draft (this league: 35 vs 5), so the
