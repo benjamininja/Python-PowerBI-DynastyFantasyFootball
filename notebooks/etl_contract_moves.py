@@ -167,8 +167,9 @@ def decision_rows(copies: pd.DataFrame, day: date, resign_deadline: date) -> pd.
     if status is None or rows.empty:
         return empty()
     is_fa = rows["contract_id"] == FA
-    move_to = is_fa.map({True: "Extend to 2nd, or release", False: "Re-sign, or keep to year 3"})
-    reason = is_fa.map({True: "FA pickup: extend at the re-sign deadline or it returns to the pool",
+    move_to = is_fa.map({True: "Keep (X next season), or let go at season's end",
+                         False: "Re-sign, or keep to year 3"})
+    reason = is_fa.map({True: "FA pickup: keep it by the re-sign deadline, or it returns to the pool at season's end",
                         False: "Year-2 contract: re-sign at the re-sign deadline"})
     return _shape(rows, LIST_DECISION, move_to, reason, status)
 

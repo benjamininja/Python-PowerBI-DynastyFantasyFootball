@@ -133,6 +133,16 @@ class TestExpiringAndDecision:
         out = only(build(self.ROWS), cm.LIST_DECISION)
         assert sorted(out["contract_now"]) == ["2nd", "FA"]
 
+    def test_a_kept_fa_becomes_x_and_an_unkept_one_returns_at_season_s_end(self):
+        out = only(build([copy("s5", "FA")]), cm.LIST_DECISION)
+        assert out["move_to"].tolist() == ["Keep (X next season), or let go at season's end"]
+        assert out["reason"].tolist() == [
+            "FA pickup: keep it by the re-sign deadline, or it returns to the pool at season's end"]
+
+    def test_a_second_year_row_reads_re_sign_or_keep(self):
+        out = only(build([copy("s4", "2nd")]), cm.LIST_DECISION)
+        assert out["move_to"].tolist() == ["Re-sign, or keep to year 3"]
+
     def test_a_first_year_player_is_on_no_list(self):
         out = build([copy("s6", "1st")], fx=["s9"], nv=[("g6", 90)], day=date(2026, 12, 30))
         assert out.empty
