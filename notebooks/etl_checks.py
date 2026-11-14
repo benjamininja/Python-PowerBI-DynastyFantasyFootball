@@ -591,8 +591,8 @@ def minor_drift_findings(fantrax: pd.DataFrame, computed: pd.DataFrame,
     with the reason:
       - Fantrax lists the player, nflverse does not: the crosswalk has no
         gsis_id for the scorer, or nflverse's pool lacks the gsis_id, or
-        nflverse counts 20 or more games;
-      - a rostered player nflverse counts at 19 or fewer games, Fantrax does
+        nflverse counts 21 or more games;
+      - a rostered player nflverse counts at 20 or fewer games, Fantrax does
         not list.
     No nflverse capture that near is not compared."""
     if fantrax.empty:

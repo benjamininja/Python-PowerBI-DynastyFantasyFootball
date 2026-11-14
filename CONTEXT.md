@@ -80,16 +80,21 @@ _Avoid_: active, reserve, roster status, injury status
 
 **Minors Eligibility**:
 Whether a player is still inside the prospect window: career plus current
-regular-season games played of 19 or fewer, as Fantrax computes it. A flag on
-the player, league-wide, whether rostered or not. It lets a team use the
-Minors slot but doesn't make them.
+regular-season games played of 20 or fewer (game 21 is not eligible; bylaws
+section 3.4), as Fantrax computes it and as `02j` counts it from nflverse. A
+flag on the player, league-wide, whether rostered or not. It lets a team use
+the Minors slot but doesn't make them.
 _Avoid_: Yo-Yo status, minor (that's the contract)
 
 **Minor**:
-The contract a player holds while minors-eligible, however they were acquired.
-The stage before `1st`: off the 3-year clock, and dropping the player creates
-no Dead Money. The player moves to `1st` in the Scoring Period after they pass
-19 games, with the same salary, and that season is year 1.
+The contract a minors-eligible player holds when acquired through the startup,
+rookie or auction draft, or when claimed as a dropped Minor still eligible. A
+free agent never acquired that way stays on `FA`, even when eligible. The stage
+before `1st`: off the 3-year clock, and dropping the player costs 0% (as a
+`1st` the 50% penalty applies). The player moves to `1st` in the Scoring Period
+after they pass 20 games (game 21), with the same salary, and that season is
+year 1. A full season unrostered in free agency resets the contract (bylaws
+section 12.5).
 _Avoid_: Minors (that's the slot), stash, minor-league contract
 
 **Roster Move**:

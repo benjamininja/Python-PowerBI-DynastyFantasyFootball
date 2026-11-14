@@ -21,6 +21,15 @@ import pandas as pd
 import pytest
 
 rt = importlib.import_module("02d_fact_roster_transactions")
+dead_money = importlib.import_module("02f_fact_dead_money")
+
+DEAD_MONEY_CONTRACTS = pd.DataFrame(
+    [("Minor", "minor", None, 0.0, False), ("1st", "initial", 1, 0.5, True),
+     ("2nd", "initial", 2, 0.4, True), ("FA", "fa", 1, 0.0, False)],
+    columns=["contract_id", "contract_type", "contract_year", "cap_hit_pct", "guaranteed"],
+).astype({"contract_year": "Int64"})
+DEAD_MONEY_SEASONS = pd.DataFrame({"season_id": ["2026-2027", "2027-2028"],
+                                   "season_start_year": [2026, 2027]})
 
 CONTRACTS = pd.DataFrame({
     "contract_id": ["Minor", "1st", "2nd", "FA"],
@@ -407,9 +416,26 @@ class TestStaleCapture:
 
 
 class TestDefaultContract:
-    def test_eligible_is_minor_whatever_the_move(self):
-        for kind in (rt.EVENT_TYPE, rt.CLAIM_EVENT, rt.DROP_EVENT, rt.TRADE_IN):
-            assert rt.default_contract(True, kind, "1st") == "Minor"
+    def test_eligible_draft_pick_or_auction_win_is_minor(self):
+        assert rt.default_contract(True, rt.EVENT_TYPE) == "Minor"
+        assert rt.default_contract(True, rt.EVENT_TYPE, "1st") == "Minor"
+
+    def test_a_pure_free_agent_claim_stays_fa(self):
+        assert rt.default_contract(True, rt.CLAIM_EVENT) == "FA"
+        assert rt.default_contract(True, rt.CLAIM_EVENT, "FA") == "FA"
+        assert rt.default_contract(True, rt.CLAIM_EVENT, pd.NA) == "FA"
+
+    def test_a_dropped_eligible_minor_claimed_stays_minor(self):
+        assert rt.default_contract(True, rt.CLAIM_EVENT, "Minor") == "Minor"
+
+    def test_a_dropped_minor_claimed_after_game_20_is_1st(self):
+        assert rt.default_contract(False, rt.CLAIM_EVENT, "Minor") == "1st"
+
+    def test_eligible_drop_and_trade_follow_the_contract_held(self):
+        assert rt.default_contract(True, rt.DROP_EVENT, "Minor") == "Minor"
+        assert rt.default_contract(True, rt.DROP_EVENT, "FA") == "FA"
+        assert rt.default_contract(True, rt.TRADE_IN, "1st") == "1st"
+        assert rt.default_contract(True, rt.TRADE_IN) == "Minor"
 
     def test_ineligible_keeps_the_inherited_contract(self):
         assert rt.default_contract(False, rt.CLAIM_EVENT, "2nd") == "2nd"
@@ -449,13 +475,13 @@ class TestResolveContract:
     def test_a_graduate_between_two_captures_is_flagged(self):
         elig = eligibility({"2026-07-18": ["p1"], "2026-09-17": ["p2"]})
         got = rt.resolve_contract(source(elig=elig), rt.CLAIM_EVENT, "p1",
-                                  pd.Timestamp("2026-08-01"))
+                                  pd.Timestamp("2026-08-01"), inherited="Minor")
         assert got == rt.Sourced("Minor", left_list=True)
 
     def test_a_default_long_after_the_newest_capture_is_flagged_stale(self):
         src = source(elig=self.ELIG)
         late = pd.Timestamp("2026-10-20")
-        assert rt.resolve_contract(src, rt.CLAIM_EVENT, "p1", late) == rt.Sourced(
+        assert rt.resolve_contract(src, rt.CLAIM_EVENT, "p1", late, inherited="Minor") == rt.Sourced(
             "Minor", after_newest=True, stale_capture=True)
         assert rt.resolve_contract(src, rt.CLAIM_EVENT, "p2", late) == rt.Sourced(
             "FA", stale_capture=True)
@@ -484,10 +510,15 @@ class TestResolveContract:
         # The capture predates the Minor label: it shows eligible players on 1st.
         # The Minor is the default rule's, so the capture is not what was read.
         got = rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE,
-                                  preseason="1st")
+                                  inherited="Minor", preseason="1st")
         assert got == rt.Sourced("Minor", after_newest=True)
         assert got.source == rt.FROM_DEFAULT
-        assert got == rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE)
+        assert got == rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE,
+                                          inherited="Minor")
+
+    def test_a_pure_free_agent_claim_of_an_eligible_player_is_fa(self):
+        got = rt.resolve_contract(source(elig=self.ELIG), rt.CLAIM_EVENT, "p1", MOVE)
+        assert got == rt.Sourced("FA", after_newest=True)
 
     def test_roster_state_wins_over_the_preseason_capture(self):
         src = source(state(("A01", "p2", 2, "2nd")), self.ELIG)
@@ -834,9 +865,17 @@ class TestClaimSalary:
         assert rows[0]["contract_source"] == rt.FROM_PRESEASON
         assert sourcing["observed"] == 0 and sourcing["preseason"] == 1
 
-    def test_eligible_claim_is_minor_at_the_capture_salary(self):
+    def test_eligible_pure_free_agent_claim_is_fa_at_the_capture_salary(self):
         row = resolve([self._claim("p1")], self._src("p1")).iloc[0]
-        assert (row["contract_id"], row["contract_value"]) == ("Minor", 8_200_000)
+        assert (row["contract_id"], row["contract_value"]) == ("FA", 8_200_000)
+
+    def test_a_dropped_eligible_minor_claimed_is_minor_at_the_capture_salary(self):
+        startup = base(("A02", 1, "Minor", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-07-05"), period=1),
+                self._claim("p1")]
+        out = resolve(legs, self._src("p1", salary=9_500_000), startup)
+        assert out["contract_id"].tolist() == ["Minor", "Minor"]
+        assert out["contract_value"].tolist() == [9_000_000, 9_500_000]
 
     def test_capture_beats_the_inherited_salary(self):
         # Dropped by A02 at 9.0M, claimed by A01.
@@ -933,10 +972,10 @@ class TestPreseasonContract:
         assert [r["contract_source"] for r in rows] == [rt.FROM_PRESEASON] * 2
         assert sourcing["preseason"] == 1 and sourcing["observed"] == 0
 
-    def test_an_eligible_claim_is_minor(self):
+    def test_an_eligible_pure_free_agent_claim_is_fa(self):
         # The capture shows everyone on 1st: it predates the Minor label.
         rows = resolve(self._legs("p1"), self._src("p1"))
-        assert rows["contract_id"].tolist() == ["Minor", "Minor"]
+        assert rows["contract_id"].tolist() == ["FA", "FA"]
         # eligibility set it, not the capture, which still gives the salary
         assert rows["contract_source"].tolist() == [rt.FROM_DEFAULT] * 2
         assert rows["contract_value"].tolist() == [8_200_000, 8_200_000]
@@ -1072,10 +1111,18 @@ class TestLegsWithoutPeriod:
 class TestTransactionLegs:
     ELIG = eligibility({"2026-09-17": ["p1"]})     # p1 eligible, p2 not
 
-    def test_eligible_claim_is_minor_at_the_league_minimum(self):
+    def test_eligible_pure_free_agent_claim_is_fa_at_the_league_minimum(self):
         row = resolve([leg(rt.CLAIM_EVENT, "p1", "A01")], source(elig=self.ELIG)).iloc[0]
-        assert row["contract_id"] == "Minor" and pd.isna(row["contract_year"])
-        assert row["contract_value"] == 2_000_000
+        assert (row["contract_id"], row["contract_year"], row["contract_value"]) == (
+            "FA", 1.0, 2_000_000)
+
+    def test_a_dropped_eligible_minor_claimed_keeps_minor(self):
+        startup = base(("A02", 1, "Minor", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-09-18")),
+                leg(rt.CLAIM_EVENT, "p1", "A01")]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["Minor", "Minor"]
+        assert out["contract_value"].tolist() == [9_000_000, 9_000_000]
 
     def test_ineligible_claim_with_no_history_is_fa(self):
         row = resolve([leg(rt.CLAIM_EVENT, "p2", "A01")], source(elig=self.ELIG)).iloc[0]
@@ -1192,7 +1239,7 @@ class TestTransactionLegs:
                 leg(rt.CLAIM_EVENT, "p1", "A02", period=None)]
         rows, _, fa_fallback, sourcing, priced = resolve_all(legs, src, startup)
         assert [(r["event_type"], r["contract_id"]) for r in rows] == [
-            ("drop", "1st"), ("claim", "Minor")]
+            ("drop", "1st"), ("claim", "FA")]
         assert rows[1]["contract_value"] == MINIMUM
         assert sourcing["observed"] == 0 and priced == [] and fa_fallback == ["p1"]
 
@@ -1309,11 +1356,19 @@ class TestTransactionLegs:
         assert out["contract_source"].tolist() == [rt.FROM_DEFAULT] * 2
 
     def test_resolved_contract_carries_into_the_next_move(self):
-        # Eligible claim -> Minor; the same copy's later drop keeps Minor.
+        # A dropped eligible Minor claimed stays Minor; its later drop keeps Minor.
+        startup = base(("A02", 1, "Minor", 9_000_000))
+        legs = [leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-09-10"), period=2),
+                leg(rt.CLAIM_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-12"), period=2),
+                leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-15"), period=2)]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["Minor", "Minor", "Minor"]
+
+    def test_a_pure_free_agent_claim_and_its_drop_stay_fa(self):
         legs = [leg(rt.CLAIM_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-12"), period=2),
                 leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-15"), period=2)]
         out = resolve(legs, source(elig=self.ELIG))
-        assert out["contract_id"].tolist() == ["Minor", "Minor"]
+        assert out["contract_id"].tolist() == ["FA", "FA"]
 
     def test_trade_with_no_source_row_stays_unknown(self):
         rows, missing, _, _, _ = resolve_all(
@@ -1329,8 +1384,30 @@ class TestTransactionLegs:
                 leg(rt.CLAIM_EVENT, "p1", "A02", when=pd.Timestamp("2026-09-01"), period=1),
                 leg(rt.DROP_EVENT, "p1", "A02", when=pd.Timestamp("2026-10-20"), period=6)]
         rows, _, _, sourcing, _ = resolve_all(legs, source(elig=elig))
-        assert [r["contract_id"] for r in rows] == ["Minor", "Minor", "Minor"]
+        assert [r["contract_id"] for r in rows] == ["FA", "FA", "FA"]
         assert sourcing == {**NO_FLAGS, "after_newest": 1, "left_list": 1, "stale_capture": 1}
+
+    def test_an_eligible_drop_inheriting_1st_is_1st_and_charged_50_percent(self):
+        # p1 is eligible, drafted on 1st, and dropped with no Roster State row
+        # covering the drop: the observed 1st stands (ADR-0019 decisions 4 and 6).
+        startup = base(("A01", 1, "1st", 10_000_000))
+        legs = [leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-18"), period=2)]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["1st"]
+        money = dead_money.build_dead_money(out, DEAD_MONEY_CONTRACTS, DEAD_MONEY_SEASONS)
+        assert money["dead_money"].iloc[0] == 5_000_000.0
+        assert money["cap_hit_pct"].iloc[0] == 0.5
+
+    def test_claim_graduate_then_drop_is_fa_with_no_dead_money(self):
+        # p1 is claimed as a pure free agent while eligible, passes game 20,
+        # and is dropped: FA at both ends, nothing charged.
+        elig = eligibility({"2026-07-18": ["p1"], "2026-09-17": ["p1"], "2026-10-15": []})
+        legs = [leg(rt.CLAIM_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-18"), period=2),
+                leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-10-20"), period=6)]
+        out = resolve(legs, source(elig=elig))
+        assert out["contract_id"].tolist() == ["FA", "FA"]
+        money = dead_money.build_dead_money(out, DEAD_MONEY_CONTRACTS, DEAD_MONEY_SEASONS)
+        assert money.empty
 
 
 class TestClaimMethod:

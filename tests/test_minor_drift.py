@@ -21,7 +21,7 @@ def fantrax(*scorers, day=DAY):
 
 def nflverse(*rows, day=DAY):
     """rows: (gsis_id, career_games)."""
-    return pd.DataFrame([{"gsis_id": g, "capture_date": day, "career_games": n, "eligible": n <= 19}
+    return pd.DataFrame([{"gsis_id": g, "capture_date": day, "career_games": n, "eligible": n <= 20}
                          for g, n in rows])
 
 
@@ -35,7 +35,7 @@ def run(fx, nv, on_roster=()):
 
 class TestAgreement:
     def test_no_finding_when_both_list_the_same_players(self):
-        got = run(fantrax("s1", "s2"), nflverse(("g1", 3), ("g2", 19), ("g3", 40)), on_roster=("s3",))
+        got = run(fantrax("s1", "s2"), nflverse(("g1", 3), ("g2", 20), ("g3", 40)), on_roster=("s3",))
         assert got == {}
 
     def test_a_rostered_player_neither_calls_eligible_is_not_a_finding(self):
@@ -47,8 +47,8 @@ class TestAgreement:
 
 class TestDisagreement:
     def test_fantrax_lists_a_player_nflverse_counts_past_the_limit(self):
-        got = run(fantrax("s1", "s3"), nflverse(("g1", 3), ("g3", 20)))
-        assert list(got) == ["s3"] and "nflverse counts 20 games" in got["s3"]
+        got = run(fantrax("s1", "s3"), nflverse(("g1", 3), ("g3", 21)))
+        assert list(got) == ["s3"] and "nflverse counts 21 games" in got["s3"]
 
     def test_a_rostered_scorer_the_crosswalk_has_no_gsis_id_for_is_a_finding(self):
         got = run(fantrax("s5"), nflverse(("g1", 3)), on_roster=("s5",))
@@ -66,8 +66,8 @@ class TestDisagreement:
         assert list(got) == ["s2"]
         assert "on a fantasy roster and nflverse counts 7 games" in got["s2"]
 
-    def test_the_boundary_is_nineteen_eligible_and_twenty_not(self):
-        got = run(fantrax("s1", "s2"), nflverse(("g1", 19), ("g2", 20)))
+    def test_the_boundary_is_twenty_eligible_and_twenty_one_not(self):
+        got = run(fantrax("s1", "s2"), nflverse(("g1", 20), ("g2", 21)))
         assert list(got) == ["s2"]
 
     def test_a_finding_names_the_scorer_id_and_no_player(self):
