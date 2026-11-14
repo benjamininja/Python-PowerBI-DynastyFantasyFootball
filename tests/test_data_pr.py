@@ -419,7 +419,7 @@ class FakeRunLog:
         pass
 
     def finish(self, status, snapshot_commit_sha=None, rows_written=None, error=None,
-               cadence=None, column_changes=None):
+               cadence=None, column_changes=None, fantrax_logins=None):
         self.finished = dict(status=status, snapshot_commit_sha=snapshot_commit_sha,
                              rows_written=rows_written, error=error)
         self.cadence = cadence
