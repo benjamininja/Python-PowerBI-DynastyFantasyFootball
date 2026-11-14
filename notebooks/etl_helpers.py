@@ -71,6 +71,9 @@ class LeagueConfig:
     rookie_class_year: int = 2027
     rookie_class_combine_end: str = "2027-03-08"
     rookie_class_draft_end: str = "2027-05-01"
+    trade_deadline: str = "2026-11-16"
+    resign_deadline: str = "2026-11-19"
+    final_period_end: str = "2027-01-07"
 
     def rookie_phase(self, on: "date | str") -> str:
         run_date = date.fromisoformat(on) if isinstance(on, str) else on
