@@ -503,6 +503,14 @@ tables:
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
+    notes: >
+      player_name, position_raw and nfl_team come from Fantrax's public
+      getPlayerIds call (#519), not 04a's grid. The scorer_ids to resolve and
+      is_rookie still come from fact_fantrax_adp, dim_startup_draft_scorer and
+      the 04t capture: getPlayerIds holds no rookie flag. A scorer_id the call
+      does not know keeps the name, position and team of the row it came with.
+      The call holds one position code per player, so a multi-code position_raw
+      ("WR,DB") becomes its one code.
 
   - name: dim_dynasty_crosswalk
     type: resolver

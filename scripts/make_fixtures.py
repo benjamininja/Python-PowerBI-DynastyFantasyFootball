@@ -63,6 +63,12 @@ ALLOWLIST: dict[str, object] = {
     # 04u build_future_picks: public getDraftPicks.
     "public_draftpicks.json": {"futureDraftPicks": [{k: KEEP for k in (
         "year", "round", "originalOwnerTeamId", "currentOwnerTeamId")}]},
+    # 04z etl.parse_player_ids: public getPlayerIds. Hand-written with invented
+    # values (#519), so it has no SOURCES row and no trimmer: it is never re-cut
+    # from a capture.
+    "public_playerids.json": {ANY: {k: KEEP for k in (
+        "fantraxId", "name", "position", "team", "rotowireId", "sportRadarId",
+        "statsIncId", "teamName", "teamShortName", "shortName")}},
     # 04p parse_scoring_periods / parse_divisions: public getLeagueInfo. A
     # team's `name` is its display name and is not listed.
     "league_info.json": {

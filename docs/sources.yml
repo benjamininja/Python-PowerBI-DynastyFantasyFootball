@@ -217,6 +217,18 @@ sources:
       - { notebook: 04r_fantrax_roster_state.py, table: fact_roster_state }
     match: ["getTeamRosters"]
 
+  - id: fantrax_public_playerids
+    name: "Fantrax — public fxea API (getPlayerIds)"
+    status: live
+    terms: *fantrax_fxea_terms
+    locator: "https://www.fantrax.com/fxea/general/getPlayerIds?sport=NFL"
+    purpose: "The identity of every Fantrax player: fantraxId (the scorer_id), name, position code and NFL team (`(N/A)` for none), one record per id, with no league needed. Feeds the crosswalk's name, position and team (#519, #429). Team defense rows (a `#` id and a `teamName`) and the team-level codes TK and TQB are dropped; the call holds no rookie flag and one position code per player. Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
+    auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
+    cadence: "Every pipeline run, all phases (inside the `04z_crosswalk` step, fantrax_core Chain)"
+    feeds:
+      - { notebook: 04z_fantrax_crosswalk.ipynb, table: dim_fantrax_crosswalk }
+    match: ["getPlayerIds"]
+
   - id: fantrax_inseason_scoring
     name: "Fantrax — getLiveScoringStats + getStandings (per Scoring Period)"
     status: live

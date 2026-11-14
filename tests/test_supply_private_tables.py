@@ -416,6 +416,36 @@ class TestCompareLoaderOutput:
         assert "run_pipeline" not in source.split('"""', 2)[2]      # no run-log, no review rows
 
 
+class TestComparePlayerIdsCrosswalk:
+    ENTRY = TestCompareLoaderOutput.ENTRY
+
+    def test_columns_that_differ_are_counted_per_column(self):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        entry = {"name": "t", "grain": "k", "pk": ["k"],
+                 "columns": [{"name": "k", "dtype": "int64"}, {"name": "v", "dtype": "str"},
+                             {"name": "w", "dtype": "str"}]}
+        live = pd.DataFrame({"k": [1, 2, 3], "v": ["x", "y", "z"], "w": ["a", "b", "c"]})
+        new = pd.DataFrame({"k": [2, 3, 4], "v": ["y", "CHANGED", "w"], "w": ["b", "c", "d"]})
+        assert playerids.column_differences(live, new, entry) == {"v": 1, "w": 0}
+
+    def test_it_reads_the_store_read_only_fetches_nothing_and_prints_counts(self):
+        source = (REPO / "scripts" / "compare_playerids_crosswalk.py").read_text(encoding="utf-8")
+        assert "pg.session_read_only()" in source and "etl.capturing(" in source
+        assert "raw_path=raw_path" in source and "fantrax_public_get" not in source
+        assert "run_pipeline" not in source.split('"""', 2)[2]
+
+    @pytest.mark.parametrize("argv", [None, [], ["a", "b"]])
+    def test_it_needs_exactly_one_argument(self, argv, capsys):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        assert playerids.main(argv) == 2
+        assert "usage" in capsys.readouterr().out
+
+    def test_a_path_that_is_not_a_file_stops_before_any_read(self, tmp_path, capsys):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        assert playerids.main([str(tmp_path / "missing.json")]) == 2
+        assert "not a file" in capsys.readouterr().out
+
+
 class TestCaptureMode:
     def test_a_capture_applies_every_write_mode_to_a_copy_and_leaves_the_store(self, store, monkeypatch):
         reg = {"tables": [{"name": "dim_t", "type": "dim", "grain": "k", "pk": ["k"],
@@ -570,6 +600,25 @@ class Test04zReadsThePrivateTables:
         assert sorted(ns["fact_latest"]["scorer_id"]) == ["draftonly", "known"]
         row = ns["fact_latest"].set_index("scorer_id").loc["draftonly"]
         assert (row["position_raw"], row["nfl_team"], bool(row["is_rookie"])) == ("LB", "XYZ", True)
+
+    def test_identity_cell_takes_name_position_and_team_from_player_ids(self, tables, monkeypatch):
+        self.put()
+        ids = pd.DataFrame({"scorer_id": ["known"], "player_name": ["Known Renamed"],
+                            "position_raw": ["CB"], "nfl_team": ["(N/A)"]})
+        monkeypatch.setattr(etl, "fantrax_player_ids", lambda: ids)
+        ns = self.run(tables)
+        exec(cell("cfd62be3"), ns)
+        by = ns["fact_latest"].set_index("scorer_id")
+        assert tuple(by.loc["known", ["player_name", "position_raw", "nfl_team"]]) == ("Known Renamed", "CB", "(N/A)")
+        assert tuple(by.loc["draftonly", ["player_name", "position_raw", "nfl_team"]]) == ("Draft Only", "LB", "XYZ")
+        assert bool(by.loc["draftonly", "is_rookie"]) is True
+        assert ns["_id_counts"] == {"from_player_ids": 1, "not_in_player_ids": 1, "multi_position_made_single": 0}
+
+    def test_identity_cell_sits_between_the_universe_and_the_match(self):
+        nb = json.loads((REPO / "notebooks" / "04z_fantrax_crosswalk.ipynb").read_text(encoding="utf-8"))
+        order = [c["id"] for c in nb["cells"]]
+        assert order.index("253b3f55") < order.index("cfd62be3") < order.index("b4224514")
+        assert "etl.fantrax_player_ids()" in cell("cfd62be3")
 
     def test_no_data_raw_is_needed(self, tables):
         self.put()

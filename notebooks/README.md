@@ -94,7 +94,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04v | `04v_minor_contracts.py` | Minors eligibility — **scheduled script** (after 04a), read-only: Fantrax's own minors-eligibility verdict (GP ≤ 20) → `fact_minor_eligibility`. `02d` reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from `04r`, not from here |
 | 04w | `04w_fantrax_draft_results.py` | Raw `getDraftResults` JSON per division (live startup-draft capture) — parsed downstream by `02d` |
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
-| 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
+| 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs. Name, position and team come from Fantrax's public `getPlayerIds` call (no login), not 04a's grid (#519) |
 
 The `.py` rows (`02d`, `02e`, `02f`, `02h`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
