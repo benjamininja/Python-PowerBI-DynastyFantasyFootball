@@ -7,12 +7,10 @@ planner session can resume from the repository alone. The rules are in
 
 ## Queue entries raised
 
-Open entries raised by the planner, keyed to `Session: 30d0affa-dc73-4acc-932c-43b660d4d261` (re-keyed 2026-11-14). After a clear, send the manager the new id and these titles:
-- Capture Fantrax getPlayerIds for #519
-- Create the commissioners' Discord webhook and its secret for #545
+Open entries raised by the planner, keyed to `Session: 84e1c668-47a4-492f-9670-38a58dc70eb1` (re-keyed by the manager 2026-11-14 ~18:30Z). After a clear, send the manager the new id and these titles:
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
-(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture, pruned.)
+(Done and out: the C1 source run; the data-use mailbox and private repo; the #520 docs paste and the period-9 capture; the #519 getPlayerIds capture and the #545 webhook entry, pruned 2026-11-14.)
 
 ## START HERE (state 2026-11-09, before a clear)
 
@@ -20,7 +18,20 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 18:10Z by `date -u`, before a CLEAR (session 30d0affa). Self-contained with the 66-zero item (its lists stand, except where this item differs) and the 65-zero item's resume rules.**
+00000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 18:40Z by `date -u` (session 84e1c668, after the clear). Adds to the 67-zero item, whose resume rules and lists stand except where this item differs.**
+- **Peers told the new id:** the manager re-keyed the two #548 entries and pruned the #519 and #545 ones; it then paused for a clear (its next session sends its id). The Tools planner was told. From the manager: #538 dispatched on Ben's button as b538-02jstep (session 46b9e0d1); tools #174 re-proof GREEN at 5ea612b (the next manager session merges it); #543's narrow audit found nothing.
+- **v5 FA workbook: BUILT** (in Ben's Downloads next to v4; v4 untouched; the build script is side work and not committed; Ben's copy of the resume prompt names it). Tabs: Summary (text plus Riddell and Wilson team grids, 75 and 86), Riddell and Wilson re-sign tables (rosters as of 11-14), FA pool (8,922 rows, opens on the Shortlist filter, 25 per primary position per conference).
+  - **Differences from the 67-zero plan, found in the data:** (1) duplicates are 5 people under 2 ids each (10 ids), not 10 people; one id kept each (NFL team first, else Ros %). (2) The export's Salary is not the contract salary: it equals the snapshot's `contract_value` for only 21 of 86 Wilson FA, 15 of 307 `1st`, 43 of 166 `Minor`; the roster holds $2M for 85 of 86 Wilson FA. So the Salary column is labelled per tab: Wilson and the pool "Salary (Fantrax, 2026-11-12)", Riddell "Salary (roster contract)", and the Summary says Riddell's is the $2M contract value, not a generated value. (3) Ledger contract holders: a held contract whose source is 02d's claim `default` and whose player was never drafted in that conference reads as FA (Ben's #116 Minor ruling; the Wilson export agrees for its one such case, and matches the default in both drafted cases). That moved 4 Riddell players into the pool; Riddell holders are 14 from the ledger plus the 29 assumed tags. Wilson holders: 45 from the export plus 2 dropped after the pull.
+- **#526 closed;** its follow-up is **#551** (tier:high, Stage D, Project 2): the shadow fallback ledger plus Ben's reconstruction tests, blocked by #93 brief 5, ADR first, scoped before built, dispatch at Ben's go.
+- **#552 filed** (tier:medium, Project 2): reconcile the FA-contract gaps: salary field mismatch, Riddell's missing generated values, the 29 assumed tags, adds after a pull (a Ben decision), the duplicate ids; cross-check of the claim-default holders after #544. Dispatch at Ben's go.
+- **Bylaws gaps:** the salary-lock line is added to #116 issuecomment-6880314749 (dated addition, points at #552). The list there: draft-only Minor rule; §5.2; FA salaries are generated values locked at the pull.
+- **#525 ruled:** the 11-14 scheduled run settles the live check (#525 issuecomment-6882340466: one login, then 04s, 04a, 04t and the 04a games backfill ran logged in; fantrax_core published). Ben's workflow_dispatch is not needed.
+- **Tools #161:** the builder's finding has not posted (it queues behind tools #174 and #159). Rule on it when it posts.
+- **Tools #179, the planner's call:** a separate `--with-answers` override beside the existing `--with-notes` (an Answer line is Ben's unrecorded decision; one flag for both would let a Note override drop an answer; renaming `--with-notes` would break existing callers). The held report names which line held each entry. Also in scope: README line 239's Session wording (#179's comment). **Waits on Ben's go.**
+- **Asked Ben by pop-up (18:40Z):** Riddell salaries in v5 (a Riddell export for a v6, or send v5 as is); the go on #551; the go on #552; the #179 call and its go. Record the answers here and on the tickets; send the goes to the manager.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go (after #544); the #548 crosswalk Excel, the 2026 FA handover and #548's go; the four pop-up questions above; the C1 rerun.
+
+0000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 18:10Z by `date -u`, before a CLEAR (session 30d0affa). Self-contained with the 66-zero item (its lists stand, except where this item differs) and the 65-zero item's resume rules.**
 - **Resume rules (unchanged):** the state branch is `docs/state-2026-11-14` (find its worktree with `git worktree list`). Pull with `git pull --rebase origin docs/state-2026-11-14` before reading and before every push. Commit with an explicit `git add .claude/memory/PLANNER.md`, never `commit -a`, and push with a standalone `git push origin HEAD:docs/state-2026-11-14`, never a force push. **State PR #542** merges on Ben's word. After it merges, retire the branch and cut a fresh one from main: pause the manager's state pushes first, merge head-pinned, cut the new branch, send the manager its name.
 - **Main** is `c6c8eae` (data PR #547, the 11-14 run).
 - **#526 fallback-ledger grill: COMPLETE** (#526 issuecomment-6881830669 and issuecomment-6881989551).
