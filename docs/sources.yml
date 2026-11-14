@@ -196,12 +196,13 @@ sources:
     status: live
     terms: *fantrax_fxea_terms
     locator: "https://www.fantrax.com/fxea/general/getLeagueInfo?leagueId=v744203wmmvjqzv6"
-    purpose: "The season's 17 Scoring Periods with their exact bounds (`scoringPeriods`, `playoffs`) and each team's division (`teamInfo`). Feeds the period dim, with the Update-Set state of each regular-season period, and the Division name per Conference (ADR-0016 amendment decisions 2, 12, 14). Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
+    purpose: "The season's 17 Scoring Periods with their exact bounds (`scoringPeriods`, `playoffs`) and each team's division (`teamInfo`). Feeds the period dim, with the Update-Set state of each regular-season period, and the Division name per Conference (ADR-0016 amendment decisions 2, 12, 14). Also holds the league's scoring rules (`scoringSystem.scoringCategorySettings`: points per unit by category and position), which feed the rules dim (#473 brief 2, ADR-0023). Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
     cadence: "Every pipeline run, all phases (`04p_league_info` step, fantrax_core Chain)"
     feeds:
       - { notebook: 04p_fantrax_league_info.py, table: dim_scoring_period }
       - { notebook: 04p_fantrax_league_info.py, table: dim_division }
+      - { notebook: 04p_fantrax_league_info.py, table: dim_fantrax_scoring_rule }
     match: ["getLeagueInfo"]
 
   - id: fantrax_public_rosters

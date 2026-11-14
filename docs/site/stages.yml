@@ -14,10 +14,10 @@ stages:
       when each Scoring Period starts and ends, and what each team's roster
       looked like. Owners see it as the dates on every deadline and the
       lineups behind every score.
-    tables: [dim_season, dim_scoring_period, dim_division, fact_roster_state]
+    tables: [dim_season, dim_scoring_period, dim_division, dim_fantrax_scoring_rule, fact_roster_state]
     steps:
       - {name: 01f_dim_season, summary: "Seeds the season calendar."}
-      - {name: 04p_league_info, summary: "Reads the league's scoring periods and divisions from Fantrax's public page."}
+      - {name: 04p_league_info, summary: "Reads the league's scoring periods, divisions and scoring rules from Fantrax's public page."}
       - {name: 04r_roster_state, summary: "Reads every team's roster for each period that has started and is not closed."}
 
   - id: nflverse

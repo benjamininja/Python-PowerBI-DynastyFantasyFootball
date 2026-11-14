@@ -368,6 +368,71 @@
       ],
       "schema": "football"
     },
+    "football.dim_fantrax_scoring_rule": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_code",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "scoring_group",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "points",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "captured_at",
+          "not_null": false,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "dim_fantrax_scoring_rule_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "indexes": [],
+      "name": "dim_fantrax_scoring_rule",
+      "pk": [
+        "season_id",
+        "category_id",
+        "position"
+      ],
+      "schema": "football"
+    },
     "football.dim_gsis_link": {
       "checks": [],
       "columns": [
