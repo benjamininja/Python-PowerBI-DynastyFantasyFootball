@@ -269,6 +269,56 @@ class TestReviewCheck:
         assert [k for k, _ in dc.fn(load)] == ["t1|s1|1st"]
 
 
+class TestTheStep:
+    """02k writes only from a healthy Roster State (ADR-0008 decision 6, amended)."""
+
+    @pytest.fixture
+    def step(self, monkeypatch):
+        import importlib
+        import etl_helpers
+        mod = importlib.import_module("02k_fact_contract_move")
+        writes = []
+        monkeypatch.setattr(etl_helpers, "write_table", lambda *a, **k: writes.append(a) or 0)
+        mod.writes = writes
+        return mod, monkeypatch, etl_helpers
+
+    def test_an_empty_roster_raises_and_writes_nothing(self, step):
+        mod, mp, etl = step
+        mp.setattr(etl, "read_table", lambda name: pd.DataFrame())
+        with pytest.raises(RuntimeError, match="no rows"):
+            mod.main()
+        assert mod.writes == []
+
+    def test_a_missing_roster_raises_and_writes_nothing(self, step):
+        mod, mp, etl = step
+
+        def read(name):
+            raise etl.TableNotFound(name)
+        mp.setattr(etl, "read_table", read)
+        with pytest.raises(RuntimeError, match="missing"):
+            mod.main()
+        assert mod.writes == []
+
+    def test_a_healthy_roster_with_nothing_due_writes_an_empty_list(self, step):
+        mod, mp, etl = step
+        frames = {"fact_fantasy_teams": pd.DataFrame([copy("s6", "1st")]), "dim_fantasy_teams": TEAMS,
+                  "dim_nfl_players": PLAYERS, "fact_minor_eligibility": fantrax("s9"),
+                  "fact_roster_transactions": drops()}
+        mp.setattr(etl, "read_table", lambda name: frames[name])
+        mp.setattr(etl, "table_exists", lambda name: False)
+        mp.setattr(etl, "league_date", lambda: DAY)
+        assert mod.main() == 0
+        assert len(mod.writes) == 1 and mod.writes[0][0] == "fact_contract_move"
+        assert mod.writes[0][1].empty
+
+
+class TestTheShrinkFlag:
+    def test_exactly_one_table_is_exempt_from_the_shrink_gate(self):
+        import etl_checks
+        flagged = [n for n, e in etl_checks.load_registry().items() if e.get("shrinks_by_design")]
+        assert flagged == ["fact_contract_move"]
+
+
 class TestConfig:
     def test_the_dates_are_league_config_settings(self):
         import etl_helpers
