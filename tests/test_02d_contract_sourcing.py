@@ -21,6 +21,15 @@ import pandas as pd
 import pytest
 
 rt = importlib.import_module("02d_fact_roster_transactions")
+dead_money = importlib.import_module("02f_fact_dead_money")
+
+DEAD_MONEY_CONTRACTS = pd.DataFrame(
+    [("Minor", "minor", None, 0.0, False), ("1st", "initial", 1, 0.5, True),
+     ("2nd", "initial", 2, 0.4, True), ("FA", "fa", 1, 0.0, False)],
+    columns=["contract_id", "contract_type", "contract_year", "cap_hit_pct", "guaranteed"],
+).astype({"contract_year": "Int64"})
+DEAD_MONEY_SEASONS = pd.DataFrame({"season_id": ["2026-2027", "2027-2028"],
+                                   "season_start_year": [2026, 2027]})
 
 CONTRACTS = pd.DataFrame({
     "contract_id": ["Minor", "1st", "2nd", "FA"],
@@ -1377,6 +1386,28 @@ class TestTransactionLegs:
         rows, _, _, sourcing, _ = resolve_all(legs, source(elig=elig))
         assert [r["contract_id"] for r in rows] == ["FA", "FA", "FA"]
         assert sourcing == {**NO_FLAGS, "after_newest": 1, "left_list": 1, "stale_capture": 1}
+
+    def test_an_eligible_drop_inheriting_1st_is_1st_and_charged_50_percent(self):
+        # p1 is eligible, drafted on 1st, and dropped with no Roster State row
+        # covering the drop: the observed 1st stands (ADR-0019 decisions 4 and 6).
+        startup = base(("A01", 1, "1st", 10_000_000))
+        legs = [leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-18"), period=2)]
+        out = resolve(legs, source(elig=self.ELIG), startup)
+        assert out["contract_id"].tolist() == ["1st"]
+        money = dead_money.build_dead_money(out, DEAD_MONEY_CONTRACTS, DEAD_MONEY_SEASONS)
+        assert money["dead_money"].iloc[0] == 5_000_000.0
+        assert money["cap_hit_pct"].iloc[0] == 0.5
+
+    def test_claim_graduate_then_drop_is_fa_with_no_dead_money(self):
+        # p1 is claimed as a pure free agent while eligible, passes game 20,
+        # and is dropped: FA at both ends, nothing charged.
+        elig = eligibility({"2026-07-18": ["p1"], "2026-09-17": ["p1"], "2026-10-15": []})
+        legs = [leg(rt.CLAIM_EVENT, "p1", "A01", when=pd.Timestamp("2026-09-18"), period=2),
+                leg(rt.DROP_EVENT, "p1", "A01", when=pd.Timestamp("2026-10-20"), period=6)]
+        out = resolve(legs, source(elig=elig))
+        assert out["contract_id"].tolist() == ["FA", "FA"]
+        money = dead_money.build_dead_money(out, DEAD_MONEY_CONTRACTS, DEAD_MONEY_SEASONS)
+        assert money.empty
 
 
 class TestClaimMethod:

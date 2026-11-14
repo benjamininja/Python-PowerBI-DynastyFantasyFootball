@@ -724,11 +724,15 @@ def default_contract(eligible: bool, kind: str, inherited=None):
     - minors-eligible and inheriting `Minor` (a dropped Minor claimed or
       traded while still eligible) -> `Minor` until game 21 (ADR-0019, 2026-11-14,
       rules 2 and 5);
-    - minors-eligible with no inherited contract, a drop or a trade -> `Minor`
-      as before; a pure free-agent claim is not a draft pick, so it takes `FA`
-      (rule 2);
-    - else the contract the copy already held -- but an inherited `Minor` on a
-      player who is no longer eligible is `1st`: they graduated (decision 3);
+    - a trade with no inherited contract and an eligible player -> `Minor`
+      (a drop with no history inherits `FA`, so it never reaches here);
+    - a pure free-agent claim is not a draft pick, so it takes `FA` (rule 2);
+    - else the contract the copy already held, even for an eligible player: a
+      drop or trade holding a non-`Minor` contract keeps it. That is the
+      observation (decisions 4 and 6), so an eligible copy seen on `1st` is
+      dropped on `1st` and charged 50%;
+    - an inherited `Minor` on a player who is no longer eligible is `1st`:
+      they graduated (decision 3);
     - else `1st` for a draft pick, `FA` for a claim or drop with no history,
       and unknown (NA) for a trade with no source row."""
     held = inherited is not None and pd.notna(inherited)
@@ -767,13 +771,16 @@ def tally_sourcing(sourced: list) -> dict:
 
 
 def sourcing_report(elig: list, tallies: list) -> list:
-    """The lines main() prints on how firm the `Minor` defaults are, summed
-    over the draft and transaction tallies."""
+    """The lines main() prints on how firm the eligibility reads behind the
+    defaults are, summed over the draft and transaction tallies. The counters
+    count moves that read an eligibility list, not moves that came out `Minor`:
+    a pure free-agent claim reads one too and takes `FA`."""
     if not elig:
         return []
     n = {flag: sum(t[flag] for t in tallies) for flag in Sourced._fields[1:]}
     newest = elig[-1][0].date()
-    lines = [f"[info] minors eligibility read off the capture before the move: "
+    lines = [f"[info] minors eligibility read off the capture before the move "
+             f"(these moves read a list; not all came out Minor): "
              f"{n['after_newest']} move(s) made after the newest capture ({newest}); "
              f"{n['left_list']} by a player off the next capture's list (graduated in between)"]
     if n["stale_capture"]:

@@ -24,17 +24,17 @@
 
 ## Decision
 
-1. **`Minor` is a contract: the stage before `1st`.** A player holds it while minors-eligible (career plus current regular-season games played ≤ 19, computed by Fantrax). Three concepts stay separate:
+1. **`Minor` is a contract: the stage before `1st`.** A player holds it while minors-eligible (career plus current regular-season games played ≤ 19, computed by Fantrax; *20 since the 2026-11-14 amendment below*). Three concepts stay separate:
    - **Minors Eligibility**: a flag on the player.
    - **Minor**: the contract.
    - **Minors**: the Roster Slot. It is the team's lever and the only cap exemption.
-   - *Amended 2026-11-12 (#524, planner ruling, the games rule of #473 Q7): eligibility is also computed from nflverse, by `02j`, for every player in the pool. A game counts when the player has a regular-season game with a snap from 2012 on (`load_snap_counts`, any Unit), or a regular-season stats row before 2012. A playoff game never counts, as the league's setting reads "regular season". The player is eligible while the count is 19 or fewer. `02d` keeps reading Fantrax's eligibility for the `Minor` default (the owner's ruling on PR #535, 2026-11-12: the nflverse count differs from Fantrax's on 56 players, nearly all 1 to 2 games over the limit, and Fantrax's own GP is blank in the snapshot). The `minor_drift` Review check (ADR-0008 decision 9) files each disagreement. After a week of drift data the switch of `02d`'s read to nflverse comes to the owner, before 2026-12-03 or after 2027-01-07; `04v` retires at that switch window.*
+   - *Amended 2026-11-12 (#524, planner ruling, the games rule of #473 Q7): eligibility is also computed from nflverse, by `02j`, for every player in the pool. A game counts when the player has a regular-season game with a snap from 2012 on (`load_snap_counts`, any Unit), or a regular-season stats row before 2012. A playoff game never counts, as the league's setting reads "regular season". The player is eligible while the count is 19 or fewer (20 since the 2026-11-14 amendment below). `02d` keeps reading Fantrax's eligibility for the `Minor` default (the owner's ruling on PR #535, 2026-11-12: the nflverse count differs from Fantrax's on 56 players, nearly all 1 to 2 games over the limit, and Fantrax's own GP is blank in the snapshot). The `minor_drift` Review check (ADR-0008 decision 9) files each disagreement. After a week of drift data the switch of `02d`'s read to nflverse comes to the owner, before 2026-12-03 or after 2027-01-07; `04v` retires at that switch window.*
 2. **A Minor drop costs no Dead Money.** `cap_hit_pct = 0` and `guaranteed = False`, the same terms as `FA`.
-3. **A Minor player moves to `1st` immediately, mid-season,** in the Scoring Period after they pass 19 games. That season counts as year 1 of 3. The salary carries over unchanged.
+3. **A Minor player moves to `1st` immediately, mid-season,** in the Scoring Period after they pass 19 games (*20, so at game 21, since the 2026-11-14 amendment below*). That season counts as year 1 of 3. The salary carries over unchanged.
 4. **Contracts are observed, never derived.** The contract always comes from Fantrax's Roster State. A post-run check (#88) files each mismatch to `ops.review_check`, and it never blocks the run. The mismatches are:
    - an eligible player on `1st` or `FA`;
    - an ineligible player on `Minor`.
-5. **Any eligible player is on `Minor`,** however they were acquired: draft, auction or claim. Protection follows eligibility, not a team's stash, so ADR-0010's season-boundary stash rule stays dead.
+5. **Any eligible player is on `Minor`,** however they were acquired: draft, auction or claim. *(Amended 2026-11-14: only a draft or auction acquisition, or a dropped Minor claimed while eligible; see the amendment below.)* Protection follows eligibility, not a team's stash, so ADR-0010's season-boundary stash rule stays dead.
 6. **`02d` takes each Roster Move's contract from the latest Roster State at or before the move.** A default applies only when there is no snapshot to read: the preseason draft history, or a claim and drop inside one period. *The per-period Roster State is `fact_roster_state` ([ADR-0016's 2026-10-03 amendment](0016-roster-state-from-snapshot-ledger-is-provenance.md#amendment-2026-10-03-in-season-fact-model-81), decision 3), which replaces `fact_roster_placement`.*
    - Default: `Minor` if the player is eligible. Otherwise `1st` for a drafted player, or `FA`/the inherited contract for a claim.
    - The hard-coded `CONTRACT_ID = "1st"` becomes that fallback.
@@ -86,7 +86,9 @@ Ben's Minor ruling of 2026-11-14 ([#116 comment](https://github.com/benjamininja
 4. **Cut cost (decision 2).** A `Minor` drop costs 0%. As a `1st`, the 50% penalty applies (bylaws penalty table: `Minor` 0% cap hit, non-guaranteed).
 5. **Drop and claim.** A dropped Minor claimed by another team while still eligible stays `Minor` on the new team until game 21, then becomes a `1st`. A full season unrostered in free agency resets the contract (bylaws section 12.5).
 
-`02d`'s default follows: `Minor` for an eligible draft pick or auction win; for a claim only when the claimed copy's contract is `Minor`; `FA` for a pure free-agent claim. A contract read from Roster State still wins. A Minor dropped and claimed after the season ends is not settled by the ruling (`02d` reads only a contract held in the same season, so it gives `FA`); it is left to the owner.
+`02d`'s default follows: `Minor` for an eligible draft pick or auction win; for a claim only when the claimed copy's contract is `Minor`; `FA` for a pure free-agent claim. A contract read from Roster State still wins. A contract dropped and claimed in a later season is settled by bylaws §12.5 and §5.4: it carries until the copy spends a whole season unrostered. `02d` still carries a contract only within one season, which is narrower. No leg crosses a season yet, and #553 fixes this before the first 2027-28 move.
+
+An eligible copy that Roster State shows on `1st` and a later drop finds with no covering row is dropped on `1st` and charged 50%: decision 4 (contracts are observed) and decision 6 (a drop keeps the contract of the stint it ends) apply, and rule 4's 0% covers a copy that holds `Minor`.
 
 ## Alternatives considered
 

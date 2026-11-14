@@ -138,7 +138,7 @@ replace-by-(season, week) pattern already handles.
 `notebooks/05a_startup_draft_board.py::load_career_games` counts **stats rows**
 per gsis_id as games played. For 2026 weeks 1–3, **356 of 2,497 mapped snap rows
 (14%) have no stats row**: LB 70, TE 66, CB 48, S 37, WR 30, and so on. These are
-special-teams-only players or players with 0 stats. Minors eligibility (GP ≤ 19)
+special-teams-only players or players with 0 stats. Minors eligibility (GP ≤ 19 when written; 20 since the 2026-11-14 ruling, ADR-0019 amendment)
 is exactly the population of young depth players this undercounts, so any
 nflverse GP cross-check should derive GP from **snap counts (any
 offense, defense or ST snap > 0)**, not from stats rows. Fixing 05a is outside
