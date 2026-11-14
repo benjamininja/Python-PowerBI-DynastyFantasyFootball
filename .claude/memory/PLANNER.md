@@ -18,7 +18,36 @@ Read this block first. Anything below that disagrees with it is older.
 Find the manager with `ListAgents`, by name. Approved plans: this block and
 `C:\Users\benha\.claude\plans\gentle-tumbling-waffle.md`.
 
-0000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 18:59Z by `date -u` (session 2033d299, after the clear). Adds to the 69-zero item, whose resume rules and lists stand except where this item differs.**
+00000000000000000000000000000000000000000000000000000000000000000000000. **NEWEST: 2026-11-14, 19:51Z by `date -u` (session 2033d299). Adds to the 70-zero item. The 69-zero item's resume rules stand.**
+- **The season-rollover grill is COMPLETE** (Ben chose "Grill now"). Map **#557** (decisions 1 to 4 in the body, 5 to 10 at #557 issuecomment-6883245395; Ben confirmed the shared understanding and the ticket split).
+  - The commissioners relabel in Fantrax, which stays the record. The repo works out each copy's expected label, gives the commissioners a one-off xlsx per conference before rollover, and checks Fantrax after it.
+  - The first build covers the 2027 moves only: `1st`→`2nd` (same salary); an eligible `Minor` stays; an overdue `Minor` becomes `2nd` (rule 3); a kept FA becomes `X` at the 11-12 pull value; the commissioners release unkept FAs before Mar 1.
+  - 2027-28 starts Mar 1. If Fantrax is renewed earlier, the Fantrax chain holds and a check is filed until then.
+  - Keep choices load into #548's table through a tracked loader, so **#548's ADR must land before Mar 1**.
+  - **Locked values:** one pull a year, after the post-deadline Recalculate Salaries; Ben's hand Players export is the source; the pull is the price list.
+- **Correction found in the grill:** `fact_fantrax_adp` does **not** hold the generated values. Its 11-12 capture matches Ben's export on 1,070 of 1,982 players. Only Ben's export holds them. Ben confirmed that Q3 stands with the export as its source.
+- **Tickets (all at Ben's go; live by Mar 1; nothing switches between 12-03 and 01-07):**
+  - **#558** (tier:high): season two in the pipeline. Its first PR is the rollover ADR.
+  - **#554** re-scoped to tier:medium: the yearly price-list table and its loader; the 11-12 export loads first.
+  - **#559** (tier:medium): the contract step (expected labels, the xlsx, the check, the `X` seed fix from 0.5 to 0%), after #548's table, #554 and #558.
+  - **#553**: now after #559.
+  - **Grills:** #560 (the 2028 ladder; grill before the 2027 trade deadline) and #561 (the 2027-28 ledger's new events: rookie draft, auction, cut day; grill after 12-03).
+  - #548 has a comment on the new ordering. The bylaws lines are added to #116 issuecomment-6880314749.
+- **#552 follow-ups:**
+  - #554 is above.
+  - **#555 is ruled and closed:** no dead ids are recorded, and `04z` adds the `fact_roster_state` scorers, folded into #523. #523 now depends on #554.
+  - **#556** (tier:low): `Fact_FantasyTeams` gets `CapHit`, and its stale description is fixed.
+  - **Item 4:** Ben answered (a), the pull is the price list, in both this session and the manager's pane, with Ben's note that the new salary takes effect next year. The entry has left the queue.
+- **#549:** the main-to-head counts show 14 of 327 rows changing, all `Minor` to `FA`, and 0 Q2 drops, so no Fantrax check is owed. b544's fixes are at 85773c0. The re-proof is the next manager session's first dynasty item. The manager has cleared (state d27f225).
+- **Owed by the planner:**
+  - Close #130 when #549 merges.
+  - Rule on tools #161's finding when it posts.
+  - The 02d switch question to Ben before 2026-12-03.
+  - The #561 grill after 12-03.
+- **Waiting on Ben:** #542; #505; the reproof.py allow rule; #519's go; #545's go; the #548 crosswalk Excel, the 2026 FA handover and #548's go (its ADR now has a Mar 1 deadline); the goes for #554, #556, #558 and #559; the C1 rerun.
+- **Resume prompt (the committed form; Ben's copy also names the local files):** Act as the central-planner. Resume from START HERE in .claude/memory/PLANNER.md, the newest item (71 zeros) first, then the 70- and 69-zero items. The state worktree is the one on branch docs/state-2026-11-14 (find it with git worktree list). Run git pull --rebase origin docs/state-2026-11-14 before reading and before every push; run git status --short and commit with an explicit git add of .claude/memory/PLANNER.md (never commit -a); push with a standalone git push origin HEAD:docs/state-2026-11-14 and never force-push. State PR #542 merges only on Ben's word; after it merges, retire the branch and cut a fresh one from main. First send the manager this session's new id so it re-keys the planner's queue entries. Then rule on tools #161's finding when it posts, and close #130 when #549 merges. Follow Ben's standing rules in root preferences.md: every question goes through the pop-up or the queue, with context Ben can see; call the owner Ben or the owner and yourself Claude; nothing committed points at local-only files; queue entries carry the issue's full URL and use curl.exe. Message the manager by name, dynastyFantasyFootball-central-builder-manager, and Tools-central-planner by name (it owns skills-plugins-hooks-agents except the owner-queue mod, which is Claude's).
+
+0000000000000000000000000000000000000000000000000000000000000000000000. **2026-11-14, 18:59Z by `date -u` (session 2033d299, after the clear). Adds to the 69-zero item, whose resume rules and lists stand except where this item differs.**
 - **Peers told the new id.** The manager (93fec6e9) re-keyed the planner's two #548 entries to 2033d299. The Tools planner was told.
 - **From the manager:**
   - #543 (Closes #515) merged at fdd98ea on Ben's button. The DROP stays held until Ben runs migrate.yml by hand, and the #521 schema half dispatches at Ben's go.
