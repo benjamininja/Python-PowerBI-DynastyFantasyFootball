@@ -51,8 +51,8 @@ the parquet alone.
 - **Principles**: [docs/PRINCIPLES.md](docs/PRINCIPLES.md) — owners are front
   and center; judge every change by what it puts in an owner's hands.
 - **Session roles**: `.claude/agents/` holds three main-agent roles —
-  `central-planner` (decisions, maps, tickets, tiers, milestones, gaps),
-  `central-builder-manager`
+  `dff-central-planner` (decisions, maps, tickets, tiers, milestones, gaps),
+  `dff-central-builder-manager`
   (dispatches and closes out builders) and `stage-builder` (works one brief
   or stage). Each points at the `session-rules` skill and
   `.claude/memory/GOAL-RUN.md`; the rules live there, not in the role files.
