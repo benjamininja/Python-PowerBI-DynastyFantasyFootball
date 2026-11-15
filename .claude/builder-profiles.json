@@ -1,0 +1,36 @@
+{
+  "profiles": {
+    "research": {
+      "baseSettings": ".claude/research.settings.json",
+      "allow": [
+        "WebSearch",
+        "WebFetch",
+        "Read",
+        "Grep",
+        "Glob",
+        "Edit(builder-state/**)",
+        "Bash(git status*)",
+        "Bash(git diff*)",
+        "Bash(git log*)",
+        "Bash(gh issue view *)",
+        "Bash(gh issue comment *)",
+        "Bash(gh search *)",
+        "Bash(gh repo view *)"
+      ],
+      "deny": [
+        "Bash(git push*)",
+        "Bash(gh pr *)",
+        "Bash(git diff*--output*)",
+        "Bash(git log*--output*)",
+        "Bash(gh issue comment*--repo*)",
+        "Bash(gh issue comment* -R*)",
+        "Bash(gh issue comment*--edit-last*)"
+      ]
+    },
+    "probe": {
+      "allow": [
+        "Bash(.venv/Scripts/python.exe builder-state/probe.py)"
+      ]
+    }
+  }
+}
