@@ -7,6 +7,7 @@
  "aaa06": {"fantraxId": "aaa06", "name": "Suffixer Jr., Foxtrot", "position": "LB", "team": "BUF"},
  "aaa07": {"fantraxId": "aaa07", "name": "Tester, Golf, Jr.", "position": "CB", "team": "DAL"},
  "aaa08": {"fantraxId": "aaa08", "name": "Mononym", "position": "S", "team": "DAL"},
+ "aaa09": {"fantraxId": "aaa09", "name": "Tester, Hotel Jr.", "position": "TE", "team": "BUF"},
  "bbb01": {"fantraxId": "bbb01", "name": "Testville Kicking", "position": "TK", "team": "DAL"},
  "bbb02": {"fantraxId": "bbb02", "name": "Testville Passing", "position": "TQB", "team": "DAL"},
  "00001#0001": {"fantraxId": "00001#0001", "name": "Testville Defense", "position": "DST", "teamName": "Testville", "teamShortName": "TST", "shortName": "TST"},
