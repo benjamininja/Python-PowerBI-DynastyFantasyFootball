@@ -494,10 +494,29 @@ class TestComparePlayerIdsCrosswalk:
             "keys that differ on both gsis_id and match_method: 1"]
         assert lines[-4].startswith("ids the response does not list: ")
 
-    def test_the_loader_comparison_makes_no_getplayerids_request(self):
-        source = (REPO / "scripts" / "compare_loader_output.py").read_text(encoding="utf-8")
-        assert "etl.fantrax_player_ids = lambda" in source
-        assert "etl.REVIEW, etl.fantrax_player_ids = real_review, real_ids" in source
+    @pytest.mark.parametrize("raises", [False, True])
+    def test_the_loader_comparison_makes_no_getplayerids_request(self, tmp_path, monkeypatch, raises):
+        loader_cmp = importlib.import_module("compare_loader_output")
+        seen = {}
+        real_ids, real_review = etl.fantrax_player_ids, etl.REVIEW
+
+        def run_04z():
+            seen["ids"] = etl.fantrax_player_ids()
+            seen["review"] = etl.REVIEW
+            if raises:
+                raise RuntimeError("stop")
+
+        monkeypatch.setattr(loader_cmp, "run_04z", run_04z)
+        monkeypatch.setattr(loader_cmp, "run_02d", lambda review: None)
+        if raises:
+            with pytest.raises(RuntimeError, match="stop"):
+                loader_cmp.capture(tmp_path)
+        else:
+            loader_cmp.capture(tmp_path)
+        assert seen["ids"].empty and list(seen["ids"].columns) == list(etl.PLAYER_ID_COLUMNS)
+        assert seen["review"] != real_review
+        assert etl.fantrax_player_ids is real_ids
+        assert etl.REVIEW is real_review
 
     def test_an_empty_id_frame_leaves_every_row_as_the_universe_has_it(self):
         universe = pd.DataFrame({"scorer_id": ["a"], "player_name": ["Old A"], "position_raw": ["DL,LB"],
