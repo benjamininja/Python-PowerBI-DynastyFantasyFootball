@@ -14,8 +14,9 @@ The owner runs it after the one-time loader. It writes nothing:
     read in the same session;
   - since #519 04z takes names and NFL teams from Fantrax's public
     getPlayerIds call. This script makes no such request: 04z runs with no
-    player ids, so its dim_fantrax_crosswalk line shows every row whose name
-    or NFL team the stored, overlaid crosswalk took from the public call.
+    player ids, so its dim_fantrax_crosswalk line shows every row the public
+    call changed: a row counts only when its stored name or NFL team differs
+    from the one the tables give.
 
 It prints, for each of the four tables, the table name, both row counts, the
 keys held on one side only and the keys whose cells differ. Counts only: no
@@ -89,8 +90,8 @@ def capture(work: Path) -> Path:
     etl.REVIEW = review
     # 04z asks Fantrax's public getPlayerIds for names and teams (#519). This
     # script makes no request: with no ids 04z keeps the name and team the
-    # tables give each scorer_id, so any stored row whose name or team came
-    # from the public call shows as differing on dim_fantrax_crosswalk.
+    # tables give each scorer_id, so every row the public call changed shows
+    # as differing on dim_fantrax_crosswalk.
     etl.fantrax_player_ids = lambda: pd.DataFrame(columns=etl.PLAYER_ID_COLUMNS)
     try:
         with etl.capturing(captured), contextlib.redirect_stdout(io.StringIO()):
