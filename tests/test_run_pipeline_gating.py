@@ -233,14 +233,14 @@ class TestContractMoveStep:
 
     STEPS = rp.build_steps(None)
 
-    def test_it_follows_every_step_that_writes_a_table_it_reads(self):
+    def test_it_needs_only_the_fantrax_core_steps_of_the_tables_it_reads(self):
         names = [s["name"] for s in self.STEPS]
         step = self.STEPS[names.index("02k_contract_moves")]
         assert (step["chain"], step["group"]) == ("fantrax_core", "regular_season")
-        assert set(step["needs"]) == {"02e_derive", "04v_minor_contracts", "02d_ledger",
-                                      "01e_dim_nfl_players", "02j_minor_eligibility"}
+        assert set(step["needs"]) == {"02e_derive", "04v_minor_contracts", "02d_ledger"}
         assert all(names.index(n) < names.index("02k_contract_moves") for n in step["needs"])
-        assert names.index("02e_derive") < names.index("02k_contract_moves")
+        chains = {s["name"]: s["chain"] for s in self.STEPS}
+        assert {chains[n] for n in step["needs"]} == {"fantrax_core"}
         assert step["cmd"][-1].endswith("02k_fact_contract_move.py")
 
     def test_its_table_is_in_the_same_chain_and_may_shrink_to_nothing(self):
