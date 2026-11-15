@@ -77,6 +77,6 @@ def test_run_step_env_and_command():
     env = run["env"]
     assert env["ETL_STORAGE"] == "${{ vars.ETL_STORAGE }}"
     for name in ("FANTRAX_EMAIL", "FANTRAX_PASSWORD", "FANTRAX_TOTP_SECRET",
-                 "SUPABASE_DB_URL", "DISCORD_WEBHOOK_URL"):
+                 "SUPABASE_DB_URL", "DISCORD_WEBHOOK_URL", "DISCORD_WEBHOOK_URL_ADMIN"):
         assert env[name] == "${{ secrets." + name + " }}"
     assert env["GH_TOKEN"] == "${{ steps.app-token.outputs.token }}"

@@ -48,9 +48,12 @@ import sys
 import tempfile
 import time
 import urllib.request
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
+
+import pandas as pd
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -72,6 +75,7 @@ CHECKS_POLL_S = 30
 
 sys.path.insert(0, str(NB))
 import etl_checks  # noqa: E402  (notebooks/ on the path, like the notebooks do)
+import etl_contract_moves  # noqa: E402
 import etl_helpers  # noqa: E402
 import etl_run_log  # noqa: E402
 
@@ -769,6 +773,117 @@ def notify(text: str) -> None:
         print(f"[warn] webhook failed: {type(e).__name__}: {reason}")
 
 
+CONTRACT_TABLE = "fact_contract_move"
+CONTRACT_WEBHOOK_ENV = "DISCORD_WEBHOOK_URL_ADMIN"
+CONTRACT_FORMATTER = REPO / "discord_bot" / "contract_moves.py"
+XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_CONTRACT_FMT = None
+
+
+def contract_formatter():
+    """The bot's xlsx formatter, loaded by file path: discord_bot/ has no
+    package and its sibling names (config, cap, render) would shadow others.
+    The file imports only pandas and openpyxl, so the ETL environment has all
+    it needs. Cached."""
+    global _CONTRACT_FMT
+    if _CONTRACT_FMT is None:
+        spec = importlib.util.spec_from_file_location("contract_moves_formatter", CONTRACT_FORMATTER)
+        _CONTRACT_FMT = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_CONTRACT_FMT)
+    return _CONTRACT_FMT
+
+
+def read_contract_list(data_dir: Path | None = None):
+    """The published snapshot of the contract lists. A table with no file is the
+    first run: an empty list. Any other failure is None, which skips the post
+    instead of reading as an empty list and posting every row."""
+    try:
+        return etl_helpers.read_stored(CONTRACT_TABLE, data_dir=etl_helpers.DATA if data_dir is None else data_dir)
+    except etl_helpers.TableNotFound:
+        return etl_contract_moves.empty()
+    except Exception as exc:
+        print(f"[warn] {CONTRACT_TABLE} could not be read ({type(exc).__name__}); "
+              f"the contract-moves post is skipped")
+        return None
+
+
+def read_team_names(data_dir: Path | None = None):
+    """team_key and team_name for the xlsx; None when the table cannot be read,
+    and the file then shows team keys."""
+    try:
+        return etl_helpers.read_stored("dim_fantasy_teams", data_dir=etl_helpers.DATA if data_dir is None else data_dir)
+    except Exception:
+        return None
+
+
+def send_webhook_file(url: str, content: str, filename: str, data: bytes) -> None:
+    """One plain multipart post: a message and one file, no mention allowed.
+    Raises on any failure; the caller scrubs the URL from the error."""
+    boundary = uuid.uuid4().hex
+    payload = json.dumps({"content": content[:1900], "allowed_mentions": {"parse": []},
+                          "attachments": [{"id": 0, "filename": filename}]})
+    parts = [
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"payload_json\"\r\n"
+        f"Content-Type: application/json\r\n\r\n{payload}\r\n".encode("utf-8"),
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"files[0]\"; "
+        f"filename=\"{filename}\"\r\nContent-Type: {XLSX_TYPE}\r\n\r\n".encode("utf-8"),
+        data,
+        f"\r\n--{boundary}--\r\n".encode("utf-8"),
+    ]
+    req = urllib.request.Request(
+        url, data=b"".join(parts),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}",
+                 "User-Agent": "DiscordBot (https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball, 1.0)"})
+    urllib.request.urlopen(req, timeout=30)
+
+
+def contract_post_text(current, new: set) -> str:
+    """A short, counts-only message: no team and no player in the text."""
+    fmt = contract_formatter()
+    keyed = current.assign(_key=list(map(tuple, current[etl_contract_moves.CHANGE_KEY].astype(str).to_numpy())))
+    rows = keyed[keyed["_key"].isin(new)]
+    by_status = " · ".join(f"{n} {s.lower()}" for s, n in rows["status"].value_counts().items())
+    by_list = " · ".join(f"{fmt.LIST_LABELS.get(n, n)} {c}" for n, c in rows["list_name"].value_counts().items())
+    return (f"**Contract moves**: {len(rows)} new on the commissioners' lists ({by_status}). "
+            f"{by_list}. The full list is attached; `/contract-moves` shows it any time.")
+
+
+def contract_post_due(dry_run: bool, no_commit: bool, code: int, commit_line: str) -> bool:
+    """A good run: no flag that stops short of publishing, exit code 0, and the
+    data PR merged, so the list the post compares is the published one."""
+    return not dry_run and not no_commit and code == 0 and etl_run_log.data_merged(commit_line)
+
+
+def post_contract_moves(previous, current, teams, webhook: str | None, sender=send_webhook_file,
+                        today: date | None = None) -> str:
+    """After a good run: post the xlsx and a short message to the admin webhook
+    only when a row is new by the change key (list, conference, team, player,
+    status) against the list the previous good run published. No state file: the
+    next run's previous list already holds these rows, so a failed post is not
+    retried until the list gains a row. Never raises; returns one line to log."""
+    try:
+        if previous is None or current is None:
+            return "contract-moves post skipped: a list could not be read"
+        if current.empty:
+            return "contract-moves post: nothing due, no post"
+        new = etl_contract_moves.new_keys(current, previous)
+        if not new:
+            return "contract-moves post: no new row, no post"
+        if not webhook:
+            return f"contract-moves post skipped: {CONTRACT_WEBHOOK_ENV} is not set ({len(new)} new row(s))"
+        fmt = contract_formatter()
+        if teams is None:
+            keys = current["team_key"].astype(str).unique()
+            teams = pd.DataFrame({"team_key": keys, "team_name": keys})
+        data = fmt.xlsx_bytes(fmt.prepare(current, teams))
+        name = f"contract-moves-{(today or league_today()).isoformat()}.xlsx"
+        sender(webhook, contract_post_text(current, new), name, data)
+        return f"contract-moves post sent: {len(new)} new row(s)"
+    except Exception as exc:
+        reason = str(exc).replace(webhook, "<webhook>") if webhook else str(exc)
+        return f"[warn] contract-moves post failed, not retried: {type(exc).__name__}: {reason}"
+
+
 def terms_line() -> str:
     try:
         import check_sources
@@ -884,6 +999,7 @@ def main() -> int:
     session = None if args.dry_run else open_fantrax_session()
     logins: list[str] = []
     blocked: list[str] = []
+    contract_before = contract_after = None
     if not args.dry_run:
         runlog.start(etl_run_log.head_sha(REPO))
     try:
@@ -900,6 +1016,8 @@ def main() -> int:
         steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
                                        today, etl_run_log.steps_done)
         print(f"[cadence] {cadence_line(cadence)}")
+        if not args.dry_run and not args.no_commit:
+            contract_before = read_contract_list()
         results = run_steps(steps, phase, only, args.dry_run, groups)
         logins = fantrax_logins(session)
         blocked = fantrax_blocked(session)
@@ -940,6 +1058,8 @@ def main() -> int:
             aborted = publish_postgres(plan) if storage_is_postgres() else None
             if not aborted:
                 rows = etl_run_log.row_counts(plan["publish"])
+                if CONTRACT_TABLE in plan["publish"]:
+                    contract_after = read_contract_list()
             commit_line = aborted or commit_data(phase, week, push=not args.no_push,
                                                  publish=plan["publish"], restore=plan["restore"],
                                                  run_id=runlog.run_id, rows=rows, landed=landed)
@@ -987,6 +1107,9 @@ def main() -> int:
     print("\n" + summary)
     if not args.dry_run:
         notify(summary)
+    if contract_post_due(args.dry_run, args.no_commit, code, commit_line):
+        print(post_contract_moves(contract_before, contract_after, read_team_names(),
+                                  os.environ.get(CONTRACT_WEBHOOK_ENV)))
 
     return code
 

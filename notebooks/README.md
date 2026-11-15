@@ -108,7 +108,12 @@ label + the season calendar). It runs, in dependency order:
 `01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 02j → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h → 02k`,
 surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
-notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).
+notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional). After a
+good run that landed its data, it also posts the commissioners' contract lists
+(xlsx plus a counts-only message) to the admin webhook named by the environment
+variable `DISCORD_WEBHOOK_URL_ADMIN` (the environment only, no `.env` read; unset
+logs a skip), and only when a row is new by (list, conference, team, player,
+status) against the list the previous good run published (#545).
 
 - Entry point: `.\run_weekly.ps1` (console log →
   `data\outputs\pipeline_runs\`); register the Windows scheduled task
