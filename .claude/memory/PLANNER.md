@@ -13,8 +13,8 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-15 03:02Z, session 36cf9567-9d3e-427f-989a-7cd9a9203003
-(the session after the clear; c19bc37f was the one before). State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
+**Saved:** 2026-11-15 03:10Z, session 36cf9567-9d3e-427f-989a-7cd9a9203003,
+before a clear at Ben's word. State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
 
 ### Next (in order)
 
@@ -61,7 +61,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 |---|---|
 | 2026-11-15, after the Daily Run | The interaction-limit trial on the dynasty repository ends 2026-11-15T22:23Z. The manager reads whether the pipeline's data PR opened and merged under it, then raises the six-month Action or reports a failure (#93 issuecomment-6885159414). |
 | Before PR #565 merges | #519: read the compare script's counts (#519 issuecomment-6885211941). Not posted as of 2026-11-15 02:35Z: the manager runs the compare at re-proof, with the two extra counts, and holds #565 until the planner has answered them (its word). |
-| When PR #570's builder answers | Check the fixes for C2 = F1 and F2 against the weigh-in (pull/570#issuecomment-6888010804) if the manager asks. The rookie-draft and auction kinds are noted on #561 (issuecomment-6888013663). |
+| When PR #570's and PR #571's builders have answered | The builders pushed after the weigh-ins (heads `103ee13` and `292f15f` at 2026-11-15 03:09Z; #569 is at `e9cf33c`); the manager's fresh reviewer re-checks. Check the fixes for #570 C2 = F1 and F2 (pull/570#issuecomment-6888010804) and #571 B1 (pull/571#issuecomment-6888010424) if the manager asks. The rookie-draft and auction kinds are noted on #561 (issuecomment-6888013663). |
 | When #548's PR 2 is in review | Write the brief for the after-deadline publish step (Q6). |
 | When #548's PR 3 opens | Send the manager the `GOAL-RUN.md` replacement line and the supabase-auditor's new basis as queue entries. The same edit adds the long-owed line to `supabase-auditor.md`: a missing `needs:` on validate is no finding. |
 | When #548's deadline table is live | Ticket moving #545's deadline reader to it. |
@@ -146,6 +146,10 @@ Milestones: 1 Stage A: Ledger and cap; 2 Stage B: Seam; 3 Stage C: Postgres; 4 S
 - An issue body is edited as bytes, LF only, through a body file. A page drawn by JavaScript is read in the built-in browser. An Action for a GitHub login refresh says to run it in a real terminal.
 - **Advisory detail never goes on a public ticket, a state file or a commit message** while the advisory is a draft: an unfixed gap, the command forms that use it, a trial of it. The detail goes into the draft advisory; the public record is a pointer. Before posting anything from #564's security side, ask: does this name something no rule refuses today?
 - A Bash permission rule that ends in `:*` reads the colon as part of the wildcard, not as a colon (the Claude Code permission docs).
+- Every push to the state branch queues a full set of checks twice (once for the push, once for the PR), and `storage-pg` takes 12 to 15 minutes. Three quick state pushes on 2026-11-15 backed the queue up for every open PR. Collect state edits and push once per seam.
+- A message queued to a peer shortly before its clear can be lost. After a peer says it has cleared, check the record (the queue file, the ticket) for anything sent to its old session and send it again.
+- The reset prompt goes to Ben in the chat, in one copy block: the `owner-queue` mod has no store for it yet (checked on the live clone, 2026-11-15). The committed form is below.
+- In Git Bash, set `MSYS_NO_PATHCONV=1` before a `git show <ref>:<path>`, or the argument is rewritten into a Windows path.
 - Dates: trade deadline 2026-11-16; re-sign deadline 2026-11-19, 23:59:59 Eastern; Close Days are Fridays; 2027-28 starts Mar 1.
 
 ### Resume prompt (the committed form; Ben's copy also names local files)
