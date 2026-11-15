@@ -233,14 +233,15 @@ FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
 FANTRAX_PUBLIC_UA = ETL_USER_AGENT
 
 
-def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
+def fantrax_public_get(method: str, league_id: str | None, expect: tuple = (),
                        timeout_sec: int = 30, **params) -> dict:
     # Fantrax's public, no-login REST API (fxea/general). Every error comes
     # back as HTTP 200 with an `error` object, so the body is checked too:
     # raises on a non-200, an `error` body, or a body missing any `expect` key.
+    # A league-free method (getPlayerIds) passes league_id None.
     try:
         resp = _make_session().get(f"{FANTRAX_PUBLIC_API}/{method}",
-                                   params={"leagueId": league_id, **params},
+                                   params=({"leagueId": league_id} if league_id else {}) | params,
                                    headers={"User-Agent": FANTRAX_PUBLIC_UA},
                                    timeout=timeout_sec)
     except requests.RequestException as e:
@@ -258,6 +259,88 @@ def fantrax_public_get(method: str, league_id: str, expect: tuple = (),
     if missing:
         raise RuntimeError(f"Fantrax public {method}: body has no {missing}")
     return body
+
+
+# getPlayerIds (fxea, sport=NFL) is the Fantrax identity source of the crosswalk
+# (#519, #429). A record is {fantraxId, name, position, team?, ...ids}. Team
+# defense rows carry `teamName` and a `#` id, and a position code from
+# NON_PLAYER_POSITIONS; the team-level codes TK and TQB carry neither mark, so
+# only their position code drops them. A player with no NFL team has team "(N/A)".
+# The feed writes `name` surname first ("Surname, Given"); the crosswalk holds
+# "Given Surname". `position` is the player's NFL position, not the league's
+# eligibility, so it is kept as nfl_position and never written to position_raw.
+PLAYER_ID_COLUMNS = ["scorer_id", "player_name", "nfl_position", "nfl_team"]
+NON_PLAYER_POSITIONS = frozenset({"Tm", "DST", "TO", "TmD", "ST", "TK", "TQB"})
+NAME_SUFFIXES = frozenset({"jr", "sr", "ii", "iii", "iv", "v"})
+NO_TEAM = "(N/A)"
+MIN_PLAYER_IDS = 1000
+
+
+def given_first_name(name: str) -> str | None:
+    # "Surname, Given" -> "Given Surname". Only the plain shape is turned round:
+    # exactly one comma, text on both sides, and no suffix token (Jr, Sr, II...)
+    # in either part. Any other shape returns None, because where a suffix goes
+    # is a choice this step does not make; the row keeps the name it has.
+    parts = [p.strip() for p in name.split(",")]
+    if len(parts) != 2 or not all(parts):
+        return None
+    if {t.strip(".").lower() for t in " ".join(parts).split()} & NAME_SUFFIXES:
+        return None
+    return f"{parts[1]} {parts[0]}"
+
+
+def parse_player_ids(body: dict, minimum: int = MIN_PLAYER_IDS) -> pd.DataFrame:
+    # One row per player record of a getPlayerIds body, as PLAYER_ID_COLUMNS.
+    # player_name is the given-first form, or None when given_first_name leaves
+    # the record's name alone. Raises on a record that is not an object, one
+    # missing its id, name or position, an id that differs from its key, or a
+    # body with fewer than `minimum` players.
+    rows = []
+    for key, rec in body.items():
+        if not isinstance(rec, dict):
+            raise RuntimeError("Fantrax public getPlayerIds: a record is not an object")
+        missing = [f for f in ("fantraxId", "name", "position") if not isinstance(rec.get(f), str) or not rec[f]]
+        if missing:
+            raise RuntimeError(f"Fantrax public getPlayerIds: a record has no {missing}")
+        if rec["fantraxId"] != key:
+            raise RuntimeError("Fantrax public getPlayerIds: a record's fantraxId differs from its key")
+        if "teamName" in rec or "#" in key or rec["position"] in NON_PLAYER_POSITIONS:
+            continue
+        rows.append({"scorer_id": key, "player_name": given_first_name(rec["name"]),
+                     "nfl_position": rec["position"], "nfl_team": rec.get("team") or NO_TEAM})
+    if len(rows) < minimum:
+        raise RuntimeError(f"Fantrax public getPlayerIds: {len(rows)} player rows, "
+                           f"fewer than the {minimum} a full response holds")
+    return pd.DataFrame(rows, columns=PLAYER_ID_COLUMNS)
+
+
+def fantrax_player_ids(raw_path: str | Path | None = None, minimum: int = MIN_PLAYER_IDS) -> pd.DataFrame:
+    # The Fantrax player identity rows (PLAYER_ID_COLUMNS) from getPlayerIds,
+    # fetched live, or read from a saved copy of the response when raw_path is given.
+    if raw_path is not None:
+        body = json.loads(Path(raw_path).read_text(encoding="utf-8"))
+        if not isinstance(body, dict) or "error" in body:
+            raise RuntimeError("Fantrax public getPlayerIds: the saved file is not a player-id body")
+    else:
+        body = fantrax_public_get("getPlayerIds", None, sport="NFL")
+    return parse_player_ids(body, minimum)
+
+
+def apply_player_ids(universe: pd.DataFrame, ids: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    # Replace player_name and nfl_team of every universe row whose scorer_id
+    # getPlayerIds knows. position_raw is the league's eligibility, which the
+    # call does not carry, so it, is_rookie and every row the call does not know
+    # stay as they are. A row whose id frame has no name (given_first_name left
+    # it alone) keeps its own name. Returns the new frame and counts.
+    ident = ids.drop_duplicates("scorer_id").set_index("scorer_id")
+    hit = universe["scorer_id"].isin(ident.index)
+    out = universe.copy()
+    out.loc[hit, "nfl_team"] = out.loc[hit, "scorer_id"].map(ident["nfl_team"])
+    new_name = out["scorer_id"].map(ident["player_name"])
+    named = hit & new_name.notna()
+    out.loc[named, "player_name"] = new_name[named]
+    return out, {"from_player_ids": int(hit.sum()), "not_in_player_ids": int((~hit).sum()),
+                 "name_kept": int((hit & ~named).sum())}
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 

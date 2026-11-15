@@ -239,7 +239,7 @@ def test_real_manifest_starting_values():
         assert by_id[sid]["checked"] == date(2026, 11, 7), sid
         assert by_id[sid]["access"] == access, sid
     fantrax = {sid: t for sid, t in by_id.items() if sid.startswith("fantrax_")}
-    assert len(fantrax) == 10
+    assert len(fantrax) == 11
     for sid, t in fantrax.items():
         urls = [e["url"] for e in t["evidence"]]
         assert "https://www.fantrax.com/terms-of-service" in urls, sid
@@ -274,9 +274,9 @@ def test_real_manifest_advisory_counts():
         "never": ["google_sheet_team_manifest", "manual_excel_misc", "google_sheet_manifest_write"],
         "past": [],
     }
-    assert len(cs.recite_due(sources)) == 27
-    assert len(cs.security_due(sources, TODAY)) == 25
-    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "27", "25"]
+    assert len(cs.recite_due(sources)) == 28
+    assert len(cs.security_due(sources, TODAY)) == 26
+    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "28", "26"]
 
 
 def _bad(terms_changes, **kw):

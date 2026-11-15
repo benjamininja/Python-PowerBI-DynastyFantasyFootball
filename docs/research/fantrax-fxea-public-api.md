@@ -42,7 +42,7 @@ doc's method list:
 | `getTeamRosters` | `leagueId`, `period` optional (defaults to current) | Yes (~120 KB) | team x player x **period** | `period`, `rosters{teamId:{teamName, salaryCap, rosterItems[{id, position, status, salary, contract{smallId,name}}]}}` |
 | `getDraftPicks` | `leagueId` | Yes | pick | `futureDraftPicks[{year, round, originalOwnerTeamId, currentOwnerTeamId}]` (280), `currentDraftPicks[{round, pick, teamId}]` (5) |
 | `getDraftResults` | `leagueId` | Yes (127 KB) | pick | `draftState`, `draftOrder{division:[teamId]}`, `draftPicks[{division, round, pick, pickInRound, teamId, playerId, time}]` (980) |
-| `getPlayerIds` | `sport=NFL` | Yes (1.2 MB) | player | `{fantraxId:{fantraxId, name, position, team, rotowireId?, sportRadarId?, statsIncId?}}` (7,989 rows, including team defense rows) |
+| `getPlayerIds` | `sport=NFL` | Yes (1.2 MB) | player | `{fantraxId:{fantraxId, name, position, team, rotowireId?, sportRadarId?, statsIncId?}}` (7,989 rows, including team defense rows). The capture read on 2026-11-14 (#519) held 6,835 rows (about 1.06 MB): 160 team defense rows (`#` in the id, plus `teamName`, `teamShortName`, `shortName`, and no `team`), 64 team-level rows (positions `TK`, `TQB`) and 6,611 players with one position code each; `team` is `(N/A)` for a player with none. `name` reads surname first ("Surname, Given") on all 6,611 player records. `position` is the NFL position, not a league's eligibility. No rookie flag. #519 builds the crosswalk's identity from it |
 | `getAdp` | `sport=NFL`, optional `position/start/limit/order/showAllPositions` | Yes | player | `[{id, name, pos, ADP_PPR}]` |
 | `getLeagues` | `userSecretId` (per user) | Returns `{}` without the secret | user | Out of scope: it needs a personal secret |
 

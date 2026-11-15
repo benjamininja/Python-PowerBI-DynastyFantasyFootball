@@ -535,6 +535,17 @@ tables:
     edges:
       - { to: dim_nfl_players, via: direct, on: gsis_id }
       - { to: dim_rookie_prospect, via: direct, on: player_key }
+    notes: >
+      player_name and nfl_team come from Fantrax's public getPlayerIds call
+      (#519), not 04a's grid; the feed's "Surname, Given" is turned to "Given
+      Surname", and a name with a suffix, two commas or no comma keeps the name
+      the row came with. position_raw is the league's eligibility (one or more
+      of QB, RB, WR, TE, DL, LB, DB), which the call does not carry: its one
+      code per player is the NFL position. So position_raw, is_rookie and the
+      scorer_ids to resolve still come from fact_fantrax_adp,
+      dim_startup_draft_scorer and the 04t capture, until 04a is retired (#523).
+      A scorer_id the call does not know keeps the name and team of the row it
+      came with.
 
   - name: dim_dynasty_crosswalk
     type: resolver

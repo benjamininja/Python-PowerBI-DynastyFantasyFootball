@@ -81,14 +81,18 @@ def capture(work: Path) -> Path:
     captured, review = work / "captured", work / "review"
     captured.mkdir()
     review.mkdir()
-    real_review = etl.REVIEW
+    real_review, real_ids = etl.REVIEW, etl.fantrax_player_ids
     etl.REVIEW = review
+    # 04z asks Fantrax's public getPlayerIds for names and teams (#519). This
+    # comparison is about the loaded tables and makes no request: with no ids,
+    # every scorer_id keeps the row the tables give it.
+    etl.fantrax_player_ids = lambda: pd.DataFrame(columns=etl.PLAYER_ID_COLUMNS)
     try:
         with etl.capturing(captured), contextlib.redirect_stdout(io.StringIO()):
             run_04z()
             run_02d(review)
     finally:
-        etl.REVIEW = real_review
+        etl.REVIEW, etl.fantrax_player_ids = real_review, real_ids
     return captured
 
 
