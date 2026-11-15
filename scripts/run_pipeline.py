@@ -250,11 +250,15 @@ def build_steps(profile: str | None) -> list[dict]:
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02f_dead_money", "02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
         # The commissioners' contract lists (no network; #545): Minor to 1st,
         # Expiring and the re-sign Decision table off the current roster. It
-        # reads 01e's names and 02j's games as the run leaves them (reference
-        # columns), so an nflverse failure does not hold this Chain. Its
-        # Fantrax inputs reach it through 02e's own needs (04v, 02d).
+        # reads, so it needs the step of each table it reads inside its own
+        # Chain: the roster (02e), the ledger (02d) and 04v's eligibility
+        # capture. dim_nfl_players and dim_gsis_link (both 01e) and
+        # fact_nfl_minor_eligibility (02j) are read as the run leaves them,
+        # with no need, so an nflverse failure does not hold this Chain.
+        # dim_fantasy_teams is a seed (01c), not a step.
         {"name": "02k_contract_moves", "cmd": _script("02k_fact_contract_move.py"),
-         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"},
+         "needs": ["02e_derive", "04v_minor_contracts", "02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
         # Rookie chain (auto-safe scrapes only): 03b and 03d ingest expert
         # sources directly. Deliberately stops here — 03x (manual Excel), 03y/03z
         # (fuzzy-review + apply) need a human in the loop, per

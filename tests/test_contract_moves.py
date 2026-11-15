@@ -14,7 +14,8 @@ DAY = date(2026, 11, 14)
 RESIGN = date(2026, 11, 19)
 FINAL = date(2027, 1, 4)
 
-TEAMS = pd.DataFrame({"team_key": ["t1", "t2"], "conference": ["A", "B"], "division": ["Da", "Db"]})
+TEAMS = pd.DataFrame({"team_key": ["t1", "t2", "t3"], "conference": ["A", "B", "A"],
+                      "division": ["Da", "Db", "Da"]})
 PLAYERS = pd.DataFrame({"gsis_id": [f"g{i}" for i in range(1, 9)],
                         "display_name": [f"Player {i}" for i in range(1, 9)],
                         "position": "WR", "team_abbr": "KC"})
@@ -181,12 +182,12 @@ class TestToMinor:
 
     def test_two_drops_at_one_stamp_are_ordered_by_event_seq(self):
         stamp = pd.Timestamp("2026-10-01")
-        led = [move("drop", "s1", seq=40, contract="Minor") | {"event_date": stamp},
-               move("drop", "s1", seq=41, contract="1st") | {"event_date": stamp}]
+        led = [move("drop", "s1", seq=41, contract="1st") | {"event_date": stamp},
+               move("drop", "s1", seq=40, contract="Minor") | {"event_date": stamp}]
         assert only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
                     cm.LIST_MINOR).empty
-        led = [move("drop", "s1", seq=40, contract="1st") | {"event_date": stamp},
-               move("drop", "s1", seq=41, contract="Minor") | {"event_date": stamp}]
+        led = [move("drop", "s1", seq=41, contract="Minor") | {"event_date": stamp},
+               move("drop", "s1", seq=40, contract="1st") | {"event_date": stamp}]
         assert len(only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
                         cm.LIST_MINOR)) == 1
 
@@ -196,6 +197,14 @@ class TestToMinor:
         out = only(build([copy("s1", "1st", team="t1", method="trade")], fx=["s1"], ledger=led),
                    cm.LIST_MINOR)
         assert out[["team_key", "move_to"]].iloc[0].tolist() == ["t1", "Minor"]
+
+    def test_a_trade_between_two_teams_of_one_conference_is_followed_back(self):
+        """A copy is one player in one Conference, not one team: t1 and t3 are both
+        in Conference A, so the draft on t1 is what t3's traded copy came from."""
+        led = [move("startup_draft", "s1", team="t1", seq=10)]
+        out = only(build([copy("s1", "1st", team="t3", method="trade")], fx=["s1"], ledger=led),
+                   cm.LIST_MINOR)
+        assert out[["team_key", "move_to"]].iloc[0].tolist() == ["t3", "Minor"]
 
     def test_a_traded_dropped_minor_claim_is_followed_back_to_its_drop(self):
         led = [move("drop", "s1", seq=5, contract="Minor"), move("claim", "s1", seq=10)]
