@@ -61,6 +61,33 @@ def missing_id_counts(live: pd.DataFrame, ids: pd.DataFrame, rostered: pd.Series
             "with_gsis_id": int(missing["gsis_id"].notna().sum())}
 
 
+def mapping_counts(live: pd.DataFrame, new: pd.DataFrame, rostered: pd.Series) -> dict:
+    """Counts of how the mapping columns move, by scorer_id, with no key or value:
+    keys only in the store, and keys held by both whose gsis_id differs."""
+    left, right = live.set_index("scorer_id"), new.set_index("scorer_id")
+    only_live = left.loc[left.index.difference(right.index)]
+    both = left.index.intersection(right.index)
+    old_g, new_g = left.loc[both, "gsis_id"], right.loc[both, "gsis_id"]
+    old_m, new_m = left.loc[both, "match_method"], right.loc[both, "match_method"]
+    set_to_empty = old_g.notna() & new_g.isna()
+    empty_to_set = old_g.isna() & new_g.notna()
+    one_to_another = (old_g.notna() & new_g.notna() & (old_g != new_g)).fillna(False).astype(bool)
+    gsis_differs = set_to_empty | empty_to_set | one_to_another
+    method_differs = (old_m.isna() != new_m.isna()) | (
+        (old_m.notna() & new_m.notna() & (old_m != new_m)).fillna(False).astype(bool))
+    return {
+        "only_live": len(only_live),
+        "only_live_rostered": int(only_live.index.isin(rostered).sum()),
+        "only_live_with_gsis_id": int(only_live["gsis_id"].notna().sum()),
+        "gsis_differs": int(gsis_differs.sum()),
+        "gsis_differs_rostered": int((gsis_differs & both.isin(rostered)).sum()),
+        "set_to_empty": int(set_to_empty.sum()),
+        "empty_to_set": int(empty_to_set.sum()),
+        "one_to_another": int(one_to_another.sum()),
+        "gsis_and_method_differ": int((gsis_differs & method_differs).sum()),
+    }
+
+
 def run_from_file(raw_path: Path, work: Path):
     """04z against the stores, its ids read from `raw_path`; its output discarded.
     Returns the folder of captured tables and the ids frame it used."""
@@ -93,9 +120,17 @@ def report(captured: Path, ids: pd.DataFrame, out=print) -> int:
         f"columns apart {c['columns_apart']}")
     for col, n in columns.items():
         out(f"  column {col}: {n} key(s) differ")
-    m = missing_id_counts(full_live, ids, etl.read_stored("fact_fantasy_teams")["scorer_id"])
+    rostered = etl.read_stored("fact_fantasy_teams")["scorer_id"]
+    m = missing_id_counts(full_live, ids, rostered)
     out(f"ids the response does not list: {m['missing']}, on a current roster {m['rostered']}, "
         f"with a gsis_id {m['with_gsis_id']}")
+    k = mapping_counts(live, new, rostered)
+    out(f"keys only in the store: {k['only_live']}, on a current roster {k['only_live_rostered']}, "
+        f"with a gsis_id {k['only_live_with_gsis_id']}")
+    out(f"keys whose gsis_id differs: {k['gsis_differs']}, on a current roster {k['gsis_differs_rostered']}, "
+        f"set to empty {k['set_to_empty']}, empty to set {k['empty_to_set']}, "
+        f"one id to another {k['one_to_another']}")
+    out(f"keys that differ on both gsis_id and match_method: {k['gsis_and_method_differ']}")
     return 0 if same else 1
 
 

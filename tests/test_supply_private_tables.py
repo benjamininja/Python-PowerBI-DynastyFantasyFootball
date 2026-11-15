@@ -443,6 +443,57 @@ class TestComparePlayerIdsCrosswalk:
         got = playerids.missing_id_counts(live, ids, pd.Series(["b", "x"]))
         assert got == {"missing": 2, "rostered": 1, "with_gsis_id": 1}
 
+    def test_the_mapping_counts_on_a_small_frame(self):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        live = pd.DataFrame({
+            "scorer_id": ["a", "b", "c", "d", "e", "f", "g"],
+            "gsis_id": ["G1", "G2", None, "G4", "G5", "G6", None],
+            "match_method": ["exact", "exact", "unmatched", "fuzzy", "exact", "exact", "unmatched"]})
+        new = pd.DataFrame({
+            "scorer_id": ["a", "b", "c", "d", "e"],
+            "gsis_id": ["G1", None, "G3", "G9", "G5"],
+            "match_method": ["exact", "review", "exact", "fuzzy", "fuzzy"]})
+        got = playerids.mapping_counts(live, new, pd.Series(["b", "d", "f", "x"]))
+        assert got == {
+            "only_live": 2, "only_live_rostered": 1, "only_live_with_gsis_id": 1,
+            "gsis_differs": 3, "gsis_differs_rostered": 2,
+            "set_to_empty": 1, "empty_to_set": 1, "one_to_another": 1,
+            "gsis_and_method_differ": 2}
+
+    def test_equal_mappings_count_zero_everywhere(self):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        frame = pd.DataFrame({"scorer_id": ["a", "b"], "gsis_id": ["G1", None],
+                              "match_method": ["exact", "unmatched"]})
+        got = playerids.mapping_counts(frame, frame.copy(), pd.Series(["a"]))
+        assert set(got.values()) == {0}
+
+    def test_the_new_lines_print_counts_only_after_the_existing_output(self, store, monkeypatch):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        entry = {"name": "dim_fantrax_crosswalk", "type": "resolver", "grain": "scorer_id", "pk": ["scorer_id"],
+                 "columns": [{"name": c, "dtype": "str"} for c in
+                             ("scorer_id", "gsis_id", "match_method", "resolved_date")]}
+        live = pd.DataFrame({"scorer_id": ["SECRETID1", "SECRETID2"], "gsis_id": ["G1", "G2"],
+                             "match_method": ["exact", "exact"], "resolved_date": ["2026-01-01"] * 2})
+        new = pd.DataFrame({"scorer_id": ["SECRETID1"], "gsis_id": [None],
+                            "match_method": ["review"], "resolved_date": ["2026-11-15"]})
+        monkeypatch.setattr(etl, "_table_entry", lambda name: entry)
+        monkeypatch.setattr(etl, "read_captured", lambda name, folder: new)
+        monkeypatch.setattr(etl, "read_stored", lambda name, *a, **k: live if name == "dim_fantrax_crosswalk"
+                            else pd.DataFrame({"scorer_id": ["SECRETID2"]}))
+        monkeypatch.setattr(playerids.pg, "prepared", lambda frame, entry: frame)
+        monkeypatch.setattr(playerids.base, "compare", lambda live, new, entry: {
+            "live_rows": len(live), "new_rows": len(new), "only_live": 1, "only_new": 0,
+            "differing": 1, "columns_apart": 0})
+        lines = []
+        assert playerids.report(None, pd.DataFrame({"scorer_id": ["SECRETID1"]}), out=lines.append) == 1
+        text = "\n".join(lines)
+        assert "SECRET" not in text and "G1" not in text
+        assert lines[-3:] == [
+            "keys only in the store: 1, on a current roster 1, with a gsis_id 1",
+            "keys whose gsis_id differs: 1, on a current roster 0, set to empty 1, empty to set 0, one id to another 0",
+            "keys that differ on both gsis_id and match_method: 1"]
+        assert lines[-4].startswith("ids the response does not list: ")
+
     def test_the_loader_comparison_makes_no_getplayerids_request(self):
         source = (REPO / "scripts" / "compare_loader_output.py").read_text(encoding="utf-8")
         assert "etl.fantrax_player_ids = lambda" in source
