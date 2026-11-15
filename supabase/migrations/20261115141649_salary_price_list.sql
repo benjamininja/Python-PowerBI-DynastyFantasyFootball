@@ -1,4 +1,4 @@
--- registry_state sha256: b5d5088ab4b7a57ba562d57e97ff372fdd0e859da30ce3f76eb38c5e3530e238
+-- registry_state sha256: 5bbe4ca23eb204065dec6ed91fb96cf2358a6c73c77d324a2c96dcde5ebd5d0e
 
 CREATE TABLE football.fact_salary_price_list (
     season integer NOT NULL,
