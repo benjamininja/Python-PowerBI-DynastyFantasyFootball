@@ -367,7 +367,7 @@ sources:
     name: "Manual Excel — misc rankings"
     status: live
     terms: { status: unresolved, checked: null, access: manual_file }
-    locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc)"
+    locator: "data/raw/*.xlsx (RotoBaller, mystery_iono, FantasyCalc)"
     purpose: "Supplemental rookie/dynasty expert ranks not available via scrape"
     auth: "Manual file placement (no creds)"
     cadence: "Manual (on refresh)"
@@ -483,6 +483,35 @@ sources:
       permission: null
     locator: "https://www.fantasypros.com (scrape) + manual Excel for IDP/SF"
     purpose: "Rejected (owner, 2026-11-07): FantasyPros terms 6 bar copying and republishing without written permission and 19 bar commercial use"
+    auth: "None; not ingested"
+    cadence: "Never (rejected)"
+    feeds: []
+    match: []
+
+  - id: dynastyleaguefootball
+    name: "Dynasty League Football (DLF)"
+    status: rejected
+    terms:
+      status: rejected
+      checked: 2026-11-08
+      checked_in: "#424, #589"
+      how:
+        - "terms read by the owner in a browser (Betsperts, Inc.; last updated August 30, 2024)"
+        - "5.1 grants a limited licence for your own personal use only"
+        - "5.3 (xiv) bars reproducing, republishing, distributing or publicly displaying any content or works derived from it"
+        - "5.7 bars reproducing, distributing or making derivative works of any part of the platform, including any data"
+        - "robots.txt read: disallows ClaudeBot, Claude-Web and anthropic-ai; no agent reads the site"
+      evidence:
+        - { url: "https://dynastyleaguefootball.com/terms/", archive: null }
+        - { url: "https://dynastyleaguefootball.com/robots.txt", archive: null }
+      licence: site terms
+      attribution: null
+      share_alike: false
+      upstream: []
+      access: manual_file
+      permission: null
+    locator: "https://dynastyleaguefootball.com (hand-saved rookie sheet, premium list)"
+    purpose: "Rejected (owner, 2026-11-15, #589): DLF terms 5.1 allow personal use only, 5.3 (xiv) bar republishing any content or derived works and 5.7 bars distributing any data; the public snapshot republished its rookie ranks"
     auth: "None; not ingested"
     cadence: "Never (rejected)"
     feeds: []

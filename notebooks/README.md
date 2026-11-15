@@ -81,7 +81,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02k | `02k_fact_contract_move.py` | `fact_contract_move`, grain `(list_name, team_key, scorer_id)`: the commissioners' three contract lists (#545), built by `etl_contract_moves` off the current roster. Minor to 1st both ways (a Minor past 20 games, or an eligible draft pick or dropped Minor on `1st` or `FA`), Expiring (`X`, `6th`, `Tag`) and the re-sign Decision table (`2nd`, `FA`). A row exists only inside its window (7 days before its date, or past it), so the table may hold zero rows (`shrinks_by_design`). Dates are `LeagueConfig` settings. Fails and writes nothing when the roster, Fantrax's eligibility capture or the teams are empty or missing. Rewrites the whole table; no network |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
 | 03d | `03d_draftsharks_rankings.ipynb` | DraftSharks top-90 (scraped) |
-| 03x | `03x_manual_rankings.ipynb` | RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP (Excel) |
+| 03x | `03x_manual_rankings.ipynb` | RotoBaller, mystery_iono, FantasyCalc, FP IDP (Excel) |
 | 03y | `03y_dim_player_alias.ipynb` | `dim_player_alias` (backfill from archived reviews) |
 | 03z | `03z_apply_fuzzy_review.ipynb` | Applies `data/review/review_fuzzy_matches.csv` decisions |
 | 04a | `04a_fantrax_weekly_scrape.py` | `fact_fantrax_adp` — **scheduled script** (Task Scheduler), Playwright |
