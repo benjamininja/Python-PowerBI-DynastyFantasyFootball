@@ -2999,6 +2999,41 @@
       ],
       "schema": "football"
     },
+    "football.fact_salary_price_list": {
+      "checks": [
+        "salary >= 0"
+      ],
+      "columns": [
+        {
+          "name": "season",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary",
+          "not_null": true,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "pulled_on",
+          "not_null": true,
+          "sql_type": "date"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "fact_salary_price_list",
+      "pk": [
+        "season",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
     "football.fact_team_cap": {
       "checks": [],
       "columns": [

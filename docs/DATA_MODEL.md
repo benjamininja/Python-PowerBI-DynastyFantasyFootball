@@ -20,6 +20,7 @@ graph LR
     dim_nfl_teams[dim_nfl_teams]
     dim_dynasty_metric[dim_dynasty_metric]
     dim_pick_value_curve[dim_pick_value_curve]
+    fact_salary_price_list[(fact_salary_price_list)]
     dim_position_ceiling[dim_position_ceiling]
     fact_draft_pick[(fact_draft_pick)]
     fact_draft_pick_future[(fact_draft_pick_future)]
@@ -57,6 +58,7 @@ graph LR
     dim_rookie_prospect --> dim_school
     dim_rookie_prospect --> dim_position
     dim_fantasy_teams --> dim_division
+    fact_salary_price_list -.via dim_fantrax_crosswalk.-> dim_nfl_players
     fact_draft_pick --> dim_season
     fact_draft_pick --> dim_fantasy_teams
     fact_draft_pick_future --> dim_season
@@ -148,6 +150,7 @@ graph LR
     class dim_nfl_teams dim;
     class dim_dynasty_metric dim;
     class dim_pick_value_curve dim;
+    class fact_salary_price_list fact;
     class dim_position_ceiling dim;
     class fact_draft_pick fact;
     class fact_draft_pick_future fact;

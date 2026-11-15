@@ -295,6 +295,32 @@ tables:
       - { name: value, dtype: float64, sql_type: "double precision" }
     edges: []
 
+  - name: fact_salary_price_list
+    type: fact
+    grain: "(season, scorer_id)"
+    pk: [season, scorer_id]
+    required_keys: [season, scorer_id, salary, pulled_on]
+    checks:
+      - "salary >= 0"
+    columns:
+      - { name: season, dtype: int64, sql_type: integer }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: pulled_on, dtype: str, sql_type: date }
+    edges:
+      - { to: dim_nfl_players, via: dim_fantrax_crosswalk, on: scorer_id }
+    notes: >
+      The yearly price list (#554, map #557 decisions 8.2 to 8.4): the salary
+      Fantrax shows for every player in the pool, from the owner's hand
+      Players export taken once a year right after the commissioners run
+      Recalculate Salaries and before the re-sign deadline. One row per
+      player, rostered or not, so a player added after the pull carries the
+      value he showed in it. season is the season the prices take effect for,
+      as a start year (2027 for 2027-28). pulled_on is the day of the pull.
+      Manual-only: no Chain. Loaded once per season by
+      scripts/load_price_list.py, then exported by scripts/export_tables.py;
+      read through etl_helpers.price_list. The export file is never committed.
+
   - name: dim_position_ceiling
     type: dim
     grain: "(snapshot_date, conference, position_group)"
