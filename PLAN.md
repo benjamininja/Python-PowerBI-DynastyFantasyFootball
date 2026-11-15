@@ -36,7 +36,7 @@ has the path). Plan approved; user authorized rewrite + force-push.
 
 ## [ ] ACTIVE — Repo metadata + managing-session roles (charted 2026-10-12)
 
-Run from the session `dynastyFantasyFootball-central-planner`. State lives
+Run from the session `dff-central-planner`. State lives
 on the maps, not here.
 
 - [Map #151](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/151):
