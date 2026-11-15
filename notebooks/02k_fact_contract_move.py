@@ -16,7 +16,9 @@
 # the league's Eastern day.
 #
 # **Run:**  python notebooks/02k_fact_contract_move.py
-#   (after 02e and 02j; no network.)
+#   (after 02e; no network. It also reads 01e's player names and 02j's games as
+#   the run leaves them: they are reference columns, so an nflverse failure does
+#   not hold this Chain.)
 
 # %%
 import sys
@@ -35,28 +37,34 @@ TABLE = "fact_contract_move"
 
 
 # %%
-def read_roster() -> pd.DataFrame:
-    """The current Roster State, or a raise. An empty list may only come from
-    a healthy roster (ADR-0008 decision 6, amended): no roster means no write."""
+def read_required(name: str) -> pd.DataFrame:
+    """A table the lists cannot be built without, or a raise. An empty list may
+    only come from healthy inputs (ADR-0008 decision 6, amended): the Roster
+    State says who is rostered, and Fantrax's eligibility capture says who is
+    still on Minor legitimately, so an empty one would file every Minor as past
+    20 games. No input, no write."""
     try:
-        roster = etl.read_table("fact_fantasy_teams")
+        table = etl.read_table(name)
     except FileNotFoundError as exc:
-        raise RuntimeError("fact_fantasy_teams is missing: no contract list written") from exc
-    if roster.empty:
-        raise RuntimeError("fact_fantasy_teams holds no rows: no contract list written")
-    return roster
+        raise RuntimeError(f"{name} is missing: no contract list written") from exc
+    if table.empty:
+        raise RuntimeError(f"{name} holds no rows: no contract list written")
+    return table
 
 
 def build(day: date):
-    roster = read_roster()
+    roster = read_required("fact_fantasy_teams")
+    fantrax = read_required("fact_minor_eligibility")
+    teams = read_required("dim_fantasy_teams")
     computed = (etl.read_table("fact_nfl_minor_eligibility")
                 if etl.table_exists("fact_nfl_minor_eligibility") else None)
+    links = etl.read_table(etl.GSIS_LINK_TABLE) if etl.table_exists(etl.GSIS_LINK_TABLE) else None
     return cm.build_lists(
-        roster, etl.read_table("dim_fantasy_teams"), etl.read_table("dim_nfl_players"),
-        etl.read_table("fact_minor_eligibility"),
+        roster, teams, etl.read_table("dim_nfl_players"), fantrax,
         computed if computed is not None else pd.DataFrame(columns=["gsis_id", "capture_date", "career_games"]),
         etl.read_table("fact_roster_transactions"), day,
-        date.fromisoformat(etl.CFG.resign_deadline), date.fromisoformat(etl.CFG.final_period_end))
+        date.fromisoformat(etl.CFG.resign_deadline), date.fromisoformat(etl.CFG.final_period_end),
+        links)
 
 
 def main() -> int:

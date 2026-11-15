@@ -37,16 +37,31 @@ def nflverse(*rows, day="2026-11-12"):
                          for g, n in rows])
 
 
-def drops(*rows):
-    """rows: (scorer_id, contract_id, event_date)."""
-    return pd.DataFrame([{"event_type": "drop", "season_id": "2026-2027", "scorer_id": s,
-                          "contract_id": c, "event_date": pd.Timestamp(d)} for s, c, d in rows],
-                        columns=["event_type", "season_id", "scorer_id", "contract_id", "event_date"])
+LEDGER_COLUMNS = ["event_type", "team_key", "scorer_id", "event_seq", "season_id", "contract_id",
+                  "event_date"]
 
 
-def build(rows, fx=(), nv=(), ledger=None, day=DAY, resign=RESIGN, final=FINAL):
+def move(kind, scorer, team="t1", seq=100, contract="x", season="2026-2027"):
+    return {"event_type": kind, "team_key": team, "scorer_id": scorer, "event_seq": seq,
+            "season_id": season, "contract_id": contract, "event_date": pd.Timestamp("2026-10-01")}
+
+
+def drops(*moves):
+    """A ledger of the given moves (see `move`); no argument is an empty ledger."""
+    return pd.DataFrame(list(moves), columns=LEDGER_COLUMNS)
+
+
+def opened_by(rows, extra=()):
+    """The ledger of a roster: each copy's opening move (its `acquired_method`, at
+    seq 100 on its team) and the extra moves a test adds."""
+    own = [move(r["acquired_method"], r["scorer_id"], r["team_key"]) for r in rows
+           if r["acquired_method"]]
+    return drops(*own, *extra)
+
+
+def build(rows, fx=(), nv=(), ledger=(), day=DAY, resign=RESIGN, final=FINAL):
     return cm.build_lists(pd.DataFrame(rows), TEAMS, PLAYERS, fantrax(*fx), nflverse(*nv),
-                          drops() if ledger is None else ledger, day, resign, final)
+                          opened_by(rows, ledger), day, resign, final)
 
 
 def only(out, name):
@@ -79,6 +94,39 @@ class TestMinorToFirst:
         assert sorted(out["conference"]) == ["A", "B"]
 
 
+class TestGameBoundaries:
+    @pytest.mark.parametrize("games,expected", [(18, []), (19, [cm.DUE_SOON]), (20, [cm.DUE_SOON]),
+                                                (21, [])])
+    def test_the_heads_up_window_is_19_and_20_games_on_the_list(self, games, expected):
+        out = only(build([copy("s1", "Minor")], fx=["s1"], nv=[("g1", games)]), cm.LIST_MINOR)
+        assert out["status"].tolist() == expected
+
+    def test_a_listed_minor_with_no_game_count_gets_no_heads_up(self):
+        assert only(build([copy("s1", "Minor")], fx=["s1"]), cm.LIST_MINOR).empty
+
+    def test_two_teams_holding_one_player_on_different_contracts_are_judged_alone(self):
+        out = only(build([copy("s1", "Minor", team="t1"), copy("s1", "1st", team="t2")], fx=["s2"],
+                         nv=[("g1", 30)]), cm.LIST_MINOR)
+        assert out[["team_key", "move_to"]].values.tolist() == [["t1", "1st"]]
+
+    def test_an_old_gsis_id_is_counted_under_its_newest_id(self):
+        links = pd.DataFrame({"old_gsis_id": ["g1"], "new_gsis_id": ["g9"]})
+        out = cm.build_lists(pd.DataFrame([copy("s1", "Minor")]), TEAMS, PLAYERS, fantrax("s1"),
+                             nflverse(("g9", 19)), opened_by([copy("s1", "Minor")]), DAY, RESIGN,
+                             FINAL, links)
+        assert only(out, cm.LIST_MINOR)["status"].tolist() == [cm.DUE_SOON]
+        assert only(out, cm.LIST_MINOR)["gsis_id"].tolist() == ["g1"]
+
+    def test_the_newest_fantrax_capture_names_a_player_with_no_dimension_row(self):
+        row = copy("s5", "FA")
+        row["gsis_id"] = None
+        old = fantrax("s5", day="2026-11-05").assign(player_name="Old Name")
+        new = fantrax("s5", day="2026-11-12").assign(player_name="New Name")
+        out = cm.build_lists(pd.DataFrame([row]), TEAMS, PLAYERS, pd.concat([new, old]), nflverse(),
+                             drops(), DAY, RESIGN, FINAL)
+        assert out["player_name"].tolist() == ["New Name"]
+
+
 class TestToMinor:
     def test_an_eligible_draft_pick_on_first_belongs_on_minor(self):
         out = only(build([copy("s1", "1st")], fx=["s1"], nv=[("g1", 5)]), cm.LIST_MINOR)
@@ -92,25 +140,78 @@ class TestToMinor:
         assert only(build([copy("s1", "FA", method="claim")], fx=["s1"]), cm.LIST_MINOR).empty
 
     def test_a_dropped_minor_claimed_while_eligible_belongs_on_minor(self):
-        led = drops(("s1", "Minor", "2026-10-01"))
-        out = only(build([copy("s1", "FA", method="claim", when="2026-10-05")], fx=["s1"],
-                         ledger=led), cm.LIST_MINOR)
+        led = [move("drop", "s1", seq=50, contract="Minor")]
+        out = only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led), cm.LIST_MINOR)
         assert out["move_to"].tolist() == ["Minor"]
 
     def test_a_claim_of_a_player_dropped_on_first_is_not_filed(self):
-        led = drops(("s1", "1st", "2026-10-01"))
-        assert only(build([copy("s1", "1st", method="claim", when="2026-10-05")], fx=["s1"],
-                          ledger=led), cm.LIST_MINOR).empty
+        led = [move("drop", "s1", seq=50, contract="1st")]
+        assert only(build([copy("s1", "1st", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
 
     def test_a_drop_after_the_claim_does_not_count(self):
-        led = drops(("s1", "Minor", "2026-10-09"))
-        assert only(build([copy("s1", "FA", method="claim", when="2026-10-05")], fx=["s1"],
-                          ledger=led), cm.LIST_MINOR).empty
+        led = [move("drop", "s1", seq=150, contract="Minor")]
+        assert only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
 
     def test_a_drop_in_another_season_does_not_count(self):
-        led = drops(("s1", "Minor", "2026-10-01")).assign(season_id="2025-2026")
-        assert only(build([copy("s1", "FA", method="claim", when="2026-10-05")], fx=["s1"],
-                          ledger=led), cm.LIST_MINOR).empty
+        led = [move("drop", "s1", seq=50, contract="Minor", season="2025-2026")]
+        assert only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
+
+    def test_the_latest_of_two_drops_decides(self):
+        led = [move("drop", "s1", seq=40, contract="Minor"), move("drop", "s1", seq=60, contract="1st")]
+        assert only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
+
+    def test_the_drop_a_copy_s_own_conference_made_is_the_one_that_counts(self):
+        """C2 / F1: a Minor dropped in the other Conference says nothing about
+        this Conference's pure free-agent claim."""
+        led = [move("drop", "s1", team="t2", seq=50, contract="Minor")]
+        assert only(build([copy("s1", "FA", team="t1", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
+
+    def test_a_later_drop_in_the_other_conference_does_not_hide_a_true_match(self):
+        """F1, the reverse: the other Conference's later drop must not decide."""
+        led = [move("drop", "s1", team="t1", seq=40, contract="Minor"),
+               move("drop", "s1", team="t2", seq=60, contract="1st")]
+        out = only(build([copy("s1", "FA", team="t1", method="claim")], fx=["s1"], ledger=led),
+                   cm.LIST_MINOR)
+        assert out["team_key"].tolist() == ["t1"]
+
+    def test_two_drops_at_one_stamp_are_ordered_by_event_seq(self):
+        stamp = pd.Timestamp("2026-10-01")
+        led = [move("drop", "s1", seq=40, contract="Minor") | {"event_date": stamp},
+               move("drop", "s1", seq=41, contract="1st") | {"event_date": stamp}]
+        assert only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
+        led = [move("drop", "s1", seq=40, contract="1st") | {"event_date": stamp},
+               move("drop", "s1", seq=41, contract="Minor") | {"event_date": stamp}]
+        assert len(only(build([copy("s1", "FA", method="claim")], fx=["s1"], ledger=led),
+                        cm.LIST_MINOR)) == 1
+
+    def test_a_traded_startup_draftee_on_first_is_still_filed_under_its_new_team(self):
+        """F2 / C3: a trade passes the copy on with its contract."""
+        led = [move("startup_draft", "s1", team="t1", seq=10)]
+        out = only(build([copy("s1", "1st", team="t1", method="trade")], fx=["s1"], ledger=led),
+                   cm.LIST_MINOR)
+        assert out[["team_key", "move_to"]].iloc[0].tolist() == ["t1", "Minor"]
+
+    def test_a_traded_dropped_minor_claim_is_followed_back_to_its_drop(self):
+        led = [move("drop", "s1", seq=5, contract="Minor"), move("claim", "s1", seq=10)]
+        out = only(build([copy("s1", "FA", method="trade")], fx=["s1"], ledger=led), cm.LIST_MINOR)
+        assert out["move_to"].tolist() == ["Minor"]
+
+    def test_a_traded_pure_free_agent_claim_stays_unfiled(self):
+        led = [move("claim", "s1", seq=10)]
+        assert only(build([copy("s1", "FA", method="trade")], fx=["s1"], ledger=led),
+                    cm.LIST_MINOR).empty
+
+    def test_a_trade_with_no_earlier_move_is_not_filed(self):
+        assert only(build([copy("s1", "1st", method="trade")], fx=["s1"]), cm.LIST_MINOR).empty
+
+    def test_a_copy_with_no_open_stint_is_not_filed(self):
+        assert only(build([copy("s1", "1st", method=None)], fx=["s1"]), cm.LIST_MINOR).empty
 
     def test_an_ineligible_draft_pick_on_first_is_correct(self):
         assert only(build([copy("s1", "1st")], fx=["s2"], nv=[("g1", 40)]), cm.LIST_MINOR).empty
@@ -234,11 +335,12 @@ class TestChangeKey:
 
 
 class TestReviewCheck:
-    def run(self, rows, fx, nv=(), ledger=None):
+    def run(self, rows, fx, nv=(), ledger=()):
         import etl_checks
-        return dict(etl_checks.minor_contract_findings(
-            pd.DataFrame(rows), TEAMS, PLAYERS, fantrax(*fx), nflverse(*nv),
-            drops() if ledger is None else ledger))
+        found = etl_checks.minor_contract_findings(
+            pd.DataFrame(rows), TEAMS, PLAYERS, fantrax(*fx), nflverse(*nv), opened_by(rows, ledger))
+        assert len(found) == len({k for k, _ in found}), "a finding key repeats"
+        return dict(found)
 
     def test_it_files_both_directions_due_now(self):
         got = self.run([copy("s1", "Minor"), copy("s2", "1st")], fx=["s2"], nv=[("g1", 30)])
@@ -299,6 +401,31 @@ class TestTheStep:
             mod.main()
         assert mod.writes == []
 
+    def test_an_empty_eligibility_capture_raises_and_writes_nothing(self, step):
+        """S1 / C1: an empty Fantrax capture would file every Minor as past 20 games."""
+        mod, mp, etl = step
+        frames = {"fact_fantasy_teams": pd.DataFrame([copy("s1", "Minor")]), "dim_fantasy_teams": TEAMS,
+                  "dim_nfl_players": PLAYERS, "fact_minor_eligibility": fantrax(),
+                  "fact_roster_transactions": drops()}
+        mp.setattr(etl, "read_table", lambda name: frames[name])
+        mp.setattr(etl, "table_exists", lambda name: False)
+        mp.setattr(etl, "league_date", lambda: DAY)
+        with pytest.raises(RuntimeError, match="fact_minor_eligibility holds no rows"):
+            mod.main()
+        assert mod.writes == []
+
+    def test_a_missing_eligibility_table_raises_and_writes_nothing(self, step):
+        mod, mp, etl = step
+
+        def read(name):
+            if name == "fact_minor_eligibility":
+                raise etl.TableNotFound(name)
+            return pd.DataFrame([copy("s1", "Minor")])
+        mp.setattr(etl, "read_table", read)
+        with pytest.raises(RuntimeError, match="fact_minor_eligibility is missing"):
+            mod.main()
+        assert mod.writes == []
+
     def test_a_missing_roster_raises_and_writes_nothing(self, step):
         mod, mp, etl = step
 
@@ -341,6 +468,6 @@ class TestConfig:
         if not path.exists():
             pytest.skip("no scoring-period snapshot here")
         periods = pd.read_parquet(path)
-        last = periods[periods["season_id"] == periods["season_id"].max()]
-        end = pd.Timestamp(last["end_at"].max()).tz_convert("America/New_York").date()
-        assert etl_helpers.CFG.final_period_end == end.isoformat()
+        ends = {pd.Timestamp(g["end_at"].max()).tz_convert("America/New_York").date().isoformat()
+                for _, g in periods.groupby("season_id")}
+        assert etl_helpers.CFG.final_period_end in ends

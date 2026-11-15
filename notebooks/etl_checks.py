@@ -637,7 +637,8 @@ def minor_drift_findings(fantrax: pd.DataFrame, computed: pd.DataFrame,
 
 def minor_contract_findings(roster: pd.DataFrame, teams: pd.DataFrame, players: pd.DataFrame,
                             fantrax: pd.DataFrame, computed: pd.DataFrame,
-                            ledger: pd.DataFrame) -> list[tuple[str, str]]:
+                            ledger: pd.DataFrame,
+                            links: pd.DataFrame | None = None) -> list[tuple[str, str]]:
     """ADR-0019 decision 4 (#545): a contract that disagrees with eligibility on
     the current Roster State, in both directions. One finding per copy, keyed by
     team, scorer and the contract it should hold, from the rows of the Minor to
@@ -646,9 +647,9 @@ def minor_contract_findings(roster: pd.DataFrame, teams: pd.DataFrame, players: 
     Findings name the scorer id and the team key, never a player."""
     if fantrax.empty:
         raise NotComparable("fact_minor_eligibility holds no capture")
-    copies = contract_moves.roster_copies(roster, teams, players, fantrax)
-    rows = contract_moves.minor_rows(copies, contract_moves.fantrax_listed(fantrax),
-                                     contract_moves.nflverse_games(computed), ledger)
+    copies = contract_moves.roster_copies(roster, teams, players, fantrax,
+                                          contract_moves.nflverse_games(computed), links)
+    rows = contract_moves.minor_rows(copies, contract_moves.fantrax_listed(fantrax), teams, ledger)
     rows = rows[rows["status"] == contract_moves.DUE_NOW]
     out = []
     for r in rows.itertuples():
@@ -784,7 +785,8 @@ DOMAIN_CHECKS = [
                 lambda load: minor_contract_findings(
                     load("fact_fantasy_teams"), load("dim_fantasy_teams"),
                     load("dim_nfl_players"), load("fact_minor_eligibility"),
-                    _nflverse_or_empty(load), load("fact_roster_transactions"))),
+                    _nflverse_or_empty(load), load("fact_roster_transactions"),
+                    _optional(load, "dim_gsis_link"))),
     DomainCheck("team_cap", "gate", "fact_team_cap",
                 lambda load: team_cap_errors(load("fact_team_cap"), load("fact_fantasy_teams"),
                                              load("fact_dead_money"), load("dim_fantasy_teams"),
