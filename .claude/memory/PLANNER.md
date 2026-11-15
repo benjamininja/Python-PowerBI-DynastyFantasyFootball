@@ -131,6 +131,7 @@ Milestones: 1 Stage A: Ledger and cap; 2 Stage B: Seam; 3 Stage C: Postgres; 4 S
 - A planner PR's worktree may need a `.venv` junction for the commit hooks; remove the junction before the worktree.
 - Supabase is looked at only through the `supabase-dynasty` connector, read-only.
 - To search for text that looks like a git command, use the search tool, not a shell grep: the git guardrail hook reads the pattern as the command.
+- Push as a plain command of its own that names the branch, never a bare push inside a chained command: the guardrail hook then reads the main checkout's branch and refuses. The same hook refuses any shell command whose text holds a push line, so such text is written with the Edit or Write tool.
 - Dates: trade deadline 2026-11-16; re-sign deadline 2026-11-19, 23:59:59 Eastern; Close Days are Fridays; 2027-28 starts Mar 1.
 
 ### Resume prompt (the committed form; Ben's copy also names local files)
