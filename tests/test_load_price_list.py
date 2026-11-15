@@ -128,6 +128,33 @@ class TestLoad:
         assert any("already holds rows for season 2027" in line for line in lines)
         pd.testing.assert_frame_equal(etl.read_table(etl.PRICE_LIST_TABLE), before)
 
+    def test_a_season_that_lands_after_the_first_look_is_refused_not_replaced(self, export, store,
+                                                                              monkeypatch):
+        """A second run that passed its first look before the first run committed:
+        the check inside the write catches the season, so nothing is replaced."""
+        assert run(export)[0] == 0
+        before = etl.read_table(etl.PRICE_LIST_TABLE)
+        other = make_export(store / "again.xlsx", rows=[("*0zzz9*", 9_000_000)])
+        real, looks = loader.held_problems, []
+
+        def blind_at_first(season, stored):
+            looks.append(1)
+            return [] if len(looks) == 1 else real(season, stored)
+
+        monkeypatch.setattr(loader, "held_problems", blind_at_first)
+        code, lines = run(other)
+        assert code == 1
+        assert len(looks) == 2
+        assert any("already holds rows for season 2027" in line for line in lines)
+        assert lines[-1] == "nothing was written"
+        pd.testing.assert_frame_equal(etl.read_table(etl.PRICE_LIST_TABLE), before)
+
+    def test_a_first_load_into_the_shipped_empty_table(self, export, store):
+        etl.write_table(etl.PRICE_LIST_TABLE, etl.empty_frame(etl._table_entry(etl.PRICE_LIST_TABLE)))
+        code, lines = run(export)
+        assert code == 0
+        assert len(etl.read_table(etl.PRICE_LIST_TABLE)) == len(PLAYERS)
+
     def test_a_later_season_adds_beside_the_first(self, export, store):
         assert run(export)[0] == 0
         later = make_export(store / "next.xlsx", rows=[("*0aaa1*", 4_000_000)])
@@ -213,6 +240,14 @@ class TestLookup:
     def test_no_table_raises(self, store):
         with pytest.raises(etl.TableNotFound):
             etl.price_list()
+
+    def test_a_table_with_no_rows_raises_for_the_newest_and_for_a_season(self, store):
+        etl.write_table(etl.PRICE_LIST_TABLE, etl.empty_frame(etl._table_entry(etl.PRICE_LIST_TABLE)))
+        assert etl.table_exists(etl.PRICE_LIST_TABLE)
+        with pytest.raises(etl.TableNotFound, match="no rows"):
+            etl.price_list()
+        with pytest.raises(etl.TableNotFound, match="no rows for season 2027"):
+            etl.price_list(2027)
 
 
 class TestRegistry:

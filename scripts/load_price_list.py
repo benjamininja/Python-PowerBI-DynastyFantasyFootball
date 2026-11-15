@@ -9,7 +9,9 @@ rostered or not. --season is the season the prices take effect for, as a start
 year (2027 for 2027-28); --pulled-on is the day of the export.
 
 Checks first, writes after: nothing is written unless every check passes, and a
-season that already holds rows is refused, so a season is loaded once.
+season that already holds rows is refused, so a season is loaded once. The
+season check runs again inside the write (etl.write_table_checked, under the
+table lock on Postgres), so two overlapping runs cannot replace each other.
 --check runs the checks and stops. It prints counts, never an id, a name or a
 salary. The rows go to fact_salary_price_list through the storage seam, one
 season at a time, so earlier seasons stay.
@@ -123,8 +125,12 @@ def argument_problems(season: int, pulled_on: str) -> list[str]:
     return problems
 
 
-def season_held(season: int) -> bool:
-    return etl.table_exists(TABLE) and bool((etl.read_table(TABLE)["season"] == season).any())
+def held_problems(season: int, stored: dict) -> list[str]:
+    """The stop when the stored table (`{TABLE: frame or None}`) holds `season`."""
+    frame = stored.get(TABLE)
+    if frame is not None and bool((frame["season"] == season).any()):
+        return [f"{TABLE} already holds rows for season {season}; a season is loaded once"]
+    return []
 
 
 def load(path: Path, season: int, pulled_on: str, *, check_only: bool = False, out=print) -> int:
@@ -143,8 +149,8 @@ def load(path: Path, season: int, pulled_on: str, *, check_only: bool = False, o
         table, built = build_table(raw, season, pulled_on)
         problems += built
         out(f"read: {len(table)} player row(s)")
-    if season_held(season):
-        problems.append(f"{TABLE} already holds rows for season {season}; a season is loaded once")
+    problems += held_problems(season, {TABLE: etl.read_table(TABLE, ["season"])
+                                       if etl.table_exists(TABLE) else None})
     if table is not None and etl.table_exists(CROSSWALK_TABLE):
         known = etl.read_table(CROSSWALK_TABLE, ["scorer_id"])["scorer_id"]
         out(f"info: {int((~table['scorer_id'].isin(known)).sum())} id(s) not in {CROSSWALK_TABLE}")
@@ -163,13 +169,22 @@ def load(path: Path, season: int, pulled_on: str, *, check_only: bool = False, o
         out("checks passed; nothing was written (--check)")
         return 0
     try:
-        total = etl.write_table(TABLE, table, mode="replace_partition",
-                                partition={"season": [season]})
+        checked = etl.write_table_checked(TABLE, table, reads={TABLE: ["season"]},
+                                          check=lambda stored: held_problems(season, stored))
+    except etl.LockWaitTimeout as exc:
+        out(f"stopped: {exc}")
+        out("nothing was written")
+        return 1
     except etl.StorageError as exc:
         out(f"stopped: {(str(exc).splitlines() or [''])[0]}")
         out("nothing was written")
         return 1
-    out(f"wrote {TABLE}: {len(table)} row(s) for season {season}; the table holds {total}")
+    if checked.problems:
+        for line in checked.problems:
+            out(f"stopped: {line}")
+        out("nothing was written")
+        return 1
+    out(f"wrote {TABLE}: {len(table)} row(s) for season {season}; the table holds {checked.total}")
     return 0
 
 
