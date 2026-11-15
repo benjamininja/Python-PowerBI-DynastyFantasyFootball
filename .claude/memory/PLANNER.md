@@ -60,6 +60,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 - The three ticked Tools entries (tools #195, #193, #204) are the Tools planner's; the manager keeps them until it has read them.
 
 **On Ben, his go or his word (not yet a queue entry; each becomes one when it is next in line):**
+- tools #225 (the re-key gap, `Tier: low`) and tools #226 (the mod's how-it-works document, `Tier: medium`, set by the Tools planner, tools #226 issuecomment-6899383875): the dynasty planner asks Ben for both goes by button once tools PR #197 has merged; the Tools planner says when, and writes #226's brief.
 - #520: dispatch at Ben's go, not during periods 13 to 17.
 - tools #137 (Bring to Chat): Ben's go; when it merges, send the Tools planner the plugin.json version; tools #142 follows. tools #111 (Ask planner, high): go and timing are Ben's.
 - OLB and DE rows in `dim_position`: parked until Ben raises it, then a low ticket.
