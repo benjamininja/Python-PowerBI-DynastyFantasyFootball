@@ -12,6 +12,7 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "notebooks"))
 
 import pandas as pd
+import pytest
 
 mv = importlib.import_module("04v_minor_contracts")
 
@@ -183,3 +184,87 @@ class TestSidecarWriteFailure:
     def test_malformed_meta_does_not_raise(self, tmp_path, capsys):
         mv.write_pull_sidecar({"F": {}}, tmp_path / "x_pull.json")
         assert "[warn] pull sidecar not written" in capsys.readouterr().out
+
+
+def _entry(pages, rows, total_pages, total_rows):
+    return {"pages_fetched": pages, "rows_parsed": rows,
+            "totalNumPages": total_pages, "totalNumResults": total_rows}
+
+
+class TestShortFilters:
+    def test_whole_pull_reports_nothing(self, monkeypatch):
+        _, meta = _pull(monkeypatch)
+        assert mv.short_filters(meta) == []
+
+    def test_fewer_pages_than_the_server_count(self):
+        out = mv.short_filters({"F": _entry(1, 3, 2, 3)})
+        assert len(out) == 1
+        assert "F:" in out[0] and "pages_fetched=1" in out[0] and "totalNumPages=2" in out[0]
+
+    def test_fewer_rows_than_the_server_total(self):
+        out = mv.short_filters({"F": _entry(2, 2, 2, 3)})
+        assert len(out) == 1
+        assert "rows_parsed=2" in out[0] and "totalNumResults=3" in out[0]
+
+    def test_no_totals_is_not_whole(self):
+        meta = {"F": {"pages_fetched": 1, "rows_parsed": 1,
+                      "totalNumPages": None, "totalNumResults": None},
+                "G": {"pages_fetched": 1, "rows_parsed": 1}}
+        assert len(mv.short_filters(meta)) == 2
+
+    def test_one_line_per_short_filter_only(self):
+        meta = {"A": _entry(1, 1, 1, 1), "B": _entry(1, 1, 2, 5)}
+        out = mv.short_filters(meta)
+        assert len(out) == 1 and out[0].startswith("B:")
+
+
+class _ShortScraper(FakeScraper):
+    def __init__(self):
+        super().__init__()
+        self.pages[("MINOR_FANTASY_AVAILABLE", "2")] = _page(["a3"], 5, 2)
+
+
+def _run_env(monkeypatch, tmp_path, scraper):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    cfg = SimpleNamespace(snapshot_season=2026, snapshot_week=4,
+                          data_dir=str(tmp_path), raw_dir=str(raw_dir),
+                          user_data_dir=str(tmp_path / "profile"),
+                          headless=True, nav_timeout_ms=1000)
+    playwright = types.ModuleType("playwright.sync_api")
+    playwright.sync_playwright = _FakeBrowser
+    monkeypatch.setitem(sys.modules, "playwright.sync_api", playwright)
+    monkeypatch.setattr(mv, "CFG", cfg)
+    monkeypatch.setattr(mv.etl.CFG, "data_dir", str(tmp_path))
+    monkeypatch.setattr(mv, "date", SimpleNamespace(today=lambda: date(2026, 10, 4)))
+    monkeypatch.setattr(mv, "_pause", lambda bounds: None)
+    monkeypatch.setattr(mv, "fx", SimpleNamespace(
+        FantraxScraper=lambda c: scraper,
+        derive_week_label=lambda c, d: "04",
+        _cell_num=mv.fx._cell_num))
+    monkeypatch.setattr(mv, "eligibility_payload",
+                        lambda f, n: {"msgs": [{"data": {
+                            "statusOrTeamFilter": f, "pageNumber": str(n)}}]})
+    return raw_dir
+
+
+class TestRunStopsAShortPull:
+    def test_short_pull_raises_after_sidecar_and_before_load(self, monkeypatch, tmp_path):
+        raw_dir = _run_env(monkeypatch, tmp_path, _ShortScraper())
+        loaded = []
+        monkeypatch.setattr(mv, "load_eligibility", lambda *a, **k: loaded.append(a))
+
+        with pytest.raises(RuntimeError) as err:
+            mv.run()
+
+        assert "MINOR_FANTASY_AVAILABLE" in str(err.value)
+        assert "MINOR_FANTASY_TAKEN" not in str(err.value)
+        assert loaded == []
+        assert (raw_dir / "fantrax_minor_eligibility_2026_wk04_pull.json").exists()
+        assert not (tmp_path / "fact_minor_eligibility.parquet").exists()
+
+    def test_whole_pull_writes_as_today(self, monkeypatch, tmp_path):
+        _run_env(monkeypatch, tmp_path, FakeScraper())
+        elig = mv.run()
+        assert sorted(elig["scorer_id"]) == ["a1", "a2", "a3", "t1"]
+        assert (tmp_path / "fact_minor_eligibility.parquet").exists()
