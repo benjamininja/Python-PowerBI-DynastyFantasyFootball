@@ -233,11 +233,13 @@ class TestContractMoveStep:
 
     STEPS = rp.build_steps(None)
 
-    def test_it_follows_the_roster_and_does_not_wait_on_nflverse(self):
+    def test_it_follows_every_step_that_writes_a_table_it_reads(self):
         names = [s["name"] for s in self.STEPS]
         step = self.STEPS[names.index("02k_contract_moves")]
         assert (step["chain"], step["group"]) == ("fantrax_core", "regular_season")
-        assert step["needs"] == ["02e_derive"]
+        assert set(step["needs"]) == {"02e_derive", "04v_minor_contracts", "02d_ledger",
+                                      "01e_dim_nfl_players", "02j_minor_eligibility"}
+        assert all(names.index(n) < names.index("02k_contract_moves") for n in step["needs"])
         assert names.index("02e_derive") < names.index("02k_contract_moves")
         assert step["cmd"][-1].endswith("02k_fact_contract_move.py")
 
