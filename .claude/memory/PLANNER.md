@@ -13,7 +13,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-15 18:39Z, session a1b47cbf-d757-4e3e-b1d2-c8e9c1dd1950 (b0ba0d47 was the one before), at the first seam after a clear. State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
+**Saved:** 2026-11-15 19:28Z, session a1b47cbf-d757-4e3e-b1d2-c8e9c1dd1950 (b0ba0d47 was the one before), at a clear prep on Ben's word. Open PRs then: #582, #575 (the state PR), #565, #563. The next planner session sends the manager and the Tools planner its new id. State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
 
 ### Next (in order)
 
