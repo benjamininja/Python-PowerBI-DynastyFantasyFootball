@@ -15,8 +15,8 @@ until the role-file PR (Next, item 2) changes the wording.
 
 ## Current
 
-**Saved:** 2026-11-15 01:20Z, session 15250d47-4582-4cdc-b6c4-ea935b34c75e,
-at a seam (two PRs opened). State branch `docs/state-2026-11-15`, state PR #572.
+**Saved:** 2026-11-15 01:45Z, session 15250d47-4582-4cdc-b6c4-ea935b34c75e,
+before a clear at Ben's word. State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
 
 ### Next (in order)
 
@@ -25,16 +25,15 @@ at a seam (two PRs opened). State branch `docs/state-2026-11-15`, state PR #572.
 3. **The three later settings entries** (#564, draft advisory GHSA-27j5-qx96-v8w3). The first is checked and sent: the main checkout's local settings file is to be emptied (the check: #564 issuecomment-6886927491; the ready Action went to the manager 2026-11-15; it waits for one `git checkout` line in `GOAL-RUN.md`, because builders ran `git checkout` 50 times through that file alone). Confirm the entry is in the queue. Next the push denies, after a live trial of the `+` pattern, in the builders' and the research file in one edit; then the `research` profile's denies, after checking which profile the 7 `gh issue comment --repo` calls of 2026-11-07 ran under.
 4. **The dynasty ruleset entry** for the manager's queue, when the Tools planner says the tools trial of tools #193 has passed; timed right after a Daily Run's data PR merges (tools #193 issuecomment-6885586994).
 5. **Sift the old Lessons lists** (in `53104a9`'s copy of this file) for rules worth a place in a rule source; send candidates to the Tools planner or the manager. One candidate is already sent to the manager and owed to the Tools planner: an `Answer:` line the pane flags as not written by the pane is not the owner's (for `references/parking.md`).
-6. **State PR #572:** ask Ben by button at the day's last save. On his yes: pause the manager's state pushes, merge head-pinned, cut a fresh branch from main, send the manager its name.
+6. **The state PR of `docs/state-2026-11-16`:** ask Ben by button at the day's last save. On his yes: merge head-pinned once every check passes on one read, cut a fresh branch from main, send the manager its name. The old local branch `docs/state-2026-11-15` is merged (#572) and still exists locally: deleting it needs Ben's word.
 
 ### Waiting
 
 **On Ben, in the queue (keyed to 15250d47; the manager re-keyed them on 2026-11-15):**
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19). Checked 2026-11-15: Ben's final curated FA workbook (version 6, dated 2026-11-14; Ben keeps it) has a sheet per conference, 75 and 86 rows, and no choice column yet, so this stays open. Its source export of 2026-11-12 is also #554's first load and the kept FAs' 2027 X values.
-- Untrack the queue file: Ben's sitting for #562 (sent to the manager 2026-11-15; confirm it is in the queue)
-- Settings, later entry 1 of 3: empty the main checkout's local settings file (sent to the manager 2026-11-15; confirm it is in the queue)
-- Settings 1 of 5 to 5 of 5 are applied and their entries are to leave the queue (the manager was told; confirm).
+- Untrack the queue file: Ben's sitting for #562 (the manager's word, 2026-11-15: it goes into the queue as written)
+- Settings, later entry 1 of 3: empty the main checkout's local settings file (the manager's word, 2026-11-15: it goes into the queue as written; it waits for the `git checkout` line in `GOAL-RUN.md`)
 
 **On Ben, his go or his word (not yet a queue entry; each becomes one when it is next in line):**
 - #520: dispatch at Ben's go, not during periods 13 to 17.
@@ -54,8 +53,8 @@ at a seam (two PRs opened). State branch `docs/state-2026-11-15`, state PR #572.
 
 ### Peers
 
-- `dynastyFantasyFootball-central-builder-manager`, session 6d478b2d-32fa-4453-9c0d-ede04a08401d until its clear (still that id at 2026-11-15 00:30Z, paused for the clear at Ben's word); find it by name and take its new id from its first message. It writes the queue; send it ready entries. Five messages of 2026-11-15 wait in its inbox: the settings edits, #505 merged, PR #573 and the `GOAL-RUN.md` text, PR #574 and the sitting's entry, the `git checkout` line and the local-settings entry.
-- `Tools-central-planner`, queue id b5e85b86-f217-4a16-94e3-bc154bfd9e2f (its word, 2026-11-15); it holds the dynasty planner's new id. Its trial of tools #193 has not run; it sends word when it has. Its tools PR 210 (the reset-prompt text in `session-rules`) waits on Ben's read. Owed to it: a line on tools #161 once `PLANNER.md` and `MANAGER.md` are both in the new shape (`PLANNER.md` is; `MANAGER.md` is the manager's), so tools #209 can retire `prepend_state.py`. It owns skills-plugins-hooks-agents except the owner-queue mod, which is the dynasty planner's.
+- `dynastyFantasyFootball-central-builder-manager`, session efe5ed14-3c04-4790-abf0-8442b111611a (its word, 2026-11-15). It writes the queue; send it ready entries. It has acted on the settings edits (the six entries leave the queue) and pulled main to `c665d70`. It owes, each after asking Ben by button: the `GOAL-RUN.md` PR (#564 issuecomment-6886761907, plus the `git checkout` line of issuecomment-6886927491), and two link commits on `docs/planner-562-untrack-queue`; it sends the PR number. It was sent the fresh state branch's name, `docs/state-2026-11-16`, on 2026-11-15.
+- `Tools-central-planner`, queue id 57c20f52-66e7-4467-99d7-7d0768349609, app session local_9830794b-c1e9-400a-ba66-e6abb9432396 (its word, 2026-11-15); it holds the dynasty planner's id 15250d47, which a clear replaces. Its trial of tools #193 has not run; it sends word when it has. Its tools PR 210 (the reset-prompt text in `session-rules`) waits on Ben's read. The three candidates for the plugin's texts hold by its check and are with Ben by button; rulings land on tools #189. Owed to it: a line on tools #161 once `PLANNER.md` and `MANAGER.md` are both in the new shape (`PLANNER.md` is; `MANAGER.md` is the manager's), so tools #209 can retire `prepend_state.py`.
 - After a clear: send both the new session id; the manager re-keys the planner's queue entries.
 
 ### Reads and checks due
@@ -89,22 +88,10 @@ at a seam (two PRs opened). State branch `docs/state-2026-11-15`, state PR #572.
 - Owner-side leftovers: the DLF Action (in the queue); dotclaude PR #5, then `~/.claude` back on main; the pbiprune profile removal; #279 part 2.
 - From 2026-10-12: a security review of tools PR 46, and a `Tier:`-line ticket under #162.
 
-### Decided since the last merged state PR (#542, `a0885f4`)
+### Decided since the last merged state PR (#572, `49aece9`)
 
-- **Ben, tools #185's three questions:** "Ben sets a name (Recommended)", "Id written in the file (Recommended)", "The set name alone (Recommended)" (tools #185 issuecomment-6885472513).
-- **Ben, on the queue pane:** "I don't see anything for tools app at all." Ticketed as tools #202 (medium), before tools #185.
-- **Ben, the resume-prompt redesign:** "Approve, history to git (Recommended)" (tools #161 issuecomment-6886175657).
-- **Ben, #505:** "Merge when checks pass (Recommended)" (pull/505#issuecomment-6886176133). Merged 2026-11-15 00:27Z as `c665d70`, all eight checks passing on one read; on Ben's "Approve both (Recommended)" the worktree and the local branch were removed (the remote branch was already gone). The worktree record `p490` is left half-removed in the main checkout's git folder; `git worktree prune --dry-run` lists it with five other stale records, and nothing was pruned.
-- **Ben, the settings hand items:** asked which of six file-edit Actions Claude makes as a one-time exception to the Never line, Ben answered "Settings 1 to 5 plus tools rules". Applied and proved (#564 issuecomment-6886574638); the tools repository's builders' file got its two allow rules on the same word. The exception covers those entries only.
-- **Ben, #562's two questions:** "Leave history (Recommended)" and "Nothing extra (Recommended)" (#562 issuecomment-6886869542).
-- **Planner, PR #573's read lists:** the planner's and the manager's now end with the queue file and the open issue and PR lists (commit `e82611f`), to match tools PR 210, where Ben ruled by button in the Tools planner's chat that the read list stands in the role file, or in the project rules file where a role has no role file. `CLAUDE.md` is left out of the lists: it loads by itself.
-- **Planner, the role files:** every line checked against the rule sources; a dozen rules stood only in a role file and are proposed as `GOAL-RUN.md` text, with two findings: the Status block a builder must print is defined only in `session-dispatch`, and `MANAGER.md` was not in the manager's read list (#564 issuecomment-6886761907).
-- **Planner, Verify first:** done for the top five settings fixes (#564 issuecomment-6885943927; a Verification section on the draft advisory). The planner and the manager run in auto mode, where a classifier decides almost every call; the main checkout's local settings file reaches dynasty builders; the managers' two script rules never matched a call; a deny added to the builders' file must also go into the research file (`dispatch.ps1` line 193).
-- **Planner, #570:** no plan breach; "0 new Review findings" reads as no new finding from any check that already exists on `main`; one wording fix wanted (pull/570#issuecomment-6885894132). The fix is read at `fa759db` and holds; the manager's re-proof is next.
-- **Planner, the bylaws difference parked by the #558 builder:** #557 decisions 2 and 3 stand; ADR-0024 needs no amendment (#557 issuecomment-6885895208).
-- **Planner, #566:** tier medium, on map #557, blocked by #561's grill.
-- **Planner, #562's rehearsal:** the ticket's step 3 is wrong; the corrected sequence is copy aside, merge, delete and pull, copy back (#562 issuecomment-6886033417).
-- **Planner, tools #193:** nothing in the dynasty repository rewrites a pushed branch (tools #193 issuecomment-6885586994).
+- **Ben, state PR #572:** "Merge when checks pass (Recommended)" (pull/572#issuecomment-6887438579). Merged 2026-11-15 as `49aece9`, all eight checks passing on one read, pinned to `6f2f312`. The fresh state branch is `docs/state-2026-11-16`.
+- Everything decided on 2026-11-14 and 2026-11-15 before that merge is in #572's diff and on its tickets: #505 (pull/505), the settings edits and the local settings check (#564), the role-file check and PR #573 (#564), #562's two answers and PR #574 (#562).
 
 ## Reference
 
@@ -148,4 +135,4 @@ Milestones: 1 Stage A: Ledger and cap; 2 Stage B: Seam; 3 Stage C: Postgres; 4 S
 
 ### Resume prompt (the committed form; Ben's copy also names local files)
 
-Act as the central-planner of benjamininja/Python-PowerBI-DynastyFantasyFootball. Call the owner Ben or the owner and yourself Claude. Load the session-rules skill and follow the role file's read list. State: `.claude/memory/PLANNER.md` on branch `docs/state-2026-11-15` (PR #572); find its worktree with `git worktree list`. Act on its Next list.
+Act as the central-planner of benjamininja/Python-PowerBI-DynastyFantasyFootball. Call the owner Ben or the owner and yourself Claude. Load the session-rules skill and follow the role file's read list. State: `.claude/memory/PLANNER.md` on branch `docs/state-2026-11-16` (its open state PR: `gh pr list --head docs/state-2026-11-16`); find its worktree with `git worktree list` and run `git pull --rebase origin docs/state-2026-11-16` before reading. Act on its Next list, in order. First send the manager and the Tools planner the new session id.
