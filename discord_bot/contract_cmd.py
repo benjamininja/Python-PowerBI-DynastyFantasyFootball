@@ -98,7 +98,7 @@ class ContractMoves(commands.Cog):
     @app_commands.rename(list_name="list", fmt="format")
     async def contract_moves(
         self, ctx: commands.Context, list_name: ListName, fmt: Format = "table",
-        team: Optional[str] = None, share: bool = False,
+        *, team: Optional[str] = None, share: bool = False,
     ) -> None:
         await respond_with_embeds(ctx, share, build_reply, self.cfg, list_name, fmt, team)
 

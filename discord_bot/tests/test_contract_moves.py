@@ -6,6 +6,7 @@ private-by-default delivery. No Discord round-trip and no network: the cog's
 from __future__ import annotations
 
 import asyncio
+import inspect
 import sys
 from datetime import date
 from io import BytesIO
@@ -140,6 +141,14 @@ class TestXlsx:
         ws = _book(contract_cmd.build_xlsx_reply(CFG, "decision"))["Conference A"]
         for header in ("Pos", "NFL Team", "Move to", "Why", "NFL games", "Salary"):
             assert ws.cell(row=2, column=HEADERS.index(header) + 1).value in (None, "")
+
+    def test_an_infinite_number_is_blank_like_a_missing_one(self, monkeypatch):
+        odd = _moves([_row("decision", "A", "A01", "Inf Ivy", salary=float("inf"), nfl_games=3)])
+        _patch(monkeypatch, odd)
+        ws = _book(contract_cmd.build_xlsx_reply(CFG, "decision"))["Conference A"]
+        assert ws.cell(row=2, column=HEADERS.index("Salary") + 1).value is None
+        assert ws.cell(row=2, column=HEADERS.index("NFL games") + 1).value == 3
+        assert cm.number(float("-inf")) is None
 
     def test_a_conference_with_no_rows_keeps_its_tab_with_a_header(self, monkeypatch):
         only_a = MOVES[MOVES["conference"] == "A"]
@@ -391,8 +400,20 @@ class TestCommand:
         assert options["list"].required and not options["team"].required
         assert options["share"].default is False
 
-    def test_the_command_is_set_up_by_the_bot(self):
-        assert "setup_contract_moves" in (_BOT_DIR / "bot.py").read_text(encoding="utf-8")
+    def test_the_prefix_form_takes_a_team_with_spaces_and_no_format(self):
+        async def build():
+            bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
+            await contract_cmd.setup_contract_moves(bot, CFG)
+            return bot.get_command("contract-moves")
+
+        params = asyncio.run(build()).clean_params
+        assert params["team"].kind is inspect.Parameter.KEYWORD_ONLY
+        assert params["fmt"].default == "table"
+
+    def test_the_bots_setup_hook_calls_the_setup(self):
+        import bot
+
+        assert "await setup_contract_moves(self, self.cfg)" in inspect.getsource(bot.LeagueBot.setup_hook)
 
 
 @pytest.mark.skipif(not (_DATA / "fact_contract_move.parquet").exists(), reason="snapshot not present")
@@ -411,4 +432,5 @@ def test_the_published_snapshot_renders_in_both_formats(monkeypatch):
         _check_limits(embeds)
         assert f"({want})" in embeds[0].title
         book = _book(contract_cmd.build_xlsx_reply(CFG, list_name))
+        assert book.sheetnames == ["Conference A", "Conference B"]
         assert sum(ws.max_row - 1 for ws in book.worksheets) == want

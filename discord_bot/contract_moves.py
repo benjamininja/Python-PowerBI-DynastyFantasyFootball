@@ -8,6 +8,7 @@ One formatter for both outputs, built only from the published
 
 from __future__ import annotations
 
+import math
 from datetime import date
 from io import BytesIO
 
@@ -54,6 +55,8 @@ def number(value: object) -> int | float | None:
     if value is None or pd.isna(value):
         return None
     out = float(value)
+    if not math.isfinite(out):
+        return None
     return int(out) if out.is_integer() else out
 
 
