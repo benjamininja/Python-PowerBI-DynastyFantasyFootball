@@ -15,6 +15,7 @@ from discord.ext import commands
 
 from cap import setup_cap
 from config import Config, load_config
+from contract_cmd import setup_contract_moves
 from player import setup_player
 from rankings import setup_rankings
 from roster import setup_roster
@@ -38,6 +39,7 @@ class LeagueBot(commands.Bot):
         await setup_player(self, self.cfg)
         await setup_cap(self, self.cfg)
         await setup_roster(self, self.cfg)
+        await setup_contract_moves(self, self.cfg)
         # Guild-scoped sync is instant; global can take ~1h. Copy globals to the
         # league guild and sync there so commands appear immediately.
         guild = discord.Object(id=self.cfg.discord_guild_id)
