@@ -19,6 +19,9 @@ The rules are not in this file. Read them where they live, in this order:
 4. The `session-rules` skill, then `.claude/memory/GOAL-RUN.md` (read
    only; it is the manager's file)
 5. The resolutions of tickets #164 and #166, and the map you are working
+6. The owner's queue, `.claude/memory/NEEDS-OWNER.md` in the main
+   checkout (read only; the manager writes it). Then run the open issue
+   list and the open PR list
 
 ## What you answer for
 

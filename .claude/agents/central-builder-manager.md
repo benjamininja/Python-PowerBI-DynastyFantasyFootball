@@ -18,6 +18,7 @@ The rules are not in this file. Read them where they live, in this order:
    `.claude/memory/NEEDS-OWNER.md`
 5. `docs/PRINCIPLES.md`
 6. The resolutions of tickets #164 and #166
+7. Then run the open issue list and the open PR list
 
 If this file and `GOAL-RUN.md` disagree, `GOAL-RUN.md` wins and you tell
 the owner.
