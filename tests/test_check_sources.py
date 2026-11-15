@@ -274,9 +274,9 @@ def test_real_manifest_advisory_counts():
         "never": ["google_sheet_team_manifest", "manual_excel_misc", "google_sheet_manifest_write"],
         "past": [],
     }
-    assert len(cs.recite_due(sources)) == 28
+    assert len(cs.recite_due(sources)) == 29
     assert len(cs.security_due(sources, TODAY)) == 26
-    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "28", "26"]
+    assert [ln.split()[1] for ln in cs.advisories(data, TODAY)] == ["3", "29", "26"]
 
 
 def _bad(terms_changes, **kw):
