@@ -21,6 +21,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **CURRENT STATE (NEWEST, 2026-11-15 ~00:20Z, session `6d478b2d`, addendum before the CLEAR; the ~00:05Z block below stays true except where this says otherwise). Ids only.**
+  - Tools planner queue id is now `b5e85b86` (the #195 and #193 Actions re-keyed). New queue Actions from it, Session b5e85b86: #204 test token reads; tools builders' two allow rules (PR #208).
+  - Tools gos relayed (each recorded): #207 low, next free slot ahead of the line (#207 issuecomment-6886359507); #206 low after #204's reads, planner sends the word (#206 issuecomment-6886359008); PR #208 at 0f1e1a1 approved, merge on Green (pull/208#issuecomment-6886359918). #164 link sent (pull/199#issuecomment-6886464189).
 - **CURRENT STATE (NEWEST, 2026-11-15 ~00:05Z by `date -u`, session `6d478b2d`, before a CLEAR). This overrides everything below. Ids only, no local paths; the reset prompt says where the local scripts are.**
   - **Ben invoked session-dispatch in session 6d478b2d (loaded).** Ask by button again next session. Dynasty origin/main `a0885f4` (#542 merged by the planner; state branch is now `docs/state-2026-11-15`, PR #572; `docs/state-2026-11-14` is deleted, push nothing to it). Tools origin/main `134691e`; both tools checkouts pulled to it.
   - **Merged this session:** tools #177 `134691e` (Accept-CI ruling; pull/177#issuecomment-6885458690).
