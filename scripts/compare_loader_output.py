@@ -11,7 +11,12 @@ The owner runs it after the one-time loader. It writes nothing:
     their review files go to a temp folder too;
   - no run-log row and no review row is written (run_pipeline.py is not used);
   - the captured tables are compared with the tables as the store holds them,
-    read in the same session.
+    read in the same session;
+  - since #519 04z takes names and NFL teams from Fantrax's public
+    getPlayerIds call. This script makes no such request: 04z runs with no
+    player ids, so its dim_fantrax_crosswalk line shows every row the public
+    call changed: a row counts only when its stored name or NFL team differs
+    from the one the tables give.
 
 It prints, for each of the four tables, the table name, both row counts, the
 keys held on one side only and the keys whose cells differ. Counts only: no
@@ -84,8 +89,9 @@ def capture(work: Path) -> Path:
     real_review, real_ids = etl.REVIEW, etl.fantrax_player_ids
     etl.REVIEW = review
     # 04z asks Fantrax's public getPlayerIds for names and teams (#519). This
-    # comparison is about the loaded tables and makes no request: with no ids,
-    # every scorer_id keeps the row the tables give it.
+    # script makes no request: with no ids 04z keeps the name and team the
+    # tables give each scorer_id, so every row the public call changed shows
+    # as differing on dim_fantrax_crosswalk.
     etl.fantrax_player_ids = lambda: pd.DataFrame(columns=etl.PLAYER_ID_COLUMNS)
     try:
         with etl.capturing(captured), contextlib.redirect_stdout(io.StringIO()):

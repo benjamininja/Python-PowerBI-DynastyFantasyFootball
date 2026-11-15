@@ -35,7 +35,7 @@ class TestParsePlayerIds:
     def test_keeps_the_player_rows_as_the_four_identity_columns(self, body):
         df = etl.parse_player_ids(body, minimum=SMALL)
         assert list(df.columns) == ["scorer_id", "player_name", "nfl_position", "nfl_team"]
-        assert list(df["scorer_id"]) == [f"aaa0{n}" for n in range(1, 9)]
+        assert list(df["scorer_id"]) == [f"aaa0{n}" for n in range(1, 10)]
         row = df.set_index("scorer_id").loc["aaa01"]
         assert (row["player_name"], row["nfl_position"], row["nfl_team"]) == ("Alpha Tester", "QB", "DAL")
 
@@ -48,7 +48,7 @@ class TestParsePlayerIds:
         assert len(names) == 5
         assert not names.str.contains(",").any()
 
-    @pytest.mark.parametrize("scorer_id", ["aaa06", "aaa07", "aaa08"])
+    @pytest.mark.parametrize("scorer_id", ["aaa06", "aaa07", "aaa08", "aaa09"])
     def test_a_suffix_two_commas_or_no_comma_gets_no_name_rather_than_a_guess(self, body, scorer_id):
         df = etl.parse_player_ids(body, minimum=SMALL).set_index("scorer_id")
         assert pd.isna(df.loc[scorer_id, "player_name"])
@@ -137,7 +137,7 @@ class TestFantraxPlayerIds:
         url, params = calls[0]
         assert url.endswith("/fxea/general/getPlayerIds")
         assert params == {"sport": "NFL"}
-        assert len(df) == 8
+        assert len(df) == 9
 
     def test_an_error_body_on_a_200_raises(self, reply):
         reply(_FakeResponse(body={"error": {"code": "WARNING"}}))
@@ -152,7 +152,7 @@ class TestFantraxPlayerIds:
     def test_reads_a_saved_copy_with_no_request(self, reply):
         calls = reply(RuntimeError("no request expected"))
         df = etl.fantrax_player_ids(raw_path=FIXTURE, minimum=SMALL)
-        assert calls == [] and len(df) == 8
+        assert calls == [] and len(df) == 9
 
     def test_a_saved_error_body_raises(self, tmp_path):
         path = tmp_path / "saved.json"
@@ -201,7 +201,7 @@ class TestApplyPlayerIds:
                                  "position_raw": "WR", "nfl_team": "XXX", "is_rookie": False})
         out, counts = etl.apply_player_ids(universe, ids)
         assert not out["player_name"].str.contains(",").any()
-        assert counts["name_kept"] == 3
+        assert counts["name_kept"] == 4
 
     def test_counts(self):
         _, counts = etl.apply_player_ids(self.universe(), self.IDS)
