@@ -160,6 +160,20 @@ def _record_pull(meta: dict, filt: str, payload: dict, raw: dict) -> None:
         print(f"[warn] pull meta for {filt} not recorded: {exc}")
 
 
+def short_filters(meta: dict) -> list[str]:
+    """One line per filter whose pull is not whole: pages fetched must equal the
+    server's totalNumPages and rows parsed its totalNumResults. A filter whose
+    totals the server did not send is not whole. A whole pull returns []."""
+    lines = []
+    for filt, e in meta.items():
+        pages, rows = e.get("pages_fetched"), e.get("rows_parsed")
+        total_pages, total_rows = e.get("totalNumPages"), e.get("totalNumResults")
+        if total_pages is None or total_rows is None or pages != total_pages or rows != total_rows:
+            lines.append(f"{filt}: totalNumResults={total_rows} totalNumPages={total_pages} "
+                         f"pages_fetched={pages} rows_parsed={rows}")
+    return lines
+
+
 def write_pull_sidecar(meta: dict, path) -> None:
     """Write the per-pull sidecar beside the raw capture and print one line per
     filter. Never raises: a failure prints a [warn] and the pull carries on."""
@@ -289,6 +303,11 @@ def run() -> pd.DataFrame:
     elig_path.write_text(json.dumps(elig_pulls, indent=2), encoding="utf-8")
     print(f"[ok] raw -> {elig_path.name}")
     write_pull_sidecar(pull_meta, elig_path.with_name(elig_path.stem + "_pull.json"))
+
+    short = short_filters(pull_meta)
+    if short:
+        raise RuntimeError("short eligibility pull, nothing written to "
+                           f"{ELIGIBILITY_FACT}:\n" + "\n".join(short))
 
     elig = eligibility_to_frame(elig_pulls)
     n_av = (elig["fa_status"] == "available").sum() if len(elig) else 0
