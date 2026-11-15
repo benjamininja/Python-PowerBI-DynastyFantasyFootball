@@ -21,6 +21,9 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
+- **CURRENT STATE (NEWEST, 2026-11-15 ~00:30Z, session `6d478b2d`, addendum before the CLEAR; the blocks below stay true except where this says otherwise). Ids only.**
+  - **Power BI work held by Ben until further notice** (pane Note, then button Remove entry, hold PBI; pull/563#issuecomment-6886523623). #563 stays open, unmerged at 44ce6ca; #567 and any Power BI ticket undispatched. The #563 Desktop Decision is out of the queue.
+  - Dynasty planner queue id is now `15250d47` (the two #548 Actions and Settings 1 to 5 re-keyed).
 - **CURRENT STATE (NEWEST, 2026-11-15 ~00:20Z, session `6d478b2d`, addendum before the CLEAR; the ~00:05Z block below stays true except where this says otherwise). Ids only.**
   - Tools planner queue id is now `b5e85b86` (the #195 and #193 Actions re-keyed). New queue Actions from it, Session b5e85b86: #204 test token reads; tools builders' two allow rules (PR #208).
   - Tools gos relayed (each recorded): #207 low, next free slot ahead of the line (#207 issuecomment-6886359507); #206 low after #204's reads, planner sends the word (#206 issuecomment-6886359008); PR #208 at 0f1e1a1 approved, merge on Green (pull/208#issuecomment-6886359918). #164 link sent (pull/199#issuecomment-6886464189).
