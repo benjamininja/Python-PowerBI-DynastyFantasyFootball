@@ -78,6 +78,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 02j | `02j_nflverse_minor_eligibility.py` | `fact_nfl_minor_eligibility`, grain `(gsis_id, season, week)`: every player in the pool with his career regular-season games and whether he is minors-eligible (20 or fewer; ADR-0019 decision 1 as amended 2026-11-14, #524, #544). A game is a regular-season game with a snap from 2012 on (`load_snap_counts`), a regular-season stats row before it; playoffs never count. One capture per Scoring Period (`week`), replaced by each run. `02d` does not read it yet (its Minor default stays on `04v`'s Fantrax capture, owner's ruling on PR #535); the `minor_drift` Review check compares the two. Stops on an empty load rather than make everyone eligible; no login. Not yet in the scheduled run's step table (waits for #525) |
 | 02e | `02e_fact_fantasy_teams_derive.py` | `fact_fantasy_teams`, grain `(team_key, scorer_id)`: the current roster, from the newest `getTeamRosters` reply 04r saved (`roster_slot`, salary and contract are Fantrax's; Starter / Bench / IR / Minors, as in `fact_roster_state`). The ledger adds `acquired_method` / `acquired_date` from the move that opened the copy's open stint, else `unknown`. `etl_cap` stamps `cap_hit` and `cap_exempt` (the Minors and IR slots are exempt; ADR-0016's #97 amendment). Fails in season with no saved reply; out of season builds from the ledger replay with slots blank. `--raw-dir` reads the replies from another folder. Written through the storage seam; no network |
 | 02h | `02h_fact_team_cap.py` | `fact_team_cap`, grain `(season_id, team_key)`: the published cap table, this season and next (ADR-0016's #97 amendment), with `etl_cap`'s rules. This season is the `season` on `fact_fantasy_teams`, never the calendar. Each season's row carries only that season's Dead Money. Fantrax's Salary Remaining sits on the current-season row, from the newest `standings` reply `04s` saved for that season; the Review check `salary_remaining` compares it on Fantrax's basis on the same league day. `--raw-dir` reads the replies from another folder. Rewrites the whole table; no network |
+| 02k | `02k_fact_contract_move.py` | `fact_contract_move`, grain `(list_name, team_key, scorer_id)`: the commissioners' three contract lists (#545), built by `etl_contract_moves` off the current roster. Minor to 1st both ways (a Minor past 20 games, or an eligible draft pick or dropped Minor on `1st` or `FA`), Expiring (`X`, `6th`, `Tag`) and the re-sign Decision table (`2nd`, `FA`). A row exists only inside its window (7 days before its date, or past it), so the table may hold zero rows (`shrinks_by_design`). Dates are `LeagueConfig` settings. Fails and writes nothing when the roster, Fantrax's eligibility capture or the teams are empty or missing. Rewrites the whole table; no network |
 | 03b | `03b_walterfootball_rankings.ipynb` | WalterFootball positional ranks (scraped) |
 | 03d | `03d_draftsharks_rankings.ipynb` | DraftSharks top-90 (scraped) |
 | 03x | `03x_manual_rankings.ipynb` | RotoBaller, mystery_iono, DLF, FantasyCalc, FP IDP (Excel) |
@@ -96,7 +97,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 | 04x | `04x_manual_dynasty_rankings.ipynb` | ↑ same dynasty tables ← DynastySharks (SF/TEPP) from `data/raw/DynastyRankings_2026_ManualExtraction.xlsx` |
 | 04z | `04z_fantrax_crosswalk.ipynb` | `dim_fantrax_crosswalk`; back-fills fact FKs |
 
-The `.py` rows (`02d`, `02e`, `02f`, `02h`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
+The `.py` rows (`02d`, `02e`, `02f`, `02h`, `02k`, `04a`, `04p`, `04r`, `04s`, `04v`, `04w`) are the headless Fantrax
 scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 
 ## Scheduled pipeline (orchestrator)
@@ -104,7 +105,7 @@ scraper/replay cluster — launched via `run.ps1` (see above), not notebooks.
 The weekly refresh runs through `scripts/run_pipeline.py`, a **phase-aware
 orchestrator** (INSEASON / PRESEASON / OFFSEASON, derived from 04a's week
 label + the season calendar). It runs, in dependency order:
-`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 02j → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h`,
+`01f → 04p → 04r → (04s, in-season) → 01e → 02a → (02g, in-season) → 02j → 04a → 04z → (04a --backfill-gp, in-season) → 04v → 02d → 02f → 02e → 02h → 02k`,
 surfaces review-queue row counts, commits refreshed
 `data/*.parquet` (allowlisted data-only commit — see CONTRIBUTING.md), and
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional).

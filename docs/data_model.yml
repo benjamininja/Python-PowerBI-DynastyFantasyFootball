@@ -76,7 +76,13 @@
 #                   has them and they are never legitimately null).
 #   shrink_limit  : optional; max fractional row-count drop against the last
 #                   published snapshot (git HEAD) before the Gate blocks.
-#                   Default 0.20. Shrinking to zero rows always blocks.
+#                   Default 0.20. Shrinking to zero rows always blocks,
+#                   except for a table with shrinks_by_design (below).
+#   shrinks_by_design : optional; true exempts the table from the shrink Gate
+#                   (ADR-0008 decision 6, amended 2026-11-14, #545: a table of
+#                   work still to do, rewritten whole each run, which falls to
+#                   zero as the work is done). Pinned by a test to exactly one
+#                   table, fact_contract_move.
 #   The grain Gate checks uniqueness of `grain` over rows whose grain columns
 #   are all non-null; null-key rows file one `grain_null_key` Review finding.
 
@@ -1210,6 +1216,55 @@ tables:
       by position in the run's output; almost all offensive linemen and long
       snappers), which the drift check shows as an eligible player Fantrax does
       not list. Not an Update-Set: no freeze, no Drift.
+
+  - name: fact_contract_move
+    type: fact
+    grain: "(list_name, team_key, scorer_id)"
+    pk: [list_name, team_key, scorer_id]
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [gsis_id], to: dim_nfl_players, ref: [gsis_id] }
+    chain: fantrax_core
+    required_keys: [list_name, team_key, scorer_id, status]
+    shrinks_by_design: true
+    columns:
+      - { name: list_name, dtype: str, sql_type: text }
+      - { name: conference, dtype: str, sql_type: text }
+      - { name: division, dtype: str, sql_type: text }
+      - { name: team_key, dtype: str, sql_type: text }
+      - { name: scorer_id, dtype: str, sql_type: text }
+      - { name: gsis_id, dtype: str, sql_type: text }
+      - { name: player_name, dtype: str, sql_type: text }
+      - { name: position, dtype: str, sql_type: text }
+      - { name: nfl_team, dtype: str, sql_type: text }
+      - { name: contract_now, dtype: str, sql_type: text }
+      - { name: move_to, dtype: str, sql_type: text }
+      - { name: reason, dtype: str, sql_type: text }
+      - { name: nfl_games, dtype: Int64, sql_type: integer }
+      - { name: roster_slot, dtype: str, sql_type: text }
+      - { name: salary, dtype: float64, sql_type: "double precision" }
+      - { name: status, dtype: str, sql_type: text }
+    edges:
+      - { to: dim_fantasy_teams, via: direct, on: team_key }
+      - { to: dim_nfl_players, via: direct, on: gsis_id }
+    notes: >
+      The commissioners' contract lists (02k, #545): the moves due in Fantrax,
+      which the repo cannot make (ADR-0011). list_name is minor-to-1st (both
+      directions: contract_now Minor to move_to 1st, or 1st or FA to Minor;
+      ADR-0019 decision 4), expiring (X, 6th, Tag; bylaws 11.4.1) or decision
+      (2nd, FA; bylaws 12.2-12.3 and 5.2). status is Due now or Due within 7
+      days; a row exists only inside its window, so the table holds only what
+      is due, rewritten whole each run, and may hold zero rows
+      (shrinks_by_design: the Shrink Gate does not apply, because every move
+      made is the success state and a falling count is the goal). Windows: Minor to 1st, past 20 games (off Fantrax's
+      list) is due now and 19 or 20 nflverse games is due within 7 days;
+      decision rows run to LeagueConfig.resign_deadline, expiring rows to
+      LeagueConfig.final_period_end. nfl_games is nflverse's count, for
+      reference. team_key only; the team's name is joined from
+      dim_fantasy_teams when a list is shown. The Review check minor_contract
+      files the Minor to 1st rows that are due now. Read by the xlsx, the
+      Daily Run's post (new rows only; the key is list_name, conference,
+      team_key, scorer_id, status) and the bot's /contract-moves.
 
   - name: fact_nfl_snap_counts
     type: fact

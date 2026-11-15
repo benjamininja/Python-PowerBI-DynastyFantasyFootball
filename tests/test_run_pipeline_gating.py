@@ -226,3 +226,26 @@ class TestTeamCapStep:
 
     def test_its_table_is_in_the_same_chain(self):
         assert ec.load_registry()["fact_team_cap"]["chain"] == "fantrax_core"
+
+
+class TestContractMoveStep:
+    """02k publishes the commissioners' lists after the roster, in the core Chain (#545)."""
+
+    STEPS = rp.build_steps(None)
+
+    def test_it_follows_the_roster_and_does_not_wait_on_nflverse(self):
+        names = [s["name"] for s in self.STEPS]
+        step = self.STEPS[names.index("02k_contract_moves")]
+        assert (step["chain"], step["group"]) == ("fantrax_core", "regular_season")
+        assert step["needs"] == ["02e_derive"]
+        assert names.index("02e_derive") < names.index("02k_contract_moves")
+        assert step["cmd"][-1].endswith("02k_fact_contract_move.py")
+
+    def test_its_table_is_in_the_same_chain_and_may_shrink_to_nothing(self):
+        entry = ec.load_registry()["fact_contract_move"]
+        assert entry["chain"] == "fantrax_core" and entry["shrinks_by_design"] is True
+
+    def test_the_shrink_gate_lets_a_by_design_table_fall_to_zero(self):
+        assert ec.check_shrink(0, 90) is not None
+        assert ec.check_shrink(0, 90, by_design=True) is None
+        assert ec.check_shrink(10, 90, by_design=True) is None
