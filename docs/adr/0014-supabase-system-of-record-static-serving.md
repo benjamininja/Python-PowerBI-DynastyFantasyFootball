@@ -1,6 +1,6 @@
 # Supabase is the ETL's system of record; serving stays a static published snapshot
 
-- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); built, cutover done 2026-11-05 ([#336](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/336), steps 5 and 6). Amended by [ADR-0015](0015-etl-on-github-actions-owner-pii-confined.md) (2026-09-27): the ETL runs on GitHub Actions, so the rejected Actions keep-alive's "DB credentials in Actions secrets" reason no longer holds; Change Poll host and interval are set there.
+- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); built, cutover done 2026-11-05 ([#336](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/336), steps 5 and 6). Amended by [ADR-0015](0015-etl-on-github-actions-owner-pii-confined.md) (2026-09-27): the ETL runs on GitHub Actions, so the rejected Actions keep-alive's "DB credentials in Actions secrets" reason no longer holds; Change Poll host and interval are set there. Amended by [ADR-0025](0025-owner-write-path-contract-choices.md) (2026-11-15): a second, narrow writer beside the etl seam (decision 1), one consumer that reads the live Data API (decision 2), and the user-writes trigger of decision 7 has fired.
 - Date: 2026-09-26
 - Amends: [ADR-0012](0012-static-export-for-trade-bud.md). Its "no database" framing and its rejected Supabase alternative are re-scoped to *serving*; the rest of ADR-0012 stands.
 - Scope:
@@ -42,11 +42,13 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
 1. **Supabase Postgres is the system of record.**
    - Every ETL write goes through the storage seam (`etl.write_table`) into Postgres.
    - PK, unique and FK constraints reject bad or duplicate rows *at write time*. This is the correctness gate parquet never had.
+   - *Amended 2026-11-15 ([ADR-0025](0025-owner-write-path-contract-choices.md), #548): a second, narrow writer. Signed-in owners write two tables in schema `app` through row-level security. The seam stays the only writer of every other table.*
 2. **Consumers read a published snapshot, never the store.**
    - After a run, the seam exports the record to `data/*.parquet`.
    - `run_pipeline.py` commits that export to `main` (the existing change-detected commit).
    - *Amended 2026-11-05 (#361, PR #364; recorded by #365): the export lands on `main` by the pipeline's own data PR, gated by `pii-scan`, `tests` and `bot-tests` and merged by the pipeline itself, with no push to `main` and no bypass. The run log reads `published` only after that merge, and records the landed sha.*
    - Power BI, the bot and trade-bud read only that snapshot, so serving survives a paused or unreachable database.
+   - *Amended 2026-11-15 ([ADR-0025](0025-owner-write-path-contract-choices.md), #548): the choices page is the one consumer that reads the live Data API, and only schema `app`. Power BI, the bot and trade-bud's `index.html` still read only the snapshot.*
 3. **Publish only a good run.**
    - The snapshot is exported only after the run's DB transaction commits and its post-run checks pass (the test strategy is #88).
    - A failed run publishes nothing, and the last good snapshot keeps serving.
@@ -71,6 +73,7 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
      - a combined multi-sport league app
      - user writes or auth
      - linking with James's HoD project
+   - *Noted 2026-11-15 ([ADR-0025](0025-owner-write-path-contract-choices.md), #548): the trigger "user writes or auth" has fired. It was judged not to need Pro: the daily run keeps the project active, and only the choices page depends on the live database. Revisit if the project ever pauses inside a choice window.*
    - **Target shape:** **one "league platform" project**, with a schema per sport (`football`, `baseball`) plus `shared` (owners, leagues, people). Both apps link through `shared`.
 
 ## Alternatives considered

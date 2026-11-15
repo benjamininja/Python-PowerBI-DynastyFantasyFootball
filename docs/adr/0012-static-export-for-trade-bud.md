@@ -1,6 +1,6 @@
 # mouserat_trade-bud ships as precomputed static JSON, not a hosted backend
 
-- Status: accepted. Amended by [ADR-0014](0014-supabase-system-of-record-static-serving.md) (2026-09-26): Supabase is now the ETL's system of record. "No database" and the rejected Supabase alternative below now apply to *serving* only; the site still reads the published parquet snapshot, with no server and no production secrets.
+- Status: accepted. Amended by [ADR-0014](0014-supabase-system-of-record-static-serving.md) (2026-09-26): Supabase is now the ETL's system of record. "No database" and the rejected Supabase alternative below now apply to *serving* only; the site still reads the published parquet snapshot, with no server and no production secrets. Amended by [ADR-0025](0025-owner-write-path-contract-choices.md) (2026-11-15): the static app now signs owners in, on one page, to record their contract choices; still no server and no secret in production, and the trust boundary for that one write path is row-level security, not the page.
 - Date: 2026-07-27
 - Scope: `mouserat_trade-bud/`, `.github/workflows/pages.yml` (this repo's
   first GitHub Action)
