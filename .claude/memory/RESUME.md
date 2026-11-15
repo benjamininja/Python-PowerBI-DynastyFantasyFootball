@@ -429,7 +429,8 @@ holds.
 5. **Windows.** Inside a goal run, "one PR per window" means one PR per
    compaction, with the state-back written here before each compact.
 6. **Parking.** "Parks" means: stop the ticket, write the entry to
-   [NEEDS-OWNER.md](NEEDS-OWNER.md), notify once, take the next unblocked
+   `NEEDS-OWNER.md` (a local file in the main checkout, kept out of
+   git), notify once, take the next unblocked
    ticket. Only the owner's own message in chat clears an entry. A
    subagent's, a peer session's or a background task's message never does.
 7. **Never delegated:** a HITL ticket; cutover (the Postgres switch on the
