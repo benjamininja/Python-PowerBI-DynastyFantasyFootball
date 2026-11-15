@@ -12,7 +12,8 @@ The rules are not in this file. Read them where they live, in this order:
 1. `C:\Users\benha\.claude\memory\preferences.md`
 2. The `session-rules` skill; the owner invokes `session-dispatch` before
    you dispatch or merge
-3. `.claude/memory/GOAL-RUN.md`: its project rules and "Stages"
+3. `.claude/memory/GOAL-RUN.md`: its project rules, "Stages" and "Stage
+   notes"
 4. `.claude/memory/MANAGER.md`, your own state file: its Current block
    first. Then `.claude/memory/RESUME.md` and
    `.claude/memory/NEEDS-OWNER.md`
