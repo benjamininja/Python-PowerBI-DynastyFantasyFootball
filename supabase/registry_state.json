@@ -1234,6 +1234,121 @@
       ],
       "schema": "football"
     },
+    "football.fact_contract_move": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "list_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "conference",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "division",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "gsis_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "player_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "position",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_team",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "contract_now",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "move_to",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "reason",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "nfl_games",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "roster_slot",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "salary",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "status",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "fact_contract_move_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        },
+        {
+          "columns": [
+            "gsis_id"
+          ],
+          "name": "fact_contract_move_gsis_id_fkey",
+          "ref": [
+            "gsis_id"
+          ],
+          "to": "football.dim_nfl_players"
+        }
+      ],
+      "indexes": [],
+      "name": "fact_contract_move",
+      "pk": [
+        "list_name",
+        "team_key",
+        "scorer_id"
+      ],
+      "schema": "football"
+    },
     "football.fact_dead_money": {
       "checks": [],
       "columns": [

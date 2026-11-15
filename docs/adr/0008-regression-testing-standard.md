@@ -147,6 +147,7 @@ the in-season checks wait for #116. The July decisions above stand.
    - A table can set its own limit in `docs/data_model.yml`.
    - A manual (`workflow_dispatch`) run can pass `--accept-shrink <table>` for a known rollover.
    - Growth never blocks.
+   - *Amended 2026-11-14 (#545, planner ruling on Ben's answer): a table whose registry entry sets `shrinks_by_design: true` is exempt from the shrink Gate. The flag is for a table that holds only work still to do and is rewritten whole each run, so a falling count, or zero rows, is the success state. Today that is `fact_contract_move` alone; a test pins the flag to that one table, so a second table taking it is a deliberate change with its own ruling. The step that builds it fails and writes nothing when its Roster State input is empty or missing, and the tables it reads keep their own shrink Gates in the same Chain.*
 7. **Close checks:**
    - the period's Roster State covers all 28 teams;
    - every Starter in the period roster has an `ACTIVE` live-scoring entry;

@@ -42,6 +42,7 @@ import pyarrow.parquet as pq
 import yaml
 
 import etl_cap as cap
+import etl_contract_moves as contract_moves
 from etl_helpers import DATA, REVIEW, TableNotFound, is_private, read_stored
 
 log = logging.getLogger(__name__)
@@ -140,11 +141,12 @@ def schema_errors(entry: dict, real_cols: dict[str, str]) -> list[str]:
 
 def check_shrink(rows_now: int, rows_head: int | None,
                  limit: float = DEFAULT_SHRINK_LIMIT,
-                 accepted: bool = False) -> str | None:
+                 accepted: bool = False, by_design: bool = False) -> str | None:
     """Collapse verdict vs the last published row count, or None if fine.
     New tables (no HEAD copy) and --accept-shrink tables never block; growth
-    never blocks."""
-    if rows_head is None or accepted:
+    never blocks. `by_design` (registry `shrinks_by_design`, #545): a table of
+    work still to do, which falls as the work is done and may reach zero."""
+    if rows_head is None or accepted or by_design:
         return None
     if rows_now == 0 and rows_head > 0:
         return f"collapsed to 0 rows (HEAD {rows_head})"
@@ -633,6 +635,31 @@ def minor_drift_findings(fantrax: pd.DataFrame, computed: pd.DataFrame,
     return out
 
 
+def minor_contract_findings(roster: pd.DataFrame, teams: pd.DataFrame, players: pd.DataFrame,
+                            fantrax: pd.DataFrame, computed: pd.DataFrame,
+                            ledger: pd.DataFrame,
+                            links: pd.DataFrame | None = None) -> list[tuple[str, str]]:
+    """ADR-0019 decision 4 (#545): a contract that disagrees with eligibility on
+    the current Roster State, in both directions. One finding per copy, keyed by
+    team, scorer and the contract it should hold, from the rows of the Minor to
+    1st list that are due now (the 19-or-20-games rows are a heads-up, not a
+    mismatch). The list is the one the xlsx and the bot show, so they agree.
+    Findings name the scorer id and the team key, never a player."""
+    if fantrax.empty:
+        raise NotComparable("fact_minor_eligibility holds no capture")
+    copies = contract_moves.roster_copies(roster, teams, players, fantrax,
+                                          contract_moves.nflverse_games(computed), links)
+    rows = contract_moves.minor_rows(copies, contract_moves.fantrax_listed(fantrax), teams, ledger)
+    rows = rows[rows["status"] == contract_moves.DUE_NOW]
+    out = []
+    for r in rows.itertuples():
+        games = "" if pd.isna(r.nfl_games) else f"; nflverse counts {int(r.nfl_games)} games"
+        out.append((f"{r.team_key}|{r.scorer_id}|{r.move_to}",
+                    f"{r.scorer_id} on {r.team_key} holds {r.contract_now}, belongs on "
+                    f"{r.move_to}: {r.reason}{games}"))
+    return out
+
+
 STARTUP_SLOTS, STARTUP_UNMADE = 980, 5   # the finished 2026 Startup draft
 LOADER = "scripts/load_draft_and_overrides.py"
 
@@ -671,6 +698,13 @@ def _optional(load: Callable[[str], pd.DataFrame], name: str) -> pd.DataFrame | 
         return load(name)
     except TableNotFound:
         return None
+
+
+def _nflverse_or_empty(load: Callable[[str], pd.DataFrame]) -> pd.DataFrame:
+    """nflverse's eligibility table, or an empty one where this store has none
+    (the games are a reference column; the Fantrax list decides the check)."""
+    got = _optional(load, "fact_nfl_minor_eligibility")
+    return got if got is not None else pd.DataFrame(columns=["gsis_id", "capture_date", "career_games"])
 
 
 def draft_copy_errors(slots: pd.DataFrame) -> list[str]:
@@ -747,6 +781,12 @@ DOMAIN_CHECKS = [
                     private_table(load, "fact_nfl_minor_eligibility"),
                     load("fact_roster_state"), load("dim_fantrax_crosswalk")),
                 grace_periods=1),
+    DomainCheck("minor_contract", "review", "fact_fantasy_teams",
+                lambda load: minor_contract_findings(
+                    load("fact_fantasy_teams"), load("dim_fantasy_teams"),
+                    load("dim_nfl_players"), load("fact_minor_eligibility"),
+                    _nflverse_or_empty(load), load("fact_roster_transactions"),
+                    _optional(load, "dim_gsis_link"))),
     DomainCheck("team_cap", "gate", "fact_team_cap",
                 lambda load: team_cap_errors(load("fact_team_cap"), load("fact_fantasy_teams"),
                                              load("fact_dead_money"), load("dim_fantasy_teams"),
@@ -820,7 +860,7 @@ def run_suite(tables: Iterable[str] | None = None,
         add("required_keys", "gate", check_required_keys(df, entry.get("required_keys") or []))
         verdict = check_shrink(len(df), head_rows(name),
                                float(entry.get("shrink_limit", DEFAULT_SHRINK_LIMIT)),
-                               name in accepted)
+                               name in accepted, bool(entry.get("shrinks_by_design")))
         add("shrink", "gate", [verdict] if verdict else [])
 
     for dc in DOMAIN_CHECKS:

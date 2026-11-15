@@ -248,6 +248,13 @@ def build_steps(profile: str | None) -> list[dict]:
         # and each season's row carries only that season's Dead Money.
         {"name": "02h_team_cap", "cmd": _script("02h_fact_team_cap.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02f_dead_money", "02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
+        # The commissioners' contract lists (no network; #545): Minor to 1st,
+        # Expiring and the re-sign Decision table off the current roster. It
+        # reads 01e's names and 02j's games as the run leaves them (reference
+        # columns), so an nflverse failure does not hold this Chain. Its
+        # Fantrax inputs reach it through 02e's own needs (04v, 02d).
+        {"name": "02k_contract_moves", "cmd": _script("02k_fact_contract_move.py"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["02e_derive"], "chain": "fantrax_core", "group": "regular_season"},
         # Rookie chain (auto-safe scrapes only): 03b and 03d ingest expert
         # sources directly. Deliberately stops here — 03x (manual Excel), 03y/03z
         # (fuzzy-review + apply) need a human in the loop, per
