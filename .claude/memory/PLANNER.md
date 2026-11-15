@@ -91,6 +91,7 @@ before a clear at Ben's word. State branch `docs/state-2026-11-16`; its state PR
 ### Decided since the last merged state PR (#572, `49aece9`)
 
 - **Ben, state PR #572:** "Merge when checks pass (Recommended)" (pull/572#issuecomment-6887438579). Merged 2026-11-15 as `49aece9`, all eight checks passing on one read, pinned to `6f2f312`. The fresh state branch is `docs/state-2026-11-16`.
+- **Ben, the three plugin-text candidates** (by button in the Tools planner's chat, reported by it; record #564 issuecomment-6887450272): the flagged `Answer:` line joins `parking.md` in tools PR 184; the Status block gets no plugin change, so dynasty names its contents in `GOAL-RUN.md` (already in the text proposed to the manager, #564 issuecomment-6886761907, finding 1); the tier table leaves both role templates under tools #189. The manager was told on 2026-11-15.
 - Everything decided on 2026-11-14 and 2026-11-15 before that merge is in #572's diff and on its tickets: #505 (pull/505), the settings edits and the local settings check (#564), the role-file check and PR #573 (#564), #562's two answers and PR #574 (#562).
 
 ## Reference
