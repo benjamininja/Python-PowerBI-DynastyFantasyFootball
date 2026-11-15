@@ -1,6 +1,6 @@
 # Supabase schema: three schemas, registry-generated DDL, natural keys, locked-down RLS
 
-- Status: accepted. Designed through HITL grilling on 2026-10-02 ([#75](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/75)); not yet built.
+- Status: accepted. Designed through HITL grilling on 2026-10-02 ([#75](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/75)); not yet built. Amended by [ADR-0025](0025-owner-write-path-contract-choices.md) (2026-11-15): decision 9 (one schema, `app`, is exposed to the Data API, with grants and policies for `authenticated`) and decision 10 (the hash list gains the owner crosswalk's ids).
 - Date: 2026-10-02
 - Amends: [ADR-0014](0014-supabase-system-of-record-static-serving.md) consequence "no consumer cutover work". The published snapshot now carries tighter types (decision 8), so Power BI, the bot and trade-bud each get a type pass at cutover. Their read path (the parquet snapshot) is unchanged.
 - Scope:
@@ -56,6 +56,7 @@
    - `etl_writer`: no BYPASSRLS. It gets DML grants and an explicit `TO etl_writer USING (true)` policy per table, emitted by the generator. It never uses `service_role` (ADR-0015).
    - A **read-only login is created now**, with SELECT policies on `football` and `ops`, and never on `shared`.
    - `anon` and `authenticated` get no grants and no policies. None of the three schemas is exposed to the Data API.
+   - *Amended 2026-11-15 by [ADR-0025](0025-owner-write-path-contract-choices.md) (#548): one more schema, `app`, is exposed to the Data API, and `authenticated` gets the grants and policies that ADR names on it. `anon` still gets none, and none of the three schemas above is exposed.*
 10. **`shared.owner` is hand-kept and never read in plaintext.**
     - The owner maintains its rows in the SQL editor.
     - `etl_writer` has no grant on the table. It has EXECUTE on one SECURITY DEFINER function, `shared.pii_token_hashes()`, which returns sha256 hashes of lowercased name and username tokens.

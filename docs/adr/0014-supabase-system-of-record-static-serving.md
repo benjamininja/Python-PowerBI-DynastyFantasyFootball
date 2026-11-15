@@ -1,6 +1,6 @@
 # Supabase is the ETL's system of record; serving stays a static published snapshot
 
-- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); built, cutover done 2026-11-05 ([#336](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/336), steps 5 and 6). Amended by [ADR-0015](0015-etl-on-github-actions-owner-pii-confined.md) (2026-09-27): the ETL runs on GitHub Actions, so the rejected Actions keep-alive's "DB credentials in Actions secrets" reason no longer holds; Change Poll host and interval are set there.
+- Status: accepted. Designed through HITL grilling on 2026-09-26 ([#72](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/72)); built, cutover done 2026-11-05 ([#336](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/336), steps 5 and 6). Amended by [ADR-0015](0015-etl-on-github-actions-owner-pii-confined.md) (2026-09-27): the ETL runs on GitHub Actions, so the rejected Actions keep-alive's "DB credentials in Actions secrets" reason no longer holds; Change Poll host and interval are set there. Amended by [ADR-0025](0025-owner-write-path-contract-choices.md) (2026-11-15): a second, narrow writer beside the etl seam (decision 1), and the user-writes trigger of decision 7 has fired.
 - Date: 2026-09-26
 - Amends: [ADR-0012](0012-static-export-for-trade-bud.md). Its "no database" framing and its rejected Supabase alternative are re-scoped to *serving*; the rest of ADR-0012 stands.
 - Scope:
@@ -71,6 +71,7 @@ Established by inspection and research ([#73](https://github.com/benjamininja/Py
      - a combined multi-sport league app
      - user writes or auth
      - linking with James's HoD project
+   - *Noted 2026-11-15 ([ADR-0025](0025-owner-write-path-contract-choices.md), #548): the trigger "user writes or auth" has fired. It was judged not to need Pro: the daily run keeps the project active, and only the choices page depends on the live database. Revisit if the project ever pauses inside a choice window.*
    - **Target shape:** **one "league platform" project**, with a schema per sport (`football`, `baseball`) plus `shared` (owners, leagues, people). Both apps link through `shared`.
 
 ## Alternatives considered
