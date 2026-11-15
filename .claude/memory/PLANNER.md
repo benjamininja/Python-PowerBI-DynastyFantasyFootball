@@ -15,26 +15,25 @@ until the role-file PR (Next, item 2) changes the wording.
 
 ## Current
 
-**Saved:** 2026-11-14 23:58Z, session 7f401a65-3377-4b06-90e1-ac252a6a7679.
-State branch `docs/state-2026-11-15`, state PR #572.
+**Saved:** 2026-11-15 00:20Z, session 7f401a65-3377-4b06-90e1-ac252a6a7679,
+before a clear at Ben's word. State branch `docs/state-2026-11-15`, state PR #572.
 
 ### Next (in order)
 
-1. **#505** (the `mrp-dff-code-review` skill and the Green item): Ben's answer "Merge when checks pass (Recommended)" (pull/505#issuecomment-6886176133). Squash-merge pinned to head `3d27b16` once every check passes on one read; one `storage-pg` run was still pending at this save. Then delete the branch, remove its worktree, tell the manager to pull.
+1. **#505** (the `mrp-dff-code-review` skill and the Green item): Ben's answer "Merge when checks pass (Recommended)" (pull/505#issuecomment-6886176133). Squash-merge pinned to head `3d27b1663237e6affdcf3eb6eb3e6543b2d60e68` once every check passes on one read. **Not merged at this save:** seven of eight checks pass; the push-event `storage-pg` job (run 43654295223) has been in progress since 2026-11-14 23:39Z, where the pull-request run's took 16 minutes, so it may be hung. Read the checks first. All pass: merge, delete the branch, remove its worktree (the one on branch `docs/planner-490-review-skill`), tell the manager to pull. Failed or cancelled: do not merge; post the output on #505 and ask Ben by button whether to re-run the job.
 2. **The role-file PR of the redesign:** cut `central-planner.md`, `central-builder-manager.md` and `stage-builder.md` to role, read list and pointers. Before a rule leaves a role file, check it stands in `session-rules` or `GOAL-RUN.md`; one that stands nowhere else goes to the manager as proposed `GOAL-RUN.md` text first. `stage-builder.md`'s second read list (lines 13 to 17) goes, to match Settings 5 of 5. `central-planner.md`'s tier table lacks the haiku tier (#564 finding 6). Own PR, Ben's approval by button.
 3. **#562** (untrack the queue file): the rehearsal is posted (issuecomment-6886033417). The ticket's sequence fails; the corrected one passes. Owed: put its two open questions (history; old worktrees) to Ben by button, open the planner's docs PR, and send the manager a queue entry for Ben's sitting with the corrected sequence.
-4. **#570** (#545 PR 1): re-read the FA Decision row's two strings (`notebooks/etl_contract_moves.py` lines 170, 171) when the builder pushes. The read: pull/570#issuecomment-6885894132.
-5. **The three later settings entries** (#564, draft advisory GHSA-27j5-qx96-v8w3): clear the one-off rules from the main checkout's local settings file, after Settings 4 of 5 is done; the push denies, after a live trial of the `+` pattern, in the builders' and the research file in one edit; the `research` profile's denies, after checking which profile the 7 `gh issue comment --repo` calls of 2026-11-07 ran under.
-6. **The dynasty ruleset entry** for the manager's queue, when the Tools planner says the tools trial of tools #193 has passed; timed right after a Daily Run's data PR merges (tools #193 issuecomment-6885586994).
-7. **Sift the old Lessons lists** (in `53104a9`'s copy of this file) for rules worth a place in a rule source; send candidates to the Tools planner or the manager.
-8. **State PR #572:** ask Ben by button at the day's last save. On his yes: pause the manager's state pushes, merge head-pinned, cut a fresh branch from main, send the manager its name.
+4. **The three later settings entries** (#564, draft advisory GHSA-27j5-qx96-v8w3): clear the one-off rules from the main checkout's local settings file, after Settings 4 of 5 is done; the push denies, after a live trial of the `+` pattern, in the builders' and the research file in one edit; the `research` profile's denies, after checking which profile the 7 `gh issue comment --repo` calls of 2026-11-07 ran under.
+5. **The dynasty ruleset entry** for the manager's queue, when the Tools planner says the tools trial of tools #193 has passed; timed right after a Daily Run's data PR merges (tools #193 issuecomment-6885586994).
+6. **Sift the old Lessons lists** (in `53104a9`'s copy of this file) for rules worth a place in a rule source; send candidates to the Tools planner or the manager.
+7. **State PR #572:** ask Ben by button at the day's last save. On his yes: pause the manager's state pushes, merge head-pinned, cut a fresh branch from main, send the manager its name.
 
 ### Waiting
 
 **On Ben, in the queue (keyed to 7f401a65):**
 - Start the owner crosswalk Excel on Drive for #548
 - Hand over the 2026 FA keep choices for #548 (after 2026-11-19)
-- Settings 1 of 5 to Settings 5 of 5 (sent to the manager 2026-11-14 23:33Z; entries 1 to 4 stay out of any commit while open, because they describe what the advisory holds back)
+- Settings 1 of 5 to Settings 5 of 5 (in the queue word for word, the manager's report of 2026-11-15 00:10Z; entries 1 to 4 describe what the advisory holds back, and the manager's state-backs never commit the queue file)
 
 **On Ben, his go or his word (not yet a queue entry; each becomes one when it is next in line):**
 - #520: dispatch at Ben's go, not during periods 13 to 17.
@@ -54,7 +53,7 @@ State branch `docs/state-2026-11-15`, state PR #572.
 
 ### Peers
 
-- `dynastyFantasyFootball-central-builder-manager`, session 6d478b2d-32fa-4453-9c0d-ede04a08401d. It writes the queue; send it ready entries.
+- `dynastyFantasyFootball-central-builder-manager`, session 6d478b2d-32fa-4453-9c0d-ede04a08401d until its clear, which it was preparing at 2026-11-15 00:10Z; find it by name and take its new id from its first message. It writes the queue; send it ready entries.
 - `Tools-central-planner`, queue id 8bda0483-e47e-42fd-9850-8b25ee130dd4. It owns skills-plugins-hooks-agents except the owner-queue mod, which is the dynasty planner's.
 - After a clear: send both the new session id; the manager re-keys the planner's queue entries.
 
@@ -96,7 +95,7 @@ State branch `docs/state-2026-11-15`, state PR #572.
 - **Ben, the resume-prompt redesign:** "Approve, history to git (Recommended)" (tools #161 issuecomment-6886175657).
 - **Ben, #505:** "Merge when checks pass (Recommended)" (pull/505#issuecomment-6886176133).
 - **Planner, Verify first:** done for the top five settings fixes (#564 issuecomment-6885943927; a Verification section on the draft advisory). The planner and the manager run in auto mode, where a classifier decides almost every call; the main checkout's local settings file reaches dynasty builders; the managers' two script rules never matched a call; a deny added to the builders' file must also go into the research file (`dispatch.ps1` line 193).
-- **Planner, #570:** no plan breach; "0 new Review findings" reads as no new finding from any check that already exists on `main`; one wording fix wanted (pull/570#issuecomment-6885894132).
+- **Planner, #570:** no plan breach; "0 new Review findings" reads as no new finding from any check that already exists on `main`; one wording fix wanted (pull/570#issuecomment-6885894132). The fix is read at `fa759db` and holds; the manager's re-proof is next.
 - **Planner, the bylaws difference parked by the #558 builder:** #557 decisions 2 and 3 stand; ADR-0024 needs no amendment (#557 issuecomment-6885895208).
 - **Planner, #566:** tier medium, on map #557, blocked by #561's grill.
 - **Planner, #562's rehearsal:** the ticket's step 3 is wrong; the corrected sequence is copy aside, merge, delete and pull, copy back (#562 issuecomment-6886033417).
