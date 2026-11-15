@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
+from io import BytesIO
 from typing import Callable
 
 import discord
@@ -30,6 +32,24 @@ class CommandError(Exception):
     """User-facing problem (bad arg, no data) — its message is safe to show."""
 
 
+@dataclass(frozen=True)
+class FileReply:
+    """A reply that is one attached file plus a short line of text.
+
+    A builder may return this instead of a list of embeds; it takes the same
+    path through `respond_with_embeds`, so the file is private by default and
+    shared only on the same explicit opt-in.
+    """
+
+    filename: str
+    data: bytes
+    content: str
+
+    def attachment(self) -> discord.File:
+        # A discord.File is consumed by one send, so each send gets a fresh one.
+        return discord.File(BytesIO(self.data), filename=self.filename)
+
+
 class ShareView(discord.ui.View):
     """A 'Post publicly' button attached to a private (ephemeral) result.
 
@@ -38,9 +58,11 @@ class ShareView(discord.ui.View):
     to the original requester so nobody else can publish someone's private query.
     """
 
-    def __init__(self, embeds: list[discord.Embed], author_id: int):
+    def __init__(self, embeds: list[discord.Embed], author_id: int,
+                 file: FileReply | None = None):
         super().__init__(timeout=300)  # button stops working after 5 min
         self._embeds = embeds
+        self._file = file
         self._author_id = author_id
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -58,12 +80,15 @@ class ShareView(discord.ui.View):
     ) -> None:
         try:
             # Attribute the share so a public post is never anonymous.
-            await interaction.channel.send(
-                content=f"📢 Shared by {interaction.user.mention}",
-                embed=self._embeds[0],
-            )
-            for embed in self._embeds[1:]:
-                await interaction.channel.send(embed=embed)
+            shared_by = f"📢 Shared by {interaction.user.mention}"
+            if self._file is not None:
+                await interaction.channel.send(
+                    content=f"{shared_by}\n{self._file.content}", file=self._file.attachment(),
+                )
+            else:
+                await interaction.channel.send(content=shared_by, embed=self._embeds[0])
+                for embed in self._embeds[1:]:
+                    await interaction.channel.send(embed=embed)
         except discord.Forbidden:
             await interaction.response.send_message(
                 "I don't have permission to post in this channel.", ephemeral=True
@@ -78,10 +103,14 @@ class ShareView(discord.ui.View):
 async def respond_with_embeds(
     ctx: commands.Context,
     share: bool,
-    build_fn: Callable[..., list[discord.Embed]],
+    build_fn: Callable[..., list[discord.Embed] | FileReply],
     *build_args: object,
 ) -> None:
-    """Run a (sync, cache-missable) embed builder and deliver it, privately by default.
+    """Run a (sync, cache-missable) builder and deliver it, privately by default.
+
+    The builder returns embeds, or a `FileReply` for a command whose answer is an
+    attached file; both go through the same defer, the same error handling and
+    the same private-by-default routing.
 
     Defers the slash interaction up front (fetch + parse can exceed the 3s ack
     window) and runs the builder off the event loop so a slow GitHub response
@@ -105,7 +134,36 @@ async def respond_with_embeds(
             "Couldn't reach the data right now — try again shortly.",
         )
         return
+    if isinstance(embeds, FileReply):
+        await deliver_file(ctx, is_slash, share, embeds)
+        return
     await deliver_embeds(ctx, is_slash, share, embeds)
+
+
+async def deliver_file(
+    ctx: commands.Context, is_slash: bool, share: bool, reply: FileReply,
+) -> None:
+    """`deliver_embeds`' routing for one attached file."""
+    if share:
+        await ctx.send(reply.content, file=reply.attachment())
+        return
+    if is_slash:
+        view = ShareView([], ctx.author.id, file=reply)
+        await ctx.send(reply.content, file=reply.attachment(), ephemeral=True, view=view)
+        return
+    if ctx.guild is None:
+        await ctx.send(reply.content, file=reply.attachment())
+        return
+    try:
+        await ctx.author.send(reply.content, file=reply.attachment())
+    except discord.Forbidden:
+        await ctx.reply(
+            "Your DMs are closed, so I can't send this privately. Enable DMs from "
+            "server members, use the slash command for a private result, or pass "
+            "`share: true` to post it here publicly."
+        )
+        return
+    await _react_dm_sent(ctx)
 
 
 async def deliver_embeds(
