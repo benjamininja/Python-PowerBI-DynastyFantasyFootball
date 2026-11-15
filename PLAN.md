@@ -59,7 +59,8 @@ raw points, not categories.
 **Goal runs (approved 2026-10-11):** the remaining tickets are worked under
 `/goal` in four stages (A ledger and cap, B seam, C Postgres, D schedule).
 Runbook: [GOAL-RUN.md](.claude/memory/GOAL-RUN.md). Waiting on the owner:
-[NEEDS-OWNER.md](.claude/memory/NEEDS-OWNER.md).
+`.claude/memory/NEEDS-OWNER.md`, a local file in the main checkout, kept
+out of git.
 
 - [Map #69 — Supabase storage foundation](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/69):
   #72 role/ADR (grilling) · #73 platform facts (research) · #74 seam

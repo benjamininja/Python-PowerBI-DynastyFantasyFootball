@@ -34,8 +34,8 @@ Two memory stores, different scopes:
   - [PLANNER.md](.claude/memory/PLANNER.md) — where the planner session
     left off: maps, milestones, sweeps, gaps
   - [GOAL-RUN.md](.claude/memory/GOAL-RUN.md) — runbook for the staged `/goal`
-    runs; [NEEDS-OWNER.md](.claude/memory/NEEDS-OWNER.md) — what waits on the
-    owner
+    runs; `NEEDS-OWNER.md` — what waits on the owner: a local file in the
+    main checkout, kept out of git
 - **`C:\Users\benha\.claude\memory\` (global, cross-project)**:
   - `preferences.md` — working style: caveman lite, grill-me before code,
     `AskUserQuestion` for design decisions, `.ipynb`-only notebooks, git/TMDL
