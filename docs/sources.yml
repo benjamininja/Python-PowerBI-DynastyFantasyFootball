@@ -222,7 +222,7 @@ sources:
     status: live
     terms: *fantrax_fxea_terms
     locator: "https://www.fantrax.com/fxea/general/getPlayerIds?sport=NFL"
-    purpose: "The identity of every Fantrax player: fantraxId (the scorer_id), name, position code and NFL team (`(N/A)` for none), one record per id, with no league needed. Feeds the crosswalk's name, position and team (#519, #429). Team defense rows (a `#` id and a `teamName`) and the team-level codes TK and TQB are dropped; the call holds no rookie flag and one position code per player. Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
+    purpose: "The identity of every Fantrax player: fantraxId (the scorer_id), name (surname first, 'Surname, Given'), NFL position code and NFL team (`(N/A)` for none), one record per id, with no league needed. Feeds the crosswalk's name (turned to given name first) and NFL team (#519, #429); the NFL position is not the league's eligibility and is not used. Team defense rows (a `#` id and a `teamName`) and the team-level codes TK and TQB are dropped; the call holds no rookie flag. Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
     cadence: "Every pipeline run, all phases (inside the `04z_crosswalk` step, fantrax_core Chain)"
     feeds:

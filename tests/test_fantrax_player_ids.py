@@ -34,15 +34,44 @@ def body():
 class TestParsePlayerIds:
     def test_keeps_the_player_rows_as_the_four_identity_columns(self, body):
         df = etl.parse_player_ids(body, minimum=SMALL)
-        assert list(df.columns) == ["scorer_id", "player_name", "position_raw", "nfl_team"]
-        assert list(df["scorer_id"]) == ["aaa01", "aaa02", "aaa03", "aaa04", "aaa05"]
+        assert list(df.columns) == ["scorer_id", "player_name", "nfl_position", "nfl_team"]
+        assert list(df["scorer_id"]) == [f"aaa0{n}" for n in range(1, 9)]
         row = df.set_index("scorer_id").loc["aaa01"]
-        assert (row["player_name"], row["position_raw"], row["nfl_team"]) == ("Alpha Tester", "QB", "DAL")
+        assert (row["player_name"], row["nfl_position"], row["nfl_team"]) == ("Alpha Tester", "QB", "DAL")
+
+    def test_the_feeds_surname_first_name_comes_out_given_name_first(self, body):
+        df = etl.parse_player_ids(body, minimum=SMALL).set_index("scorer_id")
+        assert df.loc["aaa03", "player_name"] == "Charlie Tester"
+
+    def test_no_comma_form_reaches_player_name(self, body):
+        names = etl.parse_player_ids(body, minimum=SMALL)["player_name"].dropna()
+        assert len(names) == 5
+        assert not names.str.contains(",").any()
+
+    @pytest.mark.parametrize("scorer_id", ["aaa06", "aaa07", "aaa08"])
+    def test_a_suffix_two_commas_or_no_comma_gets_no_name_rather_than_a_guess(self, body, scorer_id):
+        df = etl.parse_player_ids(body, minimum=SMALL).set_index("scorer_id")
+        assert pd.isna(df.loc[scorer_id, "player_name"])
+
+    @pytest.mark.parametrize("name, expected", [
+        ("Tester, Alpha", "Alpha Tester"),
+        ("De La Test, Juan Carlos", "Juan Carlos De La Test"),
+        ("Tester, A.J.", "A.J. Tester"),
+        ("Tester Jr., Alpha", None),
+        ("Tester, Alpha Jr.", None),
+        ("Tester, Alpha, III", None),
+        ("Tester,", None),
+        (", Alpha", None),
+        ("Mononym", None),
+        ("", None),
+    ])
+    def test_given_first_name(self, name, expected):
+        assert etl.given_first_name(name) == expected
 
     def test_team_defense_rows_are_dropped(self, body):
         df = etl.parse_player_ids(body, minimum=SMALL)
         assert not df["scorer_id"].str.contains("#").any()
-        assert not df["position_raw"].isin(["DST", "TmD", "ST", "Tm", "TO"]).any()
+        assert not df["nfl_position"].isin(["DST", "TmD", "ST", "Tm", "TO"]).any()
 
     def test_the_team_level_rows_with_a_team_and_no_team_name_are_dropped_by_position(self, body):
         df = etl.parse_player_ids(body, minimum=SMALL)
@@ -60,7 +89,7 @@ class TestParsePlayerIds:
 
     def test_an_unexplained_position_code_is_kept(self, body):
         df = etl.parse_player_ids(body, minimum=SMALL).set_index("scorer_id")
-        assert df.loc["aaa04", "position_raw"] == "Default"
+        assert df.loc["aaa04", "nfl_position"] == "Default"
 
     def test_the_optional_outside_ids_are_not_columns(self, body):
         assert {"rotowireId", "sportRadarId", "statsIncId"}.isdisjoint(etl.parse_player_ids(body, minimum=SMALL).columns)
@@ -108,7 +137,7 @@ class TestFantraxPlayerIds:
         url, params = calls[0]
         assert url.endswith("/fxea/general/getPlayerIds")
         assert params == {"sport": "NFL"}
-        assert len(df) == 5
+        assert len(df) == 8
 
     def test_an_error_body_on_a_200_raises(self, reply):
         reply(_FakeResponse(body={"error": {"code": "WARNING"}}))
@@ -123,7 +152,7 @@ class TestFantraxPlayerIds:
     def test_reads_a_saved_copy_with_no_request(self, reply):
         calls = reply(RuntimeError("no request expected"))
         df = etl.fantrax_player_ids(raw_path=FIXTURE, minimum=SMALL)
-        assert calls == [] and len(df) == 5
+        assert calls == [] and len(df) == 8
 
     def test_a_saved_error_body_raises(self, tmp_path):
         path = tmp_path / "saved.json"
@@ -133,30 +162,50 @@ class TestFantraxPlayerIds:
 
 
 class TestApplyPlayerIds:
-    IDS = pd.DataFrame({"scorer_id": ["a", "b"], "player_name": ["New A", "New B"],
-                        "position_raw": ["LB", "WR"], "nfl_team": ["DAL", "(N/A)"]})
+    IDS = pd.DataFrame({"scorer_id": ["a", "b", "d"], "player_name": ["New A", "New B", None],
+                        "nfl_position": ["OLB", "WR", "CB"], "nfl_team": ["DAL", "(N/A)", "BUF"]})
 
     def universe(self):
-        return pd.DataFrame({"scorer_id": ["a", "b", "c"], "player_name": ["Old A", "Old B", "Old C"],
-                             "position_raw": ["LB,DB", "TE", "QB"], "nfl_team": ["XXX", "YYY", "ZZZ"],
-                             "is_rookie": [True, False, True]})
+        return pd.DataFrame({"scorer_id": ["a", "b", "c", "d"],
+                             "player_name": ["Old A", "Old B", "Old C", "Old D"],
+                             "position_raw": ["DL,LB", "TE", "QB", "DB"],
+                             "nfl_team": ["XXX", "YYY", "ZZZ", "WWW"],
+                             "is_rookie": [True, False, True, False]})
 
-    def test_the_identity_columns_come_from_the_call_and_the_rest_stay(self):
+    def test_name_and_team_come_from_the_call_and_the_rest_stay(self):
         out, counts = etl.apply_player_ids(self.universe(), self.IDS)
         by = out.set_index("scorer_id")
-        assert (by.loc["a", "player_name"], by.loc["a", "position_raw"], by.loc["a", "nfl_team"]) == ("New A", "LB", "DAL")
+        assert (by.loc["a", "player_name"], by.loc["a", "nfl_team"]) == ("New A", "DAL")
         assert by.loc["b", "nfl_team"] == "(N/A)"
         assert list(out.columns) == list(self.universe().columns)
-        assert list(out["is_rookie"]) == [True, False, True]
+        assert list(out["is_rookie"]) == [True, False, True, False]
+
+    def test_a_multi_code_position_keeps_the_leagues_codes_whatever_code_the_id_frame_carries(self):
+        out, _ = etl.apply_player_ids(self.universe(), self.IDS)
+        assert list(out["position_raw"]) == ["DL,LB", "TE", "QB", "DB"]
 
     def test_an_id_the_call_lacks_keeps_its_own_row(self):
         out, counts = etl.apply_player_ids(self.universe(), self.IDS)
         row = out.set_index("scorer_id").loc["c"]
         assert (row["player_name"], row["position_raw"], row["nfl_team"]) == ("Old C", "QB", "ZZZ")
 
+    def test_an_id_with_no_name_in_the_call_keeps_its_name_and_takes_the_team(self):
+        out, _ = etl.apply_player_ids(self.universe(), self.IDS)
+        row = out.set_index("scorer_id").loc["d"]
+        assert (row["player_name"], row["nfl_team"]) == ("Old D", "BUF")
+
+    def test_no_comma_form_reaches_player_name_from_a_real_parse(self):
+        ids = etl.parse_player_ids(json.loads(FIXTURE.read_text(encoding="utf-8")), minimum=SMALL)
+        universe = pd.DataFrame({"scorer_id": list(ids["scorer_id"]),
+                                 "player_name": [f"Old {n}" for n in range(len(ids))],
+                                 "position_raw": "WR", "nfl_team": "XXX", "is_rookie": False})
+        out, counts = etl.apply_player_ids(universe, ids)
+        assert not out["player_name"].str.contains(",").any()
+        assert counts["name_kept"] == 3
+
     def test_counts(self):
         _, counts = etl.apply_player_ids(self.universe(), self.IDS)
-        assert counts == {"from_player_ids": 2, "not_in_player_ids": 1, "multi_position_made_single": 1}
+        assert counts == {"from_player_ids": 3, "not_in_player_ids": 1, "name_kept": 1}
 
     def test_the_input_frame_is_not_changed(self):
         universe = self.universe()

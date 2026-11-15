@@ -428,6 +428,33 @@ class TestComparePlayerIdsCrosswalk:
         new = pd.DataFrame({"k": [2, 3, 4], "v": ["y", "CHANGED", "w"], "w": ["b", "c", "d"]})
         assert playerids.column_differences(live, new, entry) == {"v": 1, "w": 0}
 
+    def test_resolved_date_is_left_out_of_the_comparison(self):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        entry = {"name": "t", "grain": "k", "pk": ["k"],
+                 "columns": [{"name": "k", "dtype": "int64"}, {"name": "resolved_date", "dtype": "str"}]}
+        frame, narrowed = playerids.without_resolved_date(
+            pd.DataFrame({"k": [1], "resolved_date": ["2026-11-14"]}), entry)
+        assert list(frame.columns) == ["k"] and [c["name"] for c in narrowed["columns"]] == ["k"]
+
+    def test_the_ids_the_response_lacks_are_counted_by_roster_and_gsis_id(self):
+        playerids = importlib.import_module("compare_playerids_crosswalk")
+        live = pd.DataFrame({"scorer_id": ["a", "b", "c", "d"], "gsis_id": ["G1", None, "G3", "G4"]})
+        ids = pd.DataFrame({"scorer_id": ["a", "d"]})
+        got = playerids.missing_id_counts(live, ids, pd.Series(["b", "x"]))
+        assert got == {"missing": 2, "rostered": 1, "with_gsis_id": 1}
+
+    def test_the_loader_comparison_makes_no_getplayerids_request(self):
+        source = (REPO / "scripts" / "compare_loader_output.py").read_text(encoding="utf-8")
+        assert "etl.fantrax_player_ids = lambda" in source
+        assert "etl.REVIEW, etl.fantrax_player_ids = real_review, real_ids" in source
+
+    def test_an_empty_id_frame_leaves_every_row_as_the_universe_has_it(self):
+        universe = pd.DataFrame({"scorer_id": ["a"], "player_name": ["Old A"], "position_raw": ["DL,LB"],
+                                 "nfl_team": ["XXX"], "is_rookie": [True]})
+        out, counts = etl.apply_player_ids(universe, pd.DataFrame(columns=etl.PLAYER_ID_COLUMNS))
+        assert out.equals(universe)
+        assert counts == {"from_player_ids": 0, "not_in_player_ids": 1, "name_kept": 0}
+
     def test_it_reads_the_store_read_only_fetches_nothing_and_prints_counts(self):
         source = (REPO / "scripts" / "compare_playerids_crosswalk.py").read_text(encoding="utf-8")
         assert "pg.session_read_only()" in source and "etl.capturing(" in source
@@ -601,18 +628,18 @@ class Test04zReadsThePrivateTables:
         row = ns["fact_latest"].set_index("scorer_id").loc["draftonly"]
         assert (row["position_raw"], row["nfl_team"], bool(row["is_rookie"])) == ("LB", "XYZ", True)
 
-    def test_identity_cell_takes_name_position_and_team_from_player_ids(self, tables, monkeypatch):
+    def test_identity_cell_takes_name_and_team_from_player_ids_and_keeps_the_leagues_position(self, tables, monkeypatch):
         self.put()
         ids = pd.DataFrame({"scorer_id": ["known"], "player_name": ["Known Renamed"],
-                            "position_raw": ["CB"], "nfl_team": ["(N/A)"]})
+                            "nfl_position": ["CB"], "nfl_team": ["(N/A)"]})
         monkeypatch.setattr(etl, "fantrax_player_ids", lambda: ids)
         ns = self.run(tables)
         exec(cell("cfd62be3"), ns)
         by = ns["fact_latest"].set_index("scorer_id")
-        assert tuple(by.loc["known", ["player_name", "position_raw", "nfl_team"]]) == ("Known Renamed", "CB", "(N/A)")
+        assert tuple(by.loc["known", ["player_name", "position_raw", "nfl_team"]]) == ("Known Renamed", "WR", "(N/A)")
         assert tuple(by.loc["draftonly", ["player_name", "position_raw", "nfl_team"]]) == ("Draft Only", "LB", "XYZ")
         assert bool(by.loc["draftonly", "is_rookie"]) is True
-        assert ns["_id_counts"] == {"from_player_ids": 1, "not_in_player_ids": 1, "multi_position_made_single": 0}
+        assert ns["_id_counts"] == {"from_player_ids": 1, "not_in_player_ids": 1, "name_kept": 0}
 
     def test_identity_cell_sits_between_the_universe_and_the_match(self):
         nb = json.loads((REPO / "notebooks" / "04z_fantrax_crosswalk.ipynb").read_text(encoding="utf-8"))
