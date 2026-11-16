@@ -29,6 +29,11 @@ def test_several_matches_without_abbr_has_no_brackets(abbrs):
     assert "()" not in msg and "``" not in msg and "None" not in msg and "nan" not in msg
 
 
+def test_none_query_is_a_command_error():
+    with pytest.raises(CommandError):
+        roster._resolve_team(_teams([None, None, None]), None)
+
+
 def test_several_matches_with_abbr_still_shows_it():
     with pytest.raises(CommandError) as exc:
         roster._resolve_team(_teams(["BIGD", None, "SF"]), "big")

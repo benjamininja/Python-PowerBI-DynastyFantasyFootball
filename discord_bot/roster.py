@@ -29,7 +29,7 @@ _PLAYERS_PER_FIELD = 15
 
 
 def _resolve_team(teams: pd.DataFrame, query: str) -> pd.Series:
-    q = query.strip().lower()
+    q = (query or "").strip().lower()
     if not q:
         raise CommandError("Give me a team, e.g. `/roster BIGL` or `/roster Big L`.")
     exact_abbr = teams[teams["team_abbr"].fillna("").str.lower() == q]

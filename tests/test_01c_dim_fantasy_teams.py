@@ -53,6 +53,7 @@ def test_without_abbreviation_column_is_null():
     assert len(out) == 28
     assert list(out.columns) == COLS
     assert out["team_abbr"].isna().all()
+    assert str(out["team_abbr"].dtype) == "string"
 
 
 def test_other_required_column_still_required():
