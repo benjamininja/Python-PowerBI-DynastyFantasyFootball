@@ -180,21 +180,23 @@ class TestUnsetAndFailed:
 
 
 class TestGoodRun:
-    def test_only_a_merged_clean_run_posts(self):
-        merged = "committed + merged 3 parquet file(s) via data PR #9"
-        assert rp.contract_post_due(False, False, 0, merged)
+    def test_a_merged_data_pr_without_a_stop_flag_is_due(self):
+        assert rp.contract_post_due(False, False, "committed + merged 3 parquet file(s) via data PR #9")
 
-    @pytest.mark.parametrize("dry,nocommit,code,line", [
-        (True, False, 0, "committed + merged 3 parquet file(s) via data PR #9"),
-        (False, True, 0, "committed + merged 3 parquet file(s) via data PR #9"),
-        (False, False, 1, "committed + merged 3 parquet file(s) via data PR #9"),
-        (False, False, 0, "no data changes — commit skipped"),
-        (False, False, 0, "committed 3 file(s), push skipped (--no-push)"),
-        (False, False, 0, "ABORTED: data PR #9 left open, merge refused (x)"),
-        (False, False, 0, "commit skipped (flag)"),
+    def test_the_exit_code_is_not_part_of_the_gate(self):
+        import inspect
+        assert "code" not in inspect.signature(rp.contract_post_due).parameters
+
+    @pytest.mark.parametrize("dry,nocommit,line", [
+        (True, False, "committed + merged 3 parquet file(s) via data PR #9"),
+        (False, True, "committed + merged 3 parquet file(s) via data PR #9"),
+        (False, False, "no data changes — commit skipped"),
+        (False, False, "committed 3 file(s), push skipped (--no-push)"),
+        (False, False, "ABORTED: data PR #9 left open, merge refused (x)"),
+        (False, False, "commit skipped (flag)"),
     ])
-    def test_any_other_run_posts_nothing(self, dry, nocommit, code, line):
-        assert not rp.contract_post_due(dry, nocommit, code, line)
+    def test_any_other_run_posts_nothing(self, dry, nocommit, line):
+        assert not rp.contract_post_due(dry, nocommit, line)
 
 
 class TestSnapshotRead:
@@ -365,9 +367,16 @@ class TestMainWiring:
                                            previous=frame(row()), current=frame(row()))
         assert sent == [] and "no new row" in out
 
-    def test_a_step_that_failed_is_a_nonzero_run_and_sends_nothing(self, monkeypatch, tmp_path, capsys):
+    def test_a_nonzero_run_with_the_table_published_and_merged_still_posts(self, monkeypatch, tmp_path, capsys):
         code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, step_status="failed")
-        assert code == 1 and sent == [] and "contract-moves" not in out
+        assert code == 1
+        assert events == ["read", "steps", "read", "commit"]
+        assert sent == [HOOK] and "contract-moves post sent" in out and HOOK not in out
+
+    def test_a_nonzero_run_with_the_table_out_of_the_plan_posts_nothing(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, step_status="failed", publish=())
+        assert code == 1 and events == ["read", "steps", "commit"]
+        assert sent == [] and "no list to compare" in out
 
     @pytest.mark.parametrize("line", ["no data changes — commit skipped",
                                       "ABORTED: data PR #9 left open, merge refused (x)"])

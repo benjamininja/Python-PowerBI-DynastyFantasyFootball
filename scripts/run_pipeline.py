@@ -818,7 +818,8 @@ def read_team_names(data_dir: Path | None = None):
 
 def send_webhook_file(url: str, content: str, filename: str, data: bytes) -> None:
     """One plain multipart post: a message and one file, no mention allowed.
-    Raises on any failure; the caller scrubs the URL from the error."""
+    Raises on any failure; the caller logs the exception type and none of its
+    text, which can hold part of the URL."""
     boundary = uuid.uuid4().hex
     payload = json.dumps({"content": content[:1900], "allowed_mentions": {"parse": []},
                           "attachments": [{"id": 0, "filename": filename}]})
@@ -848,10 +849,14 @@ def contract_post_text(current, new: set) -> str:
             f"{by_list}. The full list is attached; `/contract-moves` shows it any time.")
 
 
-def contract_post_due(dry_run: bool, no_commit: bool, code: int, commit_line: str) -> bool:
-    """A good run: no flag that stops short of publishing, exit code 0, and the
-    data PR merged, so the list the post compares is the published one."""
-    return not dry_run and not no_commit and code == 0 and etl_run_log.data_merged(commit_line)
+def contract_post_due(dry_run: bool, no_commit: bool, commit_line: str) -> bool:
+    """Good for this table: no flag that stops short of publishing and the data
+    PR merged. The run's exit code is not part of it (ADR-0008: the publish unit
+    is a Chain, so another Chain failing must not freeze this table's post).
+    That the table itself was published this run is main()'s guard: the
+    after-list is read only when it is in the publish plan, and without it
+    post_contract_moves posts nothing."""
+    return not dry_run and not no_commit and etl_run_log.data_merged(commit_line)
 
 
 def post_contract_moves(previous, current, teams, webhook: str | None, sender=send_webhook_file,
@@ -1106,7 +1111,7 @@ def main() -> int:
     print("\n" + summary)
     if not args.dry_run:
         notify(summary)
-    if contract_post_due(args.dry_run, args.no_commit, code, commit_line):
+    if contract_post_due(args.dry_run, args.no_commit, commit_line):
         print(post_contract_moves(contract_before, contract_after, read_team_names(),
                                   os.environ.get(CONTRACT_WEBHOOK_ENV)))
 
