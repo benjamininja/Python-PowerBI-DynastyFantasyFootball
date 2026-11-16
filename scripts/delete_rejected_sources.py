@@ -1,5 +1,5 @@
-"""Delete the rows of the rejected sources, KeepTradeCut and FantasyPros, from
-the five football tables that still hold them (#459, B10; ADR-0014, ADR-0018).
+"""Delete the rows of the rejected source DynastyLeagueFootball from the two
+football tables that still hold them (#589; ADR-0014, ADR-0018).
 
 The owner runs this, never an agent, once, against the database in
 SUPABASE_DB_URL (the environment variable, or the line in the repo's .env, as
@@ -12,13 +12,12 @@ and an ALL policy on these tables (supabase/migrations/20261101154326_initial_sc
   1. The login must be etl_writer, without BYPASSRLS or superuser, and every
      football table must have row-level security on (as backfill_postgres.py).
   2. The dry run opens a read-only session. It prints, per table and per source,
-     the count it would delete beside the count #459 expects, and exits 1 if any
+     the count it would delete beside the count #589 expects, and exits 1 if any
      count differs.
   3. --apply counts first, inside its transaction, and rolls back with exit 1
-     before any DELETE if any count differs from #459's (there is no override).
-     Otherwise it deletes in the same transaction, the fact rows before
-     dim_dynasty_metric (the foreign key), checks the foreign keys, counts again,
-     and rolls back unless every count is zero.
+     before any DELETE if any count differs from #589's (there is no override).
+     Otherwise it deletes both tables in the same transaction, checks the
+     foreign keys, counts again, and rolls back unless every count is zero.
 
 Exit 0: dry run matched, or committed. Exit 1: a count differs, rolled back or
 failed. Exit 2: refused before any write. The output holds table names, source
@@ -43,17 +42,12 @@ import etl_storage_pg as pg  # noqa: E402
 class Target(NamedTuple):
     table: str
     column: str
-    sources: tuple  # (source literal, count #459 expects)
+    sources: tuple  # (source literal, count #589 expects)
 
 
-# Delete order: the fact rows first, dim_dynasty_metric last (the foreign key
-# fact_dynasty_ranking_metrics.metric_key -> dim_dynasty_metric.metric_key).
 TARGETS = (
-    Target("fact_dynasty_ranking_metrics", "source_name", (("KTC", 15730), ("FantasyPros", 3966))),
-    Target("fact_rookie_rankings", "source_site", (("KeepTradeCut", 54), ("FantasyPros", 422))),
-    Target("dim_dynasty_crosswalk", "source", (("KTC", 464), ("FantasyPros", 661))),
-    Target("dim_pick_value_curve", "source_name", (("KTC", 36),)),
-    Target("dim_dynasty_metric", "source_name", (("KTC", 17), ("FantasyPros", 6))),
+    Target("fact_rookie_rankings", "source_site", (("DynastyLeagueFootball", 49),)),
+    Target("dim_player_alias", "source_example", (("DynastyLeagueFootball", 11),)),
 )
 
 
@@ -92,14 +86,14 @@ def counts(conn) -> dict:
 
 
 def show(out, found: dict, verb: str) -> bool:
-    """One line per table and source; True when every count is #459's."""
+    """One line per table and source; True when every count is #589's."""
     same = True
     for t in TARGETS:
         for source, expected in t.sources:
             n = found[(t.table, source)]
             same = same and n == expected
             out(f"{t.table} where {t.column} = {source}: {n} row(s) {verb} "
-                f"(#459 expects {expected}: {'match' if n == expected else 'DIFFERS'})")
+                f"(#589 expects {expected}: {'match' if n == expected else 'DIFFERS'})")
     return same
 
 
@@ -118,12 +112,12 @@ def run(url: str, *, apply: bool = False, out=print, connector=None) -> int:
         before = counts(conn)
         same = show(out, before, "found" if apply else "would be deleted")
         if not apply:
-            out("counts match #459's" if same else "counts DIFFER from #459's: do not --apply")
+            out("counts match #589's" if same else "counts DIFFER from #589's: do not --apply")
             out("dry run: nothing was deleted")
             return 0 if same else 1
         if not same:
             conn.rollback()
-            out("counts DIFFER from #459's; rolled back; nothing was deleted")
+            out("counts DIFFER from #589's; rolled back; nothing was deleted")
             return 1
         pg.bound_locks(conn)
         for t in TARGETS:
