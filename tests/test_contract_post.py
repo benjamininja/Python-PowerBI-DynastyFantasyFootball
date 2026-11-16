@@ -3,8 +3,10 @@
 A fake sender stands in for the webhook in every test: nothing is posted, no
 network is opened, and no real webhook value is read or needed.
 """
+import http.client
 import json
 import sys
+from types import SimpleNamespace
 from datetime import date
 from io import BytesIO
 from pathlib import Path
@@ -145,6 +147,20 @@ class TestUnsetAndFailed:
         assert out.startswith("[warn]") and "not retried" in out
         assert HOOK not in out and "tokenvalue" not in out
 
+    @pytest.mark.parametrize("exc", [
+        http.client.InvalidURL("URL can't contain control characters. '/api/webhooks/123/tokenvalue x' "
+                               "(found at least ' ')"),
+        ValueError("unknown url type: 'discord.example.invalid/api/webhooks/123/tokenvalue '"),
+        OSError("cannot reach 123/tokenvalue"),
+        ValueError("cell holds 'Secret Player Name'"),
+    ])
+    def test_a_failed_post_logs_the_exception_type_and_no_part_of_its_text(self, exc):
+        sender = Sender(fail=exc)
+        out = post(ecm.empty(), frame(row()), sender)
+        assert out == f"[warn] contract-moves post failed, not retried: {type(exc).__name__}"
+        for part in ("tokenvalue", "discord.example", "api/webhooks", "123", "Secret Player Name"):
+            assert part not in out
+
     def test_a_failed_post_is_not_retried_until_the_list_gains_a_row(self):
         published = frame(row(), row(scorer="s2"))
         failing = Sender(fail=OSError("down"))
@@ -245,3 +261,129 @@ class TestWiring:
         src = (REPO / "scripts" / "run_pipeline.py").read_text(encoding="utf-8")
         assert "os.environ.get(CONTRACT_WEBHOOK_ENV)" in src
         assert 'env_value("DISCORD_WEBHOOK_URL_ADMIN"' not in src
+
+
+class TestKeyEdges:
+    def test_a_null_key_part_is_the_same_key_every_run_so_it_never_reposts(self):
+        sender = Sender()
+        gap = frame(row(conf=None), row(scorer="s2", team=None))
+        post(gap, gap.copy(), sender)
+        assert sender.calls == []
+
+    def test_a_player_on_two_teams_is_two_keys(self):
+        sender = Sender()
+        post(frame(row(team="t1")), frame(row(team="t1"), row(team="t2", conf="B")), sender)
+        assert len(sender.calls) == 1 and "1 new" in sender.calls[0]["content"]
+
+    def test_a_traded_player_is_new_on_the_receiving_team(self):
+        sender = Sender()
+        post(frame(row(team="t1")), frame(row(team="t2")), sender)
+        assert len(sender.calls) == 1
+
+    def test_a_previous_list_missing_rows_posts_them_once_not_twice(self):
+        sender = Sender()
+        full = frame(row(), row(scorer="s2"))
+        post(frame(row()), full, sender)
+        post(full, full.copy(), sender)
+        assert len(sender.calls) == 1
+
+
+class TestMainWiring:
+    """main() end to end on stubs: the order of the reads, the guards, and that
+    only a fake urlopen can ever send."""
+
+    def run(self, monkeypatch, tmp_path, capsys, argv=(), publish=("fact_contract_move",),
+            step_status="ok", commit_line="committed + merged 1 parquet file(s) via data PR #9",
+            previous=None, current=None, hook=HOOK):
+        events, sent = [], []
+        lists = iter([previous if previous is not None else ecm.empty(),
+                      current if current is not None else frame(row())])
+
+        def read_list(data_dir=None):
+            events.append("read")
+            return next(lists)
+
+        class RunLog:
+            run_id, warning = None, None
+
+            def __init__(self, trigger):
+                pass
+
+            def start(self, sha):
+                pass
+
+            def finish(self, *a, **k):
+                pass
+
+        plan = {"passed": ["fantrax_core"], "failed": {}, "publish": list(publish), "restore": [],
+                "unpublished": [], "notes": []}
+        stubs = {
+            "resolve_storage_env": lambda *a, **k: "parquet",
+            "open_fantrax_session": lambda: None, "close_fantrax_session": lambda s: None,
+            "fantrax_logins": lambda s: [], "fantrax_blocked": lambda s: [],
+            "_load_04a": lambda: SimpleNamespace(derive_week_label=lambda cfg: "1", CFG=None),
+            "build_steps": lambda profile: [], "league_today": lambda: DAY,
+            "close_day_state": lambda today: {},
+            "apply_cadence": lambda steps, *a, **k: (steps, {"week_key": None, "done": []}),
+            "cadence_line": lambda c: "",
+            "run_steps": lambda *a, **k: events.append("steps") or
+                                        [{"name": "x", "status": step_status, "detail": ""}],
+            "plan_publish": lambda *a, **k: plan, "review_counts": lambda: {},
+            "commit_data": lambda *a, **k: events.append("commit") or commit_line,
+            "summarize": lambda *a, **k: "summary", "notify": lambda text: None,
+            "read_contract_list": read_list, "read_team_names": lambda: TEAMS,
+            "OUT_DIR": tmp_path,
+        }
+        for name, value in stubs.items():
+            monkeypatch.setattr(rp, name, value)
+        monkeypatch.setattr(rp.etl_run_log, "RunLog", RunLog)
+        monkeypatch.setattr(rp.etl_run_log, "head_sha", lambda repo: None)
+        monkeypatch.setattr(rp.etl_run_log, "row_counts", lambda tables: {})
+        monkeypatch.setattr(rp.etl_checks, "load_registry", lambda: {})
+        monkeypatch.setattr(rp.etl_checks, "chain_tables", lambda reg: {})
+        monkeypatch.setattr(rp.etl_checks, "run_suite", lambda *a, **k: [])
+        monkeypatch.setattr(rp.etl_checks, "file_review", lambda *a, **k: {})
+        monkeypatch.setattr(rp.urllib.request, "urlopen",
+                            lambda req, timeout=None: sent.append(req.full_url))
+        monkeypatch.delenv("ETL_STORAGE", raising=False)
+        if hook:
+            monkeypatch.setenv(rp.CONTRACT_WEBHOOK_ENV, hook)
+        else:
+            monkeypatch.delenv(rp.CONTRACT_WEBHOOK_ENV, raising=False)
+        monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--phase", "INSEASON", *argv])
+        code = rp.main()
+        return code, events, sent, capsys.readouterr().out
+
+    def test_a_good_merged_run_reads_before_and_after_and_posts_once(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys)
+        assert code == 0
+        assert events == ["read", "steps", "read", "commit"]
+        assert sent == [HOOK] and HOOK not in out and "contract-moves post sent" in out
+
+    def test_no_new_row_sends_nothing(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys,
+                                           previous=frame(row()), current=frame(row()))
+        assert sent == [] and "no new row" in out
+
+    def test_a_step_that_failed_is_a_nonzero_run_and_sends_nothing(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, step_status="failed")
+        assert code == 1 and sent == [] and "contract-moves" not in out
+
+    @pytest.mark.parametrize("line", ["no data changes — commit skipped",
+                                      "ABORTED: data PR #9 left open, merge refused (x)"])
+    def test_a_run_that_did_not_land_its_data_sends_nothing(self, monkeypatch, tmp_path, capsys, line):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, commit_line=line)
+        assert sent == [] and "contract-moves post" not in out
+
+    def test_a_run_that_did_not_publish_the_table_reads_once_and_says_why(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, publish=())
+        assert events == ["read", "steps", "commit"]
+        assert sent == [] and "no list to compare" in out and "could not be read" not in out
+
+    def test_no_commit_reads_nothing_and_sends_nothing(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, argv=["--no-commit"])
+        assert events == ["steps"] and sent == [] and "contract-moves" not in out
+
+    def test_an_unset_variable_logs_the_skip_and_the_run_passes(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, hook="")
+        assert code == 0 and sent == [] and f"{rp.CONTRACT_WEBHOOK_ENV} is not set" in out

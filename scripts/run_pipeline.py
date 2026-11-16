@@ -863,7 +863,7 @@ def post_contract_moves(previous, current, teams, webhook: str | None, sender=se
     retried until the list gains a row. Never raises; returns one line to log."""
     try:
         if previous is None or current is None:
-            return "contract-moves post skipped: a list could not be read"
+            return "contract-moves post skipped: no list to compare (not published this run, or not readable)"
         if current.empty:
             return "contract-moves post: nothing due, no post"
         new = etl_contract_moves.new_keys(current, previous)
@@ -880,8 +880,7 @@ def post_contract_moves(previous, current, teams, webhook: str | None, sender=se
         sender(webhook, contract_post_text(current, new), name, data)
         return f"contract-moves post sent: {len(new)} new row(s)"
     except Exception as exc:
-        reason = str(exc).replace(webhook, "<webhook>") if webhook else str(exc)
-        return f"[warn] contract-moves post failed, not retried: {type(exc).__name__}: {reason}"
+        return f"[warn] contract-moves post failed, not retried: {type(exc).__name__}"
 
 
 def terms_line() -> str:
