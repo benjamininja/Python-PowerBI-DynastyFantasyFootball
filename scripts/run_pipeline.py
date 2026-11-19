@@ -769,8 +769,7 @@ def notify(text: str) -> None:
         urllib.request.urlopen(req, timeout=15)
         print("[ok] Discord notification sent")
     except Exception as e:
-        reason = str(e).replace(url, "<webhook>")
-        print(f"[warn] webhook failed: {type(e).__name__}: {reason}")
+        print(f"[warn] webhook failed: {type(e).__name__}")
 
 
 CONTRACT_TABLE = "fact_contract_move"

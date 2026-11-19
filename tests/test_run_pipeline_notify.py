@@ -46,7 +46,7 @@ def test_notify_http_error_is_caught_and_url_not_printed(monkeypatch, capsys):
     rp.notify("hello")
     out = capsys.readouterr().out
     assert "[warn] webhook failed" in out
-    assert "403" in out
+    assert "HTTPError" in out
     assert URL not in out and "tokenvalue" not in out
 
 
@@ -60,3 +60,16 @@ def test_notify_error_text_holding_url_is_scrubbed(monkeypatch, capsys):
     rp.notify("hello")
     out = capsys.readouterr().out
     assert "[warn]" in out and URL not in out
+
+
+def test_notify_failed_post_prints_type_name_only(monkeypatch, capsys):
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", URL)
+
+    def fake_urlopen(req, timeout=None):
+        raise ValueError("secret detail 4242")
+
+    monkeypatch.setattr(rp.urllib.request, "urlopen", fake_urlopen)
+    rp.notify("hello")
+    out = capsys.readouterr().out
+    assert "[warn] webhook failed: ValueError" in out
+    assert "secret detail" not in out and "4242" not in out
