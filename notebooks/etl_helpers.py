@@ -20,7 +20,9 @@ Paths (DATA, REVIEW, ALIAS) are anchored to the repo root via LeagueConfig.__pos
 so notebooks write to <repo>/data regardless of the CWD they run from.
 """
 import contextlib
+import csv
 import hashlib
+import io
 import json
 import os
 import re
@@ -29,6 +31,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Callable, Collection, Literal, Mapping, NamedTuple, Sequence
+from urllib.parse import quote
 
 import pandas as pd
 import requests
@@ -94,14 +97,6 @@ class LeagueConfig:
     def path(self, name: str) -> str:
         # Absolute parquet path for a table name (data_dir is repo-root-anchored).
         return f"{self.data_dir}/{name}.parquet"
-
-    @property
-    def team_sheet_csv_url(self) -> str:
-        # Google Sheet team/owner registry exported as CSV (sheet must be public).
-        return (
-            f"https://docs.google.com/spreadsheets/d/{self.team_sheet_id}"
-            f"/export?format=csv&gid={self.team_sheet_gid}"
-        )
 
 
 CFG    = LeagueConfig()
@@ -227,6 +222,134 @@ def _make_session(timeout_sec: int = 30, retries: int = 3, backoff: float = 2.0)
     session.mount("https://", adapter)
     session.mount("http://",  adapter)
     return session
+
+
+# Google Sheets read as a service account (#609). The workbook is Restricted, so
+# a request with no token gets HTTP 401. The key file lives outside every repo
+# and .env names its path; its content is read by google-auth alone.
+SHEETS_KEY_ENV = "GOOGLE_SHEETS_KEY_FILE"
+SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly"
+SHEETS_API = "https://sheets.googleapis.com/v4/spreadsheets"
+
+
+class SheetsAuthError(RuntimeError):
+    # One line, names SHEETS_KEY_ENV, never a path, key text or upstream message.
+    pass
+
+
+def _sheets_token() -> str:
+    import etl_run_log
+    key_path = os.environ.get(SHEETS_KEY_ENV) or etl_run_log.env_value(SHEETS_KEY_ENV)
+    if not key_path:
+        raise SheetsAuthError(f"Sheets sign-in: {SHEETS_KEY_ENV} is not set in .env.")
+    try:
+        with open(key_path, "rb") as fh:
+            fh.read(1)
+    except (OSError, ValueError):
+        raise SheetsAuthError(
+            f"Sheets sign-in: the file named by {SHEETS_KEY_ENV} is missing or unreadable.") from None
+    try:
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+    except ImportError:
+        raise SheetsAuthError(
+            "Sheets sign-in: the google-auth package is not installed (requirements.txt).") from None
+    try:
+        creds = service_account.Credentials.from_service_account_file(key_path, scopes=[SHEETS_SCOPE])
+        creds.refresh(Request())
+        token = creds.token
+    except Exception as e:
+        raise SheetsAuthError(
+            f"Sheets sign-in: Google did not accept the key named by {SHEETS_KEY_ENV} "
+            f"({type(e).__name__}).") from None
+    if not token:
+        raise SheetsAuthError(f"Sheets sign-in: no token for the key named by {SHEETS_KEY_ENV}.")
+    return token
+
+
+def _sheets_get(session, token: str, url: str, params=None, expect: tuple = ()) -> dict:
+    # The one place a Sheets request leaves: refuses an empty token, sends the
+    # bearer token on every call, and checks the status and the JSON body. A 200
+    # is not success: a body with an `error` key, or without a key in `expect`,
+    # stops with the API's error status and no body text.
+    if not token:
+        raise SheetsAuthError(f"Sheets sign-in: no token, no request sent ({SHEETS_KEY_ENV}).")
+    try:
+        resp = session.get(url, params=params, timeout=30,
+                           headers={"Authorization": f"Bearer {token}"})
+    except requests.RequestException as e:
+        raise RuntimeError(f"Google Sheets API: request failed ({type(e).__name__})") from None
+    if resp.status_code != 200:
+        try:
+            status = resp.json()["error"]["status"]
+        except (ValueError, KeyError, TypeError):
+            status = "no status"
+        raise RuntimeError(f"Google Sheets API: HTTP {resp.status_code} ({status})")
+    try:
+        body = resp.json()
+    except ValueError:
+        raise RuntimeError("Google Sheets API: body is not JSON") from None
+    if not isinstance(body, dict):
+        raise RuntimeError("Google Sheets API: body is not an object")
+    if "error" in body:
+        err = body["error"]
+        status = err.get("status") if isinstance(err, dict) else None
+        raise RuntimeError(f"Google Sheets API: error body ({status if isinstance(status, str) else 'no status'})")
+    missing = [k for k in expect if k not in body]
+    if missing:
+        raise RuntimeError(f"Google Sheets API: body has no {missing}")
+    return body
+
+
+def _a1_col(index: int) -> str:
+    letters, n = "", index + 1
+    while n:
+        n, rem = divmod(n - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
+
+def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
+                   optional: Sequence[str] = (), *, token: str | None = None,
+                   session=None) -> pd.DataFrame:
+    # One tab of a Google Sheet as a DataFrame, signed in as the service account
+    # with the read-only scope. Only the named columns leave the sheet: the tab's
+    # header row is read to find them, then just their columns. A required
+    # column absent from the header is left out, so the caller's own column
+    # check raises as it did on the CSV download. Values are the displayed text,
+    # run through pd.read_csv so dtypes and blanks match that download.
+    token = _sheets_token() if token is None else token
+    session = _make_session() if session is None else session
+    base = f"{SHEETS_API}/{sheet_id}"
+    meta = _sheets_get(session, token, base, {"fields": "sheets.properties(sheetId,title)"},
+                       expect=("sheets",))
+    title = next((s["properties"]["title"] for s in meta.get("sheets", [])
+                  if str(s["properties"].get("sheetId")) == str(gid)), None)
+    if title is None:
+        raise RuntimeError(f"Google Sheets API: no tab with gid {gid}")
+    tab = "'" + title.replace("'", "''") + "'"
+    head = _sheets_get(session, token, f"{base}/values/{quote(tab + '!1:1', safe='')}",
+                       expect=("range",))
+    header = (head.get("values") or [[]])[0]
+    wanted = [c for c in dict.fromkeys([*columns, *optional]) if c in header]
+    if not wanted:
+        return pd.DataFrame()
+    ranges = []
+    for name in wanted:
+        letter = _a1_col(header.index(name))
+        ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
+    body = _sheets_get(session, token, f"{base}/values:batchGet",
+                       ranges + [("majorDimension", "COLUMNS")], expect=("valueRanges",))
+    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
+    if len(cols) != len(wanted):
+        raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(wanted)
+    for i in range(1, max(len(c) for c in cols)):
+        writer.writerow([c[i] if i < len(c) else "" for c in cols])
+    buf.seek(0)
+    return pd.read_csv(buf)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
