@@ -21,7 +21,18 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **CURRENT STATE (NEWEST, 2026-11-19 ~18:15Z, session `2fc702e7-0a21-4215-a11b-657bfa11fd39`, before the repo move to C:\source\Github (tools #235) and a CLEAR; it overrides every block below, which stay true only where this is silent). Ids only.**
+- **CURRENT STATE (NEWEST, 2026-11-19 ~22:45Z, session `483137b4-dd36-4af4-9a8d-dc19a8554b07`, first session after the repo move, before Ben exits and reopens the app; it overrides every block below, which stay true only where this is silent). Ids only.**
+  - **Heads.** Dynasty origin/main and main checkout `61cff41` (now at C:\source\Github). Tools main `f1ff785`.
+  - **session-dispatch WAS loaded in 483137b4** (Ben typed it). After the reopen: ask again.
+  - **Ben's buttons here:** "Claude rebuilds it (Recommended)" (main .venv); "Ben edits it now (Recommended)" (dispatch-projects.json; done, the dry run reads the new path as listed); "Dispatch both (Recommended)" for #614 and #615, after #617's re-proof.
+  - **Main .venv** rebuilt clean at the new path: the move had left a half-copied one. requirements.txt plus mouserat_trade-bud/backend/requirements.txt; pip check clean; pre-commit.exe present.
+  - **#617:** reproof.py at `a41b3c9` on base `61cff41` was NOT GREEN only from that venv fault (pytest collection: fastapi); every other step passed (pull/617#issuecomment-7024076116). NEXT: tell Tools-builder-manager, re-run reproof.py alone, merge pinned on GREEN, pull main, tell the planner to read counts.
+  - **#614 / #615:** briefs drafted (no double quote), dry run of b614-teammanifest clean (medium, Profile none, 57 deny rules). Dispatch b614-teammanifest and b615-handrunstore with -Apply after #617's re-proof ends. Briefs live only in this session's scratchpad: rebuild them from the tickets if lost.
+  - **Queue:** re-keyed. Planner's two entries now Session `0c145f0f-0c28-4299-97c5-1bdbc7ca264d`; the manager's price-list entry Session `483137b4...`; its step 1 path fixed to the new checkout.
+  - **Bot** restarted at the new path from discord_bot (terminal tab of this session); a restart closes it: start it again.
+  - **Peers:** planner queue id `0c145f0f-0c28-4299-97c5-1bdbc7ca264d`. Tools-builder-manager dispatched t231-reproof-lock; both managers send a notice before and after every full test run until #231's lock is live.
+  - **Open:** ~60 git worktree entries at the old OneDrive path (planner's note); cleanup only at Ben's word. Planner's relayed note from Ben: no ask to Ben without exact steps; check first whether the step is already done.
+- **CURRENT STATE (2026-11-19 ~18:15Z, session `2fc702e7-0a21-4215-a11b-657bfa11fd39`, before the repo move to C:\source\Github (tools #235) and a CLEAR; it overrides every block below, which stay true only where this is silent). Ids only.**
   - **Heads.** Dynasty origin/main and main checkout `61cff41`. Tools origin/main `f1ff785` (#230 merged, squash, pinned to `c3368ef`, after a solo GREEN re-proof on `3b65c41`, 602 passed, and green CI; Ben's "Merge now" by button here). Both tools checkouts pulled to `f1ff785`.
   - **session-dispatch was loaded in 2fc702e7** (Ben typed it). After the relaunch: ask again.
   - **#594:** planner ruled the null team_abbr intended (issues/594#issuecomment-7016825298). Branch `data/dim-fantasy-teams-594` pushed; PR #617 open, HELD for the move, not re-proved. Next: re-prove at the new path, merge pinned, tell the planner to read counts. The keep load waits on it.
