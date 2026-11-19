@@ -17,6 +17,12 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Next (in order)
 
+- **Saved 2026-11-19 22:32Z, after the move and before an app restart, session 0c145f0f-0c28-4299-97c5-1bdbc7ca264d. Wins over every bullet below.**
+  - **After the move:** the state worktree was relinked by `git worktree repair`. Both peers have the new id, and the manager re-keyed the planner's two entries (its word). Queue ids: the manager `483137b4-dd36-4af4-9a8d-dc19a8554b07`. The Tools planner has none yet.
+  - **The move's blockers are cleared** (the planner's check, 22:31Z): the main checkout has a fresh `.venv` (Python 3.12, `pip check` clean), and `dispatch-projects.json` lists both new paths. #617's re-proof and the dispatch of #614 and #615 wait only on Ben typing `session-dispatch` in the manager's chat. About 60 old OneDrive builder worktree entries remain in `git worktree list`; their cleanup is the manager's, at Ben's word.
+  - **Tools:** PR #230 merged (`f1ff785`), and Hand-over done is on tools #228. Tools PRs wait on cutover step 7 (Ben's hand repair) and on `session-dispatch` in the tools manager's chat. The order is unchanged: #233's finding, then the session-rules branch after tools PR #210, then the register.tsx line after tools #197.
+  - **Owed, unchanged:** read #617's published counts after its merge (28 rows, 28 keys, 2 names, `team_abbr` null), then #597. Read the PRs for #614, #615 and #616 when the manager asks. Read #554's count after Ben's price-list PR. Then brief 3 for #548, then #592 with #545.
+  - **Ben's rule (2026-11-19):** no ask goes to Ben without exact steps. Check first whether the step is already done.
 - **Saved 2026-11-19 17:35Z for the repo move to `C:\source\Github` (tools #235), session 8bbde36f-ff90-46aa-b78a-a4d1987060ad. Wins over every bullet below.**
   - **Merged:** #611 (#609, `84194bd`; live proof 28 rows as the service account) and #613 (#612, `61cff41`). The replacement text for both keep entries went to the manager (issues/548#issuecomment-7015708008). The deadline row is in the store: 1 row, `2026-11-20 04:59:59+00` (issues/548#issuecomment-7016069252).
   - **#594:** the 01c store run and export are done. The null `team_abbr` is ruled intended: Ben removed the column (issues/594#issuecomment-7016825298). Its data PR is #617, held; the manager re-proves it after the move. **Owed:** read the published counts (28 rows, 28 keys, 2 names, team_abbr null). Then #597.
