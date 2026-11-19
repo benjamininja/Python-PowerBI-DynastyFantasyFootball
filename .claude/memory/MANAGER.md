@@ -22,6 +22,7 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
 - **CURRENT STATE (NEWEST, 2026-11-20 ~00:05Z, session `483137b4-dd36-4af4-9a8d-dc19a8554b07`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only.**
+  - **ADDENDUM at the clear: PR #622 MERGED** as `80021d4` (pinned `7945834`, reproof GREEN pull/622#issuecomment-7025341278, CI green). Main now `80021d4`. So #621's GREEN (base `566506a`) no longer holds: re-run reproof.py on #621 at `9e5ca2e`, then merge and pull at once. Owed for #622: closeout of b614-teammanifest (stopped? check), the live Daily Run proof, then dispatch #623 and #616. The test line was released to Tools-builder-manager at the clear: ask it before the next run.
   - **Heads.** Dynasty origin/main and main checkout `566506a` (#617 merged pinned at `a41b3c9`, on Ben's button "Merge now (Recommended)"). Main checkout clean except untracked `.agents/`, `GEMINI.md` (not the manager's).
   - **session-dispatch WAS loaded in 483137b4** (Ben typed it after the app restart). After the clear: ask again.
   - **Ben's standing merge word, each when GREEN (recorded on each PR/ticket):** #621, #622, #625 (#615), #616, #623, #597, #626. It never covers a parked Decision (an ADR amend, a DROP COLUMN).
