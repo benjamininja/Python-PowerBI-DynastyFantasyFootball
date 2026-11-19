@@ -12,12 +12,13 @@ from datetime import date
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pandas as pd
 import pytest
 from discord.ext import commands
+from discord.ext.commands.view import StringView
 from openpyxl import load_workbook
 
 _BOT_DIR = Path(__file__).resolve().parent.parent
@@ -400,15 +401,29 @@ class TestCommand:
         assert options["list"].required and not options["team"].required
         assert options["share"].default is False
 
-    def test_the_prefix_form_takes_a_team_with_spaces_and_no_format(self):
-        async def build():
-            bot = commands.Bot(command_prefix="!", intents=discord.Intents.default())
-            await contract_cmd.setup_contract_moves(bot, CFG)
-            return bot.get_command("contract-moves")
+    def test_a_prefix_call_with_a_team_and_no_format_gets_the_usage_reply(self):
+        import bot
 
-        params = asyncio.run(build()).clean_params
-        assert params["team"].kind is inspect.Parameter.KEYWORD_ONLY
-        assert params["fmt"].default == "table"
+        async def drive():
+            league_bot = bot.LeagueBot(CFG)
+            await contract_cmd.setup_contract_moves(league_bot, CFG)
+            command = league_bot.get_command("contract-moves")
+            ctx = commands.Context(
+                message=MagicMock(), bot=league_bot, view=StringView("expiring ALP"),
+                prefix="!", command=command, invoked_with="contract-moves",
+            )
+            with pytest.raises(commands.UserInputError) as raised:
+                await command.prepare(ctx)
+            reply = FakeCtx(slash=False)
+            reply.command, reply.prefix = command, "!"
+            await league_bot.on_command_error(reply, raised.value)
+            return reply
+
+        reply = asyncio.run(drive())
+        reply.author.send.assert_awaited_once()
+        text = reply.author.send.await_args.args[0]
+        assert text.startswith("Usage: `!contract-moves ")
+        assert "xlsx" in text and "table" in text and "ALP" not in text
 
     def test_the_bots_setup_hook_calls_the_setup(self):
         import bot
