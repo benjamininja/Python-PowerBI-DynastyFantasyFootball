@@ -42,6 +42,23 @@ launcher so they always use the project venv:
 .\run.ps1 notebooks\04w_fantrax_draft_results.py        # extra args pass through
 ```
 
+A notebook runs the same way (`.\run.ps1 notebooks\01c_dim_fantasy_teams_seed.ipynb`
+executes it in place through nbconvert).
+
+A hand run writes only `data/*.parquet` unless it is told to use the store
+(ADR-0014). `-Store`, written before the script, loads `ETL_STORAGE` and
+`SUPABASE_DB_URL` from the environment or `.env` into that one run's process,
+prints neither, and leaves the shell's environment alone:
+
+```powershell
+.\run.ps1 -Store notebooks\01c_dim_fantasy_teams_seed.ipynb
+```
+
+It stops when `.env` does not name the store. Never add `-Store` to
+`scripts\load_contract_choices.py`: it reads the published snapshot only and stops
+under the store (ADR-0025 decision 7). Nothing in `etl_helpers` reads `.env`, so
+pytest never picks the store up from it.
+
 `run.ps1` pins `.venv\Scripts\python.exe`. Don't use VS Code's "Run Python File"
 or a bare `python x.py` — those pick the *selected* interpreter (usually anaconda
 base), which lacks `playwright` and ships a broken `pyarrow`

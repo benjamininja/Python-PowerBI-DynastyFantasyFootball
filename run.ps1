@@ -16,8 +16,17 @@
   .\run.ps1 notebooks\04w_fantrax_draft_results.py
 .EXAMPLE
   .\run.ps1 notebooks\02d_fact_roster_transactions.py --some-flag value
+.EXAMPLE
+  .\run.ps1 -Store notebooks\01c_dim_fantasy_teams_seed.ipynb
+
+  A .ipynb runs through nbconvert (execute, in place). -Store, written before
+  the script, gives that one child process ETL_STORAGE and SUPABASE_DB_URL from
+  the environment or .env (scripts\with_store.py), so the run writes the store.
+  No value is printed and the shell's own environment is not changed. Without
+  -Store a run reaches the store only if both names are already set.
 #>
 param(
+    [switch]$Store,
     [Parameter(Position = 0)]
     [string]$Script,
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -46,7 +55,18 @@ if (-not (Test-Path $Script)) {
     else { Write-Error "Script not found: $Script"; exit 1 }
 }
 
+$childArgs = @($Script) + $Rest
+if ($Script -like '*.ipynb') {
+    $childArgs = @('-m', 'nbconvert', '--to', 'notebook', '--execute', '--inplace', $Script) + $Rest
+}
+
 $env:PYTHONUTF8 = '1'   # consistent UTF-8 I/O for the scrapers' unicode prints
-Write-Host "[run.ps1] $py $Script $Rest" -ForegroundColor DarkGray
-& $py $Script @Rest
+$mode = if ($Store) { ' (store)' } else { '' }
+Write-Host "[run.ps1]$mode $py $childArgs" -ForegroundColor DarkGray
+if ($Store) {
+    & $py (Join-Path $root 'scripts\with_store.py') -- $py @childArgs
+}
+else {
+    & $py @childArgs
+}
 exit $LASTEXITCODE
