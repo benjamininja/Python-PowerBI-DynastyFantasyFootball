@@ -1,12 +1,16 @@
 """Write the SQL for the 2026 FA keep choices (ADR-0025 decision 7, ADR-0024 decision 5; #548 brief 2).
 
-    load_contract_choices.py XLSX --season SEASON_ID --out PATH
+    load_contract_choices.py XLSX --season SEASON_ID --out PATH [--tabs Riddell,Wilson]
 
-XLSX is the owner's keep file: columns `team`, `player` and `choice` (keep or
-let go), one row per FA copy. It is read from the path given and is never
-committed. `team` resolves to a team_key through dim_fantasy_teams, and
-`player` to a scorer_id among that team's FA copies in fact_fantasy_teams
-(player names come from dim_fantrax_crosswalk). `locked_value` is the copy's
+XLSX is the commissioners' re-sign workbook, read as it is from the path given
+and never committed. It is read on the tabs named by --tabs; each row is one FA
+copy, with a team column whose header starts `Team`, a `Fantrax ID` column and
+a `Resign` column. `Resign` Yes is keep and No is let_go (case-insensitive,
+trimmed); a blank writes no row and counts as no choice; any other value stops.
+The team resolves to a team_key through dim_fantasy_teams (exact team_name),
+and the Fantrax ID is the scorer_id, so a copy is (team_key, scorer_id) and
+must be an FA copy in fact_fantasy_teams. A No on a copy no longer an FA copy
+on that team is skipped and counted; a Yes on one stops. `locked_value` is the copy's
 salary in the price list for the season after SEASON_ID (the list's season is
 a start year, so dim_season's season_start_year plus one).
 
@@ -21,8 +25,8 @@ never overwritten, and a second run leaves the same rows. When the owner runs
 the file in the Supabase SQL editor it returns rows_written and
 keys_left_alone (keys an owner's own row held). A copy the file does not list
 gets no row: no row means no choice made (ADR-0025 decision 7). A stop prints
-the keep file's row numbers per problem, and counts otherwise: never a name, a
-team or a cell.
+the tab name and the workbook's row numbers per problem, and counts otherwise:
+never a name, a team or a cell.
 """
 import argparse
 import math
@@ -39,17 +43,16 @@ import etl_helpers as etl  # noqa: E402
 
 TEAMS_TABLE = "dim_fantasy_teams"
 ROSTER_TABLE = "fact_fantasy_teams"
-CROSSWALK_TABLE = "dim_fantrax_crosswalk"
 SEASON_TABLE = "dim_season"
 TARGET = "app.contract_choices"
 KEY = "(season_id, team_key, scorer_id, choice_kind)"
-HEADERS = ("team", "player", "choice")
-CHOICES = {"keep": "keep", "let go": "let_go"}
+DEFAULT_TABS = "Riddell,Wilson"
+CHOICES = {"yes": "keep", "no": "let_go"}
 SEASON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
-def squash(value) -> str:
-    return " ".join(str(value).split()).casefold() if pd.notna(value) else ""
+def text(value) -> str:
+    return str(value).strip() if pd.notna(value) else ""
 
 
 def inside_git_repo(path: Path) -> bool:
@@ -58,17 +61,40 @@ def inside_git_repo(path: Path) -> bool:
     return any((p / ".git").exists() for p in (folder, *folder.parents))
 
 
-def read_file(path: Path) -> pd.DataFrame | None:
-    """The file's team, player and choice columns, as text, with blank rows
-    dropped and each row indexed by its spreadsheet row number (the header is
-    row 1); None when a header is missing."""
-    raw = pd.read_excel(path, sheet_name=0, dtype=object)
-    raw.columns = [str(c).strip().lower() for c in raw.columns]
-    if not set(HEADERS) <= set(raw.columns):
-        return None
-    frame = raw[list(HEADERS)].dropna(how="all")
-    frame.index = frame.index + 2
-    return frame
+def read_workbook(path: Path, tabs: list[str]) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    """Per named tab, its team, scorer_id and resign columns as trimmed text,
+    blank rows dropped, each row indexed by its spreadsheet row number (the
+    header is row 1); and the structural problems (a tab or column missing),
+    which name the tab and never a cell."""
+    book = pd.ExcelFile(path)
+    frames, problems = {}, []
+    for tab in tabs:
+        if tab not in book.sheet_names:
+            problems.append(f"tab {tab}: the tab is not in the workbook")
+            continue
+        raw = pd.read_excel(book, sheet_name=tab, dtype=object)
+        heads = {str(c).strip().casefold(): c for c in raw.columns}
+        team_cols = [c for h, c in heads.items() if h.startswith("team")]
+        missing = []
+        if len(team_cols) != 1:
+            missing.append("a single column whose header starts with Team")
+        for want in ("fantrax id", "resign"):
+            if want not in heads:
+                missing.append(f"the {want.title() if want == 'resign' else 'Fantrax ID'} column")
+        if missing:
+            problems.append(f"tab {tab}: missing {', '.join(missing)}")
+            continue
+        frame = raw[[team_cols[0], heads["fantrax id"], heads["resign"]]].dropna(how="all")
+        frame.columns = ["team", "scorer_id", "resign"]
+        frame.index = frame.index + 2
+        not_text = [n for n, v in frame["scorer_id"].items() if pd.notna(v) and not isinstance(v, str)]
+        if not_text:
+            problems.append(f"tab {tab}: {len(not_text)} row(s) whose Fantrax ID is not text "
+                            f"(rows {', '.join(str(n) for n in not_text)})")
+            continue
+        frame = pd.DataFrame({c: frame[c].map(text) for c in frame.columns})
+        frames[tab] = frame[(frame != "").any(axis=1)]
+    return frames, problems
 
 
 def literal(value) -> str:
@@ -79,62 +105,61 @@ def literal(value) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
-def resolve(frame: pd.DataFrame, teams: pd.DataFrame, roster: pd.DataFrame,
-            names: pd.DataFrame, prices: pd.Series | None) -> tuple[list[dict], list[str]]:
-    """The rows to write and the problems found, each problem a count and the
-    keep file's row numbers (`frame` is indexed by them), never a value."""
+def resolve(frames: dict[str, pd.DataFrame], teams: pd.DataFrame, roster: pd.DataFrame,
+            prices: pd.Series | None) -> tuple[list[dict], list[str], dict]:
+    """The rows to write, the problems found (each a tab, a count and the
+    workbook's row numbers, `frames` being indexed by them, never a value) and
+    the counts: read, no choice, skipped (a No on a copy no longer FA there) and
+    the FA copies the workbook does not list."""
     by_team = {}
     for team_key, name in zip(teams["team_key"], teams["team_name"]):
-        by_team.setdefault(squash(name), []).append(team_key)
-    called = dict(zip(names["scorer_id"], names["player_name"]))
-    held = roster.assign(_name=roster["scorer_id"].map(lambda s: etl.clean_player_name(called.get(s))))
+        by_team.setdefault(str(name).strip(), []).append(team_key)
+    free = {(t, s) for t, s, c in zip(roster["team_key"], roster["scorer_id"], roster["contract_id"]) if c == "FA"}
     rows, listed = [], set()
-    where = {k: [] for k in ("team", "player", "twice", "two", "kind", "choice", "price")}
-    for number, team, player, choice in zip(frame.index, frame["team"], frame["player"], frame["choice"]):
-        keys = by_team.get(squash(team), [])
-        if len(keys) != 1:
-            where["team"].append(number)
-            continue
-        team_key = keys[0]
-        picked = CHOICES.get(squash(choice))
-        if picked is None:
-            where["choice"].append(number)
-        wanted = etl.clean_player_name(player)
-        if not wanted:
-            where["player"].append(number)
-            continue
-        mine = held[(held["team_key"] == team_key) & (held["_name"] == wanted)]
-        free = mine[mine["contract_id"] == "FA"]
-        if free.empty and mine.empty:
-            where["player"].append(number)
-            continue
-        if free.empty:
-            where["kind"].append(number)
-            continue
-        if len(free) > 1:
-            where["two"].append(number)
-            continue
-        scorer_id = free["scorer_id"].iloc[0]
-        if (team_key, scorer_id) in listed:
-            where["twice"].append(number)
-            continue
-        listed.add((team_key, scorer_id))
-        if prices is None or scorer_id not in prices.index or pd.isna(prices[scorer_id]):
-            where["price"].append(number)
-            continue
-        if picked is not None:
-            rows.append({"team_key": team_key, "scorer_id": scorer_id, "choice": picked,
-                         "locked_value": float(prices[scorer_id])})
+    counts = {"read": 0, "no_choice": 0, "skipped": 0}
     labels = {"team": "row(s) whose team does not resolve to one team",
-              "player": "row(s) whose player is not on that team's roster",
-              "kind": "row(s) whose player is on that team's roster but not as an FA contract",
-              "two": "row(s) whose player matches two FA copies on that team",
+              "id": "row(s) with no Fantrax ID",
+              "choice": "row(s) whose Resign is not Yes, No or blank",
               "twice": "row(s) listing a copy already listed",
-              "choice": "row(s) whose choice is not keep or let go",
+              "kind": "row(s) with Yes on a copy that is not an FA copy on that team",
               "price": "row(s) whose copy has no price-list row"}
-    problems = [f"{len(where[k])} {labels[k]} (file rows {', '.join(str(n) for n in where[k])})"
-                for k in labels if where[k]]
-    return sorted(rows, key=lambda r: (r["team_key"], r["scorer_id"])), problems
+    problems = []
+    for tab, frame in frames.items():
+        where = {k: [] for k in labels}
+        counts["read"] += len(frame)
+        for number, team, scorer_id, resign in zip(frame.index, frame["team"], frame["scorer_id"], frame["resign"]):
+            keys = by_team.get(team, [])
+            if len(keys) != 1:
+                where["team"].append(number)
+                continue
+            if not scorer_id:
+                where["id"].append(number)
+                continue
+            if resign and resign.casefold() not in CHOICES:
+                where["choice"].append(number)
+                continue
+            pair = (keys[0], scorer_id)
+            if pair in listed:
+                where["twice"].append(number)
+                continue
+            listed.add(pair)
+            picked = CHOICES.get(resign.casefold())
+            if picked is None:
+                counts["no_choice"] += 1
+            elif pair not in free:
+                if picked == "let_go":
+                    counts["skipped"] += 1
+                else:
+                    where["kind"].append(number)
+            elif prices is None or scorer_id not in prices.index or pd.isna(prices[scorer_id]):
+                where["price"].append(number)
+            else:
+                rows.append({"team_key": pair[0], "scorer_id": scorer_id, "choice": picked,
+                             "locked_value": float(prices[scorer_id])})
+        problems += [f"tab {tab}: {len(where[k])} {labels[k]} (rows {', '.join(str(n) for n in where[k])})"
+                     for k in labels if where[k]]
+    counts["unlisted"] = len(free - listed)
+    return sorted(rows, key=lambda r: (r["team_key"], r["scorer_id"])), problems, counts
 
 
 def sql_file(season_id: str, rows: list[dict]) -> str:
@@ -174,11 +199,11 @@ def read_tables(season_id: str) -> dict:
             prices = None
     return {"seasons": seasons, "prices": prices,
             "teams": etl.read_table(TEAMS_TABLE, ["team_key", "team_name"]),
-            "roster": etl.read_table(ROSTER_TABLE, ["team_key", "scorer_id", "contract_id"]),
-            "names": etl.read_table(CROSSWALK_TABLE, ["scorer_id", "player_name"])}
+            "roster": etl.read_table(ROSTER_TABLE, ["team_key", "scorer_id", "contract_id"])}
 
 
-def load(xlsx: Path, season_id: str, out_path: Path, *, tables: dict | None = None, out=print) -> int:
+def load(xlsx: Path, season_id: str, out_path: Path, *, tabs: str = DEFAULT_TABS,
+         tables: dict | None = None, out=print) -> int:
     """Run the checks, then write the file. Returns 0 on success, 1 on a stop."""
     xlsx, out_path = Path(xlsx), Path(out_path)
     stops = []
@@ -199,42 +224,49 @@ def load(xlsx: Path, season_id: str, out_path: Path, *, tables: dict | None = No
             out(f"stopped: {line}")
         out("nothing was written")
         return 1
-    frame = read_file(xlsx)
-    if frame is None:
-        out(f"stopped: the file has no {', '.join(HEADERS)} header row")
+    names = [t.strip() for t in tabs.split(",") if t.strip()]
+    if not names:
+        out("stopped: --tabs names no tab")
         out("nothing was written")
         return 1
-    out(f"read: {len(frame)} row(s)")
+    frames, problems = read_workbook(xlsx, names)
+    if problems:
+        for line in problems:
+            out(f"stopped: {line}")
+        out("nothing was written")
+        return 1
     tables = read_tables(season_id) if tables is None else tables
-    problems = []
     if price_season(tables["seasons"], season_id) is None:
         problems.append("--season is not a season of dim_season")
-    if not len(frame):
-        problems.append("the file holds no row")
-    rows, found = resolve(frame, tables["teams"], tables["roster"], tables["names"], tables["prices"])
+    if not sum(len(f) for f in frames.values()):
+        problems.append("the workbook holds no row on the named tabs")
+    rows, found, counts = resolve(frames, tables["teams"], tables["roster"], tables["prices"])
     problems += found
+    out(f"read: {counts['read']} row(s)")
     if problems:
         for line in problems:
             out(f"stopped: {line}")
         out("nothing was written")
         return 1
     out_path.write_text(sql_file(season_id, rows), encoding="utf-8", newline="\n")
-    free = tables["roster"][tables["roster"]["contract_id"] == "FA"]
-    unlisted = len(free) - len({(r["team_key"], r["scorer_id"]) for r in rows})
+    out(f"no choice (blank Resign): {counts['no_choice']} row(s)")
+    out(f"skipped (No on a copy no longer an FA copy on that team): {counts['skipped']} row(s)")
     out(f"wrote: {len(rows)} row(s) to the file")
-    out(f"FA copies on the roster that the file does not list: {unlisted}")
+    out(f"FA copies on the roster that the workbook does not list: {counts['unlisted']}")
     out("when run, the file returns rows_written and keys_left_alone (keys an owner's own row holds)")
     return 0
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("xlsx", type=Path, help="the owner's keep file, read from this path")
+    ap.add_argument("xlsx", type=Path, help="the commissioners' re-sign workbook, read from this path")
+    ap.add_argument("--tabs", default=DEFAULT_TABS,
+                    help="comma-separated tabs to read (each with a Team..., Fantrax ID and Resign column)")
     ap.add_argument("--season", required=True, help="the season_id of dim_season the choices are made in")
     ap.add_argument("--out", type=Path, required=True, help="the SQL file to write, outside every repository")
     args = ap.parse_args(argv)
     try:
-        return load(args.xlsx, args.season, args.out)
+        return load(args.xlsx, args.season, args.out, tabs=args.tabs)
     except etl.StorageError as exc:
         print(f"stopped: {type(exc).__name__}: {(str(exc).splitlines() or [''])[0]}")
         return 1
