@@ -180,7 +180,8 @@ class TestTheRegistry:
 
     def test_the_other_tables_are_the_ones_the_adr_names(self):
         assert sorted((t["schema"], t["name"]) for t in OTHERS) == [
-            ("ops", "change_poll_state"), ("ops", "etl_run_log"), ("ops", "review_check"),
+            ("app", "contract_choices"), ("ops", "change_poll_state"), ("ops", "choice_deadline"),
+            ("ops", "etl_run_log"), ("ops", "review_check"),
             ("ops", "review_dynasty_crosswalk"), ("ops", "review_fantrax_crosswalk"),
             ("ops", "review_fuzzy_matches"), ("shared", "owner")]
 

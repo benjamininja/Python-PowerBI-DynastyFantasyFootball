@@ -95,9 +95,9 @@ def migrations(tmp_path):
 
 
 class TestDesiredModel:
-    def test_holds_the_three_schemas_and_two_roles(self):
+    def test_holds_the_four_schemas_and_two_roles(self):
         m = model()
-        assert m["schemas"] == ["football", "shared", "ops"]
+        assert m["schemas"] == ["football", "shared", "ops", "app"]
         assert m["roles"] == ["etl_writer", "etl_reader"]
 
     def test_tables_are_keyed_by_schema_and_name(self):
