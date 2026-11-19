@@ -52,7 +52,7 @@ SEASON_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
 def text(value) -> str:
-    return " ".join(str(value).split()) if pd.notna(value) else ""
+    return str(value).strip() if pd.notna(value) else ""
 
 
 def inside_git_repo(path: Path) -> bool:
@@ -86,10 +86,14 @@ def read_workbook(path: Path, tabs: list[str]) -> tuple[dict[str, pd.DataFrame],
             continue
         frame = raw[[team_cols[0], heads["fantrax id"], heads["resign"]]].dropna(how="all")
         frame.columns = ["team", "scorer_id", "resign"]
-        frame = frame.map(text)
-        frame = frame[(frame != "").any(axis=1)]
         frame.index = frame.index + 2
-        frames[tab] = frame
+        not_text = [n for n, v in frame["scorer_id"].items() if pd.notna(v) and not isinstance(v, str)]
+        if not_text:
+            problems.append(f"tab {tab}: {len(not_text)} row(s) whose Fantrax ID is not text "
+                            f"(rows {', '.join(str(n) for n in not_text)})")
+            continue
+        frame = pd.DataFrame({c: frame[c].map(text) for c in frame.columns})
+        frames[tab] = frame[(frame != "").any(axis=1)]
     return frames, problems
 
 

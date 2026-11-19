@@ -250,6 +250,19 @@ class TestStops:
         twin = pd.DataFrame({"team_key": ["T1", "T2"], "team_name": ["Same", "Same"]})
         self.stopped(place, [("Same", "s1", "Yes")], "team does not resolve", tables=tables(teams=twin))
 
+    @pytest.mark.parametrize("cell", [4123, 4123.0])
+    def test_a_numeric_fantrax_id_cell_stops_with_its_tab_and_row(self, place, cell):
+        roster = pd.DataFrame({"team_key": ["T1"], "scorer_id": ["4123"], "contract_id": ["FA"]})
+        lines = self.stopped(place, [("Test Team One", "s1", "Yes"), ("Test Team One", cell, "No")],
+                             "tab Riddell: 1 row(s) whose Fantrax ID is not text (rows 3)",
+                             tables=tables(roster=roster))
+        assert not any("skipped" in line for line in lines)
+
+    def test_a_team_name_is_matched_exactly_after_a_trim_only(self, place):
+        self.stopped(place, [("Test  Team One", "s1", "Yes")], "team does not resolve")
+        code, _, out = run(place, book={"Riddell": [("  Test Team One ", " s1 ", "Yes")], "Wilson": []})
+        assert code == 0 and "'T1', 's1'" in out.read_text(encoding="utf-8")
+
     def test_a_row_with_no_id_stops(self, place):
         self.stopped(place, [("Test Team One", None, "Yes")], "tab Riddell: 1 row(s) with no Fantrax ID (rows 2)")
 
