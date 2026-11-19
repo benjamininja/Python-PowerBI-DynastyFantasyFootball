@@ -16,12 +16,15 @@ from discord.ext import commands
 from cap import setup_cap
 from config import Config, load_config
 from contract_cmd import setup_contract_moves
+from delivery import deliver_text
 from player import setup_player
 from rankings import setup_rankings
 from roster import setup_roster
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("league-bot")
+
+GENERIC_ERROR = "Couldn't reach the data right now — try again shortly."
 
 
 class LeagueBot(commands.Bot):
@@ -63,6 +66,18 @@ class LeagueBot(commands.Bot):
 
     async def on_ready(self) -> None:
         log.info("Logged in as %s (id=%s)", self.user, getattr(self.user, "id", "?"))
+
+    async def on_command_error(self, ctx: commands.Context, error: commands.CommandError) -> None:
+        if isinstance(error, commands.CommandNotFound):
+            return
+        is_slash = ctx.interaction is not None
+        if isinstance(error, commands.UserInputError):
+            command = ctx.command
+            usage = f"{ctx.prefix}{command.qualified_name} {command.signature}".strip()
+            await deliver_text(ctx, is_slash, False, f"Usage: `{usage}`")
+            return
+        log.exception("command %s failed", getattr(ctx.command, "qualified_name", "?"), exc_info=error)
+        await deliver_text(ctx, is_slash, False, GENERIC_ERROR)
 
 
 async def main() -> None:
