@@ -17,6 +17,13 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Next (in order)
 
+- **Saved 2026-11-19 23:22Z for a clear, session 0c145f0f-0c28-4299-97c5-1bdbc7ca264d. Wins over every bullet below.**
+  - **#594 is closed out on the planner's side:** PR #617 merged as `566506a`, and the published counts match (28 rows, the same 28 keys, 2 names, `team_abbr` null; issues/594#issuecomment-7024361795). Next is #597.
+  - **The move:** #619 filed (low; Ben's three button choices at tools issues/235#issuecomment-7024324390), with its PR at #621. #621's two memory lines (project-fantasy-football.md 104-105, RESUME.md 1889) go in the manager's state-save PR with MANAGER.md. Dynasty worktree repair: 0 prunable. Pruning merged worktrees is a separate ask of Ben.
+  - **PR #622 (#614): no breach** (pull/622#issuecomment-7024799826). The review and audit raised nothing blocking. S7, F1 and F2 are folded into **#623** (low; 01c refuses unless 28 rows, and refuses a null or duplicate `team_key`; the order test adds 04p, 04r and 04s). Ben chose the 28 check by button; F1 is Ben's word relayed by the manager. Dispatch after #622 merges ("Yes, after #622", relayed).
+  - **New tickets:** #620 (medium; reproof.py takes the shared machine lock, blocked by the tools PR for #231 Part 2); tools #240 (medium; the owner-queue store is keyed by old paths, and no session shows a queue line; a finding first; dispatch is the tools manager's at Ben's go).
+  - **Memory:** both dynasty per-folder stores are drained to redirects. Root lifts went to dotclaude PR #7, merged as `6c7d4cc`; #6 was closed as a duplicate. The dotclaude checkout is on main.
+  - **Queue ids:** manager `483137b4-dd36-4af4-9a8d-dc19a8554b07`.
 - **Saved 2026-11-19 22:32Z, after the move and before an app restart, session 0c145f0f-0c28-4299-97c5-1bdbc7ca264d. Wins over every bullet below.**
   - **After the move:** the state worktree was relinked by `git worktree repair`. Both peers have the new id, and the manager re-keyed the planner's two entries (its word). Queue ids: the manager `483137b4-dd36-4af4-9a8d-dc19a8554b07`. The Tools planner has none yet.
   - **The move's blockers are cleared** (the planner's check, 22:31Z): the main checkout has a fresh `.venv` (Python 3.12, `pip check` clean), and `dispatch-projects.json` lists both new paths. #617's re-proof and the dispatch of #614 and #615 wait only on Ben typing `session-dispatch` in the manager's chat. About 60 old OneDrive builder worktree entries remain in `git worktree list`; their cleanup is the manager's, at Ben's word.
