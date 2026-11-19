@@ -111,8 +111,8 @@ surfaces review-queue row counts, commits refreshed
 notifies via Discord webhook (`DISCORD_WEBHOOK_URL` in `.env`, optional). After a
 good run that landed its data, it also posts the commissioners' contract lists
 (xlsx plus a counts-only message) to the admin webhook named by the environment
-variable `DISCORD_WEBHOOK_URL_ADMIN` (the environment only, no `.env` read; unset
-logs a skip), and only when a row is new by (list, conference, team, player,
+variable `DISCORD_WEBHOOK_URL_ADMIN` (the environment, else the repo `.env` under
+that exact name, as for `DISCORD_WEBHOOK_URL`; unset logs a skip), and only when a row is new by (list, conference, team, player,
 status) against the list the previous good run published (#545).
 
 - Entry point: `.\run_weekly.ps1` (console log →

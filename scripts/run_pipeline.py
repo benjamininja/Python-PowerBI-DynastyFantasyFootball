@@ -793,6 +793,16 @@ def contract_formatter():
     return _CONTRACT_FMT
 
 
+def contract_webhook(env_file: Path | None = None) -> str | None:
+    """The admin webhook: the environment variable, else the repo .env, as
+    notify() does. The runner has no .env and gets the secret in its environment;
+    the PC task has the .env and no variable."""
+    url = os.environ.get(CONTRACT_WEBHOOK_ENV)
+    if not url:
+        url = etl_run_log.env_value(CONTRACT_WEBHOOK_ENV, REPO / ".env" if env_file is None else env_file)
+    return url
+
+
 def read_contract_list(data_dir: Path | None = None):
     """The published snapshot of the contract lists. A table with no file is the
     first run: an empty list. Any other failure is None, which skips the post
@@ -1113,7 +1123,7 @@ def main() -> int:
         notify(summary)
     if contract_post_due(args.dry_run, args.no_commit, commit_line):
         print(post_contract_moves(contract_before, contract_after, read_team_names(),
-                                  os.environ.get(CONTRACT_WEBHOOK_ENV)))
+                                  contract_webhook()))
 
     return code
 

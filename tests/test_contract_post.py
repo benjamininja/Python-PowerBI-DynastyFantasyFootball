@@ -259,10 +259,45 @@ class TestWiring:
         text = (REPO / ".github" / "workflows" / "etl-daily.yml").read_text(encoding="utf-8")
         assert "DISCORD_WEBHOOK_URL_ADMIN: ${{ secrets.DISCORD_WEBHOOK_URL_ADMIN }}" in text
 
-    def test_the_post_reads_the_environment_not_a_dotenv_file(self):
+    def test_main_takes_the_webhook_from_contract_webhook(self):
         src = (REPO / "scripts" / "run_pipeline.py").read_text(encoding="utf-8")
-        assert "os.environ.get(CONTRACT_WEBHOOK_ENV)" in src
-        assert 'env_value("DISCORD_WEBHOOK_URL_ADMIN"' not in src
+        assert "contract_webhook()))" in src
+
+
+class TestWebhookLookup:
+    """The variable, else the repo .env (M-F1). A tmp .env and a fake value only."""
+
+    @pytest.fixture(autouse=True)
+    def clean(self, monkeypatch):
+        monkeypatch.delenv(rp.CONTRACT_WEBHOOK_ENV, raising=False)
+
+    def test_the_environment_variable_wins(self, monkeypatch, tmp_path):
+        env = tmp_path / ".env"
+        env.write_text(f"{rp.CONTRACT_WEBHOOK_ENV}=https://dotenv.example.invalid/x\n", encoding="utf-8")
+        monkeypatch.setenv(rp.CONTRACT_WEBHOOK_ENV, HOOK)
+        assert rp.contract_webhook(env) == HOOK
+
+    def test_without_the_variable_the_dotenv_key_is_used(self, tmp_path):
+        env = tmp_path / ".env"
+        env.write_text(f"OTHER=1\n{rp.CONTRACT_WEBHOOK_ENV}={HOOK}\n", encoding="utf-8")
+        assert rp.contract_webhook(env) == HOOK
+
+    def test_a_quoted_dotenv_value_is_unquoted(self, tmp_path):
+        env = tmp_path / ".env"
+        env.write_text(f'{rp.CONTRACT_WEBHOOK_ENV}="{HOOK}"\n', encoding="utf-8")
+        assert rp.contract_webhook(env) == HOOK
+
+    def test_the_key_name_must_match_exactly(self, tmp_path):
+        env = tmp_path / ".env"
+        env.write_text(f"DISCORD_WEBHOOK_URL_admin={HOOK}\nDISCORD_WEBHOOK_URL={HOOK}\n", encoding="utf-8")
+        assert rp.contract_webhook(env) is None
+
+    def test_neither_set_is_none_and_the_post_logs_the_skip(self, tmp_path):
+        assert rp.contract_webhook(tmp_path / "missing.env") is None
+        sender = Sender()
+        out = post(ecm.empty(), frame(row()), sender, webhook=rp.contract_webhook(tmp_path / "missing.env"))
+        assert sender.calls == [] and "skipped" in out and rp.CONTRACT_WEBHOOK_ENV in out
+        assert HOOK not in out
 
 
 class TestKeyEdges:
@@ -296,7 +331,7 @@ class TestMainWiring:
 
     def run(self, monkeypatch, tmp_path, capsys, argv=(), publish=("fact_contract_move",),
             step_status="ok", commit_line="committed + merged 1 parquet file(s) via data PR #9",
-            previous=None, current=None, hook=HOOK):
+            previous=None, current=None, hook=HOOK, dotenv=None):
         events, sent = [], []
         lists = iter([previous if previous is not None else ecm.empty(),
                       current if current is not None else frame(row())])
@@ -348,6 +383,7 @@ class TestMainWiring:
         monkeypatch.setattr(rp.urllib.request, "urlopen",
                             lambda req, timeout=None: sent.append(req.full_url))
         monkeypatch.delenv("ETL_STORAGE", raising=False)
+        monkeypatch.setattr(rp.etl_run_log, "env_value", lambda key, path=None: dotenv)
         if hook:
             monkeypatch.setenv(rp.CONTRACT_WEBHOOK_ENV, hook)
         else:
@@ -396,3 +432,7 @@ class TestMainWiring:
     def test_an_unset_variable_logs_the_skip_and_the_run_passes(self, monkeypatch, tmp_path, capsys):
         code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, hook="")
         assert code == 0 and sent == [] and f"{rp.CONTRACT_WEBHOOK_ENV} is not set" in out
+
+    def test_a_run_with_no_variable_but_the_dotenv_key_posts(self, monkeypatch, tmp_path, capsys):
+        code, events, sent, out = self.run(monkeypatch, tmp_path, capsys, hook="", dotenv=HOOK)
+        assert code == 0 and sent == [HOOK] and "contract-moves post sent" in out and HOOK not in out
