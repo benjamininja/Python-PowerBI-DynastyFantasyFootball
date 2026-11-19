@@ -423,7 +423,7 @@ class TestCommand:
         reply.author.send.assert_awaited_once()
         text = reply.author.send.await_args.args[0]
         assert text.startswith("Usage: `!contract-moves ")
-        assert "fmt" in text and "ALP" not in text
+        assert "xlsx" in text and "table" in text and "ALP" not in text
 
     def test_the_bots_setup_hook_calls_the_setup(self):
         import bot
