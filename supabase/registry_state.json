@@ -9,9 +9,123 @@
   "schemas": [
     "football",
     "shared",
-    "ops"
+    "ops",
+    "app"
   ],
   "tables": {
+    "app.contract_choices": {
+      "checks": [
+        "choice_kind IN ('resign', 'fa_keep')",
+        "origin IN ('loader', 'app')",
+        "(choice_kind = 'resign' AND choice IN ('resign', 'decline')) OR (choice_kind = 'fa_keep' AND choice IN ('keep', 'let_go'))"
+      ],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "choice_kind",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "choice",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "locked_value",
+          "not_null": false,
+          "sql_type": "double precision"
+        },
+        {
+          "name": "origin",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "changed_by",
+          "not_null": false,
+          "sql_type": "uuid"
+        },
+        {
+          "default": "clock_timestamp()",
+          "name": "changed_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "contract_choices_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "contract_choices_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        }
+      ],
+      "grants": [
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "etl_writer"
+        }
+      ],
+      "indexes": [],
+      "name": "contract_choices",
+      "pk": [
+        "season_id",
+        "team_key",
+        "scorer_id",
+        "choice_kind"
+      ],
+      "policies": [
+        {
+          "command": "SELECT",
+          "name": "etl_writer_select_after_deadline",
+          "role": "etl_writer",
+          "using": "EXISTS (SELECT 1 FROM ops.choice_deadline d WHERE d.season_id = contract_choices.season_id AND d.choice_kind = contract_choices.choice_kind AND d.deadline_at < clock_timestamp())"
+        }
+      ],
+      "schema": "app",
+      "triggers": [
+        {
+          "events": [
+            "UPDATE"
+          ],
+          "function": "ops.set_changed_at",
+          "level": "ROW",
+          "name": "contract_choices_set_changed_at",
+          "timing": "BEFORE"
+        }
+      ]
+    },
     "football.dim_contract": {
       "checks": [],
       "columns": [
@@ -3315,6 +3429,87 @@
       ],
       "schema": "ops"
     },
+    "ops.choice_deadline": {
+      "checks": [
+        "choice_kind IN ('resign', 'fa_keep')"
+      ],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "choice_kind",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "deadline_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "choice_deadline_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        }
+      ],
+      "grants": [
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "etl_writer"
+        },
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "etl_reader"
+        }
+      ],
+      "indexes": [],
+      "name": "choice_deadline",
+      "pk": [
+        "season_id",
+        "choice_kind"
+      ],
+      "policies": [
+        {
+          "command": "SELECT",
+          "name": "etl_writer_select",
+          "role": "etl_writer",
+          "using": "true"
+        },
+        {
+          "command": "SELECT",
+          "name": "etl_reader_select",
+          "role": "etl_reader",
+          "using": "true"
+        }
+      ],
+      "schema": "ops",
+      "triggers": [
+        {
+          "events": [
+            "UPDATE",
+            "DELETE"
+          ],
+          "function": "ops.refuse_passed_deadline_change",
+          "level": "ROW",
+          "name": "choice_deadline_guard_row",
+          "timing": "BEFORE"
+        }
+      ]
+    },
     "ops.dim_fantrax_crosswalk_override": {
       "checks": [
         "origin IN ('csv', 'apply_script', 'form')"
@@ -3868,5 +4063,9 @@
       ],
       "schema": "shared"
     }
+  },
+  "trigger_functions": {
+    "ops.refuse_passed_deadline_change": "CREATE FUNCTION ops.refuse_passed_deadline_change() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    IF OLD.deadline_at < clock_timestamp() THEN\n        RAISE EXCEPTION 'a deadline that has passed cannot be changed';\n    END IF;\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;",
+    "ops.set_changed_at": "CREATE FUNCTION ops.set_changed_at() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    NEW.changed_at := clock_timestamp();\n    RETURN NEW;\nEND;\n$fn$;"
   }
 }

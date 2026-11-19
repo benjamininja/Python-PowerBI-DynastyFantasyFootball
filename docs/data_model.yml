@@ -48,6 +48,17 @@
 #   checks  : SQL boolean expressions, one CHECK constraint each.
 #   other_tables : tables with no parquet file (the `ops` and `shared`
 #             tables), read only by the migration generator.
+#   Schema `app` (ADR-0025) is not granted the blanket way, and these fields
+#   are for its tables and for ops.choice_deadline (and `default` and
+#   `triggers` for any other_tables entry): `default` on a column, a SQL expression, written after NOT NULL;
+#   `grants`, [{role, privileges}], to etl_writer only (both ETL roles on
+#   ops.choice_deadline, which then takes no blanket grant); `policies`, [{name,
+#   role, command, using / check}], each needing a grant of its command;
+#   `triggers`, [{name, timing, events, level, function}]. A trigger names a
+#   function of the top-level `trigger_functions`, [{name: ops.<name>, body}]:
+#   the generator pins its search_path empty, makes it no SECURITY DEFINER and
+#   revokes EXECUTE from PUBLIC. A later change to any of these on a table that
+#   exists is refused. check_data_model.py reports the generator's refusal.
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
@@ -1583,3 +1594,87 @@ other_tables:
       - { name: human_name, sql_type: text }
       - { name: email, sql_type: text }
       - { name: fantrax_username, sql_type: text }
+
+  # The owners' contract choices (ADR-0025, #548 brief 2). Schema `app` is not
+  # granted the blanket way: the table names its own grants and its one policy.
+  # The key columns, `choice`, `origin` and `changed_at` are required; `changed_at`
+  # is set by the database (default on insert, trigger on update).
+  - name: contract_choices
+    schema: app
+    pk: [season_id, team_key, scorer_id, choice_kind]
+    required_keys: [choice, origin, changed_at]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+    checks:
+      - "choice_kind IN ('resign', 'fa_keep')"
+      - "origin IN ('loader', 'app')"
+      - "(choice_kind = 'resign' AND choice IN ('resign', 'decline')) OR (choice_kind = 'fa_keep' AND choice IN ('keep', 'let_go'))"
+    grants:
+      - { role: etl_writer, privileges: [SELECT] }
+    policies:
+      - name: etl_writer_select_after_deadline
+        role: etl_writer
+        command: SELECT
+        using: "EXISTS (SELECT 1 FROM ops.choice_deadline d WHERE d.season_id = contract_choices.season_id AND d.choice_kind = contract_choices.choice_kind AND d.deadline_at < clock_timestamp())"
+    triggers:
+      - { name: contract_choices_set_changed_at, timing: BEFORE, events: [UPDATE], level: ROW, function: ops.set_changed_at }
+    columns:
+      - { name: season_id, sql_type: text }
+      - { name: team_key, sql_type: text }
+      - { name: scorer_id, sql_type: text }
+      - { name: choice_kind, sql_type: text }
+      - { name: choice, sql_type: text }
+      - { name: locked_value, sql_type: "double precision" }
+      - { name: origin, sql_type: text }
+      - { name: changed_by, sql_type: uuid }
+      - { name: changed_at, sql_type: timestamptz, default: "clock_timestamp()" }
+
+  # The deadline of each choice window (ADR-0025 decision 4). It gates the
+  # etl_writer read of app.contract_choices, so no ETL role may write it: both
+  # roles read it (the deadline is public) and only the table owner writes it,
+  # by the statement scripts/print_choice_deadline.py prints. A passed row
+  # cannot be changed or deleted, even by the owner.
+  - name: choice_deadline
+    schema: ops
+    pk: [season_id, choice_kind]
+    required_keys: [deadline_at]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+    checks:
+      - "choice_kind IN ('resign', 'fa_keep')"
+    grants:
+      - { role: etl_writer, privileges: [SELECT] }
+      - { role: etl_reader, privileges: [SELECT] }
+    policies:
+      - { name: etl_writer_select, role: etl_writer, command: SELECT, using: "true" }
+      - { name: etl_reader_select, role: etl_reader, command: SELECT, using: "true" }
+    triggers:
+      - { name: choice_deadline_guard_row, timing: BEFORE, events: [UPDATE, DELETE], level: ROW, function: ops.refuse_passed_deadline_change }
+    columns:
+      - { name: season_id, sql_type: text }
+      - { name: choice_kind, sql_type: text }
+      - { name: deadline_at, sql_type: timestamptz }
+
+# Trigger functions (ADR-0025 decision 10 point 3 and the brief's point 6). The
+# generator renders each as `CREATE FUNCTION ... RETURNS trigger LANGUAGE plpgsql
+# SET search_path = ''`, not SECURITY DEFINER, with EXECUTE revoked from PUBLIC
+# and granted to no one. The registry holds the name (in `ops`) and the body.
+trigger_functions:
+  - name: ops.set_changed_at
+    body: |
+      BEGIN
+          NEW.changed_at := clock_timestamp();
+          RETURN NEW;
+      END;
+  - name: ops.refuse_passed_deadline_change
+    body: |
+      BEGIN
+          IF OLD.deadline_at < clock_timestamp() THEN
+              RAISE EXCEPTION 'a deadline that has passed cannot be changed';
+          END IF;
+          IF TG_OP = 'DELETE' THEN
+              RETURN OLD;
+          END IF;
+          RETURN NEW;
+      END;

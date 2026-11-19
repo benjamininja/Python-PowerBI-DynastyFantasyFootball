@@ -185,7 +185,7 @@ class TestTimestamptzUnderAnotherZone:
                                      "SELECT {} FROM {} WITH NO DATA").format(idents, table))
                 conn.execute(sql.SQL("INSERT INTO probe ({}) VALUES ({})").format(
                     idents, sql.SQL(", ").join(sql.SQL("'2026-01-02 03:04:05.678+00'::timestamptz") for _ in cols)))
-                got = conn.execute("SELECT * FROM probe", binary=True).fetchall()
+                got = conn.execute("SELECT * FROM probe", binary=True, prepare=False).fetchall()
                 assert got == [tuple(want for _ in cols)], key
                 conn.execute("DROP TABLE probe")
 

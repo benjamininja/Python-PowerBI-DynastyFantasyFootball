@@ -50,7 +50,7 @@ VALID_TYPES = {"dim", "fact", "resolver"}
 # bigint: a value past the integer range is a finding, not a wider type.
 SQL_TYPES = {"text", "integer", "double precision", "boolean", "date",
              "timestamp", "timestamptz", "jsonb", "uuid"}
-SCHEMAS = ("football", "shared", "ops")
+SCHEMAS = generate_migrations.SCHEMAS
 # The types a pandas dtype may be declared as. `object` holds no value yet,
 # so it may be any. A string column of ISO dates is `date`; a whole-number
 # float column is `integer`. A zone-aware datetime is `timestamptz`
@@ -196,6 +196,17 @@ def drop_errors(data: dict) -> list[str]:
     return []
 
 
+def model_errors(data: dict) -> list[str]:
+    """The registry as the migration generator reads it: grants, policies,
+    defaults, triggers and trigger functions (ADR-0025) are the generator's
+    rules, so its refusal is this check's failure."""
+    try:
+        generate_migrations.desired_model(data)
+    except generate_migrations.RegistryError as exc:
+        return [f"[generator] {exc}"]
+    return []
+
+
 def validate(data: dict) -> int:
     tables = data.get("tables", []) or []
     errors: list[str] = []
@@ -226,6 +237,7 @@ def validate(data: dict) -> int:
         errors += sql_type_errors(t)
         errors += key_errors(t, by_name)
     errors += drop_errors(data)
+    errors += model_errors(data)
 
     # column-drift check: declared columns vs real parquet schema
     for t in tables:

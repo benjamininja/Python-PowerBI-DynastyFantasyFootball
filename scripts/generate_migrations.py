@@ -14,8 +14,14 @@ table's `drops:` list, or a table it names in `dropped_tables:`, becomes
 DROP COLUMN or DROP TABLE when the state file still holds it; an entry whose
 item the state no longer holds is history and writes nothing. Drops go in a
 migration of their own, after the run's other changes. Every other drop
-stays refused. No change writes nothing and exits 0. A registry that breaks a
-rule exits 2.
+stays refused. A table in a schema in OWN_GRANT_SCHEMAS (ADR-0025) is not
+granted the blanket way: it names its own `grants` and `policies`, and so does
+the one `ops` table in OWN_GRANT_TABLES, which then gets no blanket grant. A column may
+carry a `default`, a table `triggers`, and the registry `trigger_functions`
+(each in `ops`, `search_path` pinned empty, not SECURITY DEFINER, EXECUTE
+revoked from PUBLIC). Later changes to those fields on an existing table are
+refused. No change writes nothing and exits 0. A registry that breaks a rule
+exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
 Line 1 of the migration holds the sha256 of the state file it produces. The
@@ -37,8 +43,15 @@ REGISTRY_FILE = REPO / "docs" / "data_model.yml"
 OUT_DIR = REPO / "supabase"
 STATE_FILE = "registry_state.json"
 
-SCHEMAS = ("football", "shared", "ops")
+SCHEMAS = ("football", "shared", "ops", "app")
 GRANTED_SCHEMAS = ("football", "ops")
+OWN_GRANT_SCHEMAS = ("app",)
+OWN_GRANT_TABLES = ("ops.choice_deadline",)
+PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE")
+TRIGGER_SCHEMA = "ops"
+TRIGGER_TIMINGS = ("BEFORE", "AFTER")
+TRIGGER_EVENTS = ("INSERT", "UPDATE", "DELETE", "TRUNCATE")
+TRIGGER_LEVELS = ("ROW", "STATEMENT")
 ROLES = ("etl_writer", "etl_reader")
 SQL_TYPES = ("text", "integer", "double precision", "boolean", "date",
              "timestamp", "timestamptz", "jsonb", "uuid")
@@ -109,6 +122,124 @@ def _known(columns, names, what):
         raise RegistryError(f"{what}: unknown column {missing[0]!r}")
 
 
+def _own_roles(schema, name):
+    """The roles a table may name in its own grants, or None when it takes the
+    blanket grant: a table of a schema in OWN_GRANT_SCHEMAS may name etl_writer;
+    a table in OWN_GRANT_TABLES (a blanket schema's one exception, ADR-0025)
+    may name both ETL roles."""
+    if schema in OWN_GRANT_SCHEMAS:
+        return ("etl_writer",)
+    if f"{schema}.{name}" in OWN_GRANT_TABLES:
+        return ROLES
+    return None
+
+
+def _grants(entry, where, roles):
+    """The table's own grants, `[{role, privileges}]`, only to a role `roles`
+    names."""
+    raw = entry.get("grants")
+    if raw is None:
+        return []
+    if roles is None:
+        raise RegistryError(f"{where}: grants are for a table in {', '.join(OWN_GRANT_SCHEMAS)} "
+                            f"or one of {', '.join(OWN_GRANT_TABLES)} only")
+    if not isinstance(raw, list):
+        raise RegistryError(f"{where}: grants: expected a list")
+    grants, seen = [], set()
+    for grant in raw:
+        if not isinstance(grant, dict):
+            raise RegistryError(f"{where}: grant {grant!r}: expected a mapping")
+        role = grant.get("role")
+        if role not in roles:
+            raise RegistryError(f"{where}: grant to {role!r}: not one of {', '.join(roles)}")
+        if role in seen:
+            raise RegistryError(f"{where}: two grants to {role}")
+        seen.add(role)
+        privileges = _names(grant.get("privileges"), f"{where} grant to {role}")
+        bad = [p for p in privileges if p not in PRIVILEGES]
+        if bad:
+            raise RegistryError(f"{where}: grant to {role}: {bad[0]!r} is not one of {', '.join(PRIVILEGES)}")
+        grants.append({"role": role, "privileges": sorted(privileges, key=PRIVILEGES.index)})
+    return grants
+
+
+def _policies(entry, where, roles, grants):
+    """The table's named policies, `[{name, role, command, using?, check?}]`. A
+    policy needs a grant of its command's privilege to its role."""
+    raw = entry.get("policies")
+    if raw is None:
+        return []
+    if roles is None:
+        raise RegistryError(f"{where}: policies are for a table in {', '.join(OWN_GRANT_SCHEMAS)} "
+                            f"or one of {', '.join(OWN_GRANT_TABLES)} only")
+    if not isinstance(raw, list):
+        raise RegistryError(f"{where}: policies: expected a list")
+    held = {g["role"]: g["privileges"] for g in grants}
+    policies, names = [], set()
+    for policy in raw:
+        if not isinstance(policy, dict):
+            raise RegistryError(f"{where}: policy {policy!r}: expected a mapping")
+        name = _ident(policy.get("name"), f"{where} policy name")
+        if name in names:
+            raise RegistryError(f"{where}: policy {name!r} is declared twice")
+        names.add(name)
+        role, command = policy.get("role"), policy.get("command")
+        if role not in roles:
+            raise RegistryError(f"{where}: policy {name}: role {role!r} is not one of {', '.join(roles)}")
+        if command not in PRIVILEGES:
+            raise RegistryError(f"{where}: policy {name}: command {command!r} is not one of {', '.join(PRIVILEGES)}")
+        if command not in held.get(role, []):
+            raise RegistryError(f"{where}: policy {name}: {role} has no {command} grant on the table")
+        wants = {"SELECT": ("using",), "DELETE": ("using",), "INSERT": ("check",), "UPDATE": ("using", "check")}[command]
+        spec = {"name": name, "role": role, "command": command}
+        for key in ("using", "check"):
+            if policy.get(key) is None:
+                continue
+            if key not in wants:
+                raise RegistryError(f"{where}: policy {name}: a {command} policy takes no {key}")
+            spec[key] = _fragment(policy[key], f"{where} policy {name} {key}")
+        if not any(k in spec for k in wants):
+            raise RegistryError(f"{where}: policy {name}: needs {' or '.join(wants)}")
+        policies.append(spec)
+    return policies
+
+
+def _triggers(entry, where):
+    """The table's triggers, `[{name, timing, events, level, function}]`. The
+    function is checked against the declared ones in `desired_model`."""
+    raw = entry.get("triggers")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RegistryError(f"{where}: triggers: expected a list")
+    triggers, names = [], set()
+    for trigger in raw:
+        if not isinstance(trigger, dict):
+            raise RegistryError(f"{where}: trigger {trigger!r}: expected a mapping")
+        name = _ident(trigger.get("name"), f"{where} trigger name")
+        if name in names:
+            raise RegistryError(f"{where}: trigger {name!r} is declared twice")
+        names.add(name)
+        timing, level = trigger.get("timing"), trigger.get("level")
+        if timing not in TRIGGER_TIMINGS:
+            raise RegistryError(f"{where}: trigger {name}: timing {timing!r} is not one of {', '.join(TRIGGER_TIMINGS)}")
+        if level not in TRIGGER_LEVELS:
+            raise RegistryError(f"{where}: trigger {name}: level {level!r} is not one of {', '.join(TRIGGER_LEVELS)}")
+        events = _names(trigger.get("events"), f"{where} trigger {name} events")
+        bad = [e for e in events if e not in TRIGGER_EVENTS]
+        if bad:
+            raise RegistryError(f"{where}: trigger {name}: event {bad[0]!r} is not one of {', '.join(TRIGGER_EVENTS)}")
+        if "TRUNCATE" in events and (events != ["TRUNCATE"] or level != "STATEMENT"):
+            raise RegistryError(f"{where}: trigger {name}: TRUNCATE stands alone, at level STATEMENT")
+        function = trigger.get("function")
+        if not isinstance(function, str):
+            raise RegistryError(f"{where}: trigger {name}: needs a function")
+        triggers.append({"name": name, "timing": timing,
+                         "events": sorted(events, key=TRIGGER_EVENTS.index),
+                         "level": level, "function": function})
+    return triggers
+
+
 def _table_spec(entry, default_schema):
     if not isinstance(entry, dict):
         raise RegistryError(f"table entry {entry!r}: expected a mapping")
@@ -133,7 +264,10 @@ def _table_spec(entry, default_schema):
         if sql_type not in SQL_TYPES:
             raise RegistryError(f"{where}.{col_name}: sql_type {sql_type!r} is not one of {', '.join(SQL_TYPES)}")
         types[col_name] = sql_type
-        columns.append({"name": col_name, "sql_type": sql_type, "not_null": False})
+        column = {"name": col_name, "sql_type": sql_type, "not_null": False}
+        if col.get("default") is not None:
+            column["default"] = _fragment(col["default"], f"{where}.{col_name} default")
+        columns.append(column)
     _known(types, pk, f"{where} pk")
     _known(types, required, f"{where} required_keys")
     for col in columns:
@@ -166,8 +300,35 @@ def _table_spec(entry, default_schema):
         predicate = _fragment(idx["where"], f"{where} index {idx_name} where") if idx.get("where") else None
         indexes.append({"name": idx_name, "columns": idx_cols,
                         "unique": bool(idx.get("unique")), "where": predicate})
-    return {"schema": schema, "name": name, "columns": columns, "pk": pk,
+    spec = {"schema": schema, "name": name, "columns": columns, "pk": pk,
             "checks": checks, "fks": fks, "indexes": indexes}
+    roles = _own_roles(schema, name)
+    grants = _grants(entry, where, roles)
+    for key, items in (("grants", grants), ("policies", _policies(entry, where, roles, grants)),
+                       ("triggers", _triggers(entry, where))):
+        if items:
+            spec[key] = items
+    return spec
+
+
+def _trigger_function(entry):
+    if not isinstance(entry, dict):
+        raise RegistryError(f"trigger function {entry!r}: expected a mapping")
+    name = entry.get("name")
+    if not isinstance(name, str) or name.count(".") != 1:
+        raise RegistryError(f"trigger function {name!r}: expected schema.name")
+    schema, bare = name.split(".")
+    if schema != TRIGGER_SCHEMA:
+        raise RegistryError(f"trigger function {name}: lives in {TRIGGER_SCHEMA}, not {schema}")
+    _ident(bare, "trigger function name")
+    body = entry.get("body")
+    if not isinstance(body, str) or not body.strip():
+        raise RegistryError(f"trigger function {name}: needs a body")
+    if "$fn$" in body:
+        raise RegistryError(f"trigger function {name}: the body may not hold $fn$")
+    sql = (f"CREATE FUNCTION {name}() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\n"
+           f"AS $fn$\n{body.strip()}\n$fn$;")
+    return name, sql
 
 
 def desired_model(registry):
@@ -210,11 +371,26 @@ def desired_model(registry):
     if owner is not None:
         _known({c["name"] for c in owner["columns"]}, ["human_name", "fantrax_username"], "shared.owner")
         functions[PII_FUNCTION] = PII_FUNCTION_SQL
+    raw_functions = registry.get("trigger_functions") or []
+    if not isinstance(raw_functions, list):
+        raise RegistryError("trigger_functions: expected a list")
+    trigger_functions = {}
+    for entry in raw_functions:
+        name, sql = _trigger_function(entry)
+        if name in trigger_functions or name in functions:
+            raise RegistryError(f"function {name} is declared twice")
+        trigger_functions[name] = sql
+    for spec in specs.values():
+        for trigger in spec.get("triggers", []):
+            if trigger["function"] not in trigger_functions:
+                raise RegistryError(f"{spec['schema']}.{spec['name']} trigger {trigger['name']}: "
+                                    f"unknown trigger function {trigger['function']!r}")
     return {"schemas": list(SCHEMAS), "roles": list(ROLES),
-            "tables": dict(sorted(specs.items())), "functions": functions}
+            "tables": dict(sorted(specs.items())), "functions": functions,
+            "trigger_functions": dict(sorted(trigger_functions.items()))}
 
 
-EMPTY_MODEL = {"schemas": [], "roles": [], "tables": {}, "functions": {}}
+EMPTY_MODEL = {"schemas": [], "roles": [], "tables": {}, "functions": {}, "trigger_functions": {}}
 NO_DROPS = {"columns": {}, "tables": {}}
 
 
@@ -316,6 +492,11 @@ def _table_changes(key, old, new, out, flagged):
             refuse.append(f"{key}.{col['name']}: type change from {before['sql_type']} to {col['sql_type']}")
         if before["not_null"] != col["not_null"]:
             refuse.append(f"{key}.{col['name']}: change of NOT NULL")
+        if before.get("default") != col.get("default"):
+            refuse.append(f"{key}.{col['name']}: change of default")
+    for field in ("grants", "policies", "triggers"):
+        if old.get(field, []) != new.get(field, []):
+            refuse.append(f"{key}: change of {field}")
     if old["pk"] != new["pk"]:
         refuse.append(f"{key}: change of primary key from {old['pk']} to {new['pk']}")
     gone = [e for e in old["checks"] if e not in new["checks"]]
@@ -348,7 +529,7 @@ def diff(old, new, drops=NO_DROPS):
     """What `new` adds to `old`, the drops `drops` flags (#534), and the
     changes it holds that a migration may not make (`refusals`)."""
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
-           "checks": [], "fks": [], "indexes": [], "functions": [],
+           "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
            "column_drops": [], "table_drops": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
@@ -376,6 +557,13 @@ def diff(old, new, drops=NO_DROPS):
         elif old["functions"][name] != sql:
             out["refusals"].append(f"{name}: change of function body")
     out["refusals"] += [f"{n}: drop of function" for n in old["functions"] if n not in new["functions"]]
+    old_triggers, new_triggers = old.get("trigger_functions", {}), new.get("trigger_functions", {})
+    for name, sql in new_triggers.items():
+        if name not in old_triggers:
+            out["trigger_functions"].append((name, sql))
+        elif old_triggers[name] != sql:
+            out["refusals"].append(f"{name}: change of function body")
+    out["refusals"] += [f"{n}: drop of function" for n in old_triggers if n not in new_triggers]
     return out
 
 
@@ -387,8 +575,13 @@ def _check_name(table, expr):
     return f"{table}_chk_{hashlib.sha256(expr.encode('utf-8')).hexdigest()[:8]}"
 
 
+def _column_sql(col):
+    default = f" DEFAULT {col['default']}" if col.get("default") else ""
+    return f"{col['name']} {col['sql_type']}{' NOT NULL' if col['not_null'] else ''}{default}"
+
+
 def _create_table(spec):
-    lines = [f"    {c['name']} {c['sql_type']}{' NOT NULL' if c['not_null'] else ''}" for c in spec["columns"]]
+    lines = [f"    {_column_sql(c)}" for c in spec["columns"]]
     lines.append(f"    CONSTRAINT {spec['name']}_pkey PRIMARY KEY ({', '.join(spec['pk'])})")
     lines += [f"    CONSTRAINT {_check_name(spec['name'], e)} CHECK ({e})" for e in spec["checks"]]
     return f"CREATE TABLE {spec['schema']}.{spec['name']} (\n" + ",\n".join(lines) + "\n);"
@@ -405,8 +598,7 @@ def render(changes):
     out += [_role(r) for r in changes["roles"]]
     out += [_create_table(spec) for spec in changes["tables"]]
     for key, col in changes["columns"]:
-        out.append(f"ALTER TABLE {key} ADD COLUMN {col['name']} {col['sql_type']}"
-                   f"{' NOT NULL' if col['not_null'] else ''};")
+        out.append(f"ALTER TABLE {key} ADD COLUMN {_column_sql(col)};")
     for key, old_expr, new_expr in changes["check_swaps"]:
         table_name = key.split(".")[1]
         out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(table_name, old_expr)};")
@@ -419,17 +611,37 @@ def render(changes):
     out += [f"ALTER TABLE {s['schema']}.{s['name']} ENABLE ROW LEVEL SECURITY;" for s in changes["tables"]]
     out += [f"GRANT USAGE ON SCHEMA {s} TO etl_writer, etl_reader;" for s in changes["schemas"] if s in GRANTED_SCHEMAS]
     for spec in changes["tables"]:
-        if spec["schema"] not in GRANTED_SCHEMAS:
+        if spec["schema"] not in GRANTED_SCHEMAS or spec.get("grants"):
             continue
         qualified = f"{spec['schema']}.{spec['name']}"
         out += [f"GRANT SELECT, INSERT, UPDATE, DELETE ON {qualified} TO etl_writer;",
                 f"GRANT SELECT ON {qualified} TO etl_reader;",
                 f"CREATE POLICY etl_writer_all ON {qualified} FOR ALL TO etl_writer USING (true) WITH CHECK (true);",
                 f"CREATE POLICY etl_reader_select ON {qualified} FOR SELECT TO etl_reader USING (true);"]
+    usage = []
+    for spec in changes["tables"]:
+        qualified = f"{spec['schema']}.{spec['name']}"
+        for grant in spec.get("grants", []):
+            if spec["schema"] not in GRANTED_SCHEMAS and (spec["schema"], grant["role"]) not in usage:
+                usage.append((spec["schema"], grant["role"]))
+                out.append(f"GRANT USAGE ON SCHEMA {spec['schema']} TO {grant['role']};")
+            out.append(f"GRANT {', '.join(grant['privileges'])} ON {qualified} TO {grant['role']};")
+        for policy in spec.get("policies", []):
+            clauses = "".join(f" {word} ({policy[key]})" for key, word in (("using", "USING"), ("check", "WITH CHECK"))
+                              if key in policy)
+            out.append(f"CREATE POLICY {policy['name']} ON {qualified} FOR {policy['command']} "
+                       f"TO {policy['role']}{clauses};")
     for name, sql in changes["functions"]:
         out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;",
                 f"GRANT USAGE ON SCHEMA {name.split('.')[0]} TO etl_writer;",
                 f"GRANT EXECUTE ON FUNCTION {name}() TO etl_writer;"]
+    for name, sql in changes.get("trigger_functions", []):
+        out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;"]
+    for spec in changes["tables"]:
+        for trigger in spec.get("triggers", []):
+            out.append(f"CREATE TRIGGER {trigger['name']} {trigger['timing']} {' OR '.join(trigger['events'])} "
+                       f"ON {spec['schema']}.{spec['name']} FOR EACH {trigger['level']} "
+                       f"EXECUTE FUNCTION {trigger['function']}();")
     for key, idx in changes["indexes"]:
         where = f" WHERE {idx['where']}" if idx["where"] else ""
         out.append(f"CREATE {'UNIQUE ' if idx['unique'] else ''}INDEX {idx['name']} ON {key} "
@@ -497,6 +709,8 @@ def load_state(path):
         model = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
         raise RegistryError(f"{path.name}: not valid JSON ({exc})") from exc
+    if isinstance(model, dict) and set(model) == set(EMPTY_MODEL) - {"trigger_functions"}:
+        model = {**model, "trigger_functions": {}}
     if not isinstance(model, dict) or set(model) != set(EMPTY_MODEL):
         raise RegistryError(f"{path.name}: not a registry state")
     return model
