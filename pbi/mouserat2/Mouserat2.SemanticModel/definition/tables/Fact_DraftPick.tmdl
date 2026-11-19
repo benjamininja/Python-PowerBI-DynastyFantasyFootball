@@ -154,9 +154,9 @@ table Fact_DraftPick
 		source =
 				let
 				    Real = Table.AddColumn(
-				        Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				        Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				        "is_slotted", each true, type logical),
-				    Future = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick_future.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Future = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\fact_draft_pick_future.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				    Combined = Table.Combine({Real, Future}),
 				    RemovedDivision = Table.RemoveColumns(Combined, {"division_id"}),
 				    AddedContractID = Table.AddColumn(RemovedDivision, "contract_id", each "Pick", type text)

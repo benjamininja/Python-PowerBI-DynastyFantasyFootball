@@ -105,7 +105,7 @@ table Dim_DynastyMetric
 		queryGroup: 'Dimension Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_dynasty_metric.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\dim_dynasty_metric.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				    #"Sorted Rows" = Table.Sort(Source,{{"metric_order", Order.Ascending}})
 				in
 				    #"Sorted Rows"
