@@ -17,6 +17,13 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Next (in order)
 
+- **Saved 2026-11-19 17:35Z for the repo move to `C:\source\Github` (tools #235), session 8bbde36f-ff90-46aa-b78a-a4d1987060ad. Wins over every bullet below.**
+  - **Merged:** #611 (#609, `84194bd`; live proof 28 rows as the service account) and #613 (#612, `61cff41`). The replacement text for both keep entries went to the manager (issues/548#issuecomment-7015708008). The deadline row is in the store: 1 row, `2026-11-20 04:59:59+00` (issues/548#issuecomment-7016069252).
+  - **#594:** the 01c store run and export are done. The null `team_abbr` is ruled intended: Ben removed the column (issues/594#issuecomment-7016825298). The manager pushes the held data commit, opens the PR and merges it. **Owed:** read the published counts (28 rows, 28 keys, 2 names, team_abbr null). Then #597.
+  - **Ben's buttons:** the manager runs the DLF delete (#589, issuecomment-7016826028) and the keep loader (#548, issuecomment-7016826606); Ben only pastes the keep SQL. Ben's secrets folder is `C:\source\.secrets`.
+  - **New tickets, dispatched on Ben's typed go** ("go ahead and dispatch #614, #615 and #616"): #614 (medium, 01c joins the Daily Run, Chain `team_manifest`), #615 (medium, hand runs reach the store from .env; the keep loader and pytest stay off it), #616 (high, publish a manual-only table by the runner's data PR; amend Decision first, builds after #614 merges). The queue sweep is at issues/616#issuecomment-7016300662.
+  - **Peers:** the manager's queue id is now `2fc702e7-0a21-4215-a11b-657bfa11fd39` (after its clear).
+
 - **Since the clear of 2026-11-19, about 13:00Z (session 8bbde36f-ff90-46aa-b78a-a4d1987060ad; these win over everything below). Saved 2026-11-19T13:11Z:**
   - **Nothing merged from 2026-11-16 to 2026-11-19 but data PRs #601 and #602.** `main` is `cae14de`; data PR #603 is open. Both peers have the new id; the manager re-keyed the planner's two entries (its word). Queue ids: the manager 2a2c7a32-4e02-4455-a32a-61f484c07adc; the Tools planner 2afab339-1191-43f1-8128-8ad03a076976.
   - **b548-choices is parked, not lost** (manager's word): it never got the restatement (issuecomment-6906111097) and resumes once Ben types `session-dispatch` in the manager's chat. Brief 2 cannot merge on deadline day. This season's keeps come by the keep file after the deadline (queue Action), so nothing is lost today.
