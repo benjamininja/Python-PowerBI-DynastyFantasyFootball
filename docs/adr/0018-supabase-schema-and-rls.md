@@ -1,6 +1,6 @@
 # Supabase schema: three schemas, registry-generated DDL, natural keys, locked-down RLS
 
-- Status: accepted. Designed through HITL grilling on 2026-10-02 ([#75](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/75)); not yet built.
+- Status: accepted. Designed through HITL grilling on 2026-10-02 ([#75](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/75)); not yet built. Amended by [ADR-0025](0025-owner-write-path-contract-choices.md) (2026-11-15): decision 1 (a fourth schema, `app`, and `ops.choice_deadline`), decision 9 (one schema, `app`, is exposed to the Data API, with grants and policies for `authenticated`) and decision 10 (the hash list gains the owner crosswalk's ids).
 - Date: 2026-10-02
 - Amends: [ADR-0014](0014-supabase-system-of-record-static-serving.md) consequence "no consumer cutover work". The published snapshot now carries tighter types (decision 8), so Power BI, the bot and trade-bud each get a type pass at cutover. Their read path (the parquet snapshot) is unchanged.
 - Scope:
@@ -29,6 +29,7 @@
    - `football`: every dim and fact.
    - `shared`: `owner` now; leagues and people later (ADR-0014's per-sport target).
    - `ops`: `etl_run_log`, `change_poll_state`, `review_*`.
+   - *Amended 2026-11-15 by [ADR-0025](0025-owner-write-path-contract-choices.md) (#548): a fourth schema, `app`, holds the owners' choices table and share toggle, and `ops` also holds `choice_deadline`, the one source of the choice deadline.*
 2. **Table names equal the parquet file stems** (`football.dim_nfl_players`), keeping the `dim_`/`fact_` prefixes. The export is a 1:1 name→file map.
 3. **The registry generates the DDL.**
    - `docs/data_model.yml` gains `sql_type`, `pk` and `fk` per table.
@@ -56,10 +57,12 @@
    - `etl_writer`: no BYPASSRLS. It gets DML grants and an explicit `TO etl_writer USING (true)` policy per table, emitted by the generator. It never uses `service_role` (ADR-0015).
    - A **read-only login is created now**, with SELECT policies on `football` and `ops`, and never on `shared`.
    - `anon` and `authenticated` get no grants and no policies. None of the three schemas is exposed to the Data API.
+   - *Amended 2026-11-15 by [ADR-0025](0025-owner-write-path-contract-choices.md) (#548): one more schema, `app`, is exposed to the Data API, and `authenticated` gets the grants and policies that ADR names on it. `anon` still gets none, and none of the three schemas above is exposed. The read-only login gets no grant on `app`, and `etl_writer` gets SELECT only on `app.contract_choices`, once a row's deadline has passed.*
 10. **`shared.owner` is hand-kept and never read in plaintext.**
     - The owner maintains its rows in the SQL editor.
     - `etl_writer` has no grant on the table. It has EXECUTE on one SECURITY DEFINER function, `shared.pii_token_hashes()`, which returns sha256 hashes of lowercased name and username tokens.
     - The PII check hashes the tokens in each data commit and compares them against that list. It runs in the data-commit job, which holds the main-environment secret. PR checks stay email-shape only, because PR jobs get no main-environment secrets.
+    - *Amended 2026-11-15 by [ADR-0025](0025-owner-write-path-contract-choices.md) (#548): the hash list also returns the sha256 of each `shared.owner_crosswalk` Discord id. `shared` now holds three `SECURITY DEFINER` functions: `etl_writer` still has EXECUTE on `shared.pii_token_hashes()` only, and the two new ones are for `authenticated` only.*
 11. **`ops` tables.**
     - `etl_run_log`: `run_id` uuid PK, `trigger` (daily | poll | weekly | manual), `started_at`, `finished_at`, `status` (running | failed | committed | published), `git_sha`, `snapshot_commit_sha`, `rows_written` jsonb (`{table: n}`), `error`. Every run inserts a row, which is what keeps the project from pausing.
     - `change_poll_state`: `team_key` PK → `dim_fantasy_teams`, `period`, `roster_hash`, `last_polled_at`, `hash_changed_at`, `pending_since` (debounce).
