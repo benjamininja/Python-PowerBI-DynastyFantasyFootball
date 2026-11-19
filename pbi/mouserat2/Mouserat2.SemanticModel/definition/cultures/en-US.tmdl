@@ -10322,6 +10322,29 @@ cultureInfo en-US
 			        }
 			      ]
 			    },
+			    "fact_fantasy_team.cap_hit": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "Fact_FantasyTeams",
+			          "ConceptualProperty": "CapHit"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "cap hit": {
+			            "State": "Generated"
+			          }
+			        },
+			        {
+			          "CapHit": {
+			            "Type": "Noun",
+			            "State": "Generated",
+			            "Weight": 0.99
+			          }
+			        }
+			      ]
+			    },
 			    "fact_fantasy_team.contract_year": {
 			      "Definition": {
 			        "Binding": {
