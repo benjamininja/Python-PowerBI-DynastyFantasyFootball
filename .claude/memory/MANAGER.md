@@ -21,7 +21,15 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **CURRENT STATE (NEWEST, 2026-11-19 ~17:30Z, session `2a2c7a32-4e02-4455-a32a-61f484c07adc`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only, no local paths.**
+- **CURRENT STATE (NEWEST, 2026-11-19 ~18:15Z, session `2fc702e7-0a21-4215-a11b-657bfa11fd39`, before the repo move to C:\source\Github (tools #235) and a CLEAR; it overrides every block below, which stay true only where this is silent). Ids only.**
+  - **Heads.** Dynasty origin/main and main checkout `61cff41`. Tools origin/main `f1ff785` (#230 merged, squash, pinned to `c3368ef`, after a solo GREEN re-proof on `3b65c41`, 602 passed, and green CI; Ben's "Merge now" by button here). Both tools checkouts pulled to `f1ff785`.
+  - **session-dispatch was loaded in 2fc702e7** (Ben typed it). After the relaunch: ask again.
+  - **#594:** planner ruled the null team_abbr intended (issues/594#issuecomment-7016825298). Branch `data/dim-fantasy-teams-594` pushed; PR #617 open, HELD for the move, not re-proved. Next: re-prove at the new path, merge pinned, tell the planner to read counts. The keep load waits on it.
+  - **#589 DLF delete DONE** by Claude on Ben's "Yes, run it now" here: 49 + 11 deleted, every count zero (issues/589#issuecomment-7016902249). Ben's queue entry removed. Next: check the next Daily Run's data PR stages fact_rookie_rankings and dim_player_alias; then #595 merges last.
+  - **#548 keep load:** Ben chose "Claude runs the loader" (issues/548#issuecomment-7016826606). Queue entry rewritten: Claude runs scripts/load_contract_choices.py once preconditions land (price list + PR, the FA price-row count, #617 merged, Resign column), never opens the SQL file; Ben only pastes it.
+  - **#614 (medium), #615 (medium), #616 (high), all Profile: none:** Ben's go relayed, then Ben chose "After the move" here and "Hold until after move" with the planner. Dispatch from the new path after relaunch: #614 and #615 side by side; #616 drafts its exception amend as a Decision, builds after #614 merges.
+  - **Builders:** none running. Bot runs on Ben's PC.
+- **CURRENT STATE (2026-11-19 ~17:30Z, session `2a2c7a32-4e02-4455-a32a-61f484c07adc`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only, no local paths.**
   - **Heads.** Dynasty origin/main and the main checkout `61cff41`, clean, on main. Tools main `3b65c41`.
   - **session-dispatch WAS loaded in 2a2c7a32** (Ben typed it). After a clear: ask Ben to type it again.
   - **Merged this session (all pinned, each after a GREEN reproof.py on the main it ran on, a code review, and a green CI read):** #598 (`14ffd16`, #589 script); #599 (`60d3645`, #594); #596 (`c465942`, #545 PR 3, after M-F1: the webhook is read from .env); #607 (`9eb8a1e`, #593); #608 (`5b63ee9`, #600); #606 (`bbef36b`, #548 brief 2, after S-F1: etl_writer SELECT-only on ops.choice_deadline; the post-migration live check passed, issues/548); #611 (`84194bd`, #609 service-account read); #613 (`61cff41`, #612 keep loader reads the re-sign workbook).
