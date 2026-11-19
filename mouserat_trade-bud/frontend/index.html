@@ -278,7 +278,7 @@ async function init() {
   statusEl.style.color = '#8a90a2';
   state.teams = await api('/teams');
   const myTeamSel = document.getElementById('myTeam');
-  const opts = teams => teams.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  const opts = teams => teams.map(t => `<option value="${t.team_key}">${t.team_name}${t.team_abbr ? ` (${t.team_abbr})` : ''}</option>`).join('');
   myTeamSel.innerHTML = '<option value="">-- select --</option>' + opts(state.teams);
   refreshCpOptions();
   loadOverview();
@@ -294,7 +294,7 @@ function refreshCpOptions() {
   const candidates = myTeamObj
     ? state.teams.filter(t => t.conference === myTeamObj.conference && t.team_key !== myTeamObj.team_key)
     : state.teams;
-  const opts = candidates.map(t => `<option value="${t.team_key}">${t.team_name} (${t.team_abbr})</option>`).join('');
+  const opts = candidates.map(t => `<option value="${t.team_key}">${t.team_name}${t.team_abbr ? ` (${t.team_abbr})` : ''}</option>`).join('');
   cpTeamSel.innerHTML = '<option value="">-- select --</option>' + opts;
   if (candidates.some(t => t.team_key === prev)) {
     cpTeamSel.value = prev;

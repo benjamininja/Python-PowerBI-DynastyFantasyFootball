@@ -31,6 +31,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
+
 APP_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = APP_DIR / "backend"
 REPO_ROOT = APP_DIR.parent
@@ -92,6 +94,8 @@ def _nulls_for_nan(obj):
     2. The live API renders them as ``null``, so anything else breaks parity
        with the endpoints this export is meant to stand in for.
     """
+    if obj is pd.NA or obj is pd.NaT:
+        return None
     if isinstance(obj, float):
         return None if obj != obj or obj in (float("inf"), float("-inf")) else obj
     if isinstance(obj, dict):
