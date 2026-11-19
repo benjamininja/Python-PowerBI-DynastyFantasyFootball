@@ -66,7 +66,7 @@ class FakeSession:
                 value_ranges.append({"range": rng, "values": [col]})
             return FakeResp(200, {"valueRanges": value_ranges})
         if "/values/" in unquote(url):
-            return FakeResp(200, {"values": [self.header]})
+            return FakeResp(200, {"range": f"'{TITLE}'!1:1", "values": [self.header]})
         return FakeResp(200, {"sheets": [
             {"properties": {"sheetId": 0, "title": "Commissioners"}},
             {"properties": {"sheetId": int(self.gid), "title": TITLE}},
@@ -132,6 +132,23 @@ def test_an_http_error_names_the_status_and_not_the_body():
         etl.read_sheet_tab("SID", GID, WANTED, token=TOKEN, session=FakeSession(status=401))
     assert "HTTP 401 (UNAUTHENTICATED)" in str(info.value)
     assert "secret-body-text" not in str(info.value)
+
+
+@pytest.mark.parametrize("body, expect, shown", [
+    ({"error": {"status": "PERMISSION_DENIED", "message": "secret-body-text"}}, (), "PERMISSION_DENIED"),
+    ({"error": "secret-body-text"}, (), "no status"),
+    ({"range": "x"}, ("valueRanges",), "valueRanges"),
+])
+def test_a_200_with_an_error_key_or_a_missing_key_stops_with_no_body_text(body, expect, shown):
+    class Session:
+        def get(self, url, params=None, headers=None, timeout=None):
+            return FakeResp(200, body)
+
+    with pytest.raises(RuntimeError) as info:
+        etl._sheets_get(Session(), TOKEN, "https://example.test/x", expect=expect)
+    assert shown in str(info.value)
+    assert "secret-body-text" not in str(info.value)
+    assert "\n" not in str(info.value)
 
 
 def _fake_google(monkeypatch, loader):

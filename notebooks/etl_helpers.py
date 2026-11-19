@@ -267,9 +267,11 @@ def _sheets_token() -> str:
     return token
 
 
-def _sheets_get(session, token: str, url: str, params=None) -> dict:
+def _sheets_get(session, token: str, url: str, params=None, expect: tuple = ()) -> dict:
     # The one place a Sheets request leaves: refuses an empty token, sends the
-    # bearer token on every call, and checks the status and the JSON body.
+    # bearer token on every call, and checks the status and the JSON body. A 200
+    # is not success: a body with an `error` key, or without a key in `expect`,
+    # stops with the API's error status and no body text.
     if not token:
         raise SheetsAuthError(f"Sheets sign-in: no token, no request sent ({SHEETS_KEY_ENV}).")
     try:
@@ -289,6 +291,13 @@ def _sheets_get(session, token: str, url: str, params=None) -> dict:
         raise RuntimeError("Google Sheets API: body is not JSON") from None
     if not isinstance(body, dict):
         raise RuntimeError("Google Sheets API: body is not an object")
+    if "error" in body:
+        err = body["error"]
+        status = err.get("status") if isinstance(err, dict) else None
+        raise RuntimeError(f"Google Sheets API: error body ({status if isinstance(status, str) else 'no status'})")
+    missing = [k for k in expect if k not in body]
+    if missing:
+        raise RuntimeError(f"Google Sheets API: body has no {missing}")
     return body
 
 
@@ -312,13 +321,15 @@ def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
     token = _sheets_token() if token is None else token
     session = _make_session() if session is None else session
     base = f"{SHEETS_API}/{sheet_id}"
-    meta = _sheets_get(session, token, base, {"fields": "sheets.properties(sheetId,title)"})
+    meta = _sheets_get(session, token, base, {"fields": "sheets.properties(sheetId,title)"},
+                       expect=("sheets",))
     title = next((s["properties"]["title"] for s in meta.get("sheets", [])
                   if str(s["properties"].get("sheetId")) == str(gid)), None)
     if title is None:
         raise RuntimeError(f"Google Sheets API: no tab with gid {gid}")
     tab = "'" + title.replace("'", "''") + "'"
-    head = _sheets_get(session, token, f"{base}/values/{quote(tab + '!1:1', safe='')}")
+    head = _sheets_get(session, token, f"{base}/values/{quote(tab + '!1:1', safe='')}",
+                       expect=("range",))
     header = (head.get("values") or [[]])[0]
     wanted = [c for c in dict.fromkeys([*columns, *optional]) if c in header]
     if not wanted:
@@ -328,8 +339,8 @@ def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
         letter = _a1_col(header.index(name))
         ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
     body = _sheets_get(session, token, f"{base}/values:batchGet",
-                       ranges + [("majorDimension", "COLUMNS")])
-    cols = [(vr.get("values") or [[]])[0] for vr in body.get("valueRanges", [])]
+                       ranges + [("majorDimension", "COLUMNS")], expect=("valueRanges",))
+    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
     if len(cols) != len(wanted):
         raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
     buf = io.StringIO()
