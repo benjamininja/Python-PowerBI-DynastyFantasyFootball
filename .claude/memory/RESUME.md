@@ -1885,7 +1885,7 @@ approved plan file's PR 2 section, nothing new decided).**
   - Each starts with its own grill or plan in its own window.
 - **Scratchpads** (may not survive; a new session gets its own), under
   `C:\Users\benha\AppData\Local\Temp\claude\
-  C--Users-benha-OneDrive-Documents-GitHub-Python-PowerBI-DynastyFantasyFootball\`:
+  (old-OneDrive-path-slug)-Python-PowerBI-DynastyFantasyFootball\`:
   - `b70feb52-4d88-4084-a25b-dbb056315f00\scratchpad`: `gs_rank.py`,
     `gs_sr.py`, `gs_odds.py`, `pr3_precheck.py`, `pr3_verify.py`; for #96,
     `g96_facts.py` (drops, key uniqueness, the parity table), `g96_gaps.py`
