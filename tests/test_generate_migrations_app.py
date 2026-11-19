@@ -34,6 +34,12 @@ def app_registry():
                        "using": USING}],
          "triggers": [{"name": "choices_stamp", "timing": "BEFORE", "events": ["UPDATE"],
                        "level": "ROW", "function": "ops.stamp"}]},
+        {"name": "choice_deadline", "schema": "ops", "pk": ["season_id", "choice_kind"],
+         "columns": [col("season_id"), col("choice_kind"), col("deadline_at", "timestamptz")],
+         "grants": [{"role": "etl_writer", "privileges": ["SELECT"]},
+                    {"role": "etl_reader", "privileges": ["SELECT"]}],
+         "policies": [{"name": "etl_writer_select", "role": "etl_writer", "command": "SELECT", "using": "true"},
+                      {"name": "etl_reader_select", "role": "etl_reader", "command": "SELECT", "using": "true"}]},
         {"name": "deadline", "schema": "ops", "pk": ["season_id"],
          "columns": [col("season_id"), col("deadline_at", "timestamptz")],
          "triggers": [{"name": "deadline_guard", "timing": "BEFORE", "events": ["DELETE", "UPDATE"],
@@ -166,7 +172,7 @@ class TestANamedPolicy:
         def mutate(r):
             entry(r, "deadline")["policies"] = [{"name": "p", "role": "etl_writer", "command": "SELECT",
                                                  "using": "true"}]
-        refused(broken(mutate), "policies are for a table in app only")
+        refused(broken(mutate), "policies are for a table in app or one of ops.choice_deadline only")
 
     def test_a_policy_for_another_role_is_refused(self):
         refused(broken(lambda r: entry(r, "choices")["policies"][0].update(role="etl_reader")), "not one of etl_writer")
@@ -175,11 +181,40 @@ class TestANamedPolicy:
 class TestGrantRules:
     def test_a_grant_in_a_blanket_schema_is_refused(self):
         refused(broken(lambda r: entry(r, "deadline").update(grants=[{"role": "etl_writer", "privileges": ["SELECT"]}])),
-                "grants are for a table in app only")
+                "grants are for a table in app or one of ops.choice_deadline only")
 
     def test_a_grant_on_shared_is_refused(self):
         refused(broken(lambda r: entry(r, "owner").update(grants=[{"role": "etl_writer", "privileges": ["SELECT"]}])),
-                "grants are for a table in app only")
+                "grants are for a table in app or one of ops.choice_deadline only")
+
+    def test_the_one_ops_table_takes_its_own_grants_and_no_blanket_grant(self):
+        sql = sql_of()
+        assert "GRANT SELECT ON ops.choice_deadline TO etl_writer;" in sql
+        assert "GRANT SELECT ON ops.choice_deadline TO etl_reader;" in sql
+        assert "CREATE POLICY etl_writer_select ON ops.choice_deadline FOR SELECT TO etl_writer USING (true);" in sql
+        assert "CREATE POLICY etl_reader_select ON ops.choice_deadline FOR SELECT TO etl_reader USING (true);" in sql
+        about = [s for s in sql.split("\n\n") if "ops.choice_deadline" in s and ("GRANT" in s or "POLICY" in s)]
+        assert len(about) == 4
+        for word in ("INSERT", "UPDATE", "DELETE", "ALL", "WITH CHECK"):
+            assert not any(word in s for s in about)
+
+    def test_no_usage_grant_is_added_for_a_blanket_schema(self):
+        assert "GRANT USAGE ON SCHEMA ops TO etl_writer;" not in sql_of()
+
+    def test_the_one_ops_table_may_not_grant_a_role_outside_the_two(self):
+        refused(broken(lambda r: entry(r, "choice_deadline").update(
+            grants=[{"role": "anon", "privileges": ["SELECT"]}])), "not one of etl_writer, etl_reader")
+
+    def test_the_real_registry_gives_the_deadline_table_to_the_owner_alone_for_writing(self):
+        import yaml
+        real = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        spec = gm.desired_model(real)["tables"]["ops.choice_deadline"]
+        assert spec["grants"] == [{"role": "etl_writer", "privileges": ["SELECT"]},
+                                  {"role": "etl_reader", "privileges": ["SELECT"]}]
+        assert [(p["role"], p["command"]) for p in spec["policies"]] == [("etl_writer", "SELECT"),
+                                                                         ("etl_reader", "SELECT")]
+        state = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
+        assert state["tables"]["ops.choice_deadline"] == spec
 
     @pytest.mark.parametrize("role", ["etl_reader", "anon", "authenticated", "public", None])
     def test_a_grant_to_any_role_but_the_writer_is_refused(self, role):
@@ -360,7 +395,7 @@ class TestChangesToAnExistingTable:
     def test_the_old_tables_keep_their_state_entry_when_they_declare_none_of_it(self):
         entries = gm.desired_model(app_registry())["tables"]
         for key, spec in entries.items():
-            if key not in ("app.choices", "ops.deadline"):
+            if key not in ("app.choices", "ops.deadline", "ops.choice_deadline"):
                 assert not {"grants", "policies", "triggers"} & set(spec), key
                 assert all("default" not in c for c in spec["columns"]), key
 

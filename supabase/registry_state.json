@@ -3462,11 +3462,39 @@
           "to": "football.dim_season"
         }
       ],
+      "grants": [
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "etl_writer"
+        },
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "etl_reader"
+        }
+      ],
       "indexes": [],
       "name": "choice_deadline",
       "pk": [
         "season_id",
         "choice_kind"
+      ],
+      "policies": [
+        {
+          "command": "SELECT",
+          "name": "etl_writer_select",
+          "role": "etl_writer",
+          "using": "true"
+        },
+        {
+          "command": "SELECT",
+          "name": "etl_reader_select",
+          "role": "etl_reader",
+          "using": "true"
+        }
       ],
       "schema": "ops",
       "triggers": [
@@ -4037,7 +4065,7 @@
     }
   },
   "trigger_functions": {
-    "ops.refuse_passed_deadline_change": "CREATE FUNCTION ops.refuse_passed_deadline_change() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    IF OLD.deadline_at <= clock_timestamp() THEN\n        RAISE EXCEPTION 'a deadline that has passed cannot be changed';\n    END IF;\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;",
+    "ops.refuse_passed_deadline_change": "CREATE FUNCTION ops.refuse_passed_deadline_change() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    IF OLD.deadline_at < clock_timestamp() THEN\n        RAISE EXCEPTION 'a deadline that has passed cannot be changed';\n    END IF;\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;",
     "ops.set_changed_at": "CREATE FUNCTION ops.set_changed_at() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    NEW.changed_at := clock_timestamp();\n    RETURN NEW;\nEND;\n$fn$;"
   }
 }

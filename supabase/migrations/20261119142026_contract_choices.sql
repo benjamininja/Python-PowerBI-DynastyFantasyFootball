@@ -1,4 +1,4 @@
--- registry_state sha256: acb10087681c31387c77aabaaa110a076571eae1e5d734565103fad0f758598d
+-- registry_state sha256: fcdb8070a5419a9f6c4b47ae7b195556070cf39e578f01b30328202f8306e317
 
 CREATE SCHEMA app;
 
@@ -36,25 +36,25 @@ ALTER TABLE app.contract_choices ENABLE ROW LEVEL SECURITY;
 
 ALTER TABLE ops.choice_deadline ENABLE ROW LEVEL SECURITY;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON ops.choice_deadline TO etl_writer;
-
-GRANT SELECT ON ops.choice_deadline TO etl_reader;
-
-CREATE POLICY etl_writer_all ON ops.choice_deadline FOR ALL TO etl_writer USING (true) WITH CHECK (true);
-
-CREATE POLICY etl_reader_select ON ops.choice_deadline FOR SELECT TO etl_reader USING (true);
-
 GRANT USAGE ON SCHEMA app TO etl_writer;
 
 GRANT SELECT ON app.contract_choices TO etl_writer;
 
 CREATE POLICY etl_writer_select_after_deadline ON app.contract_choices FOR SELECT TO etl_writer USING (EXISTS (SELECT 1 FROM ops.choice_deadline d WHERE d.season_id = contract_choices.season_id AND d.choice_kind = contract_choices.choice_kind AND d.deadline_at < clock_timestamp()));
 
+GRANT SELECT ON ops.choice_deadline TO etl_writer;
+
+GRANT SELECT ON ops.choice_deadline TO etl_reader;
+
+CREATE POLICY etl_writer_select ON ops.choice_deadline FOR SELECT TO etl_writer USING (true);
+
+CREATE POLICY etl_reader_select ON ops.choice_deadline FOR SELECT TO etl_reader USING (true);
+
 CREATE FUNCTION ops.refuse_passed_deadline_change() RETURNS trigger
 LANGUAGE plpgsql SET search_path = ''
 AS $fn$
 BEGIN
-    IF OLD.deadline_at <= clock_timestamp() THEN
+    IF OLD.deadline_at < clock_timestamp() THEN
         RAISE EXCEPTION 'a deadline that has passed cannot be changed';
     END IF;
     IF TG_OP = 'DELETE' THEN

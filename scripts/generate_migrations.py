@@ -15,7 +15,8 @@ DROP COLUMN or DROP TABLE when the state file still holds it; an entry whose
 item the state no longer holds is history and writes nothing. Drops go in a
 migration of their own, after the run's other changes. Every other drop
 stays refused. A table in a schema in OWN_GRANT_SCHEMAS (ADR-0025) is not
-granted the blanket way: it names its own `grants` and `policies`. A column may
+granted the blanket way: it names its own `grants` and `policies`, and so does
+the one `ops` table in OWN_GRANT_TABLES, which then gets no blanket grant. A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
 (each in `ops`, `search_path` pinned empty, not SECURITY DEFINER, EXECUTE
 revoked from PUBLIC). Later changes to those fields on an existing table are
@@ -45,7 +46,7 @@ STATE_FILE = "registry_state.json"
 SCHEMAS = ("football", "shared", "ops", "app")
 GRANTED_SCHEMAS = ("football", "ops")
 OWN_GRANT_SCHEMAS = ("app",)
-OWN_GRANT_ROLES = ("etl_writer",)
+OWN_GRANT_TABLES = ("ops.choice_deadline",)
 PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE")
 TRIGGER_SCHEMA = "ops"
 TRIGGER_TIMINGS = ("BEFORE", "AFTER")
@@ -121,15 +122,27 @@ def _known(columns, names, what):
         raise RegistryError(f"{what}: unknown column {missing[0]!r}")
 
 
-def _grants(entry, where, schema):
-    """The table's own grants, `[{role, privileges}]`. Only a table in a schema
-    the generator does not grant the blanket way declares them, and only to a
-    role OWN_GRANT_ROLES names."""
+def _own_roles(schema, name):
+    """The roles a table may name in its own grants, or None when it takes the
+    blanket grant: a table of a schema in OWN_GRANT_SCHEMAS may name etl_writer;
+    a table in OWN_GRANT_TABLES (a blanket schema's one exception, ADR-0025)
+    may name both ETL roles."""
+    if schema in OWN_GRANT_SCHEMAS:
+        return ("etl_writer",)
+    if f"{schema}.{name}" in OWN_GRANT_TABLES:
+        return ROLES
+    return None
+
+
+def _grants(entry, where, roles):
+    """The table's own grants, `[{role, privileges}]`, only to a role `roles`
+    names."""
     raw = entry.get("grants")
     if raw is None:
         return []
-    if schema not in OWN_GRANT_SCHEMAS:
-        raise RegistryError(f"{where}: grants are for a table in {', '.join(OWN_GRANT_SCHEMAS)} only")
+    if roles is None:
+        raise RegistryError(f"{where}: grants are for a table in {', '.join(OWN_GRANT_SCHEMAS)} "
+                            f"or one of {', '.join(OWN_GRANT_TABLES)} only")
     if not isinstance(raw, list):
         raise RegistryError(f"{where}: grants: expected a list")
     grants, seen = [], set()
@@ -137,8 +150,8 @@ def _grants(entry, where, schema):
         if not isinstance(grant, dict):
             raise RegistryError(f"{where}: grant {grant!r}: expected a mapping")
         role = grant.get("role")
-        if role not in OWN_GRANT_ROLES:
-            raise RegistryError(f"{where}: grant to {role!r}: not one of {', '.join(OWN_GRANT_ROLES)}")
+        if role not in roles:
+            raise RegistryError(f"{where}: grant to {role!r}: not one of {', '.join(roles)}")
         if role in seen:
             raise RegistryError(f"{where}: two grants to {role}")
         seen.add(role)
@@ -150,14 +163,15 @@ def _grants(entry, where, schema):
     return grants
 
 
-def _policies(entry, where, schema, grants):
+def _policies(entry, where, roles, grants):
     """The table's named policies, `[{name, role, command, using?, check?}]`. A
     policy needs a grant of its command's privilege to its role."""
     raw = entry.get("policies")
     if raw is None:
         return []
-    if schema not in OWN_GRANT_SCHEMAS:
-        raise RegistryError(f"{where}: policies are for a table in {', '.join(OWN_GRANT_SCHEMAS)} only")
+    if roles is None:
+        raise RegistryError(f"{where}: policies are for a table in {', '.join(OWN_GRANT_SCHEMAS)} "
+                            f"or one of {', '.join(OWN_GRANT_TABLES)} only")
     if not isinstance(raw, list):
         raise RegistryError(f"{where}: policies: expected a list")
     held = {g["role"]: g["privileges"] for g in grants}
@@ -170,8 +184,8 @@ def _policies(entry, where, schema, grants):
             raise RegistryError(f"{where}: policy {name!r} is declared twice")
         names.add(name)
         role, command = policy.get("role"), policy.get("command")
-        if role not in OWN_GRANT_ROLES:
-            raise RegistryError(f"{where}: policy {name}: role {role!r} is not one of {', '.join(OWN_GRANT_ROLES)}")
+        if role not in roles:
+            raise RegistryError(f"{where}: policy {name}: role {role!r} is not one of {', '.join(roles)}")
         if command not in PRIVILEGES:
             raise RegistryError(f"{where}: policy {name}: command {command!r} is not one of {', '.join(PRIVILEGES)}")
         if command not in held.get(role, []):
@@ -288,8 +302,9 @@ def _table_spec(entry, default_schema):
                         "unique": bool(idx.get("unique")), "where": predicate})
     spec = {"schema": schema, "name": name, "columns": columns, "pk": pk,
             "checks": checks, "fks": fks, "indexes": indexes}
-    grants = _grants(entry, where, schema)
-    for key, items in (("grants", grants), ("policies", _policies(entry, where, schema, grants)),
+    roles = _own_roles(schema, name)
+    grants = _grants(entry, where, roles)
+    for key, items in (("grants", grants), ("policies", _policies(entry, where, roles, grants)),
                        ("triggers", _triggers(entry, where))):
         if items:
             spec[key] = items
@@ -596,7 +611,7 @@ def render(changes):
     out += [f"ALTER TABLE {s['schema']}.{s['name']} ENABLE ROW LEVEL SECURITY;" for s in changes["tables"]]
     out += [f"GRANT USAGE ON SCHEMA {s} TO etl_writer, etl_reader;" for s in changes["schemas"] if s in GRANTED_SCHEMAS]
     for spec in changes["tables"]:
-        if spec["schema"] not in GRANTED_SCHEMAS:
+        if spec["schema"] not in GRANTED_SCHEMAS or spec.get("grants"):
             continue
         qualified = f"{spec['schema']}.{spec['name']}"
         out += [f"GRANT SELECT, INSERT, UPDATE, DELETE ON {qualified} TO etl_writer;",
@@ -607,7 +622,7 @@ def render(changes):
     for spec in changes["tables"]:
         qualified = f"{spec['schema']}.{spec['name']}"
         for grant in spec.get("grants", []):
-            if (spec["schema"], grant["role"]) not in usage:
+            if spec["schema"] not in GRANTED_SCHEMAS and (spec["schema"], grant["role"]) not in usage:
                 usage.append((spec["schema"], grant["role"]))
                 out.append(f"GRANT USAGE ON SCHEMA {spec['schema']} TO {grant['role']};")
             out.append(f"GRANT {', '.join(grant['privileges'])} ON {qualified} TO {grant['role']};")

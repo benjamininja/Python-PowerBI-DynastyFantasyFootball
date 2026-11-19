@@ -263,26 +263,85 @@ def test_changed_at_is_set_on_insert_and_moves_on_an_update_that_tries_to_set_it
     assert second > first
 
 
-def test_a_passed_deadline_cannot_be_changed_or_deleted_by_any_role(conn):
-    _deadline(conn, "fa_keep", PAST)
-    for role in ("etl_writer", "NONE"):
-        for sql in ("UPDATE ops.choice_deadline SET deadline_at = now() + interval '1 year'",
-                    "DELETE FROM ops.choice_deadline"):
-            _fails(conn, role, sql, psycopg.errors.RaiseException)
+DEADLINE_WRITES = ("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at) "
+                   "VALUES ('S', 'resign', now() - interval '1 hour')",
+                   "UPDATE ops.choice_deadline SET deadline_at = now() - interval '1 hour'",
+                   "DELETE FROM ops.choice_deadline")
 
 
-def test_a_deadline_still_ahead_can_be_moved_and_deleted(conn):
+def test_the_deadline_table_grants_both_etl_roles_select_and_nothing_else(conn):
+    grants = conn.execute(
+        "SELECT a.privilege_type, coalesce(r.rolname, 'PUBLIC') FROM pg_class c "
+        "CROSS JOIN LATERAL aclexplode(c.relacl) a LEFT JOIN pg_roles r ON r.oid = a.grantee "
+        "WHERE c.oid = 'ops.choice_deadline'::regclass AND a.grantee <> c.relowner "
+        "ORDER BY 2").fetchall()
+    assert grants == [("SELECT", "etl_reader"), ("SELECT", "etl_writer")]
+    policies = conn.execute("SELECT policyname, cmd, roles::text[] FROM pg_policies "
+                            "WHERE schemaname = 'ops' AND tablename = 'choice_deadline' "
+                            "ORDER BY policyname").fetchall()
+    assert policies == [("etl_reader_select", "SELECT", ["etl_reader"]),
+                        ("etl_writer_select", "SELECT", ["etl_writer"])]
+
+
+def test_both_etl_roles_read_the_deadline_table(conn):
     _deadline(conn, "fa_keep", FUTURE)
-    conn.execute("SET LOCAL ROLE etl_writer")
+    for role in ("etl_writer", "etl_reader"):
+        assert _count_as(conn, role, "SELECT count(*) FROM ops.choice_deadline") == 1
+
+
+def test_the_writer_is_refused_every_write_on_a_deadline_row_ahead_and_passed(conn):
+    _deadline(conn, "fa_keep", FUTURE)
+    _deadline(conn, "resign", PAST)
+    for sql in DEADLINE_WRITES:
+        _fails(conn, "etl_writer", sql, psycopg.errors.InsufficientPrivilege)
+
+
+def test_the_reader_is_refused_every_write_on_the_deadline_table(conn):
+    _deadline(conn, "fa_keep", FUTURE)
+    for sql in DEADLINE_WRITES:
+        _fails(conn, "etl_reader", sql, psycopg.errors.InsufficientPrivilege)
+
+
+def test_the_writer_cannot_open_a_choice_by_writing_a_deadline(conn):
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "loader"))
+    _deadline(conn, "fa_keep", FUTURE)
+    _fails(conn, "etl_writer", DEADLINE_WRITES[1], psycopg.errors.InsufficientPrivilege)
+    assert _count_as(conn, "etl_writer") == 0
+
+
+def test_the_owner_can_move_and_delete_a_deadline_still_ahead(conn):
+    _deadline(conn, "fa_keep", FUTURE)
     conn.execute("UPDATE ops.choice_deadline SET deadline_at = now() + interval '2 days'")
     conn.execute("UPDATE ops.choice_deadline SET deadline_at = now() - interval '1 hour'")
-    conn.execute("RESET ROLE")
-    _fails(conn, "etl_writer", "DELETE FROM ops.choice_deadline", psycopg.errors.RaiseException)
+    _fails(conn, "NONE", "DELETE FROM ops.choice_deadline", psycopg.errors.RaiseException)
+    _deadline(conn, "resign", FUTURE)
+    conn.execute("DELETE FROM ops.choice_deadline WHERE choice_kind = 'resign'")
+
+
+def test_a_passed_deadline_cannot_be_changed_or_deleted_even_by_the_owner(conn):
+    _deadline(conn, "fa_keep", PAST)
+    for sql in ("UPDATE ops.choice_deadline SET deadline_at = now() + interval '1 year'",
+                "DELETE FROM ops.choice_deadline"):
+        _fails(conn, "NONE", sql, psycopg.errors.RaiseException)
 
 
 def test_a_deadline_row_can_be_inserted_after_its_instant_has_passed(conn):
     _deadline(conn, "fa_keep", PAST)
     assert _count_as(conn, "etl_reader", "SELECT count(*) FROM ops.choice_deadline") == 1
+
+
+def test_the_loaders_file_leaves_an_owners_row_alone_and_updates_a_loader_row(conn):
+    import load_contract_choices as loader
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "app"))
+    conn.execute("INSERT INTO app.contract_choices (season_id, team_key, scorer_id, choice_kind, choice, origin) "
+                 "VALUES ('S', 'T', 'y', 'fa_keep', 'keep', 'loader')")
+    rows = [{"team_key": "T", "scorer_id": s, "choice": "let_go", "locked_value": 5.0} for s in ("x", "y", "z")]
+    body = loader.sql_file("S", rows).replace("BEGIN;\n", "").replace("COMMIT;\n", "")
+    written, left_alone = conn.execute(body).fetchone()
+    assert (written, left_alone) == (2, 1)
+    got = dict(conn.execute("SELECT scorer_id, choice || '/' || origin || '/' || coalesce(locked_value::text, '-') "
+                            "FROM app.contract_choices").fetchall())
+    assert got == {"x": "keep/app/-", "y": "let_go/loader/5", "z": "let_go/loader/5"}
 
 
 def test_the_two_trigger_functions_are_in_ops_and_closed_to_everyone(conn):

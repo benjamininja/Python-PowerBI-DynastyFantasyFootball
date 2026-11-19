@@ -69,11 +69,18 @@ class TestTheFile:
         code, lines, out = run(place)
         sql = out.read_text(encoding="utf-8")
         assert code == 0
-        assert sql.startswith("BEGIN;\nINSERT INTO app.contract_choices ")
+        assert sql.startswith("BEGIN;\nWITH written AS (\nINSERT INTO app.contract_choices ")
         assert sql.rstrip().endswith("COMMIT;")
         assert sql.count("INSERT INTO") == 1
         assert ("ON CONFLICT (season_id, team_key, scorer_id, choice_kind) DO UPDATE SET "
-                "choice = EXCLUDED.choice, locked_value = EXCLUDED.locked_value;") in sql
+                "choice = EXCLUDED.choice, locked_value = EXCLUDED.locked_value\n") in sql
+
+    def test_a_key_an_owners_row_holds_is_left_alone_and_counted(self, place):
+        _, _, out = run(place)
+        sql = out.read_text(encoding="utf-8")
+        assert "WHERE contract_choices.origin = 'loader'\nRETURNING 1\n)" in sql
+        assert "SELECT count(*) AS rows_written, 4 - count(*) AS keys_left_alone FROM written;" in sql
+        assert "SET origin" not in sql and "changed_by =" not in sql
 
     def test_each_row_is_fa_keep_from_the_loader_with_no_changed_by(self, place):
         _, _, out = run(place)
@@ -82,7 +89,7 @@ class TestTheFile:
         assert ("('S2026', 'T1', 's2', 'fa_keep', 'let_go', 3500000.0, 'loader', NULL)") in sql
         assert ("('S2026', 'T2', 's4', 'fa_keep', 'keep', 1250000.5, 'loader', NULL)") in sql
         assert ("('S2026', 'T2', 's5', 'fa_keep', 'let_go', 4000000.0, 'loader', NULL)") in sql
-        assert sql.count("'loader'") == 4
+        assert sql.count(", 'loader', NULL)") == 4
 
     def test_the_file_holds_no_name(self, place):
         _, _, out = run(place)
@@ -130,13 +137,15 @@ class TestTheCounts:
         code, lines, _ = run(place)
         assert code == 0
         assert lines == ["read: 4 row(s)", "wrote: 4 row(s) to the file",
-                         "FA copies on the roster that the file does not list: 1"]
+                         "FA copies on the roster that the file does not list: 1",
+                         "when run, the file returns rows_written and keys_left_alone "
+                         "(keys an owner's own row holds)"]
 
     def test_a_copy_the_file_does_not_list_gets_no_row(self, place):
         _, lines, out = run(place, rows=FILE_ROWS[:2])
         sql = out.read_text(encoding="utf-8")
         assert sql.count("'fa_keep'") == 2
-        assert lines[-1] == "FA copies on the roster that the file does not list: 3"
+        assert "FA copies on the roster that the file does not list: 3" in lines
 
     def test_no_line_names_a_player_a_team_or_a_value(self, place):
         _, lines, _ = run(place, rows=[("Test Team One", "Nobody Here", "keep")])
@@ -210,6 +219,81 @@ class TestStops:
         assert sum(line.startswith("stopped:") for line in lines) == 3
 
 
+class TestRowNumbers:
+    def test_a_stop_names_the_spreadsheet_rows_of_each_problem(self, place):
+        rows = [("Test Team One", "Alpha One", "keep"), ("No Such Team", "x", "keep"),
+                ("Test Team One", "Nobody Here", "keep"), ("Also None", "y", "keep"),
+                ("Test Team Two", "Delta Four", "maybe")]
+        code, lines, _ = run(place, rows=rows)
+        assert code == 1
+        assert "stopped: 2 row(s) whose team does not resolve to one team (file rows 3, 5)" in lines
+        assert "stopped: 1 row(s) whose player is not on that team's roster (file rows 4)" in lines
+        assert "stopped: 1 row(s) whose choice is not keep or let go (file rows 6)" in lines
+
+    def test_a_row_after_a_blank_row_keeps_its_own_number(self, place):
+        rows = [("Test Team One", "Alpha One", "keep"), (None, None, None), ("No Such Team", "x", "keep")]
+        _, lines, _ = run(place, rows=rows)
+        assert any("(file rows 4)" in line for line in lines)
+
+    def test_a_repeated_copy_is_named_by_its_second_row(self, place):
+        _, lines, _ = run(place, rows=FILE_ROWS + [FILE_ROWS[0]])
+        assert "stopped: 1 row(s) listing a copy already listed (file rows 6)" in lines
+
+    def test_no_row_number_line_holds_a_name_a_team_or_a_value(self, place):
+        _, lines, _ = run(place, rows=[("No Such Team", "Alpha One", "keep")])
+        text = "".join(lines)
+        for word in ("No Such", "Alpha", "Test Team", "2000000"):
+            assert word not in text
+
+
+class TestNameMatching:
+    def test_punctuation_suffix_case_and_spacing_do_not_stop_the_run(self, place):
+        names = NAMES.assign(player_name=["Alpha O'Neil Jr.", "Bravo  Two", "Charlie Three", "Delta Four",
+                                          "Echo Five", "Foxtrot Six"])
+        code, _, out = run(place, rows=[("Test Team One", "alpha o'neil jr", "keep"),
+                                        ("test team one ", " BRAVO TWO", "let go")],
+                           tables=tables(names=names))
+        assert code == 0 and out.read_text(encoding="utf-8").count("'fa_keep'") == 2
+
+    def test_it_stays_exact_equality_with_no_fuzzy_match(self, place):
+        code, lines, _ = run(place, rows=[("Test Team One", "Alpha Onee", "keep")])
+        assert code == 1 and any("player is not on" in line for line in lines)
+
+    def test_the_helper_is_the_shared_one(self):
+        source = (REPO / "scripts" / "load_contract_choices.py").read_text(encoding="utf-8")
+        assert "etl.clean_player_name" in source
+
+
+class TestTheStorageAndTheOutFile:
+    def test_a_database_storage_setting_stops_the_run_and_writes_nothing(self, place, monkeypatch):
+        monkeypatch.setenv("ETL_STORAGE", "postgres")
+        code, lines, out = run(place)
+        assert code == 1 and not out.exists()
+        assert "stopped: ETL_STORAGE selects the database; the loader reads the published snapshot only" in lines
+        assert lines[-1] == "nothing was written"
+
+    def test_the_parquet_setting_runs_as_usual(self, place, monkeypatch):
+        monkeypatch.setenv("ETL_STORAGE", "parquet")
+        assert run(place)[0] == 0
+
+    def test_an_out_path_that_exists_is_refused_and_left_as_it_was(self, place):
+        target = place / "out.sql"
+        target.write_text("EARLIER RUN", encoding="utf-8")
+        code, lines, _ = run(place, out_name="out.sql")
+        assert code == 1 and target.read_text(encoding="utf-8") == "EARLIER RUN"
+        assert any("--out already exists" in line for line in lines)
+
+    def test_an_out_path_that_is_a_folder_is_refused(self, place):
+        (place / "dir").mkdir()
+        code, lines, _ = run(place, out_name="dir")
+        assert code == 1 and any("--out already exists" in line for line in lines)
+
+    def test_a_failed_run_after_a_good_one_leaves_no_file_at_a_new_path(self, place):
+        _, _, first = run(place, out_name="one.sql")
+        code, _, second = run(place, rows=[("No Such Team", "x", "keep")], out_name="two.sql")
+        assert first.exists() and code == 1 and not second.exists()
+
+
 class TestTheOutPath:
     def test_a_path_inside_a_git_repository_is_refused(self, tmp_path):
         repo = tmp_path / "work"
@@ -252,7 +336,7 @@ class TestTheOutPath:
 class TestTheScriptConnectsToNothing:
     def test_it_imports_no_database_driver_and_reads_no_env_file(self):
         source = (REPO / "scripts" / "load_contract_choices.py").read_text(encoding="utf-8")
-        for word in ("psycopg", "SUPABASE_DB_URL", "use_env_file", "write_table", "environ"):
+        for word in ("psycopg", "SUPABASE_DB_URL", "use_env_file", "write_table", "_backend"):
             assert word not in source
 
     def test_main_reads_through_the_seam_and_prints_a_stop_without_a_value(self, tmp_path, monkeypatch, capsys):

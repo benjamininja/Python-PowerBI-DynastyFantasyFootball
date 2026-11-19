@@ -49,9 +49,10 @@
 #   other_tables : tables with no parquet file (the `ops` and `shared`
 #             tables), read only by the migration generator.
 #   Schema `app` (ADR-0025) is not granted the blanket way, and these fields
-#   are for its tables (and `default` and `triggers` for any other_tables
-#   entry): `default` on a column, a SQL expression, written after NOT NULL;
-#   `grants`, [{role, privileges}], to etl_writer only; `policies`, [{name,
+#   are for its tables and for ops.choice_deadline (and `default` and
+#   `triggers` for any other_tables entry): `default` on a column, a SQL expression, written after NOT NULL;
+#   `grants`, [{role, privileges}], to etl_writer only (both ETL roles on
+#   ops.choice_deadline, which then takes no blanket grant); `policies`, [{name,
 #   role, command, using / check}], each needing a grant of its command;
 #   `triggers`, [{name, timing, events, level, function}]. A trigger names a
 #   function of the top-level `trigger_functions`, [{name: ops.<name>, body}]:
@@ -1629,10 +1630,11 @@ other_tables:
       - { name: changed_by, sql_type: uuid }
       - { name: changed_at, sql_type: timestamptz, default: "clock_timestamp()" }
 
-  # The deadline of each choice window (ADR-0025 decision 4). An ordinary `ops`
-  # table for grants. A passed row cannot be changed or deleted by any role. The
-  # refusal of a TRUNCATE is parked (#548): migration_gate holds any statement
-  # holding that word, so it waits on a ruling.
+  # The deadline of each choice window (ADR-0025 decision 4). It gates the
+  # etl_writer read of app.contract_choices, so no ETL role may write it: both
+  # roles read it (the deadline is public) and only the table owner writes it,
+  # by the statement scripts/print_choice_deadline.py prints. A passed row
+  # cannot be changed or deleted, even by the owner.
   - name: choice_deadline
     schema: ops
     pk: [season_id, choice_kind]
@@ -1641,6 +1643,12 @@ other_tables:
       - { columns: [season_id], to: dim_season, ref: [season_id] }
     checks:
       - "choice_kind IN ('resign', 'fa_keep')"
+    grants:
+      - { role: etl_writer, privileges: [SELECT] }
+      - { role: etl_reader, privileges: [SELECT] }
+    policies:
+      - { name: etl_writer_select, role: etl_writer, command: SELECT, using: "true" }
+      - { name: etl_reader_select, role: etl_reader, command: SELECT, using: "true" }
     triggers:
       - { name: choice_deadline_guard_row, timing: BEFORE, events: [UPDATE, DELETE], level: ROW, function: ops.refuse_passed_deadline_change }
     columns:
@@ -1662,7 +1670,7 @@ trigger_functions:
   - name: ops.refuse_passed_deadline_change
     body: |
       BEGIN
-          IF OLD.deadline_at <= clock_timestamp() THEN
+          IF OLD.deadline_at < clock_timestamp() THEN
               RAISE EXCEPTION 'a deadline that has passed cannot be changed';
           END IF;
           IF TG_OP = 'DELETE' THEN
