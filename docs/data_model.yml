@@ -78,7 +78,8 @@
 # Check parameters (ADR-0008 amendment decisions 3, 4, 6, 16; read by
 # notebooks/etl_checks.py):
 #   chain         : the publish unit that writes this table — fantrax_core |
-#                   rookie | dynasty_profile | nflverse. Absent = manual-only
+#                   rookie | dynasty_profile | nflverse | team_manifest (01c,
+#                   dim_fantasy_teams alone, #614). Absent = manual-only
 #                   (written by hand-run notebooks, reaches main by PR; the
 #                   pipeline never stages it). Steps in run_pipeline.py carry
 #                   the same tag.
@@ -247,6 +248,7 @@ tables:
     type: dim
     grain: team_key
     pk: [team_key]
+    chain: team_manifest
     required_keys: [team_key]
     columns:
       - { name: team_key, dtype: str, sql_type: text }

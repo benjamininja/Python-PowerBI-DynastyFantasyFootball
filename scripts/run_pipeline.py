@@ -7,8 +7,8 @@ itself once pii-scan, tests and bot-tests pass (#361; see CONTRIBUTING.md),
 and notifies a private Discord channel via webhook.
 
 Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
-(fantrax_core, rookie, dynasty_profile, nflverse — each step and each
-registry table carries one). After the steps, notebooks/etl_checks.py runs
+(fantrax_core, rookie, dynasty_profile, nflverse, team_manifest — each step
+and each registry table carries one). After the steps, notebooks/etl_checks.py runs
 the Gate checks on every table of each Chain that ran. A Chain with a failed
 or skipped step or a failed Gate is held: its tracked parquet is restored
 from git HEAD and never staged; the other Chains still publish. Manual-only
@@ -181,6 +181,15 @@ def _nbconvert(p: str) -> list[str]:
             "--execute", "--inplace", str(NB / p)]
 
 
+def _nbconvert_untracked(p: str) -> list[str]:
+    """Execute a notebook that reads the owner sheet without saving its
+    outputs into the tracked file: the executed copy goes to data/outputs
+    (gitignored). The tracked notebook stays output-free (nbstripout and
+    check_pii.py OUTPUT_FREE)."""
+    return [str(VENV_PY), "-m", "nbconvert", "--to", "notebook", "--execute",
+            "--output-dir", str(OUT_DIR), "--output", p, str(NB / p)]
+
+
 # Step table: name -> (cmd, phases it runs in, upstream deps, Chain, "group").
 # "phases" (calendar timing) and "group" (domain area) are orthogonal — e.g.
 # the rookie chain below isn't phase-gated at all (runs in every phase) but
@@ -190,6 +199,14 @@ def _nbconvert(p: str) -> list[str]:
 # Order matters (sequential execution).
 def build_steps(profile: str | None) -> list[dict]:
     steps = [
+        # The team-manifest (a private Google Sheet, read as a service account;
+        # #609, #614) in a Chain of its own, so a missing or unreadable
+        # GOOGLE_SHEETS_KEY_FILE holds only this table's publish. First, so the
+        # fantrax_core steps that read dim_fantasy_teams (02d, 02e, 02h, 02k)
+        # read it as the run leaves it; none of them needs it. Runs out of
+        # data/outputs, so the owner's sheet never lands in the tracked notebook.
+        {"name": "01c_dim_fantasy_teams", "cmd": _nbconvert_untracked("01c_dim_fantasy_teams_seed.ipynb"),
+         "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "team_manifest", "group": "pre_season"},
         {"name": "01f_dim_season", "cmd": _nbconvert("01f_dim_season_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "fantrax_core", "group": "pre_season"},
         # Public getLeagueInfo (no login): dim_scoring_period with the
@@ -259,7 +276,7 @@ def build_steps(profile: str | None) -> list[dict]:
         # capture. dim_nfl_players and dim_gsis_link (both 01e) and
         # fact_nfl_minor_eligibility (02j) are read as the run leaves them,
         # with no need, so an nflverse failure does not hold this Chain.
-        # dim_fantasy_teams is a seed (01c), not a step.
+        # dim_fantasy_teams (01c, the team_manifest Chain) is read the same way.
         {"name": "02k_contract_moves", "cmd": _script("02k_fact_contract_move.py"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"},
          "needs": ["02e_derive", "04v_minor_contracts", "02d_ledger"], "chain": "fantrax_core", "group": "regular_season"},
