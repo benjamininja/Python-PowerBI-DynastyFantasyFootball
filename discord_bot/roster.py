@@ -29,7 +29,7 @@ _PLAYERS_PER_FIELD = 15
 
 
 def _resolve_team(teams: pd.DataFrame, query: str) -> pd.Series:
-    q = query.strip().lower()
+    q = (query or "").strip().lower()
     if not q:
         raise CommandError("Give me a team, e.g. `/roster BIGL` or `/roster Big L`.")
     exact_abbr = teams[teams["team_abbr"].fillna("").str.lower() == q]
@@ -41,7 +41,8 @@ def _resolve_team(teams: pd.DataFrame, query: str) -> pd.Series:
         raise CommandError(f"No team matches **{query}**.")
     if len(hits) > 1:
         listed = ", ".join(
-            f"{r.team_name} (`{render.safe_str(r.team_abbr)}`)" for r in hits.head(10).itertuples()
+            f"{r.team_name} (`{abbr}`)" if (abbr := render.safe_str(r.team_abbr).strip()) else str(r.team_name)
+            for r in hits.head(10).itertuples()
         )
         raise CommandError(f"Multiple teams match **{query}**: {listed}. Be more specific.")
     return hits.iloc[0]

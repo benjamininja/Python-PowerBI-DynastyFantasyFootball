@@ -1,4 +1,4 @@
-"""The owner's delete of the rejected sources (#459, B10):
+"""The owner's delete of the rejected source DynastyLeagueFootball (#589):
 scripts/delete_rejected_sources.py, run on a fake connection. Nothing here
 reaches a database: the fake answers the script's SQL from a dict of counts, and
 conftest removes SUPABASE_DB_URL before every case.
@@ -112,18 +112,14 @@ class TestTheTargets:
             assert t.table in registry, t.table
             assert t.column in [c["name"] for c in registry[t.table]["columns"]], (t.table, t.column)
 
-    def test_the_fact_rows_come_before_the_metric_dim_which_comes_last(self):
-        tables = [t.table for t in delete.TARGETS]
-        assert tables[-1] == "dim_dynasty_metric"
-        assert tables.index("fact_dynasty_ranking_metrics") < tables.index("dim_dynasty_metric")
-
-    def test_the_expected_counts_are_459s(self):
+    def test_the_expected_counts_are_589s(self):
         assert expected() == {
-            ("fact_dynasty_ranking_metrics", "KTC"): 15730, ("fact_dynasty_ranking_metrics", "FantasyPros"): 3966,
-            ("dim_dynasty_metric", "KTC"): 17, ("dim_dynasty_metric", "FantasyPros"): 6,
-            ("fact_rookie_rankings", "KeepTradeCut"): 54, ("fact_rookie_rankings", "FantasyPros"): 422,
-            ("dim_dynasty_crosswalk", "KTC"): 464, ("dim_dynasty_crosswalk", "FantasyPros"): 661,
-            ("dim_pick_value_curve", "KTC"): 36}
+            ("fact_rookie_rankings", "DynastyLeagueFootball"): 49,
+            ("dim_player_alias", "DynastyLeagueFootball"): 11}
+
+    def test_the_targets_are_two_tables_on_their_own_source_column(self):
+        assert [(t.table, t.column) for t in delete.TARGETS] == [
+            ("fact_rookie_rankings", "source_site"), ("dim_player_alias", "source_example")]
 
 
 class TestTheDryRun:
@@ -135,23 +131,32 @@ class TestTheDryRun:
         assert conn.deleted == [] and conn.events == []
         assert not any(q.startswith(("DELETE", "SET LOCAL")) for q in conn.log)
         assert conn.state == expected()
-        assert "fact_dynasty_ranking_metrics where source_name = KTC: 15730 row(s) would be deleted " \
-               "(#459 expects 15730: match)" in out
-        assert "fact_rookie_rankings where source_site = KeepTradeCut: 54 row(s)" in out
-        assert "dim_pick_value_curve where source_name = KTC: 36 row(s)" in out
-        assert len([line for line in out.splitlines() if "#459 expects" in line]) == 9
-        assert "counts match #459's" in out and "dry run: nothing was deleted" in out
+        assert "fact_rookie_rankings where source_site = DynastyLeagueFootball: 49 row(s) would be deleted " \
+               "(#589 expects 49: match)" in out
+        assert "dim_player_alias where source_example = DynastyLeagueFootball: 11 row(s) would be deleted " \
+               "(#589 expects 11: match)" in out
+        assert len([line for line in out.splitlines() if "#589 expects" in line]) == 2
+        assert "counts match #589's" in out and "dry run: nothing was deleted" in out
 
-    def test_a_count_that_differs_exits_1_after_printing_every_table_with_DIFFERS_beside_it(self):
-        held = {**expected(), ("dim_dynasty_crosswalk", "FantasyPros"): 660}
+    @pytest.mark.parametrize("table, wrong, said", [
+        ("fact_rookie_rankings", 48, "fact_rookie_rankings where source_site = DynastyLeagueFootball: 48 "
+                                    "row(s) would be deleted (#589 expects 49: DIFFERS)"),
+        ("fact_rookie_rankings", 50, "fact_rookie_rankings where source_site = DynastyLeagueFootball: 50 "
+                                    "row(s) would be deleted (#589 expects 49: DIFFERS)"),
+        ("dim_player_alias", 10, "dim_player_alias where source_example = DynastyLeagueFootball: 10 "
+                                "row(s) would be deleted (#589 expects 11: DIFFERS)"),
+        ("dim_player_alias", 12, "dim_player_alias where source_example = DynastyLeagueFootball: 12 "
+                                "row(s) would be deleted (#589 expects 11: DIFFERS)"),
+    ])
+    def test_a_count_that_differs_exits_1_after_printing_both_tables_with_DIFFERS_beside_it(
+            self, table, wrong, said):
+        held = {**expected(), (table, "DynastyLeagueFootball"): wrong}
         conn = FakeConnection(held=held)
         code, out = run(conn)
         assert code == 1
-        assert len([line for line in out.splitlines() if "#459 expects" in line]) == 9
-        assert [line for line in out.splitlines() if "DIFFERS)" in line] == [
-            "dim_dynasty_crosswalk where source = FantasyPros: 660 row(s) would be deleted "
-            "(#459 expects 661: DIFFERS)"]
-        assert "counts DIFFER from #459's: do not --apply" in out
+        assert len([line for line in out.splitlines() if "#589 expects" in line]) == 2
+        assert [line for line in out.splitlines() if "DIFFERS)" in line] == [said]
+        assert "counts DIFFER from #589's: do not --apply" in out
         assert conn.deleted == [] and conn.state == held
 
     def test_main_with_no_flag_is_a_dry_run(self, monkeypatch, capsys):
@@ -163,17 +168,17 @@ class TestTheDryRun:
 
 
 class TestTheApply:
-    def test_it_deletes_the_facts_before_the_metric_dim_and_commits_at_zero(self):
+    def test_it_deletes_both_tables_in_one_transaction_and_commits_at_zero(self):
         conn = FakeConnection()
         code, out = run(conn, apply=True)
         assert code == 0
         assert not conn.read_only
-        assert conn.deleted == [t.table for t in delete.TARGETS]
-        assert conn.deleted[-1] == "dim_dynasty_metric"
+        assert conn.deleted == ["fact_rookie_rankings", "dim_player_alias"]
         assert conn.events == ["commit"]
         assert all(n == 0 for n in conn.state.values())
-        assert "fact_dynasty_ranking_metrics: 19696 row(s) deleted" in out
-        assert "committed: 21356 row(s) deleted from 5 table(s); every count is zero" in out
+        assert "fact_rookie_rankings: 49 row(s) deleted" in out
+        assert "dim_player_alias: 11 row(s) deleted" in out
+        assert "committed: 60 row(s) deleted from 2 table(s); every count is zero" in out
 
     def test_the_locks_are_bounded_and_the_keys_checked_inside_the_transaction(self):
         conn = FakeConnection()
@@ -185,8 +190,12 @@ class TestTheApply:
         assert conn.log.index("SET CONSTRAINTS ALL IMMEDIATE") < recount
         assert any(q.startswith("SET LOCAL lock_timeout") for q in conn.log[:first_delete])
 
-    def test_a_count_that_differs_from_459s_rolls_back_before_any_delete(self):
-        held = {**expected(), ("fact_dynasty_ranking_metrics", "KTC"): 15729}
+    @pytest.mark.parametrize("key, wrong", [
+        (("fact_rookie_rankings", "DynastyLeagueFootball"), 48),
+        (("dim_player_alias", "DynastyLeagueFootball"), 12),
+    ])
+    def test_a_count_that_differs_from_589s_rolls_back_before_any_delete(self, key, wrong):
+        held = {**expected(), key: wrong}
         conn = FakeConnection(held=held)
         code, out = run(conn, apply=True)
         assert code == 1
@@ -194,18 +203,22 @@ class TestTheApply:
         assert not any(q.startswith(("DELETE", "SET ")) for q in conn.log)
         assert conn.events == ["rollback"]
         assert conn.state == held
-        assert "fact_dynasty_ranking_metrics where source_name = KTC: 15729 row(s) found " \
-               "(#459 expects 15730: DIFFERS)" in out
-        assert "counts DIFFER from #459's; rolled back; nothing was deleted" in out
+        assert f"{key[0]} where " in out and f"DynastyLeagueFootball: {wrong} row(s) found " in out
+        assert "DIFFERS)" in out
+        assert "counts DIFFER from #589's; rolled back; nothing was deleted" in out
         assert "committed" not in out
 
-    def test_a_count_that_is_not_zero_after_the_delete_rolls_everything_back(self):
-        conn = FakeConnection(stuck={("fact_rookie_rankings", "FantasyPros"): 2})
+    @pytest.mark.parametrize("key", [
+        ("fact_rookie_rankings", "DynastyLeagueFootball"),
+        ("dim_player_alias", "DynastyLeagueFootball"),
+    ])
+    def test_a_count_that_is_not_zero_after_the_delete_rolls_everything_back(self, key):
+        conn = FakeConnection(stuck={key: 2})
         code, out = run(conn, apply=True)
         assert code == 1
         assert conn.events == ["rollback"]
         assert conn.state == expected()
-        assert "fact_rookie_rankings where source = FantasyPros: 2 row(s) left" in out
+        assert f"{key[0]} where source = DynastyLeagueFootball: 2 row(s) left" in out
         assert "rolled back; nothing was deleted" in out
         assert "committed" not in out
 

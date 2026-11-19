@@ -227,15 +227,15 @@ def test_roster():
     teams = pd.read_parquet(_DATA / "dim_fantasy_teams.parquet")
     owned = pd.read_parquet(_DATA / "fact_fantasy_teams.parquet")
     drafted_key = owned["team_key"].iloc[0]
-    drafted_abbr = teams.loc[teams["team_key"] == drafted_key, "team_abbr"].iloc[0]
-    embeds = roster.build_roster_embeds(CFG, drafted_abbr)
-    _check(embeds, f"roster {drafted_abbr} (drafted)")
+    drafted_name = teams.loc[teams["team_key"] == drafted_key, "team_name"].iloc[0]
+    embeds = roster.build_roster_embeds(CFG, drafted_name)
+    _check(embeds, f"roster {drafted_name} (drafted)")
     assert all("IR-exempt salary" in e.footer.text for e in embeds)
     # A team with no roster rows should hit the friendly empty-state.
     undrafted = teams[~teams["team_key"].isin(owned["team_key"].unique())]
     if not undrafted.empty:
         _expect_error(
-            lambda: roster.build_roster_embeds(CFG, undrafted.iloc[0]["team_abbr"]),
+            lambda: roster.build_roster_embeds(CFG, undrafted.iloc[0]["team_name"]),
             "roster undrafted (empty-state)",
         )
     _expect_error(lambda: roster.build_roster_embeds(CFG, "zzzznoteam"), "roster not found")
