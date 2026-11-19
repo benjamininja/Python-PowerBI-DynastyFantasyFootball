@@ -6,6 +6,7 @@ against a throwaway git repo on `main` with push=False, so the restore/stage
 path is exercised without touching the real repo or any remote. The
 registry-consistency tests pin the step table to docs/data_model.yml.
 """
+import subprocess
 import sys
 from pathlib import Path
 
@@ -16,6 +17,7 @@ sys.path.insert(0, str(REPO / "notebooks"))
 import pandas as pd
 
 import etl_checks as ec
+import etl_helpers
 import run_pipeline as rp
 from conftest import git
 
@@ -226,6 +228,84 @@ class TestTeamCapStep:
 
     def test_its_table_is_in_the_same_chain(self):
         assert ec.load_registry()["fact_team_cap"]["chain"] == "fantrax_core"
+
+
+class TestTeamManifestStep:
+    """01c writes dim_fantasy_teams in a Chain of its own (#614)."""
+
+    STEPS = rp.build_steps(None)
+
+    def _step(self):
+        return next(s for s in self.STEPS if s["name"] == "01c_dim_fantasy_teams")
+
+    def test_it_runs_in_all_three_phases_with_no_needs_in_its_own_chain(self):
+        step = self._step()
+        assert step["phases"] == {"INSEASON", "PRESEASON", "OFFSEASON"}
+        assert (step["needs"], step["chain"], step["cadence"]) == ([], "team_manifest", "daily")
+        assert step["cmd"][-1].endswith("01c_dim_fantasy_teams_seed.ipynb")
+        assert {s["name"] for s in self.STEPS if s["chain"] == "team_manifest"} == {"01c_dim_fantasy_teams"}
+
+    def test_it_is_in_every_profile(self):
+        assert any(s["name"] == "01c_dim_fantasy_teams" for s in rp.build_steps("dynasty"))
+
+    def test_the_table_carries_the_chain_line(self):
+        assert ec.load_registry()["dim_fantasy_teams"]["chain"] == "team_manifest"
+        assert ec.chain_tables(ec.load_registry())["team_manifest"] == ["dim_fantasy_teams"]
+
+    def test_nothing_needs_it_and_it_runs_before_the_steps_that_read_its_table(self):
+        names = [s["name"] for s in self.STEPS]
+        assert all("01c_dim_fantasy_teams" not in s["needs"] for s in self.STEPS)
+        for reader in ("02d_ledger", "02e_derive", "02h_team_cap", "02k_contract_moves"):
+            assert names.index("01c_dim_fantasy_teams") < names.index(reader)
+
+    def test_it_leaves_the_tracked_notebook_without_outputs(self):
+        cmd = self._step()["cmd"]
+        assert "--inplace" not in cmd
+        assert cmd[cmd.index("--output-dir") + 1] == str(rp.OUT_DIR)
+        assert rp.OUT_DIR.relative_to(REPO).as_posix() == "data/outputs"
+        ignored = subprocess.run(["git", "check-ignore", "-q", "data/outputs/x.ipynb"], cwd=REPO)
+        assert ignored.returncode == 0
+
+
+class TestTeamManifestKeyFileFailure:
+    """An unset or unreadable GOOGLE_SHEETS_KEY_FILE fails 01c's step, and only its Chain."""
+
+    LINE = f"Sheets sign-in: {etl_helpers.SHEETS_KEY_ENV} is not set in .env."
+
+    def _stub_notebook(self, folder):
+        # The step runs 01c's own read-cell handler shape: SheetsAuthError -> SystemExit(line).
+        import nbformat
+        nb = nbformat.v4.new_notebook()
+        nb.cells = [nbformat.v4.new_code_cell(f"raise SystemExit({self.LINE!r})")]
+        path = folder / "stub_01c.ipynb"
+        nbformat.write(nb, str(path))
+        return path
+
+    def test_the_step_fails_with_the_one_line_and_holds_only_its_chain(self, tmp_path, monkeypatch):
+        stub = self._stub_notebook(tmp_path)
+        step = {**next(s for s in rp.build_steps(None) if s["name"] == "01c_dim_fantasy_teams"),
+                "cmd": [rp.sys.executable, "-m", "nbconvert", "--to", "notebook", "--execute",
+                        "--output-dir", str(tmp_path / "out"), "--output", stub.name, str(stub)]}
+        other = {"name": "03b_walterfootball", "cmd": [rp.sys.executable, "-c", "pass"],
+                 "phases": step["phases"], "needs": [], "chain": "rookie", "group": "rookie"}
+        steps = [step, other]
+        monkeypatch.delenv(etl_helpers.SHEETS_KEY_ENV, raising=False)
+        results = rp.run_steps(steps, "OFFSEASON", None, dry_run=False)
+        by_name = {r["name"]: r for r in results}
+        assert by_name["01c_dim_fantasy_teams"]["status"] == "failed"
+        assert self.LINE in by_name["01c_dim_fantasy_teams"]["detail"]
+        assert by_name["03b_walterfootball"]["status"] == "ok"
+        chains = {"team_manifest": ["dim_fantasy_teams"], "rookie": ["ra"]}
+        plan = rp.plan_publish(steps, results, [], chains)
+        assert plan["failed"] == {"team_manifest": ["step 01c_dim_fantasy_teams failed"]}
+        assert plan["passed"] == ["rookie"]
+        assert plan["restore"] == ["dim_fantasy_teams"] and plan["publish"] == ["ra"]
+
+    def test_no_fantrax_core_step_is_skipped_by_it(self):
+        failed = {"01c_dim_fantasy_teams": "failed"}
+        for s in rp.build_steps(None):
+            if s["chain"] == "fantrax_core":
+                assert not any(failed.get(n) for n in s["needs"]), s["name"]
 
 
 class TestContractMoveStep:

@@ -219,7 +219,8 @@ _Avoid_: webhook, live sync
 
 **Chain**:
 A group of pipeline steps whose tables publish together or not at all: the
-Fantrax core, the rookie scrapes, the dynasty profile, nflverse. A failed Chain
+Fantrax core, the rookie scrapes, the dynasty profile, nflverse, the team
+manifest (`dim_fantasy_teams` alone). A failed Chain
 keeps its last good tables; the others still publish.
 _Avoid_: run (one run holds several Chains), job, group
 

@@ -7,6 +7,17 @@
 # every step named here exists, every stage has a description.
 
 stages:
+  - id: team_manifest
+    name: Team manifest
+    description: >-
+      Reads the league's team list, its names, divisions and Fantrax team ids,
+      from the commissioners' Google Sheet. Owners see it as the team names on
+      every screen. It publishes on its own, so a Google problem never holds
+      back the rest of the run, and it lands only when the sheet has changed.
+    tables: [dim_fantasy_teams]
+    steps:
+      - {name: 01c_dim_fantasy_teams, summary: "Reads the team list from the league's Google Sheet."}
+
   - id: season_league
     name: Season and league
     description: >-
@@ -104,7 +115,6 @@ publish:
 manual:
   - {name: 04w, summary: "Captures the live startup-draft results from Fantrax."}
   - {name: 04u, summary: "Reads future draft pick ownership from Fantrax's public API."}
-  - {name: 01c, summary: "Seeds the team list from the league's Google Sheet."}
   - {name: 03x, summary: "Loads rankings that arrive as Excel files."}
   - {name: 03y, summary: "Backfills the player alias table from past reviews."}
   - {name: 03z, summary: "Applies the owner's decisions on uncertain player matches."}

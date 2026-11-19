@@ -66,7 +66,7 @@ base), which lacks `playwright` and ships a broken `pyarrow`
 |---|---|---|
 | 01a | `01a_dim_rookie_prospect.ipynb` | `dim_position`, `dim_school`, `dim_rookie_prospect` |
 | 01b | `01b_dim_contract_seed.ipynb` | `dim_contract` |
-| 01c | `01c_dim_fantasy_teams_seed.ipynb` | `dim_fantasy_teams` (from Google Sheet) |
+| 01c | `01c_dim_fantasy_teams_seed.ipynb` | `dim_fantasy_teams` (from Google Sheet, read as a service account). Step `01c_dim_fantasy_teams` of the scheduled run, in its own `team_manifest` Chain: an unset or unreadable `GOOGLE_SHEETS_KEY_FILE` fails the step with one line and holds only this table. The step runs out of `data/outputs/`, so the tracked notebook stays output-free (#614) |
 | 01d | `01d_dim_nfl_teams_seed.ipynb` | `dim_nfl_teams` |
 | 01e | `01e_dim_nfl_players_seed.ipynb` | `dim_nfl_players` (maps nflverse names → canonical schema) |
 | 01f | `01f_dim_season_seed.ipynb` | `dim_season` (calendar spine, current+2; ADR-0004) |

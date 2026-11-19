@@ -251,7 +251,7 @@ sources:
     locator: "https://docs.google.com/spreadsheets/d/1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc (gid 178660131), read through the Sheets API v4 (values)"
     purpose: "Owner/team roster manifest: division, team name, abbrev, Team ID, Fantrax-TeamId (no emails; those live in a commissioners-only sheet)"
     auth: "Restricted workbook, shared with a Google service account as Viewer. etl_helpers.read_sheet_tab signs in with the service account's JSON key (path in GOOGLE_SHEETS_KEY_FILE, a file outside every repository) under the spreadsheets.readonly scope, and reads only the columns 01c uses (#609)"
-    cadence: "On league/owner change (manual rerun)"
+    cadence: "Every pipeline run, all phases (`01c_dim_fantasy_teams` step, team_manifest Chain); the table publishes only when the manifest changed"
     feeds:
       - { notebook: 01c_dim_fantasy_teams_seed.ipynb, table: dim_fantasy_teams }
     # The sheet id and gid live in CFG (etl_helpers.py); 01c reads them through

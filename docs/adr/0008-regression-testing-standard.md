@@ -130,6 +130,8 @@ the in-season checks wait for #116. The July decisions above stand.
    - Before cutover, a failed Chain's parquet is restored from git `HEAD`, so its files never reach the commit.
 
    *Amended at build (#115): the nflverse Chain starts now with `01e`; #86 adds to it. Each registry table carries one `chain:` (`docs/data_model.yml`), and each pipeline step carries the same tag. Tables with no Chain are manual-only: the pipeline never stages them, and they reach `main` by PR. A Chain with no step in the run is not judged.*
+
+   *Amended at build (#614): a fifth Chain, `team_manifest`, holds `01c` and `dim_fantasy_teams` alone. The table is read from a private Google Sheet as a service account, so a missing or unreadable key file fails that step and holds only this Chain.*
 4. **Gate checks:**
    - a step exits non-zero;
    - grain uniqueness on each table's registry grain (the primary key enforces it after cutover);
