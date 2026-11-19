@@ -69,6 +69,7 @@ jobs:
           FANTRAX_TOTP_SECRET: ${{ secrets.FANTRAX_TOTP_SECRET }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL_ADMIN: ${{ secrets.DISCORD_WEBHOOK_URL_ADMIN }}
           ETL_STORAGE: ${{ vars.ETL_STORAGE }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: bash scripts/run_daily.sh
