@@ -124,7 +124,7 @@ table Dim_NFLTeams
 		queryGroup: 'Dimension Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				    #"Removed Columns" = Table.RemoveColumns(Source,{"team_id_pfr", "team_stadium"})
 				in
 				    #"Removed Columns"

@@ -116,7 +116,7 @@ table Dim_FantasyTeams
 		queryGroup: 'Dimension Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_fantasy_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\dim_fantasy_teams.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
 				in
 				    Source
 

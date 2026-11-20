@@ -42,7 +42,7 @@ table Dim_Division
 		queryGroup: 'Dimension Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_division.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\dim_division.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null])
 				in
 				    Source
 

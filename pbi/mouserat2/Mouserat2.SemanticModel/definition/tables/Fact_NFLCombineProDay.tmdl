@@ -314,7 +314,7 @@ table Fact_NFLCombineProDay
 		queryGroup: 'Fact Tables'
 		source =
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\fact_nfl_combine_pro_day_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\fact_nfl_combine_pro_day_metrics.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				    #"Removed Columns" = Table.RemoveColumns(Source,{"pfr_id", "cfb_id"}),
 				    #"Changed Type" = Table.TransformColumnTypes(#"Removed Columns",{{"ten_split", type number}, {"hand_size", type number}, {"arm_length", type number}, {"wingspan", type number}})
 				in

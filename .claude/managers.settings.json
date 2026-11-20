@@ -8,7 +8,7 @@
       "Bash(gh issue edit *)", "Bash(gh issue close *)",
       "Bash(git status*)", "Bash(git diff*)", "Bash(git log*)", "Bash(git show *)",
       "Bash(git pull --ff-only)", "Bash(git fetch*)", "Bash(git cherry *)",
-      "Bash(git -C C:/Users/benha/OneDrive/Documents/GitHub/skills-plugins-hooks-agents pull --ff-only)", "Bash(git -C C:/Users/benha/claude-live/skills-plugins-hooks-agents pull --ff-only)",
+      "Bash(git -C C:/source/Github/skills-plugins-hooks-agents pull --ff-only)", "Bash(git -C C:/Users/benha/claude-live/skills-plugins-hooks-agents pull --ff-only)",
       "Bash(git switch *)", "Bash(git add *)", "Bash(git commit -F *)", "Bash(git push -u origin *)",
       "Bash(git branch -d *)", "Bash(git push origin --delete *)",
       "Bash(git worktree list)", "Bash(git worktree add *)", "Bash(git worktree remove *)",
@@ -21,7 +21,7 @@
       "PowerShell(*claude.exe agents *)",
       "PowerShell(*claude.exe stop *)",
       "Bash(.venv/Scripts/python.exe scripts/reproof.py *)",
-      "Bash(C:/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball/.venv/Scripts/python.exe C:/Users/benha/claude-live/skills-plugins-hooks-agents/tools/reproof.py *)"
+      "Bash(C:/source/Github/Python-PowerBI-DynastyFantasyFootball/.venv/Scripts/python.exe C:/Users/benha/claude-live/skills-plugins-hooks-agents/tools/reproof.py *)"
     ],
     "deny": [
       "Bash(git push*--force*)", "Bash(git push* -f*)", "Bash(git push*origin main*)",
@@ -40,9 +40,9 @@
       "Write(.claude/settings.json)", "Write(.claude/settings.local.json)",
       "Write(.claude/builders.settings.json)", "Write(.claude/managers.settings.json)",
       "Read(.env)", "Edit(.env)", "Write(.env)",
-      "Read(//c/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball/.env)",
-      "Read(//c/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball/discord_bot/.env)",
-      "Read(//c/Users/benha/OneDrive/Documents/GitHub/Python-PowerBI-DynastyFantasyFootball/data/.pw_profile/**)",
+      "Read(//c/source/Github/Python-PowerBI-DynastyFantasyFootball/.env)",
+      "Read(//c/source/Github/Python-PowerBI-DynastyFantasyFootball/discord_bot/.env)",
+      "Read(//c/source/Github/Python-PowerBI-DynastyFantasyFootball/data/.pw_profile/**)",
       "Edit(.claude/agents/**)",
       "Write(.claude/agents/**)",
       "Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",

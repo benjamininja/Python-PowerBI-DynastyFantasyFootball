@@ -396,7 +396,7 @@ table Dim_NFLPlayers
 		queryGroup: 'Dimension Tables'
 		source = ```
 				let
-				    Source = Parquet.Document(File.Contents("C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_players.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
+				    Source = Parquet.Document(File.Contents("C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\dim_nfl_players.parquet"), [Compression=null, LegacyColumnNameEncoding=false, MaxDepth=null]),
 				    #"Inserted Merged Column" = Table.AddColumn(Source, "Draft Rd (Ovr)", each if [draft_round] = null or [draft_number] = null then "Undrafted" 
 				else Text.Combine({Text.From([draft_round], "en-US"), " (", Text.From([draft_number]), ")"})),
 				    #"Changed Type" = Table.TransformColumnTypes(#"Inserted Merged Column",{{"team_abbr", type text}, {"entry_year", Int64.Type}, {"draft_year", Int64.Type}, {"draft_club", type text}, {"draft_number", type text}, {"Draft Rd (Ovr)", type text}, {"birth_date", type date}}),
