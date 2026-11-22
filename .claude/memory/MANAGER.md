@@ -38,37 +38,38 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 - **Ben's standing merge word, each when GREEN:** #616, #623, #597, #626.
   It never covers a parked Decision (an ADR amend, a DROP COLUMN).
 
-## CURRENT STATE (2026-11-22 ~16:40Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`)
+## CURRENT STATE (2026-11-22 ~17:55Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a compact at Ben's word)
 
-- **Heads.** origin/main and main checkout `558a7ae` (#625 merged).
-- **Merged:** PR #625 (#615) as `558a7ae`, pinned `dbc2505`, GREEN on
-  base `5bd92f4` (pull/625#issuecomment-7081850303), CI green.
-- **Closed out** on Ben's button "Close both": b615-handrunstore and
-  b619-pathmove (issues/615#issuecomment-7081945663,
-  issues/619#issuecomment-7081945980).
-- **Running builders** (dispatched here on Ben's "Both now"):
-  b629-gsisremap (#629, medium, session `31981061`), b630-sheetssecret
-  (#630, low, session `6058fd00`). Both hold full suites until the
-  manager's go.
-- **PR #631** (2027 price list, #554): Claude ran the loader on Ben's
-  buttons, with the FreeAgentResign 11-12 export and pulled-on
-  2026-11-12 (Ben confirmed the date): 5070 rows written and exported.
-  NEXT: re-prove when Tools-builder-manager gives a gap in the test
-  line, merge, then the every-FA-copy-priced count, then
-  `load_contract_choices.py` (#548) by Ben's button, then Ben's SQL paste.
-- **#548:** Fill the Resign column done on Ben's button
-  (issues/548#issuecomment-7082029081). Both #548 entries keyed to this
-  session.
-- **When #629 and #630 have both merged:** queue an Action for Ben to
-  start etl-daily by hand (Ben's answer in the planner's chat,
-  16:28Z), and close the stale data PRs #603, #618, #627, #628 and
-  today's, each recorded on #629.
-- **Dispatch order after:** #623 (low), #616 (high, ADR amend drafted
-  as a Decision first), #626 (low), #597 (medium, after #623; DROP
-  COLUMN parks). #563 held. #595 merges last, after a data PR stages
-  the DLF delete (#589). #620 waits on tools #231.
-- **Test line:** with Tools-builder-manager (#236, #238, #239, #242).
-  Dynasty #631 is next, in a gap Tools offers.
+- **Heads.** origin/main and main checkout `c598e3e`.
+- **Merged this session:** #625 (#615) `558a7ae`; #575 state `0916977`;
+  #631 (2027 price list) `91f6640`, GREEN on `0916977`
+  (pull/631#issuecomment-7082731183); #632 (planner CLAUDE.md) `c598e3e`
+  on Ben's button. Closed out b615, b619 on Ben's button.
+- **BLOCKER: the Claude CLI on this PC is signed out** (`claude auth
+  status`: loggedIn false). b629-gsisremap (#629, session `31981061`)
+  and b630-sheetssecret (#630, session `6058fd00`) stopped at turn one
+  with Login expired, no work done. NEXT: Ben runs `claude auth login`;
+  Claude checks status, then resumes each with `resume_plain.ps1` on its
+  ticket (message: start the brief). No dispatch works until then.
+- **#548 keep load:** prices done (162 of 162 FA copies priced, #554
+  closed out of the queue). The loader ran on Ben's button and STOPPED:
+  Wilson rows 2-9, 82-87 carry 2 old team names
+  (issues/548#issuecomment-7083149108). Queued: Ben updates the 2 names;
+  the planner may propose an alias path instead. Then re-run with
+  `ETL_STORAGE=parquet` (the .env sets postgres) to
+  `C:\source\.secretsa-keeps-2026.sql` (the file must not exist),
+  then the paste step for Ben.
+- **When #629 and #630 have merged:** queue Ben's Action to start
+  etl-daily by hand (Ben, planner's chat 16:28Z); close stale data PRs
+  #603, #618, #627, #628 and later, each recorded on #629.
+- **Dispatch order after:** #548 brief 3 (gid in, issuecomment-7082200751),
+  #633 (memory trim, low), #623, #616 (ADR amend as a Decision first),
+  #626, #597 (after #623). Each at Ben's go here. #563 held; #595 last;
+  #620 waits on tools #231.
+- **Test line:** with Tools-builder-manager for the #244 builder's full
+  run (up to an hour); ask before the next dynasty full run.
+- **Bot:** running in this session's terminal tab c3 (started 10:28 local).
+- **Queue:** done entries #630 secret and the gid leave at this save.
 - **Peers:** dff-central-planner `65cb1676-fc95-4abf-8174-422c03a5f64e`;
   Tools-builder-manager `55edaa09-855e-454f-991a-371eb4875402`;
   Tools-central-planner `019c4c0b-d63a-4262-9ee1-558f1408fd4f`;
