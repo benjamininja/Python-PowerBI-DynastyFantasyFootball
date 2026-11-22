@@ -201,6 +201,35 @@ class TestTheOwnerCrosswalkAndItsFunctions:
         refused(reg, "grants are for a table in app")
 
 
+class TestThePiiHashFunctionGainsTheCrosswalk:
+    def test_with_the_crosswalk_the_list_also_holds_each_id_and_still_splits_names(self):
+        sql = gm.desired_model(crosswalk_registry())["functions"]["shared.pii_token_hashes"]
+        assert "SELECT c.discord_user_id FROM shared.owner_crosswalk c" in sql
+        assert "regexp_split_to_table(lower(o.human_name), '[[:space:]]+')" in sql
+        assert "lower(o.fantrax_username)" in sql
+
+    def test_the_function_body_has_no_backslash_the_gate_would_hold(self):
+        assert "\\" not in gm.desired_model(crosswalk_registry())["functions"]["shared.pii_token_hashes"]
+
+    def test_without_the_crosswalk_the_body_is_the_old_one(self):
+        assert gm.desired_model(app_registry())["functions"]["shared.pii_token_hashes"] == gm.PII_FUNCTION_SQL
+
+    def test_a_state_with_the_old_body_gets_create_or_replace_and_nothing_else(self):
+        old = gm.desired_model(crosswalk_registry())
+        old["functions"]["shared.pii_token_hashes"] = gm.PII_FUNCTION_SQL
+        changes = gm.diff(old, gm.desired_model(crosswalk_registry()))
+        assert changes["refusals"] == []
+        sql = gm.render(changes)
+        assert sql.startswith("CREATE OR REPLACE FUNCTION shared.pii_token_hashes() RETURNS SETOF text")
+        assert sql.count("CREATE ") == 1 and "GRANT" not in sql and "REVOKE" not in sql
+
+    def test_a_changed_definer_function_body_is_still_refused(self):
+        old = gm.desired_model(crosswalk_registry())
+        new = copy.deepcopy(old)
+        new["functions"]["shared.caller_team_keys"] += " "
+        assert "shared.caller_team_keys: change of function body" in gm.diff(old, new)["refusals"]
+
+
 class TestTheRealRegistry:
     @pytest.fixture()
     def model(self):

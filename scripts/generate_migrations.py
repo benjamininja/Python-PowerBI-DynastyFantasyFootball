@@ -91,6 +91,26 @@ AS $fn$
     ) s
     WHERE s.token IS NOT NULL AND s.token <> ''
 $fn$;"""
+# With the owner crosswalk declared (ADR-0025 decision 5) the list also holds each
+# Discord id, so the data-commit check fails a commit that carries one. The split
+# class is written `[[:space:]]`, the same set `\s` names, because the migration
+# gate holds any single-quoted string with a backslash.
+PII_FUNCTION_CROSSWALK_SQL = """CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')
+    FROM (
+        SELECT regexp_split_to_table(lower(o.human_name), '[[:space:]]+') AS token FROM shared.owner o
+        UNION
+        SELECT lower(o.fantrax_username) FROM shared.owner o
+        UNION
+        SELECT c.discord_user_id FROM shared.owner_crosswalk c
+    ) s
+    WHERE s.token IS NOT NULL AND s.token <> ''
+$fn$;"""
+# The one function whose body a later registry may change: it is generator-owned
+# text, written as CREATE OR REPLACE, which keeps its grants.
+REPLACEABLE_FUNCTIONS = (PII_FUNCTION,)
 
 CROSSWALK_TABLE = "shared.owner_crosswalk"
 TEAMS_FUNCTION = "shared.caller_team_keys"
@@ -434,6 +454,7 @@ def desired_model(registry):
         _known({c["name"] for c in crosswalk["columns"]}, ["team_key", "discord_user_id"], CROSSWALK_TABLE)
         if "ops.choice_deadline" not in specs:
             raise RegistryError(f"{CROSSWALK_TABLE}: the definer functions read ops.choice_deadline, which is not declared")
+        functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
         functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
         functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
     raw_functions = registry.get("trigger_functions") or []
@@ -600,7 +621,8 @@ def diff(old, new, drops=NO_DROPS):
     changes it holds that a migration may not make (`refusals`)."""
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
-           "column_drops": [], "table_drops": [], "grants": [], "policies": [], "refusals": []}
+           "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
+           "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -625,7 +647,10 @@ def diff(old, new, drops=NO_DROPS):
         if name not in old["functions"]:
             out["functions"].append((name, sql))
         elif old["functions"][name] != sql:
-            out["refusals"].append(f"{name}: change of function body")
+            if name in REPLACEABLE_FUNCTIONS:
+                out["function_replacements"].append((name, sql))
+            else:
+                out["refusals"].append(f"{name}: change of function body")
     out["refusals"] += [f"{n}: drop of function" for n in old["functions"] if n not in new["functions"]]
     old_triggers, new_triggers = old.get("trigger_functions", {}), new.get("trigger_functions", {})
     for name, sql in new_triggers.items():
@@ -698,6 +723,8 @@ def render(changes):
                 usage.append((schema, role))
                 out.append(f"GRANT USAGE ON SCHEMA {schema} TO {role};")
             out.append(f"GRANT EXECUTE ON FUNCTION {name}{sig} TO {role};")
+    out += [sql.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
+            for _, sql in changes.get("function_replacements", [])]
 
     def grant_lines(schema, qualified, grant):
         lines = []

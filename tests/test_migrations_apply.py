@@ -807,6 +807,24 @@ def test_the_pii_hash_function_stays_with_the_writer_alone(conn):
         assert got is expected, role
 
 
+def test_the_pii_hash_list_holds_the_sha256_of_each_crosswalk_id_and_never_the_id(conn):
+    import hashlib
+    _world(conn)
+    conn.execute("INSERT INTO shared.owner (owner_id, team_key, human_name, fantrax_username) "
+                 "VALUES ('o1', 'T', 'Test Person', 'testuser')")
+    with conn.cursor() as cur:
+        cur.execute("SET LOCAL ROLE etl_writer")
+        cur.execute("SELECT * FROM shared.pii_token_hashes()")
+        got = {r[0] for r in cur.fetchall()}
+    conn.rollback()
+
+    def digest(text):
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    assert {digest(i) for i in DISCORD.values()} <= got
+    assert {digest("test"), digest("person"), digest("testuser")} <= got
+    assert not set(DISCORD.values()) & got
+
+
 def test_the_owner_policies_are_the_eight_named_and_all_for_authenticated(conn):
     rows = conn.execute("SELECT tablename, policyname, cmd, roles::text[] FROM pg_policies WHERE schemaname = 'app' "
                         "AND roles::text[] <@ ARRAY['authenticated'] ORDER BY 1, 2").fetchall()
