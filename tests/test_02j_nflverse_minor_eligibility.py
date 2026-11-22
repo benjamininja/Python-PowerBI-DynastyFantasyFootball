@@ -142,6 +142,40 @@ class TestBuildEligibility:
                                  "2026-09-18", NO_LINKS)
 
 
+LINK_OLD_TO_G1 = pd.DataFrame([["old1", "g1", "smart_id", "2026-11-18"]], columns=etl.GSIS_LINK_COLUMNS)
+
+
+def capture(rows, week="10"):
+    return pd.DataFrame([(g, 2026, week, "2026-11-17", n, n <= ne.GAMES_LIMIT) for g, n in rows],
+                        columns=list(ne.DTYPES)).astype(ne.DTYPES)
+
+
+class TestRemapHistory:
+    def test_a_stored_old_id_moves_to_its_newest_id(self):
+        got = ne.remap_history(capture([("old1", 5), ("g2", 3)]), LINK_OLD_TO_G1)
+        assert got.set_index("gsis_id")["career_games"].to_dict() == {"g1": 5, "g2": 3}
+
+    def test_a_chain_ends_on_the_newest_id(self):
+        links = pd.DataFrame([["a", "b", "x", "2026-11-01"], ["b", "g1", "x", "2026-11-18"]],
+                             columns=etl.GSIS_LINK_COLUMNS)
+        assert ne.remap_history(capture([("a", 5)]), links)["gsis_id"].tolist() == ["g1"]
+
+    def test_two_rows_that_share_a_key_keep_the_larger_count(self):
+        got = ne.remap_history(capture([("old1", 5), ("g1", 9)]), LINK_OLD_TO_G1)
+        assert got["career_games"].tolist() == [9] and got["gsis_id"].tolist() == ["g1"]
+
+    def test_an_unlinked_id_stays_and_no_links_change_nothing(self):
+        stored = capture([("old1", 5), ("g2", 3)])
+        assert ne.remap_history(stored, NO_LINKS)["gsis_id"].tolist() == ["g2", "old1"]
+        assert ne.remap_history(stored, LINK_OLD_TO_G1.assign(old_gsis_id="zz"))["gsis_id"].tolist() == [
+            "g2", "old1"]
+
+    def test_the_key_stays_unique_across_weeks(self):
+        stored = pd.concat([capture([("old1", 5), ("g1", 5)], "10"), capture([("old1", 6)], "11")])
+        got = ne.remap_history(stored, LINK_OLD_TO_G1)
+        assert not got.duplicated(ne.KEY).any() and len(got) == 2
+
+
 class TestMain:
     SNAPS = pd.DataFrame([snap("p1", "g-a"), snap("p1", "g-b"), snap("p2", "g-a"),
                           snap("x9", "g-a", pos="T")])
@@ -175,6 +209,18 @@ class TestMain:
         ne.main()
         now = etl.read_table(ne.TABLE)
         assert now["week"].nunique() == 2 and len(now) == 6
+
+    def test_a_link_added_after_a_capture_moves_that_capture_s_id(self, env):
+        ne.main()
+        etl.write_table(ne.TABLE, capture([("g2", 31), ("g9", 4)], "10"), mode="replace_partition",
+                        keys=("season", "week"))
+        etl.write_table(etl.GSIS_LINK_TABLE,
+                        pd.DataFrame([["g9", "g3", "smart_id", "2026-11-18"]], columns=etl.GSIS_LINK_COLUMNS))
+        ne.main()
+        now = etl.read_table(ne.TABLE)
+        week10 = now[now["week"] == "10"].set_index("gsis_id")["career_games"].to_dict()
+        assert week10 == {"g2": 31, "g3": 4}
+        assert not now["gsis_id"].isin(["g9"]).any()
 
     def test_an_empty_load_writes_nothing(self, env, monkeypatch):
         empty = {"snaps": self.SNAPS.iloc[:0], "stats": self.STATS.iloc[:0], "ids": self.IDS}

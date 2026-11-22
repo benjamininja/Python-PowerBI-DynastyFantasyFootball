@@ -26,7 +26,8 @@
 # **`fact_nfl_minor_eligibility`**, grain `(gsis_id, season, week)`: the count
 # and the verdict per player. `week` is the Scoring Period holding the run
 # (two digits), or PRE when none does; each run replaces its own `(season,
-# week)`, as `04v` does, so the table keeps one capture per period. Every row
+# week)`, as `04v` does, so the table keeps one capture per period. Each run also moves every
+# capture it keeps to the newest gsis_id of `dim_gsis_link` (#629). Every row
 # of a run carries the same `capture_date`. `02d` does not read it yet: its
 # Minor default stays on Fantrax's `fact_minor_eligibility` (owner's ruling on
 # PR #535, 2026-11-12). The drift check in `etl_checks.py` compares the two
@@ -133,6 +134,17 @@ def build_eligibility(players: pd.DataFrame, games: pd.Series, season: int, week
     return df.sort_values("gsis_id").reset_index(drop=True)
 
 
+def remap_history(stored: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """The captures already stored, each `gsis_id` moved to its newest
+    (`dim_gsis_link`). A capture is written once, before a link that replaces
+    one of its ids may exist, so the run that adds the link must rewrite it.
+    Rows that then share a key keep the larger count."""
+    out = stored.copy()
+    out["gsis_id"] = etl.current_gsis(out["gsis_id"], links)
+    out = out.sort_values("career_games", kind="stable")
+    return out.drop_duplicates(KEY, keep="last").sort_values(KEY).reset_index(drop=True)
+
+
 # %%
 def load_nflverse(season: int) -> dict[str, pd.DataFrame]:
     """The three nflverse frames, as pandas. The newest season asked for is the
@@ -169,7 +181,11 @@ def main() -> int:
     games = career_games(snap, stat, links)
     df = build_eligibility(players, games, season, week, capture_date, links)
 
-    total = write_table(TABLE, df, mode="replace_partition", keys=("season", "week"))
+    kept = pd.DataFrame(columns=list(DTYPES))
+    if etl.table_exists(TABLE):
+        stored = read_table(TABLE)
+        kept = remap_history(stored[(stored["season"] != season) | (stored["week"] != week)], links)
+    total = write_table(TABLE, pd.concat([kept, df], ignore_index=True).astype(DTYPES))
     print(f"[ok] {TABLE}: {len(df)} players for {season} week {week} on {capture_date}, "
           f"{int(df['eligible'].sum())} minors-eligible ({total} rows in all) -> {TABLE}.parquet")
     print(f"[info] games counted for {len(games)} players: {len(snap)} with snaps from "
