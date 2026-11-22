@@ -13,20 +13,18 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-22 (see the commit time), session 65cb1676-fc95-4abf-8174-422c03a5f64e. Rewritten to one block on Ben's button (memory review, benjamininja/skills-plugins-hooks-agents#243: "One Current block (Recommended)"). The stacked blocks are in git: the last commit with them is `995f0cf` on `docs/state-2026-11-16` (merged by PR #575 as `0916977`). State branch now `docs/state-2026-11-22`; the manager opens its PR.
+**Saved:** 2026-11-22 (see the commit time), session 65cb1676-fc95-4abf-8174-422c03a5f64e, before a compact. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
+
+**Done today:** #629 (PR #638) and #630 (PR #636) merged. Data PRs land again (#640, #641, #645). #614's live proof is met: run 45068959547, `[ok] 01c`, all Chains published (issuecomment-7085725374). The cause was the secret's bytes: first the `.env` line, then the PowerShell pipe. A byte-exact `cmd` redirect fixed it. PR #632 merged (`c598e3e`), and Tools pruned root. The 2026 FA keep load is in: 109 rows in `app.contract_choices`, 30 keeps (#548). The planner fixed 14 Wilson team cells in Ben's workbook at Ben's word (issuecomment-7083799790; correction in issuecomment-7084469321).
 
 ### Next (in order)
 
-1. **#629** (medium, b629-gsisremap dispatched): every data PR since 11-18 failed `test_gsis_current` (2 old gsis_ids in `fact_nfl_minor_eligibility`, 02j); the snapshot has been frozen at PR #602 (11-17). Read its PR when the manager asks. The manager closes the stale data PRs after it merges.
-2. **#630** (low, b630-sheetssecret dispatched): etl-daily gives 01c the Sheets key from the secret `GOOGLE_SHEETS_KEY_JSON` (Ben added it, 2026-11-22). Read its PR when asked. After #629 and #630 merge, the manager queues Ben's hand run of etl-daily (Ben: "Ben runs it today (Recommended)"). Then read that run: `[ok] 01c`, and a data PR merged. Post the result on #614 (issuecomment-7081749476).
-3. **PR #632** (the planner's own; docs, `CLAUDE.md`): the dynasty-only text from root `preferences.md` (Ben: "Project CLAUDE.md (Recommended)"). Its merge is the manager's at Ben's go. Then tell Tools-central-planner, which prunes root (tools #243).
-4. **#548:** brief 3 is restated whole at issuecomment-7082200751 (medium; the crosswalk loader reads the owner tab as the #609 service account, Ben's button). Ben gave the tab's gid (on #548, the manager's comment). Dispatch is at Ben's go after #629 and #630. When its PR opens, send the manager the `GOAL-RUN.md` After-a-schema-change line and the supabase-auditor basis (ADR-0025 Consequences), plus the `supabase-auditor.md` line (a missing `needs:` on validate is no finding). Still owed: the after-deadline brief (Q6; `locked_value` on an app-origin row), and then brief 4.
-5. **The 2026 keep load:** price list loaded (5070 rows for 2027; snapshot PR #631, the manager's). Next: the manager's FA price-row count, then the keep loader, then Ben's SQL paste. The Resign column is done (30 Yes, 81 No, 50 blank; issuecomment-7081964573). Both entries are now keyed to the manager. Read #554's published count after #631 merges.
-6. **#633** (low): project memory trim (retire `RESUME.md`, condense `mouserat-trade-bud.md`, `MEMORY.md` as an index). Dispatch after #629 and #630, at Ben's go.
-7. **The manager's order:** #629 with #630, then #623, #616 (its amend Decision first), #626, #597, then brief 3 and #633. Read each PR when asked.
-8. **#592** (held): rewrite its Change with #545's move to `ops.choice_deadline`. Then ticket #545's deadline reader move to the table.
-9. **#620** waits on tools PR #242's lock text (from Tools-builder-manager). Tools order: #233's finding, the session-rules branch after tools PR #210, the register.tsx line after tools #197.
-10. **#604 and #590** at Ben's go. At the day's last save, ask Ben by button whether to prune merged worktrees (planner-589 and planner-claudemd among them).
+1. **#548 brief 3** (b548-ownerxwalk, building). Planner rulings on its park are at issuecomment-7085556564: function 2 returns open, passed or none; the candidate bound is not built; the CI auth stub is allowed with four limits. Count 2 (PII digit-run rows) and the `pii_token_hashes` change stay parked with the manager. When its PR opens, send the manager the `GOAL-RUN.md` After-a-schema-change line and the supabase-auditor basis (ADR-0025 Consequences), plus the `supabase-auditor.md` line (a missing `needs:` on validate is no finding). Then write the after-deadline brief (Q6; `locked_value` on an app-origin row), then brief 4 (Discord sign-in and the page; it must land before the 2027 re-sign deadline and outside 2026-12-03 to 2027-01-07).
+2. **PR #647** (#643, with Ben's manual sheets-key-check workflow): it merges on green at Ben's word. Then **#648** (low): `continue-on-error` on the key step, so a bad key holds only team_manifest (F1 traces to the planner's #643 brief), plus a BOM line.
+3. **The manager's order:** #623 (b623-teamcount, building), #616 (its amend Decision first), #626, #597, #633, #637 (stale root and OneDrive text; can ride with #633), #639 (medium, a shared gsis remap for every `gsis_tables()` table; not urgent), #644 (low, reproof.py Temp leak). Read each PR when asked. Memory is near its limit, so propose no extra dispatch while three builders run.
+4. **#592** (held): rewrite its Change with #545's move to `ops.choice_deadline`. Then ticket #545's deadline reader move to the table.
+5. **#620** waits on tools PR #242's lock text (from Tools-builder-manager).
+6. **#604 and #590** at Ben's go. At the day's last save, ask Ben by button whether to prune merged worktrees (planner-589, planner-claudemd).
 
 ### Peers (queue ids)
 
@@ -38,10 +36,14 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Waiting on Ben
 
-- His go in the manager's chat for brief 3, #633, #604, #590.
-- The hand run of etl-daily once #629 and #630 merge (the manager queues it).
-- The keep SQL paste, after the loader.
+- His go in the manager's chat for #633, #637, #648, #604, #590.
+- The 49 leftover reproof Temp folders: his hand step (#644).
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
+
+### Rules Ben set today
+
+- SQL that Ben pastes appears in full in the local queue entry and in Ben's chat (a fenced block with numbered steps), and never on GitHub or to other sessions.
+- A secret ask names the value as the file's contents, never the `.env` line, and gives a byte-exact command with no placeholder.
 
 ### Reads and checks due
 
