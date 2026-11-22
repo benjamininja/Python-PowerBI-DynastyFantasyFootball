@@ -21,7 +21,20 @@ out of date. This block is the current state. Then read `GOAL-RUN.md`,
 
 **Newest, 2026-11-01, before a compact. This overrides everything below. Session
 `da76bd45`; the owner invoked `session-dispatch` here and restated the standing merge approval.**
-- **CURRENT STATE (NEWEST, 2026-11-20 ~00:05Z, session `483137b4-dd36-4af4-9a8d-dc19a8554b07`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only.**
+- **CURRENT STATE (NEWEST, 2026-11-22, session `30a1a891-a73d-48e0-aabc-19450b995e05`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only.**
+  - **Heads.** Dynasty origin/main and main checkout `5bd92f4`. Main checkout clean except untracked `.agents/`, `GEMINI.md` (not the manager's).
+  - **session-dispatch WAS loaded in 30a1a891** (Ben typed it). After the clear: ask again.
+  - **PR #621 MERGED** as `5bd92f4`, pinned `9e5ca2e`, reproof GREEN on base `80021d4` (pytest 3274 passed in 269 s; pull/621#issuecomment-7026727226), CI green. Main checkout pulled at once. Remote branch deleted; the local branch and worktree b619-pathmove remain (session `d0c6472a`, done): closeout owed.
+  - **b614-teammanifest CLOSED OUT** on Ben's direct word (issues/614#issuecomment-7025432279). Still owed for #614: the live Daily Run proof (01c passes, no team_manifest data PR).
+  - **PR #625 (#615, head `dbc2505`):** reproof.py ran on base `5bd92f4` and exited 0, but Ben stopped Claude before the output was read; not posted, not merged (pull/625#issuecomment-7081698276). NEXT: ask the line, re-run reproof.py 625 dbc2505128937c7d6286d8a186802d7e73032aa8, post, merge pinned on GREEN, pull, closeout b615-handrunstore (session `15bd8e2d`, done; remote branch still there).
+  - **Closeouts of b619 and b615:** dispatched by an earlier manager session. Ben rejected the button asking to close both; ask again, plainly, before any claude rm.
+  - **#626:** Ben confirmed the dispatch go by button here, After #625 (issues/626#issuecomment-7025404008). Tier low, Profile none.
+  - **Dispatch queue after #625:** #623 (low, amended brief), #616 (high, ADR amend drafted as a Decision first), #626 (low). #597 (medium) after the choice deadline (passed 2026-11-20 04:59Z) and #623's merge.
+  - **New open PRs since the last block:** #627, #628 (Daily Run data PRs, wk 11). Not read yet.
+  - **Test line:** released to Tools-builder-manager (end notice sent). Tools #236 re-proof was NOT GREEN on a 3600 s pytest timeout; the dynasty #621 run took 269 s.
+  - **Queue:** the manager's price-list entry re-keyed to `30a1a891`; the planner's two entries unchanged (`5e9a5f7b`).
+  - **Peers:** dff-central-planner `5e9a5f7b-7fc8-40e8-a294-5e34990fbbc5`; Tools-builder-manager `b4f527ea-69e9-4fe1-bdbc-bac6a2d93b46`; Tools-central-planner `8e3b8951-c6d7-4e8f-b472-1320abb0fa54`.
+- **CURRENT STATE (2026-11-20 ~00:05Z, session `483137b4-dd36-4af4-9a8d-dc19a8554b07`, before a CLEAR at Ben's word; it overrides every block below, which stay true only where this is silent). Ids only.**
   - **ADDENDUM at the clear: PR #622 MERGED** as `80021d4` (pinned `7945834`, reproof GREEN pull/622#issuecomment-7025341278, CI green). Main now `80021d4`. So #621's GREEN (base `566506a`) no longer holds: re-run reproof.py on #621 at `9e5ca2e`, then merge and pull at once. Owed for #622: closeout of b614-teammanifest (stopped? check), the live Daily Run proof, then dispatch #623 and #616. The test line was released to Tools-builder-manager at the clear: ask it before the next run.
   - **Heads.** Dynasty origin/main and main checkout `566506a` (#617 merged pinned at `a41b3c9`, on Ben's button "Merge now (Recommended)"). Main checkout clean except untracked `.agents/`, `GEMINI.md` (not the manager's).
   - **session-dispatch WAS loaded in 483137b4** (Ben typed it after the app restart). After the clear: ask again.
