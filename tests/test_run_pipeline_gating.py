@@ -255,7 +255,8 @@ class TestTeamManifestStep:
     def test_nothing_needs_it_and_it_runs_before_the_steps_that_read_its_table(self):
         names = [s["name"] for s in self.STEPS]
         assert all("01c_dim_fantasy_teams" not in s["needs"] for s in self.STEPS)
-        for reader in ("02d_ledger", "02e_derive", "02h_team_cap", "02k_contract_moves"):
+        for reader in ("02d_ledger", "02e_derive", "02h_team_cap", "02k_contract_moves",
+                       "04p_league_info", "04r_roster_state", "04s_scoring"):
             assert names.index("01c_dim_fantasy_teams") < names.index(reader)
 
     def test_it_leaves_the_tracked_notebook_without_outputs(self):

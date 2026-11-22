@@ -9,6 +9,7 @@ REPO = Path(__file__).resolve().parent.parent
 
 class _Cfg:
     total_cap = 500
+    num_teams = 28
 
 
 def _load_build():
@@ -54,6 +55,31 @@ def test_without_abbreviation_column_is_null():
     assert list(out.columns) == COLS
     assert out["team_abbr"].isna().all()
     assert str(out["team_abbr"].dtype) == "string"
+
+
+@pytest.mark.parametrize("n", [27, 29])
+def test_wrong_row_count_exits_with_both_counts(n):
+    sheet = _sheet(True)
+    sheet = sheet.iloc[:n] if n < 28 else pd.concat([sheet, sheet.iloc[[0]].assign(**{"Team ID": "A99", "Fantrax-TeamId": "fx99"})])
+    with pytest.raises(SystemExit) as e:
+        _load_build()(sheet, _Cfg())
+    msg = str(e.value)
+    assert f"{n} rows" in msg and "28 teams" in msg and "team-manifest" in msg
+    assert "\n" not in msg
+
+
+def test_null_team_key_exits():
+    sheet = _sheet(True)
+    sheet.loc[3, "Team ID"] = None
+    with pytest.raises(SystemExit, match="Team ID is blank on 1 rows"):
+        _load_build()(sheet, _Cfg())
+
+
+def test_duplicate_team_key_exits():
+    sheet = _sheet(True)
+    sheet.loc[3, "Team ID"] = sheet.loc[2, "Team ID"]
+    with pytest.raises(SystemExit, match="repeated on 1"):
+        _load_build()(sheet, _Cfg())
 
 
 def test_other_required_column_still_required():
