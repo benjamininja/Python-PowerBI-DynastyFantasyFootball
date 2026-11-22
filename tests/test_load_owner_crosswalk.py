@@ -27,10 +27,11 @@ GOOD = pd.DataFrame({"team": ["Test Team One", "Test Team One", "Test Team Two",
 @pytest.fixture
 def reader(monkeypatch):
     """Patch the sheet reader; `reader.frame` is what it returns, `reader.calls` its arguments."""
-    state = type("Reader", (), {"frame": GOOD, "calls": [], "error": None})()
+    state = type("Reader", (), {"frame": GOOD, "calls": [], "kwargs": [], "error": None})()
 
     def fake(sheet_id, gid, columns, optional=(), **kw):
         state.calls.append((sheet_id, gid, list(columns)))
+        state.kwargs.append(kw)
         if state.error is not None:
             raise state.error
         return state.frame
@@ -61,6 +62,10 @@ class TestTheReadAndTheFile:
     def test_it_reads_the_owner_tab_through_the_sheet_reader_on_the_two_columns(self, place, reader):
         run(place)
         assert reader.calls == [(etl.CFG.team_sheet_id, etl.CFG.owner_sheet_gid, ["team", "discord_user_id"])]
+
+    def test_the_id_column_is_asked_for_as_text(self, place, reader):
+        run(place)
+        assert reader.kwargs == [{"text": ["discord_user_id"]}]
 
     def test_the_owner_tab_has_its_own_gid_beside_the_team_tab(self):
         assert etl.CFG.owner_sheet_gid == "1895987887" and etl.CFG.owner_sheet_gid != etl.CFG.team_sheet_gid
@@ -196,6 +201,14 @@ class TestEveryStopWritesNothing:
         assert code == 1 and not out.exists()
         assert len([line for line in lines if line.startswith("stopped:")]) == 2
 
+    def test_a_number_cell_the_reader_reports_prints_the_plain_text_line_and_its_rows(self, place, reader):
+        reader.error = etl.SheetsNumberCells("discord_user_id", [3, 5])
+        code, lines, out = run(place)
+        assert code == 1 and not out.exists()
+        assert lines == ["stopped: " + loader.AS_NUMBERS,
+                         "stopped: Google Sheets: 2 cell(s) of column discord_user_id are stored as numbers (rows 3, 5)",
+                         "nothing was written"]
+
     def test_a_sign_in_failure_prints_its_one_line_and_nothing_more(self, place, reader):
         reader.error = etl.SheetsAuthError("Sheets sign-in: GOOGLE_SHEETS_KEY_FILE is not set in .env.")
         code, lines, out = run(place)
@@ -207,6 +220,55 @@ class TestEveryStopWritesNothing:
         code, lines, out = run(place)
         assert code == 1 and not out.exists()
         assert lines == ["stopped: Google Sheets API: HTTP 403 (PERMISSION_DENIED)", "nothing was written"]
+
+
+class TestThroughTheRealReader:
+    """The loader on the reader itself, with only the sheet's network side faked:
+    what a real plain-text id column and a real number cell do end to end."""
+
+    @pytest.fixture
+    def sheet(self, monkeypatch):
+        from test_sheets_read_text import Session
+        monkeypatch.delenv("ETL_STORAGE", raising=False)
+        monkeypatch.setattr(etl, "_sheets_token", lambda: "tok")
+
+        def make(rows):
+            session = Session(rows, header=["team", "discord_user_id"], gid=etl.CFG.owner_sheet_gid)
+            monkeypatch.setattr(etl, "_make_session", lambda *a, **k: session)
+            monkeypatch.setattr(etl, "read_table", lambda name, columns=None: TEAMS)
+            return session
+        return make
+
+    def test_a_text_id_column_loads_in_full(self, place, sheet):
+        sheet([["Test Team One", ID_A], ["Test Team One", ID_B], ["Test Team Two", ID_D]])
+        lines = []
+        out = place / "out.sql"
+        assert loader.load(out, out=lines.append) == 0
+        sql = out.read_text(encoding="utf-8")
+        assert f"('T1', '{ID_A}')" in sql and f"('T1', '{ID_B}')" in sql and f"('T2', '{ID_D}')" in sql
+        assert "rows: 3" in lines and not [s for s in SECRETS if s in "\n".join(lines)]
+
+    def test_any_number_cell_refuses_the_run_and_writes_nothing(self, place, sheet):
+        sheet([["Test Team One", ID_A], ["Test Team Two", 123456789012345000]])
+        lines = []
+        out = place / "out.sql"
+        assert loader.load(out, out=lines.append) == 1 and not out.exists()
+        assert lines[0] == "stopped: " + loader.AS_NUMBERS and "(rows 3)" in lines[1]
+        assert "123456789012345000" not in "\n".join(lines)
+
+    def test_a_whole_column_stored_as_numbers_is_refused(self, place, sheet):
+        sheet([["Test Team One", int(ID_A)], ["Test Team Two", int(ID_B)]])
+        lines = []
+        out = place / "out.sql"
+        assert loader.load(out, out=lines.append) == 1 and not out.exists()
+        assert lines[0] == "stopped: " + loader.AS_NUMBERS
+
+    def test_a_blank_id_cell_stops_as_a_blank_cell(self, place, sheet):
+        sheet([["Test Team One", ID_A], ["Test Team Two", ""]])
+        lines = []
+        out = place / "out.sql"
+        assert loader.load(out, out=lines.append) == 1 and not out.exists()
+        assert any("blank team or id (rows 3)" in line for line in lines)
 
 
 class TestTheOutputPath:

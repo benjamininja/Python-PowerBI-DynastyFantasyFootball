@@ -39,7 +39,8 @@ from load_contract_choices import inside_git_repo, literal  # noqa: E402
 
 TEAMS_TABLE = "dim_fantasy_teams"
 TARGET = "shared.owner_crosswalk"
-COLUMNS = ["team", "discord_user_id"]
+ID_COLUMN = "discord_user_id"
+COLUMNS = ["team", ID_COLUMN]
 ID_LENGTHS = range(17, 21)
 
 
@@ -149,7 +150,12 @@ def load(out_path: Path, *, tables: dict | None = None, out=print) -> int:
         out("nothing was written")
         return 1
     try:
-        frame = etl.read_sheet_tab(CFG.team_sheet_id, CFG.owner_sheet_gid, COLUMNS)
+        frame = etl.read_sheet_tab(CFG.team_sheet_id, CFG.owner_sheet_gid, COLUMNS, text=[ID_COLUMN])
+    except etl.SheetsNumberCells as exc:
+        out(f"stopped: {AS_NUMBERS}")
+        out(f"stopped: {exc}")
+        out("nothing was written")
+        return 1
     except (etl.SheetsAuthError, RuntimeError) as exc:
         out(f"stopped: {(str(exc).splitlines() or [''])[0]}")
         out("nothing was written")
