@@ -38,39 +38,39 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 - **Ben's standing merge word, each when GREEN:** #616, #623, #597, #626.
   It never covers a parked Decision (an ADR amend, a DROP COLUMN).
 
-## CURRENT STATE (2026-11-22 ~17:55Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a compact at Ben's word)
+## CURRENT STATE (2026-11-22 ~21:40Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a compact at Ben's word)
 
-- **Heads.** origin/main and main checkout `c598e3e`.
-- **Merged this session:** #625 (#615) `558a7ae`; #575 state `0916977`;
-  #631 (2027 price list) `91f6640`, GREEN on `0916977`
-  (pull/631#issuecomment-7082731183); #632 (planner CLAUDE.md) `c598e3e`
-  on Ben's button. Closed out b615, b619 on Ben's button.
-- **BLOCKER: the Claude CLI on this PC is signed out** (`claude auth
-  status`: loggedIn false). b629-gsisremap (#629, session `31981061`)
-  and b630-sheetssecret (#630, session `6058fd00`) stopped at turn one
-  with Login expired, no work done. NEXT: Ben runs `claude auth login`;
-  Claude checks status, then resumes each with `resume_plain.ps1` on its
-  ticket (message: start the brief). No dispatch works until then.
-- **#548 keep load:** prices done (162 of 162 FA copies priced, #554
-  closed out of the queue). The loader ran on Ben's button and STOPPED:
-  Wilson rows 2-9, 82-87 carry 2 old team names
-  (issues/548#issuecomment-7083149108). Queued: Ben updates the 2 names;
-  the planner may propose an alias path instead. Then re-run with
-  `ETL_STORAGE=parquet` (the .env sets postgres) to the SQL path the
-  queue entry names (the file must not exist),
-  then the paste step for Ben.
-- **When #629 and #630 have merged:** queue Ben's Action to start
-  etl-daily by hand (Ben, planner's chat 16:28Z); close stale data PRs
-  #603, #618, #627, #628 and later, each recorded on #629.
-- **Dispatch order after:** #548 brief 3 (gid in, issuecomment-7082200751),
-  #633 (memory trim, low), #623, #616 (ADR amend as a Decision first),
-  #626, #597 (after #623). Each at Ben's go here. #563 held; #595 last;
-  #620 waits on tools #231.
-- **Test line:** with Tools-builder-manager for the #244 builder's full
-  run (up to an hour); ask before the next dynasty full run.
-- **Bot:** running in this session's terminal tab c3 (started 10:28 local).
-- **Queue:** done entries #630 secret and the gid leave at this save.
-- **Peers:** dff-central-planner `65cb1676-fc95-4abf-8174-422c03a5f64e`;
-  Tools-builder-manager `55edaa09-855e-454f-991a-371eb4875402`;
-  Tools-central-planner `019c4c0b-d63a-4262-9ee1-558f1408fd4f`;
-  personal-assistant.
+- **Heads.** origin/main and main checkout `ff035d7`.
+- **Merged since the last save:** #636 (#630) `eebdf68`; #638 (#629)
+  `dd59ac1`; #647 (#643 plus Ben's sheets-key-check workflow) `d2d267b`;
+  #642 (#623) `ff035d7`. All GREEN at re-proof. Builders b629, b630,
+  b643, b623 closed out. Stale data PRs #603, #618, #627, #628, #635 closed.
+- **Live proofs met:** #629 (data PRs #640, #641, #645 merged); #630 and
+  #614 ([ok] 01c in run 45068959547, after Ben's byte-exact re-save of
+  the Sheets secret; the earlier failures were the .env line, then a
+  PowerShell pipe).
+- **#548 FA keeps loaded:** 109 rows in app.contract_choices (30 keeps),
+  count-only check; the local SQL file is deleted.
+- **In flight:**
+  - b648-keyisolate (#648, session `40c1c6ac`), PR #649: local re-proof
+    GREEN on `ff035d7` (3312 passed); diff read, no findings. Waits on
+    storage-pg, which Ben is re-running (the runner-side cancel). Merge
+    on GREEN: Ben's word. Then close out b648.
+  - b548-ownerxwalk (#548 brief 3, session `938e2850`), draft PR #646.
+    Count 2 = 0 (posted on #548), so the builder adds the
+    pii_token_hashes() change, then marks ready. Re-proof: reproof.py,
+    the migration gate (the builder's own run was refused), the
+    supabase-auditor including migrate.yml and tests.yml (planner ruling
+    3). The planner owes the GOAL-RUN schema line and the auditor basis
+    (planner session was gone at ~21:10Z). No merge word from Ben yet.
+- **CI:** every storage-pg job was cancelled at ~21:16Z (runner-side).
+  Main's storage-pg has not completed since #647/#642.
+- **Rules learned today:** owner hand steps carry their full content
+  (root preferences). A builder's refused call is surfaced to Ben, never
+  run for it. Secret saves use cmd /c with < redirection.
+- **Dispatch order after, each at Ben's go:** #633, #637, #639, #616 (ADR
+  amend as a Decision first), #626, #597. #563 held; #595 last; #620
+  waits on tools #231. #644 (reproof temp-folder leak) is ticketed.
+- **Queue:** empty.
+- **Peers:** dff-central-planner and Tools-builder-manager were not
+  running at ~21:10Z; personal-assistant up.
