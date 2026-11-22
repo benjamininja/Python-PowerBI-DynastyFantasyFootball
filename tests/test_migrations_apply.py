@@ -820,7 +820,9 @@ def test_the_pii_hash_list_holds_the_sha256_of_each_crosswalk_id_and_never_the_i
 
     def digest(text):
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
-    assert {digest(i) for i in DISCORD.values()} <= got
+    listed = {DISCORD[uid] for _, uid in CROSSWALK}
+    assert listed and {digest(i) for i in listed} <= got
+    assert digest(DISCORD[U4]) not in got
     assert {digest("test"), digest("person"), digest("testuser")} <= got
     assert not set(DISCORD.values()) & got
 
