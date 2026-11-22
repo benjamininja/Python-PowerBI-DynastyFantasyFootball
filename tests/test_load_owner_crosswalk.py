@@ -102,13 +102,6 @@ class TestTheReadAndTheFile:
         code, lines, out = run(place)
         assert code == 0 and "rows: 2" in lines and "teams: 2" in lines and "co-owned teams: 0" in lines
 
-    def test_ids_read_back_as_whole_numbers_are_written_in_full(self, place, reader):
-        reader.frame = frame(["Test Team One", "Test Team Two"], [int(ID_A), int(ID_B)])
-        assert reader.frame["discord_user_id"].dtype.kind == "i"
-        code, _, out = run(place)
-        sql = out.read_text(encoding="utf-8")
-        assert code == 0 and f"'{ID_A}'" in sql and f"'{ID_B}'" in sql
-
     def test_cells_are_trimmed(self, place, reader):
         reader.frame = frame(["  Test Team One ", "Test Team Two"], [f" {ID_A} ", ID_B])
         code, _, out = run(place)
@@ -171,10 +164,31 @@ class TestEveryStopWritesNothing:
         reader.frame = pd.DataFrame()
         self.stops(place, reader, "lacks the column(s) team, discord_user_id")
 
-    def test_ids_that_read_back_as_floating_point(self, place, reader):
-        reader.frame = frame(["Test Team One", "Test Team Two"], [float(ID_A), None])
-        assert reader.frame["discord_user_id"].dtype.kind == "f"
-        self.stops(place, reader, "read back as numbers with gaps")
+    @pytest.mark.parametrize("ids,kind", [
+        ([123456789012345000, 123456789012346000], "i"),
+        ([float(ID_A), float(ID_B)], "f"),
+        ([float(ID_A), None], "f"),
+        ([18446744073709551615, 18446744073709551614], "u")])
+    def test_ids_that_arrive_as_numbers_are_refused_whatever_their_digits(self, place, reader, ids, kind):
+        reader.frame = frame(["Test Team One", "Test Team Two"], ids)
+        assert reader.frame["discord_user_id"].dtype.kind == kind
+        lines = self.stops(place, reader, "stored as numbers")
+        assert lines[0] == ("stopped: " + loader.AS_NUMBERS)
+        assert "Format, Number, Plain text" in lines[0] and "15 significant digits" in lines[0]
+
+    def test_an_id_that_is_a_number_among_text_in_one_column_is_refused(self, place, reader):
+        reader.frame = pd.DataFrame({"team": ["Test Team One", "Test Team Two"],
+                                     "discord_user_id": pd.Series([ID_A, 123456789012345000], dtype=object)})
+        self.stops(place, reader, "stored as numbers")
+
+    def test_a_number_is_refused_even_when_a_team_would_not_resolve(self, place, reader):
+        reader.frame = frame(["No Such Team"], [123456789012345000])
+        lines = self.stops(place, reader, "stored as numbers")
+        assert len([line for line in lines if line.startswith("stopped:")]) == 1
+
+    def test_an_id_column_with_no_value_at_all_reports_blank_cells(self, place, reader):
+        reader.frame = frame(["Test Team One", "Test Team Two"], [None, None])
+        self.stops(place, reader, "blank team or id (rows 2, 3)")
 
     def test_every_problem_is_listed_in_one_stop(self, place, reader):
         reader.frame = frame(["Test Team One", "No Such Team", "Test Team Two"], [ID_A, ID_B, "12"])

@@ -8,8 +8,10 @@ and `discord_user_id`: one row per owner per team. It reads no xlsx. `team`
 resolves to a team_key through dim_fantasy_teams (exact team_name, one team);
 `discord_user_id` is digits only, 17 to 20 long. It checks everything first and
 writes nothing unless every check passes: a team that does not resolve, an id
-that is not 17 to 20 digits, a blank cell, a duplicate (team, id) pair, or an
-empty tab stops it, and so does a sign-in failure (the `SheetsAuthError` line,
+that is not 17 to 20 digits, a blank cell, a duplicate (team, id) pair, an id
+that arrives as a number (a spreadsheet keeps 15 significant digits of a number,
+so the id is already wrong: the column must be plain text), or an empty tab
+stops it, and so does a sign-in failure (the `SheetsAuthError` line,
 which names no path and no key).
 
 It connects to nothing, and stops when ETL_STORAGE selects the database: it
@@ -22,7 +24,6 @@ Discord ids. The script prints the path and counts (rows, teams, co-owned teams)
 and a stop prints row numbers and counts: never an id and never a name.
 """
 import argparse
-import numbers
 import os
 import sys
 from pathlib import Path
@@ -42,20 +43,28 @@ COLUMNS = ["team", "discord_user_id"]
 ID_LENGTHS = range(17, 21)
 
 
+AS_NUMBERS = ("discord_user_id is stored as numbers, and a spreadsheet keeps only 15 significant digits of a "
+              "number, so those ids are wrong; format the discord_user_id column as plain text "
+              "(Format, Number, Plain text) and re-enter the ids")
+
+
 def id_text(series: pd.Series) -> list[str] | None:
-    """The id column as text, or None when it read back as floating point (a
-    blank cell makes pandas read a whole-number column as float, which loses
-    digits). Whole numbers are written out in full; text is trimmed."""
-    if series.dtype.kind == "f":
+    """The id column as trimmed text, or None when any value is not text: every
+    Discord id has 17 digits or more, and a spreadsheet keeps 15 significant
+    digits of a number, so an id that arrives as a number is already wrong. An
+    all-blank column gives blanks (the caller reports them as blank cells)."""
+    if series.isna().all():
+        return [""] * len(series)
+    if series.dtype.kind != "O":
         return None
     out = []
     for value in series:
         if pd.isna(value):
             out.append("")
-        elif isinstance(value, numbers.Integral) and not isinstance(value, bool):
-            out.append(str(int(value)))
+        elif isinstance(value, str):
+            out.append(value.strip())
         else:
-            out.append(str(value).strip())
+            return None
     return out
 
 
@@ -74,8 +83,7 @@ def resolve(frame: pd.DataFrame, teams: pd.DataFrame) -> tuple[list[tuple[str, s
         return [], ["the owner tab has no rows"]
     ids = id_text(frame["discord_user_id"])
     if ids is None:
-        return [], ["discord_user_id read back as numbers with gaps (a blank cell), so digits may be lost; "
-                    "fill or remove the blank cells"]
+        return [], [AS_NUMBERS]
     by_team = {}
     for team_key, name in zip(teams["team_key"], teams["team_name"]):
         by_team.setdefault(str(name).strip(), []).append(team_key)
