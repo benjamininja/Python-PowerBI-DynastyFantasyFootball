@@ -36,7 +36,9 @@ def test_good_key_variants_are_written_clean(raw, monkeypatch, tmp_path, capsys)
     assert code == 0
     assert json.loads(out.read_text(encoding="utf-8")) == KEY
     assert not out.read_bytes().startswith(b"\xef\xbb\xbf")
-    assert PLANTED not in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert PLANTED not in printed
+    assert ("a leading BOM was removed from the key." in printed) == raw.startswith("﻿")
     if os.name != "nt":
         assert out.stat().st_mode & 0o777 == 0o600
 

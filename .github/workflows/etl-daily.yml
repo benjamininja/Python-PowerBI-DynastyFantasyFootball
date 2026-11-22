@@ -63,6 +63,7 @@ jobs:
           git remote set-url --push origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Write the Sheets key
+        continue-on-error: true
         env:
           GOOGLE_SHEETS_KEY_JSON: ${{ secrets.GOOGLE_SHEETS_KEY_JSON }}
         run: python scripts/write_sheets_key.py "${RUNNER_TEMP}/sheets-key.json"

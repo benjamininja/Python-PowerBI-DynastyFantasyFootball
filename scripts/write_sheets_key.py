@@ -28,6 +28,8 @@ def clean_key(raw: str | None) -> dict:
     if raw is None or not raw.strip(BOM + " \t\r\n"):
         raise KeyCheckError(f"{SECRET_ENV} is empty")
     text = raw.strip()
+    if text.startswith(BOM):
+        print("Sheets key: a leading BOM was removed from the key.")
     text = text.lstrip(BOM).strip()
     try:
         data = json.loads(text)
