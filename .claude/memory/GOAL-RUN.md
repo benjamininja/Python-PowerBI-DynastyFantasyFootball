@@ -49,6 +49,10 @@ line under that skill's "Never".
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
+**The test line.** One full test run at a time on the owner's PC, across the dynasty and tools repos. Before a full re-proof the manager asks Tools-builder-manager for the line; after it, the manager sends an end notice. Builders hold full suites until the manager's go; targeted test files are fine.
+
+**Closing out another session's builder.** A builder dispatched by an earlier manager session is closed out only on the owner's direct word in this session, per builder.
+
 **After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
 - runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
 - reads the live roles, grants, policies and RLS flags with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
