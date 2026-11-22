@@ -65,14 +65,7 @@ jobs:
       - name: Write the Sheets key
         env:
           GOOGLE_SHEETS_KEY_JSON: ${{ secrets.GOOGLE_SHEETS_KEY_JSON }}
-        run: |
-          if [ -z "${GOOGLE_SHEETS_KEY_JSON}" ]; then
-            echo "GOOGLE_SHEETS_KEY_JSON is empty: no key file written."
-            exit 0
-          fi
-          umask 077
-          printf '%s' "${GOOGLE_SHEETS_KEY_JSON}" > "${RUNNER_TEMP}/sheets-key.json"
-          chmod 600 "${RUNNER_TEMP}/sheets-key.json"
+        run: python scripts/write_sheets_key.py "${RUNNER_TEMP}/sheets-key.json"
 
       - name: Run the Daily Run
         env:

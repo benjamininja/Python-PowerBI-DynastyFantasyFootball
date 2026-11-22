@@ -258,6 +258,10 @@ def _sheets_token() -> str:
         creds = service_account.Credentials.from_service_account_file(key_path, scopes=[SHEETS_SCOPE])
         creds.refresh(Request())
         token = creds.token
+    except json.JSONDecodeError as e:
+        raise SheetsAuthError(
+            f"Sheets sign-in: Google did not accept the key named by {SHEETS_KEY_ENV} "
+            f"(JSONDecodeError at line {int(e.lineno)} column {int(e.colno)}).") from None
     except Exception as e:
         raise SheetsAuthError(
             f"Sheets sign-in: Google did not accept the key named by {SHEETS_KEY_ENV} "
