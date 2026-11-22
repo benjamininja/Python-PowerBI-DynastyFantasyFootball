@@ -56,8 +56,8 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   Wilson rows 2-9, 82-87 carry 2 old team names
   (issues/548#issuecomment-7083149108). Queued: Ben updates the 2 names;
   the planner may propose an alias path instead. Then re-run with
-  `ETL_STORAGE=parquet` (the .env sets postgres) to
-  `C:\source\.secretsa-keeps-2026.sql` (the file must not exist),
+  `ETL_STORAGE=parquet` (the .env sets postgres) to the SQL path the
+  queue entry names (the file must not exist),
   then the paste step for Ben.
 - **When #629 and #630 have merged:** queue Ben's Action to start
   etl-daily by hand (Ben, planner's chat 16:28Z); close stale data PRs
