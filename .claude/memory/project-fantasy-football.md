@@ -101,8 +101,8 @@ plugin in a session; the look-only path is `supabase-dynasty`.
 ## Overview
 
 Dynasty fantasy football league. Ben is the commissioner and data engineer.
-Project path: `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\`
-Data path: `C:\Users\benha\OneDrive\Documents\GitHub\Python-PowerBI-DynastyFantasyFootball\data\`
+Project path: `C:\source\Github\Python-PowerBI-DynastyFantasyFootball\`
+Data path: `C:\source\Github\Python-PowerBI-DynastyFantasyFootball\data\`
 Power BI file: `pbi\Mouserat2.pbix`
 
 ## League Structure
