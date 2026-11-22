@@ -13,10 +13,15 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-22 15:56Z, session 5e9a5f7b-7fc8-40e8-a294-5e34990fbbc5 (the first Next block is current). Older header: 2026-11-15 22:38Z, session 3b579a78-96e4-4cb6-a358-50ea2fa737d9 (a02cc6a2 was the one before), after the two PR reads. Open PRs then: #591, #588, #575 (the state PR), #563. `main` is `0474267` (PR #587 merged, #585 closed). Both peers have the new id; the manager re-keyed the planner's three queue entries to it (its word). State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
+**Saved:** 2026-11-22 16:16Z, session 65cb1676-fc95-4abf-8174-422c03a5f64e (the first Next block is current). Older header: 2026-11-15 22:38Z, session 3b579a78-96e4-4cb6-a358-50ea2fa737d9 (a02cc6a2 was the one before), after the two PR reads. Open PRs then: #591, #588, #575 (the state PR), #563. `main` is `0474267` (PR #587 merged, #585 closed). Both peers have the new id; the manager re-keyed the planner's three queue entries to it (its word). State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
 
 ### Next (in order)
 
+- **Saved 2026-11-22 16:16Z, session 65cb1676-fc95-4abf-8174-422c03a5f64e. Wins over every bullet below.**
+  - **`main` is `558a7ae`:** PR #625 (#615) merged. The main checkout is past `5bd92f4` (#621 check done).
+  - **#614 live proof not met** (issues/614#issuecomment-7081749476): 01c failed in the 11-20 and 11-21 Daily Runs. The cause (manager, from the etl-daily log): the Daily Run is a GitHub Actions job with no Sheets key. Ben by button: "Repo secret (Recommended)". **#630** filed (low): etl-daily writes `GOOGLE_SHEETS_KEY_JSON` to a temp file. The manager has the ready queue entry for Ben's secret. Owed: read the first Daily Run after #630 merges and the secret is set (`[ok] 01c`).
+  - **#629** filed (medium): every data PR since 11-18 (#603, #618, #627, #628) fails `test_gsis_current` (2 old gsis_ids in `fact_nfl_minor_eligibility`, 02j). Snapshot frozen at PR #602 (11-17). Ben by button: "#629 first (Recommended)", relayed verbatim at 16:11Z. Manager order: closeouts, #629, #623, #616 (amend Decision first), #626, #597; #630 may run beside #629.
+  - **Peers' queue ids:** manager `1a0538b1-047b-4ba3-8967-ff325369e7ab`; Tools planner `019c4c0b-d63a-4262-9ee1-558f1408fd4f`; Tools-builder-manager `55edaa09-855e-454f-991a-371eb4875402` (sends #242's lock text for #620). The manager re-keyed the planner's two entries to this session.
 - **Saved 2026-11-22 15:56Z for a clear, session 5e9a5f7b-7fc8-40e8-a294-5e34990fbbc5. Wins over every bullet below.**
   - **`main` is `5bd92f4`:** PR #622 (#614) merged as `80021d4` and PR #621 (#619) as `5bd92f4`. Open: #625 (#615), data PRs #603, #618, #627, #628, then #595, #575 (state), #563.
   - **Owed first:** #614's live proof. Daily Runs ran 2026-11-20 and 2026-11-21 on or after `80021d4`. Read their summaries: 01c passes and no team_manifest data PR. Four data PRs (#603 to #628) are open, and that pile is the manager's.
