@@ -1,5 +1,7 @@
 {
   "functions": {
+    "shared.caller_team_keys": "CREATE FUNCTION shared.caller_team_keys() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT c.team_key\n    FROM shared.owner_crosswalk c\n    JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = c.discord_user_id\n    WHERE i.user_id = auth.uid()\n$fn$;",
+    "shared.choice_window": "CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT coalesce(\n        (SELECT CASE WHEN d.deadline_at > clock_timestamp() THEN 'open' ELSE 'passed' END\n         FROM ops.choice_deadline d\n         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),\n        'none')\n$fn$;",
     "shared.pii_token_hashes": "CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')\n    FROM (\n        SELECT regexp_split_to_table(lower(o.human_name), '\\s+') AS token FROM shared.owner o\n        UNION\n        SELECT lower(o.fantrax_username) FROM shared.owner o\n    ) s\n    WHERE s.token IS NOT NULL AND s.token <> ''\n$fn$;"
   },
   "roles": [
@@ -95,6 +97,30 @@
             "SELECT"
           ],
           "role": "etl_writer"
+        },
+        {
+          "columns": {
+            "INSERT": [
+              "season_id",
+              "team_key",
+              "scorer_id",
+              "choice_kind",
+              "choice",
+              "origin",
+              "changed_by"
+            ],
+            "UPDATE": [
+              "choice",
+              "origin",
+              "changed_by"
+            ]
+          },
+          "privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "role": "authenticated"
         }
       ],
       "indexes": [],
@@ -111,6 +137,37 @@
           "name": "etl_writer_select_after_deadline",
           "role": "etl_writer",
           "using": "EXISTS (SELECT 1 FROM ops.choice_deadline d WHERE d.season_id = contract_choices.season_id AND d.choice_kind = contract_choices.choice_kind AND d.deadline_at < clock_timestamp())"
+        },
+        {
+          "command": "SELECT",
+          "name": "owner_select_own_team",
+          "role": "authenticated",
+          "using": "team_key IN (SELECT shared.caller_team_keys())"
+        },
+        {
+          "command": "SELECT",
+          "name": "signed_in_select_shared_team",
+          "role": "authenticated",
+          "using": "EXISTS (SELECT 1 FROM app.team_choice_sharing s WHERE s.season_id = contract_choices.season_id AND s.team_key = contract_choices.team_key AND s.shared)"
+        },
+        {
+          "command": "SELECT",
+          "name": "signed_in_select_after_deadline",
+          "role": "authenticated",
+          "using": "shared.choice_window(season_id, choice_kind) = 'passed'"
+        },
+        {
+          "check": "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open' AND origin = 'app' AND changed_by = auth.uid()",
+          "command": "INSERT",
+          "name": "owner_insert_own_team_while_open",
+          "role": "authenticated"
+        },
+        {
+          "check": "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open' AND origin = 'app' AND changed_by = auth.uid()",
+          "command": "UPDATE",
+          "name": "owner_update_own_team_while_open",
+          "role": "authenticated",
+          "using": "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open'"
         }
       ],
       "schema": "app",
@@ -122,6 +179,120 @@
           "function": "ops.set_changed_at",
           "level": "ROW",
           "name": "contract_choices_set_changed_at",
+          "timing": "BEFORE"
+        }
+      ]
+    },
+    "app.team_choice_sharing": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "shared",
+          "not_null": true,
+          "sql_type": "boolean"
+        },
+        {
+          "name": "changed_by",
+          "not_null": false,
+          "sql_type": "uuid"
+        },
+        {
+          "default": "clock_timestamp()",
+          "name": "changed_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "team_choice_sharing_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "team_choice_sharing_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        }
+      ],
+      "grants": [
+        {
+          "columns": {
+            "INSERT": [
+              "season_id",
+              "team_key",
+              "shared",
+              "changed_by"
+            ],
+            "UPDATE": [
+              "shared",
+              "changed_by"
+            ]
+          },
+          "privileges": [
+            "SELECT",
+            "INSERT",
+            "UPDATE"
+          ],
+          "role": "authenticated"
+        }
+      ],
+      "indexes": [],
+      "name": "team_choice_sharing",
+      "pk": [
+        "season_id",
+        "team_key"
+      ],
+      "policies": [
+        {
+          "command": "SELECT",
+          "name": "signed_in_select_all",
+          "role": "authenticated",
+          "using": "true"
+        },
+        {
+          "check": "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open') AND changed_by = auth.uid()",
+          "command": "INSERT",
+          "name": "owner_insert_own_team_while_open",
+          "role": "authenticated"
+        },
+        {
+          "check": "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open') AND changed_by = auth.uid()",
+          "command": "UPDATE",
+          "name": "owner_update_own_team_while_open",
+          "role": "authenticated",
+          "using": "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open')"
+        }
+      ],
+      "schema": "app",
+      "triggers": [
+        {
+          "events": [
+            "UPDATE"
+          ],
+          "function": "ops.set_changed_at",
+          "level": "ROW",
+          "name": "team_choice_sharing_set_changed_at",
           "timing": "BEFORE"
         }
       ]
@@ -4060,6 +4231,42 @@
       "name": "owner",
       "pk": [
         "owner_id"
+      ],
+      "schema": "shared"
+    },
+    "shared.owner_crosswalk": {
+      "checks": [
+        "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
+      ],
+      "columns": [
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "discord_user_id",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "owner_crosswalk_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        }
+      ],
+      "indexes": [],
+      "name": "owner_crosswalk",
+      "pk": [
+        "team_key",
+        "discord_user_id"
       ],
       "schema": "shared"
     }
