@@ -13,10 +13,19 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-15 22:38Z, session 3b579a78-96e4-4cb6-a358-50ea2fa737d9 (a02cc6a2 was the one before), after the two PR reads. Open PRs then: #591, #588, #575 (the state PR), #563. `main` is `0474267` (PR #587 merged, #585 closed). Both peers have the new id; the manager re-keyed the planner's three queue entries to it (its word). State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
+**Saved:** 2026-11-22 15:56Z, session 5e9a5f7b-7fc8-40e8-a294-5e34990fbbc5 (the first Next block is current). Older header: 2026-11-15 22:38Z, session 3b579a78-96e4-4cb6-a358-50ea2fa737d9 (a02cc6a2 was the one before), after the two PR reads. Open PRs then: #591, #588, #575 (the state PR), #563. `main` is `0474267` (PR #587 merged, #585 closed). Both peers have the new id; the manager re-keyed the planner's three queue entries to it (its word). State branch `docs/state-2026-11-16`; its state PR is the open PR of that branch (`gh pr list --head docs/state-2026-11-16`).
 
 ### Next (in order)
 
+- **Saved 2026-11-22 15:56Z for a clear, session 5e9a5f7b-7fc8-40e8-a294-5e34990fbbc5. Wins over every bullet below.**
+  - **`main` is `5bd92f4`:** PR #622 (#614) merged as `80021d4` and PR #621 (#619) as `5bd92f4`. Open: #625 (#615), data PRs #603, #618, #627, #628, then #595, #575 (state), #563.
+  - **Owed first:** #614's live proof. Daily Runs ran 2026-11-20 and 2026-11-21 on or after `80021d4`. Read their summaries: 01c passes and no team_manifest data PR. Four data PRs (#603 to #628) are open, and that pile is the manager's.
+  - **#621:** the planner's read found no breach (pull/621#issuecomment-7025163099). The old-path deny rules in the settings files are fixed on `main`. The detail stays off GitHub. Check that the main checkout pulled `5bd92f4`.
+  - **#625 (#615):** the planner's read found no breach (pull/625#issuecomment-7025199382). Audit S1 (outputs kept by `--inplace`) is ruled no change. The store_env repeat is left to the code review. The merge is the manager's.
+  - **#626 filed** (`Tier: low`; 04a's `_creds()` loads the whole `.env`). Ben's go 2026-11-19 23:40Z: "Yes, after #625" (issuecomment-7025366856). Relayed; the manager confirms it by button and dispatches after #625.
+  - **#597:** brief checked (issuecomment-7025107719). Ben, 23:27Z: "PBI likely remains dead until offseason. app and data right now." #597 is Change steps 1 and 2 only (issuecomment-7025136692), and Power BI moved to **#624** (`Tier: low`, offseason). Relayed. Dispatch after #621 (now merged) and the deadline.
+  - **The manager's order** (queue id `30a1a891-a73d-48e0-aabc-19450b995e05` since its clear): #625, the closeouts of b619, b614 and b615, then #623, #616 (its amend Decision first), #626, and #597.
+  - **Peers:** Tools-builder-manager's queue id is `b4f527ea-69e9-4fe1-bdbc-bac6a2d93b46`; it sends the final lock text from tools PR #242 for #620.
 - **Saved 2026-11-19 23:22Z for a clear, session 0c145f0f-0c28-4299-97c5-1bdbc7ca264d. Wins over every bullet below.**
   - **#594 is closed out on the planner's side:** PR #617 merged as `566506a`, and the published counts match (28 rows, the same 28 keys, 2 names, `team_abbr` null; issues/594#issuecomment-7024361795). Next is #597.
   - **The move:** #619 filed (low; Ben's three button choices at tools issues/235#issuecomment-7024324390), with its PR at #621. #621's two memory lines (project-fantasy-football.md 104-105, RESUME.md 1889) go in the manager's state-save PR with MANAGER.md. Dynasty worktree repair: 0 prunable. Pruning merged worktrees is a separate ask of Ben.
