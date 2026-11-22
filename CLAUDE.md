@@ -101,6 +101,11 @@ the parquet alone.
   ambiguous architectural/design decision, use `grill-me` (one question at a
   time, recommended answer first) and get explicit sign-off before writing
   code — don't present a fait accompli.
+- **Skills**: `fantasy-football-python` is the primary skill for notebook
+  work; keep its `SKILL.md` and `references/data-model.md` in step with the
+  live schemas. `discord-bot-github-fetch` is the bot's source of truth (see
+  `discord_bot/` below). `grill-me` stress-tests a data-model design before
+  any build.
 - **Code review at re-proof**: the shared `pr-code-reviewer` (from tools)
   reviews a builder's code PR against the `mrp-dff-code-review` skill
   (`.claude/skills/mrp-dff-code-review/SKILL.md`); it loads only when the
@@ -158,9 +163,22 @@ the parquet alone.
   Prefer a full-cell rebuild over >3 stacked patches in one session. The
   `normalize-notebooks` pre-commit hook (`scripts/normalize_notebooks.py`)
   rewrites that form on commit, so `NotebookEdit` is fine.
+- **Notebook layout**: first cell is markdown with Purpose and Outputs; the
+  second is setup (the bootstrap above, `CFG`). `LeagueConfig` holds every
+  league value; logic hardcodes none. No `#` comments or docstrings in
+  generated notebook code (they nest badly in generator scripts); narrative
+  goes on the GitHub issue.
+- **Data hygiene**: `nflreadpy` returns Polars, so call `.to_pandas()` at once.
+  Check frame shapes and warn on transformer keys with no match.
 - **Network calls**: wrap in try/except with descriptive errors;
-  `etl._make_session()` gives retry/backoff. HTTP 200 ≠ success for JSON APIs
-  — check the response body for logical errors.
+  `etl._make_session()` gives retry/backoff (defaults `timeout=30`,
+  `delay=2.0`, `retries=3`, `backoff_factor=2.0`, retry on 429/500/502/503/504).
+  HTTP 200 ≠ success for JSON APIs — check the response body for logical
+  errors (e.g. Fantrax `pageError.code`). A run loop wraps each source in its
+  own try/except, so one timeout doesn't abort the batch; collect failures in
+  `_failed` and report them at the end.
+- **f-strings**: single quotes inside a double-quoted f-string
+  (`f"{'='*60}"`), never escaped quotes.
 - **Fuzzy matching**: `thefuzz.fuzz.token_sort_ratio`, auto ≥90 / review
   70–89 / new <70, consult `dim_player_alias` first so decisions aren't
   re-asked.
@@ -192,6 +210,12 @@ in commits unless asked.
 - **Fidelity**: preserve `lineageTag`/`sourceLineageTag` verbatim and all
   non-AI annotations (`SummarizationSetBy`, `PBI_FormatHint`,
   `changedProperty`, `sortByColumn`) on every edit.
+- **Power BI Desktop may be open and autosaving**: unrelated `pbi/` churn
+  (`en-US.tmdl`, `visual.json`, `diagramLayout.json`, `Dim_*.tmdl`) can appear
+  mid-session. Never `git add -A`; check `git diff --cached --stat` is
+  feature-only before a commit. Before trusting an earlier read of a TMDL
+  file, check its mtime (`ls -la --time-style=full-iso <file>`); if it changed
+  without an edit of yours, stop and ask whether Desktop is open.
 - **Dynasty model (post 2026-06-12)**: `fact_dynasty_ranking_metrics` is the
   only dynasty fact, with its own `GSISID` → `Dim_NFLPlayers` relationship.
   `MetricNum` and rank columns default `summarizeBy: average` (sums of ranks
