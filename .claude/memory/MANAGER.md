@@ -55,7 +55,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 ## CURRENT STATE (2026-11-23, fifth save, before a compact at Ben's word; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
 
-- **Heads.** origin/main and main checkout `828db84`. The main checkout
+- **Heads.** origin/main and main checkout `97dbebb`. The main checkout
   holds one uncommitted change, the owner's own: the deny line in
   `.claude/builders.settings.json` (the same edit as PR #657).
 - **session-dispatch** was typed by Ben at this session's start.
@@ -63,13 +63,10 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   the count read rows 30, teams 28, 0 duplicate pairs
   (issues/548#issuecomment-7103174921). The entry is removed. Ben was
   given the command that deletes the SQL file.
-- **PR #656 (the manager's own): the Supabase consultant line in
-  GOAL-RUN.md,** branch `docs/goal-run-consultant-line`, head `af80bbb`.
-  Ben's word by button: "Merge when green (Recommended)"
-  (tools issues/247#issuecomment-7103340781). At this save one
-  storage-pg run was still in progress; every other check passed.
-  **Next:** read the checks once, squash-merge pinned to the head only
-  if every check passed, pull, remove its branch and worktree.
+- **PR #656 merged** as `97dbebb`, pinned to `af80bbb`, on Ben's button
+  "Merge when green (Recommended)"; every check SUCCESS on one read
+  (tools issues/247#issuecomment-7103677619). The Supabase consultant
+  line is on main. Its branch and worktree are removed.
 - **Tools #247, the builder reach: closed by a deny rule.** First live
   test: 10 supabase-dynasty tool names offered to a builder and its
   subagent. Ben chose the deny rule and "Ben edits, manager carries";
@@ -82,9 +79,16 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   restore the main checkout's copy and pull at once
   (tools issues/247#issuecomment-7103550708); the entry is removed. At
   the prep before a compact its two storage-pg runs were still in
-  progress, so it is not merged. Left with
-  the planner: whether to deny the unauthenticated Supabase plugin
-  server's two sign-in tools too.
+  progress, so it is not merged. The planner answered
+  (tools issues/247#issuecomment-7103639275): also deny the separate,
+  unauthenticated Supabase plugin server. **Next, only after PR #657 is
+  merged and the main checkout pulled:** queue the owner line
+  `"mcp__plugin_supabase_supabase",` as an Action, checked against the
+  tool names a builder is offered (`mcp__plugin_supabase_supabase__*`).
+- **The planner's locked_value Decision is ruled by the planner** (option
+  (a), ADR-0025 decision 10 point 1; issues/548#issuecomment-7103631284).
+  Its entry is removed at the planner's ask, with its Note and Answer
+  recorded word for word (issues/548#issuecomment-7103677049).
 - **Running builders:** none of this manager's.
 - **#655 item 1, first part done.** The five folders git did not know
   held no unpushed work and are removed with their four local branches,
@@ -100,7 +104,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   - PR #653 (draft, the supabase-look agent) is the planner's. It merges
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
-- **Open PRs:** #656 (the manager's, merges when green), #657 (the
+- **Open PRs:** #657 (the
   owner's deny rule, merges when green), #653 (draft,
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
@@ -119,7 +123,4 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 ## Queue entries raised
 
-- None of the manager's own is open.
-- "Decide whether the published after-deadline choices table carries
-  locked_value" (Decision, the planner's): Session
-  `986a10cc-2c8b-4d55-9600-5cc9306c91be`.
+- None is open: the queue is empty.
