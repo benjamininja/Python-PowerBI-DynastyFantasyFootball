@@ -53,7 +53,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-23, sixth save, after the compact; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
+## CURRENT STATE (2026-11-23, seventh save, two builders dispatched; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
 
 - **Heads.** origin/main and main checkout `6721d97`. The main checkout
   holds no uncommitted change.
@@ -95,7 +95,25 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   issues/654#issuecomment-7103974431): a foundations brief comes before
   brief 4 of #548; football launches first, baseball second (#658,
   owner-led). No brief posted, no dispatch asked.
-- **Running builders:** none of this manager's.
+- **Running builders, both dispatched by this session on 2026-11-23**
+  on Ben's button answer "Planner's order" (to "Which order should the
+  next dispatch follow?"):
+  - **b616-manualpublish** (#616, Tier high, Profile none), session
+    `38d02387-31bf-4bca-b945-9f78e851f66f`, branch
+    `worktree-b616-manualpublish` (issues/616#issuecomment-7104311819).
+    Part 1: it drafts the ADR or CONTRIBUTING amend, posts it on #616
+    and sends the manager a ready Decision; it builds nothing until
+    Ben's answer is relayed. **Next:** queue that Decision when it
+    arrives; relay Ben's Answer word for word.
+  - **b626-creds** (#626, Tier low, Profile none), session
+    `7daad6fd-715d-4117-9ed2-49ffa75f0e58`, branch
+    `worktree-b626-creds` (issues/626#issuecomment-7104312553).
+    **Next:** when it reports its PR ready, ask Tools-builder-manager
+    for the test line, re-prove, run the code review round, merge on
+    Ben's standing merge word for #626 when GREEN.
+  - Both briefs hold the full suite: builders run their own test files
+    only. Ben's standing merge word covers #616 and #626 when GREEN,
+    never a parked Decision.
 - **#655 item 1, first part done.** The five folders git did not know
   held no unpushed work and are removed with their four local branches,
   on Ben's button "Folders and branches (Recommended)"
@@ -116,12 +134,12 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
   #563 (held).
-- **Dispatch order, each at Ben's go.** The planner's order, sent
-  2026-11-23: #616, #626, #597, #633, #637, #639, #644; #592 held; #620
-  waits on tools #242; #604 and #590 at Ben's go. The last manager
-  session had #633, #637, #639 first: ask Ben which leads. #616's ADR
-  amend goes to Ben as a Decision first. Memory is tight: about two
-  builders at a time.
+- **Dispatch order: the planner's, chosen by Ben by button on
+  2026-11-23** ("Planner's order"): #616, #626 (both running), then
+  #597, #633, #637, #639, #644 as a slot frees; #592 held; #620 waits
+  on tools #242; #604 and #590 at Ben's go. Memory is tight: about two
+  builders at a time. Each ticket needs its tier on the ticket and a
+  dry run first.
 - **Peers:** dff-central-planner queue id
   `986a10cc-2c8b-4d55-9600-5cc9306c91be`; Tools-builder-manager queue id
   `55edaa09-855e-454f-991a-371eb4875402`; Tools-central-planner queue id
