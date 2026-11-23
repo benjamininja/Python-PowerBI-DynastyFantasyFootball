@@ -64,12 +64,16 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   the text by button, "Approve as written (Recommended)"
   (tools issues/247#issuecomment-7103036436). **It merges only after
   Ben approves PR #656.** Then pull, and remove its branch and worktree.
-- **Running builder: b247-reachproof,** session
-  `bae56657-fe6b-4053-a65f-1834552c0a73`, low, no profile, no setup,
-  branch `worktree-b247-reachproof`. Ben's button: "Live test
-  (Recommended)". It lists the tools it and one subagent are offered,
-  calls none, changes nothing, and messages the manager. **Next:** post
-  its result on tools #247, then close it out (it opens no PR).
+- **Running builders:** none of this manager's.
+- **Live test done and closed out: b247-reachproof** (low, read-only,
+  no PR), on Ben's button "Live test (Recommended)". Result: the 10
+  supabase-dynasty tool names are offered, as deferred tools, to the
+  builder and to its subagent; no call was tried, so a refused call is
+  still a reading (tools issues/247#issuecomment-7103136079). The
+  follow-up is the queue Decision "Decide how to close the
+  supabase-dynasty reach of a dynasty builder"; the manager recommends
+  a deny rule in the builders settings (the owner's own commit), then
+  the same test again.
 - **#655 item 1, first part done.** The five folders git did not know
   held no unpushed work and are removed with their four local branches,
   on Ben's button "Folders and branches (Recommended)"
@@ -104,6 +108,8 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 - "Run the owner-crosswalk load SQL in the Supabase SQL editor"
   (Action): Session `aa75bef2-1167-49fd-995a-bdee72226d36`.
+- "Decide how to close the supabase-dynasty reach of a dynasty builder"
+  (Decision): Session `aa75bef2-1167-49fd-995a-bdee72226d36`.
 - "Decide whether the published after-deadline choices table carries
   locked_value" (Decision, the planner's): Session
   `986a10cc-2c8b-4d55-9600-5cc9306c91be`.
