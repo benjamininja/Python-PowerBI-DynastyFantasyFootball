@@ -13,34 +13,59 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-23 (see the commit time), session e0f49660-15b2-44b9-8430-e04f2e6b243b, before a clear. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
+**Saved:** 2026-11-23 (see the commit time), session 986a10cc-2c8b-4d55-9600-5cc9306c91be, at a seam after the #654 grill. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
 
 **Done 2026-11-22/23:** #548 brief 3 merged (#646, `61aa044`); #647, #649 (#648) and #642 (#623) merged. Gap #650 (the crosswalk loader read the wrong headers) was ticketed low, and PR #652 merged it. The ADR-0025 text for `GOAL-RUN.md` After a schema change lands and for `supabase-auditor.md` was posted at #548 issuecomment-7088321713 and merged as PR #651 on Ben's buttons. Ben's sign-in check is done, with Confirm email on by his ruling (issuecomment-7102523231). The planner ruled that brief 4 adds Confirm email to ADR-0025's dashboard list and checks it against the docs (issuecomment-7102774835). Main is at `828db84`.
 
-New tickets: #654 (owner-led grill: app roles, a site-admin impersonation role and season phases for regression walk-throughs, from Ben's pane Note; record issuecomment-7102641828); #655 (owner-led: about 53 GB of per-worktree `.venv`; the cause of closeout step 4 not removing worktrees is unknown, issuecomment-7102787917; the tools half is tools #250). Planner draft PR #653: `.claude/agents/supabase-look.md` from tools #247's template.
+New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-worktree `.venv`; the cause of closeout step 4 not removing worktrees is unknown; the tools halves are tools #250, the closeout script, high, and tools #251, the dispatch lists, medium); #658 (owner-led grill: one app for several Fantrax leagues and sports, football first, then baseball). Planner draft PR #653: `.claude/agents/supabase-look.md` from tools #247's template.
+
+**Done 2026-11-23, after the clear:**
+
+- **Q6 `locked_value` is ruled by the planner, option (a):** no column on the published table; the price is stored once, in `fact_salary_price_list` (#548 issuecomment-7103631284). ADR-0025 decision 10 point 1 made it the planner's; queuing it for Ben was an error. The manager removed the queue entry. Brief 4 gains a done condition: each candidate shows its locked price.
+- **The #654 grill, questions 1 to 9, answered by Ben by button** (issuecomment-7103309381, -7103433632, -7103633403, -7103781615, -7103974431):
+  1. Live: a role switch (lowest role first: owner, commissioner, site admin) and a read-only view-as for site admin. Act-as and phase mimic only on fake data.
+  2. Live view-as is masked: access facts only, no other team's choice values before its deadline.
+  3. Commissioners write in the app before and after a deadline, as an action: one team, one reason from a list, one dated note; rows carry `origin` commissioner; an append-only history keeps every version.
+  4. Record-first; the database refuses an action on a team the commissioner owns.
+  5. Four phases: `none`, `open`, `passed`, `final`. The `final` instant is stored in `ops.choice_deadline`; #559 reads only `final` choices.
+  6. Roles in `shared.app_role`, loaded by Ben's paste; owner stays derived from the crosswalk.
+  7. Staging: the role, phase and action table proven by the policy tests on every PR, and a scripted browser run on a throwaway CI stack for page PRs, with a screenshot per cell. No second Supabase project. Ben is installing Docker, so the same stack can run on his PC.
+  8. Before a deadline a commissioner's action is a blind write through one database function.
+  9. The app gets a domain of its own (tab-only session as the fallback). League-neutral name.
+  - Planner's rulings on #654: the reason list; what a pass is; history, the `final` instant and the role table land before the first owner write; a league scope on `shared.app_role`.
+- **Multi-league:** Ben chose to launch football first, built multi-league-ready, plus baseball as the second sport (#658). No league key exists in `docs/data_model.yml` today.
+- **#655:** two planner worktrees removed on Ben's button (issuecomment-7102991352). Ben's eleven answers from the assistant's grill are recorded as a relay (issuecomment-7103311428), not yet checked against the assistant's chat.
+- **Tools #247:** the planner answered that the builders' settings should also deny the unauthenticated Supabase plugin server (tools #247 issuecomment-7103639275). PR #656 (the consultant line) merged as `97dbebb`.
 
 ### Next (in order)
 
-1. **Q6 `locked_value` Decision** (in Ben's queue; record #548 issuecomment-7102450894; the planner recommends (a), no column, join `fact_salary_price_list`). On his answer, write the after-deadline brief: an idempotent copy as `etl_writer`, no `changed_by`, its table on the data-PR allowlist.
-2. **Offer Ben the #654 grill** before brief 4 is written. Then brief 4: Discord sign-in and the page, plus the Confirm email line. It must land before the 2027 re-sign deadline and outside 2026-12-03 to 2027-01-07.
-3. **#655:** put Ben the `dispatch.json` light-venv choice (item 3) by button, with exact paste text. The manager prunes (item 1; Ben's word per builder). The cause of step 4 must be found first.
-4. **PR #653** (supabase-look): mark it ready once tools #249 merges (after tools #205), then ask Ben by button to merge. The consultant line for `GOAL-RUN.md` and the builder-reach test are in Ben's queue; the reach result goes on tools #247.
-5. **The manager's order:** the crosswalk load (Ben chose to run it; first on the next manager session's list), #616 (its amend Decision first), #626, #597, #633, #637, #639, #644. Read each PR when asked.
-6. **#592** (held): rewrite with #545's move to `ops.choice_deadline`; then ticket #545's reader move.
-7. **#620** waits on tools PR #242's lock text. **#604 and #590** at Ben's go. Ask Ben by button whether to prune the planner's merged worktrees (planner-589, planner-claudemd, and planner-supabase-look after #653).
+1. **#654, close the grill:** ask Ben by button to confirm the record is the shared understanding. Then draft the ADR (amend ADR-0025 decisions 3, 4 and 6, or a new ADR) as the planner's own PR. Check first: the Postgres docs on a row-security UPDATE needing the SELECT policy; how long the Supabase CLI stack takes to start in Actions.
+2. **The briefs that follow, in this order** (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
+   - Foundations, before any owner write: the append-only history, the `final` instant (required, later than the deadline, not movable once passed), `origin` commissioner, `shared.app_role` with a league scope, the role, phase and action table and its policy tests.
+   - Brief 4, the owner's page: Discord sign-in, the locked price beside each candidate, one backend fixed at build, a content security policy, the session rule of question 9, the Confirm email line for ADR-0025.
+   - The after-deadline copy: idempotent, as `etl_writer`, no `changed_by`, no `locked_value`, its table on the data-PR allowlist, carrying `origin` and honouring `final`.
+   - The commissioner's action (the blind-write function) and status board; then the site admin's masked view-as.
+   - The scripted browser run on a throwaway CI stack, with a screenshot per cell, and the steps to run it on Ben's PC.
+3. **The app's domain:** an Action for Ben with exact steps (the name, DNS, the Pages setting, the redirect addresses), written with brief 4.
+4. **The owner-queue mod (tools; the dynasty planner's lane).** Relayed by Tools-builder-manager on 2026-11-23, Ben's words on tools #137: refresh the Bring to Chat design (tools #137, against mod 0.11.0 and tools #111; fold the two or close one) and add auto-close (an entry closes in the pane when Ben answers or ticks it; mind tools #179; the Answer and Note reach the Session before the entry goes). Post the design and a brief with a tier; say the order against tools PRs #196 and #197.
+5. **#655:** check the relayed answers against the assistant's chat. Then re-order the ticket (fix first, prune last); propose the text of dynasty's light and full setup lists for `.claude/dispatch.json` (key names `setup` and `setupFull` are tools #251's proposal, not final); propose the `GOAL-RUN.md` and manager-rule lines that answers 5, 6 and 10 change; name the proof that `pytest tests/ -q` and the pre-commit run pass from a light-venv worktree.
+6. **PR #653** (supabase-look): mark it ready once tools #249 merges, tell the Tools planner, then ask Ben by button to merge. Then ask Ben about its worktree.
+7. **#658** (owner-led): the multi-league grill. Its first question is whose the baseball repositories are and on what terms.
+8. **The manager's order:** the crosswalk SQL waits on Ben's hand; then #616, #626, #597, #633, #637, #639, #644. The last manager session led with #633, #637, #639; the manager asks Ben which leads. Read each PR when asked.
+9. **#592** (held): rewrite with #545's move to `ops.choice_deadline`; then ticket #545's reader move. **#620** waits on tools PR #242's lock text. **#604 and #590** at Ben's go.
 
 ### Peers (queue ids)
 
-- dff-central-builder-manager: a new session after its 2026-11-23 clear (the last app id seen: `local_102f2ba0-b400-4be8-a986-c12c63f83f34`); it sends its new id. Find it by name.
-- Tools-central-planner: `019c4c0b-d63a-4262-9ee1-558f1408fd4f`.
+- dff-central-builder-manager: `aa75bef2-1167-49fd-995a-bdee72226d36`. Find it by name.
+- Tools-central-planner: `6b47c44d-e4cb-43be-8d0a-51ec2776881b`.
 - Tools-builder-manager: `55edaa09-855e-454f-991a-371eb4875402`.
 - personal-assistant: reads only, reports findings.
 - After a clear: send the manager and the Tools planner the new id.
 
 ### Waiting on Ben
 
-- In his queue: the Q6 `locked_value` Decision, the consultant-line Action, the builder-reach Decision.
-- The planner's buttons: the #655 light-venv choice and the #654 grill offer.
+- Nothing of the planner's is in his queue.
+- The planner's button: the #654 confirmation. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
 - His go in the manager's chat for #633, #637, #604, #590.
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
 
