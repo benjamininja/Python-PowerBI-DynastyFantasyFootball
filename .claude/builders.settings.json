@@ -72,6 +72,7 @@
     ],
     "deny": [
       "PowerShell",
+      "mcp__supabase-dynasty",
       "Bash(gh pr merge*)",
       "Bash(gh api*)",
       "Bash(gh issue close*)",
