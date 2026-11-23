@@ -53,11 +53,16 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-23, seventh save, two builders dispatched; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
+## CURRENT STATE (2026-11-23, eighth save, before a clear at Ben's word; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
 
 - **Heads.** origin/main and main checkout `6721d97`. The main checkout
   holds no uncommitted change.
-- **session-dispatch** was typed by Ben again after the compact.
+- **session-dispatch** was typed by Ben in session `aa75bef2`. After
+  the clear the session is new: Ben types it again before any
+  dispatch, merge or closeout. The two running builders were
+  dispatched by session `aa75bef2`, so after the clear each is closed
+  out only on Ben's direct word per builder (GOAL-RUN.md, Closing out
+  another session's builder).
 - **Owner-crosswalk load (#548): done and verified.** Ben ran the SQL;
   the count read rows 30, teams 28, 0 duplicate pairs
   (issues/548#issuecomment-7103174921). Ben was given the command that
@@ -111,7 +116,9 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   - **b626-creds** (#626, Tier low, Profile none), session
     `7daad6fd-715d-4117-9ed2-49ffa75f0e58`, branch
     `worktree-b626-creds` (issues/626#issuecomment-7104312553).
-    **Next:** when it reports its PR ready, ask Tools-builder-manager
+    Its **PR #659** is open (branch `worktree-b626-creds`); at this
+    save the builder was still working and had not reported it ready.
+    **Next:** when it reports the PR ready, ask Tools-builder-manager
     for the test line, re-prove, run the code review round, merge on
     Ben's standing merge word for #626 when GREEN.
   - Both briefs hold the full suite: builders run their own test files
@@ -149,7 +156,8 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   - PR #653 (draft, the supabase-look agent) is the planner's. It merges
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
-- **Open PRs:** #653 (draft,
+- **Open PRs:** #659 (builder b626-creds, #626), #660 (the planner's
+  ADR-0026, waits on Ben's approval in the planner's chat), #653 (draft,
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
   #563 (held).
