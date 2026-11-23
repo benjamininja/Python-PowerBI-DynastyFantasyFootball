@@ -53,42 +53,48 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-23, fifth save, before a compact at Ben's word; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
+## CURRENT STATE (2026-11-23, sixth save, after the compact; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
 
-- **Heads.** origin/main and main checkout `97dbebb`. The main checkout
-  holds one uncommitted change, the owner's own: the deny line in
-  `.claude/builders.settings.json` (the same edit as PR #657).
-- **session-dispatch** was typed by Ben at this session's start.
+- **Heads.** origin/main and main checkout `6721d97`. The main checkout
+  holds no uncommitted change.
+- **session-dispatch** was typed by Ben again after the compact.
 - **Owner-crosswalk load (#548): done and verified.** Ben ran the SQL;
   the count read rows 30, teams 28, 0 duplicate pairs
-  (issues/548#issuecomment-7103174921). The entry is removed. Ben was
-  given the command that deletes the SQL file.
-- **PR #656 merged** as `97dbebb`, pinned to `af80bbb`, on Ben's button
-  "Merge when green (Recommended)"; every check SUCCESS on one read
-  (tools issues/247#issuecomment-7103677619). The Supabase consultant
-  line is on main. Its branch and worktree are removed.
-- **Tools #247, the builder reach: closed by a deny rule.** First live
-  test: 10 supabase-dynasty tool names offered to a builder and its
-  subagent. Ben chose the deny rule and "Ben edits, manager carries";
-  Ben added `mcp__supabase-dynasty` to the builders settings. Second
-  live test: 0 names offered to either
-  (tools issues/247#issuecomment-7103503667). Both test builders are
-  closed out. **PR #657** (branch `chore/builders-deny-supabase-dynasty`,
-  head `3273a30`) carries Ben's edit unchanged. Ben answered the merge
-  Decision in the pane: (a), merge once every check has passed, then
-  restore the main checkout's copy and pull at once
-  (tools issues/247#issuecomment-7103550708); the entry is removed. At
-  the prep before a compact its two storage-pg runs were still in
-  progress, so it is not merged. The planner answered
-  (tools issues/247#issuecomment-7103639275): also deny the separate,
-  unauthenticated Supabase plugin server. **Next, only after PR #657 is
-  merged and the main checkout pulled:** queue the owner line
-  `"mcp__plugin_supabase_supabase",` as an Action, checked against the
-  tool names a builder is offered (`mcp__plugin_supabase_supabase__*`).
+  (issues/548#issuecomment-7103174921). Ben was given the command that
+  deletes the SQL file.
+- **PR #656 merged** as `97dbebb`: the Supabase consultant line is on
+  main (tools issues/247#issuecomment-7103677619).
+- **Tools #247, the builder reach: closed by a deny rule, on main.**
+  First live test: 10 supabase-dynasty tool names offered to a builder
+  and its subagent. Ben added `mcp__supabase-dynasty` to the builders
+  settings; second live test: 0 names offered to either
+  (tools issues/247#issuecomment-7103503667). **PR #657 merged** as
+  `6721d97`, pinned to `3273a30`, on Ben's pane Answer (a); every check
+  SUCCESS on one read. The main checkout was restored and pulled at
+  once; the file has the same blob hash as Ben's edit. Its worktree and
+  branch are removed (tools issues/247#issuecomment-7104068971).
+  **Open:** the planner's second line
+  (tools issues/247#issuecomment-7103639275), the owner line
+  `"mcp__plugin_supabase_supabase",` after line 75, is queued as an
+  Action. After Ben's tick: ask Ben by button whether the manager
+  carries the file unchanged to a PR; the merge is then a Decision;
+  after that merge, restore the main copy and pull at once.
+- **Worktree removal, interim check** (issues/655#issuecomment-7104025813,
+  until tools #250's script is merged and pulled): list every junction
+  or link inside (`Get-ChildItem -Recurse -Force -Attributes
+  ReparsePoint`) and remove the link itself, never its target;
+  `git status --porcelain` prints nothing; remove; confirm the folder
+  is gone and `git worktree list` no longer shows it. A removal that
+  stops part way is reported on #655 and nothing is forced. On Windows
+  the remove follows a junction, and a file held open makes it stop
+  part way (tools issues/250#issuecomment-7103861254).
 - **The planner's locked_value Decision is ruled by the planner** (option
-  (a), ADR-0025 decision 10 point 1; issues/548#issuecomment-7103631284).
-  Its entry is removed at the planner's ask, with its Note and Answer
-  recorded word for word (issues/548#issuecomment-7103677049).
+  (a), ADR-0025 decision 10 point 1; issues/548#issuecomment-7103631284);
+  its entry is removed (issues/548#issuecomment-7103677049).
+- **#654 grill answered** (the planner's; last record
+  issues/654#issuecomment-7103974431): a foundations brief comes before
+  brief 4 of #548; football launches first, baseball second (#658,
+  owner-led). No brief posted, no dispatch asked.
 - **Running builders:** none of this manager's.
 - **#655 item 1, first part done.** The five folders git did not know
   held no unpushed work and are removed with their four local branches,
@@ -98,14 +104,15 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   open: the merged and the detached worktrees git lists, each on Ben's
   direct word per builder.
 - **The bot is up,** restarted in a terminal tab of this session.
-- **Test line:** Tools-builder-manager held it for tools PR 246's
-  re-proof at this session's start. Ask before a full re-proof.
+- **Test line:** with Tools-builder-manager, which runs its waiting
+  re-proofs (tools PRs 236, 238, 239, 242) and sends a start and an end
+  notice for each. Dynasty said it does not need the line now. Ask
+  before a full re-proof.
 - **From the planner, not started:**
   - PR #653 (draft, the supabase-look agent) is the planner's. It merges
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
-- **Open PRs:** #657 (the
-  owner's deny rule, merges when green), #653 (draft,
+- **Open PRs:** #653 (draft,
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
   #563 (held).
@@ -123,4 +130,5 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 ## Queue entries raised
 
-- None is open: the queue is empty.
+- Action: "Add the Supabase plugin server deny rule to the builders
+  settings file" (tools #247), raised 2026-11-23, open.
