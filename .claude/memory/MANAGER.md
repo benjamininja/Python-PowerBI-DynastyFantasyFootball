@@ -45,9 +45,15 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   prune), never by hand for a whole entry. A pane Note is recorded on the
   entry's ticket word for word before the entry is removed.
 - **A pane Note is not approval,** even when its words approve. Bring it
-  to Ben by button in chat, then act.
+  to Ben by button in chat, then act. A tick is not approval of a merge
+  either: an entry that asks for a merge is a Decision, so the pane
+  writes an Answer, and it never offers the tick as a way to approve.
+- **An owner's settings edit** is made by Ben in the main checkout. On
+  his word the manager copies the file unchanged to a branch and a PR.
+  After that PR merges, restore the main checkout's copy and pull at
+  once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-23, fourth save; session `aa75bef2-1167-49fd-995a-bdee72226d36`, the session after the clear)
+## CURRENT STATE (2026-11-23, fifth save, before a compact at Ben's word; session `aa75bef2-1167-49fd-995a-bdee72226d36`)
 
 - **Heads.** origin/main and main checkout `828db84`. The main checkout
   holds one uncommitted change, the owner's own: the deny line in
@@ -71,10 +77,12 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   live test: 0 names offered to either
   (tools issues/247#issuecomment-7103503667). Both test builders are
   closed out. **PR #657** (branch `chore/builders-deny-supabase-dynasty`,
-  head `3273a30`) carries Ben's edit unchanged; its merge is the queue
-  Decision "Decide whether PR #657, the supabase-dynasty deny rule,
-  merges". After that merge the main checkout's copy must be restored
-  and pulled at once, as the Decision's first option says. Left with
+  head `3273a30`) carries Ben's edit unchanged. Ben answered the merge
+  Decision in the pane: (a), merge once every check has passed, then
+  restore the main checkout's copy and pull at once
+  (tools issues/247#issuecomment-7103550708); the entry is removed. At
+  the prep before a compact its two storage-pg runs were still in
+  progress, so it is not merged. Left with
   the planner: whether to deny the unauthenticated Supabase plugin
   server's two sign-in tools too.
 - **Running builders:** none of this manager's.
@@ -93,7 +101,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
 - **Open PRs:** #656 (the manager's, merges when green), #657 (the
-  owner's deny rule, waits on Ben's Decision), #653 (draft,
+  owner's deny rule, merges when green), #653 (draft,
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
   #563 (held).
@@ -111,8 +119,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 ## Queue entries raised
 
-- "Decide whether PR #657, the supabase-dynasty deny rule, merges"
-  (Decision): Session `aa75bef2-1167-49fd-995a-bdee72226d36`.
+- None of the manager's own is open.
 - "Decide whether the published after-deadline choices table carries
   locked_value" (Decision, the planner's): Session
   `986a10cc-2c8b-4d55-9600-5cc9306c91be`.
