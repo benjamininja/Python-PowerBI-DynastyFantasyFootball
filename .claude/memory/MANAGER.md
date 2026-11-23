@@ -103,8 +103,11 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
     `worktree-b616-manualpublish` (issues/616#issuecomment-7104311819).
     Part 1: it drafts the ADR or CONTRIBUTING amend, posts it on #616
     and sends the manager a ready Decision; it builds nothing until
-    Ben's answer is relayed. **Next:** queue that Decision when it
-    arrives; relay Ben's Answer word for word.
+    Ben's answer is relayed. Part 1 is done: the draft and plan are at
+    issues/616#issuecomment-7104356290 and the Decision is queued
+    (issues/616#issuecomment-7104376591). **Next:** on Ben's pane
+    Answer, relay the question and the answer word for word to the
+    builder, record it on #616, then remove the entry.
   - **b626-creds** (#626, Tier low, Profile none), session
     `7daad6fd-715d-4117-9ed2-49ffa75f0e58`, branch
     `worktree-b626-creds` (issues/626#issuecomment-7104312553).
@@ -150,3 +153,6 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 - Action: "Add the Supabase plugin server deny rule to the builders
   settings file" (tools #247), raised 2026-11-23, open.
+- Decision: "Decide whether a manual-only table may reach main by the
+  pipeline's own data PR, on Ben's command (#616)", raised 2026-11-23
+  for builder b616-manualpublish, open.
