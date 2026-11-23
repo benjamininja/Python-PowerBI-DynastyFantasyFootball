@@ -130,6 +130,22 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   notice for each. Dynasty said it does not need the line now. Ask
   before a full re-proof.
 - **From the planner, not started:**
+  - **The #654 batch, held until planner PR #660 merges** (ADR-0026,
+    docs only; it waits on Ben's approval in the planner's chat). Ben
+    confirmed the grill (issues/654#issuecomment-7104535169). All Tier
+    medium, Profile none, in this order: #661, then #662 (same files),
+    then brief 4 of #548 restated whole (issues/548#issuecomment-7104491120),
+    then the after-deadline copy (issues/548#issuecomment-7104493151),
+    then #663, #664, #665 (the planner restates these three against
+    merged code first). Brief 4 and the copy land outside 2026-12-03
+    to 2027-01-07. #661 and #662 change schema, grants and a generator
+    rule: the supabase-auditor and the After a schema change lands
+    check apply; the planner sends replacement GOAL-RUN lines when
+    #661's PR opens. Each still needs Ben's go.
+  - #655: 24 worktrees have a damaged git record
+    (issues/655#issuecomment-7104537108). The planner's worktree on
+    branch `docs/adr-0026-app-roles` is in use: never offer it for
+    removal.
   - PR #653 (draft, the supabase-look agent) is the planner's. It merges
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
