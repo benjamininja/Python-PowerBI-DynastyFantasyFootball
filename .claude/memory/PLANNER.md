@@ -13,7 +13,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-23 (see the commit time), session 986a10cc-2c8b-4d55-9600-5cc9306c91be, at a seam after the #654 grill. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
+**Saved:** 2026-11-23 (see the commit time), session 986a10cc-2c8b-4d55-9600-5cc9306c91be, at a seam after ADR-0026 and its briefs were posted. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
 
 **Done 2026-11-22/23:** #548 brief 3 merged (#646, `61aa044`); #647, #649 (#648) and #642 (#623) merged. Gap #650 (the crosswalk loader read the wrong headers) was ticketed low, and PR #652 merged it. The ADR-0025 text for `GOAL-RUN.md` After a schema change lands and for `supabase-auditor.md` was posted at #548 issuecomment-7088321713 and merged as PR #651 on Ben's buttons. Ben's sign-in check is done, with Confirm email on by his ruling (issuecomment-7102523231). The planner ruled that brief 4 adds Confirm email to ADR-0025's dashboard list and checks it against the docs (issuecomment-7102774835). Main is at `828db84`.
 
@@ -39,8 +39,8 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 ### Next (in order)
 
-1. **#654, close the grill:** ask Ben by button to confirm the record is the shared understanding. Then draft the ADR (amend ADR-0025 decisions 3, 4 and 6, or a new ADR) as the planner's own PR. Check first: the Postgres docs on a row-security UPDATE needing the SELECT policy; how long the Supabase CLI stack takes to start in Actions.
-2. **The briefs that follow, in this order** (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
+1. **PR #660 (ADR-0026, branch `docs/adr-0026-app-roles`):** Ben confirmed the grill (Yes, draft them) and set the final date (the season's last day; #654 issuecomment-7104535169). Get his approval of the PR by button, merge it pinned to its head with every check passing, then close #654. The ADR differs from question 8's wording in one way, said in the PR body: the blind write is a trigger behind ordinary inserts, so no function is callable from the app. Then: send the manager the `GOAL-RUN.md` lines when #661's PR opens, and open the planner PR that adds ADR-0026 to the supabase-auditor's basis.
+2. **The briefs are posted, all medium; nothing dispatches before PR #660 merges.** Order: #661, #662 (same files, so one after the other), brief 4 restated whole (#548 issuecomment-7104491120), the after-deadline copy (#548 issuecomment-7104493151), #663, #664, #665. Restate #663 to #665 against the merged code before dispatch. Six points are listed in ADR-0026 as not decided; the planner rules the page's read path before brief 4 dispatches. What each brief holds (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
    - Foundations, before any owner write: the append-only history, the `final` instant (required, later than the deadline, not movable once passed), `origin` commissioner, `shared.app_role` with a league scope, the role, phase and action table and its policy tests.
    - Brief 4, the owner's page: Discord sign-in, the locked price beside each candidate, one backend fixed at build, a content security policy, the session rule of question 9, the Confirm email line for ADR-0025.
    - The after-deadline copy: idempotent, as `etl_writer`, no `changed_by`, no `locked_value`, its table on the data-PR allowlist, carrying `origin` and honouring `final`.
@@ -48,7 +48,7 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
    - The scripted browser run on a throwaway CI stack, with a screenshot per cell, and the steps to run it on Ben's PC.
 3. **The app's domain:** an Action for Ben with exact steps (the name, DNS, the Pages setting, the redirect addresses), written with brief 4.
 4. **The owner-queue mod (tools; the dynasty planner's lane).** Relayed by Tools-builder-manager on 2026-11-23, Ben's words on tools #137: refresh the Bring to Chat design (tools #137, against mod 0.11.0 and tools #111; fold the two or close one) and add auto-close (an entry closes in the pane when Ben answers or ticks it; mind tools #179; the Answer and Note reach the Session before the entry goes). Post the design and a brief with a tier; say the order against tools PRs #196 and #197.
-5. **#655:** check the relayed answers against the assistant's chat. Then re-order the ticket (fix first, prune last); propose the text of dynasty's light and full setup lists for `.claude/dispatch.json` (key names `setup` and `setupFull` are tools #251's proposal, not final); propose the `GOAL-RUN.md` and manager-rule lines that answers 5, 6 and 10 change; name the proof that `pytest tests/ -q` and the pre-commit run pass from a light-venv worktree.
+5. **#655:** the assistant's second report is recorded (issuecomment-7104537108: 24 worktrees with a damaged git record, 15.7 GB, which the tools #250 script refuses; what deleted the tracked role files is unknown). The interim removal check is issuecomment-7104025813. Check the relayed answers against the assistant's chat. Then re-order the ticket (fix first, prune last); propose the text of dynasty's light and full setup lists for `.claude/dispatch.json` (key names `setup` and `setupFull` are tools #251's proposal, not final); propose the `GOAL-RUN.md` and manager-rule lines that answers 5, 6 and 10 change; name the proof that `pytest tests/ -q` and the pre-commit run pass from a light-venv worktree.
 6. **PR #653** (supabase-look): mark it ready once tools #249 merges, tell the Tools planner, then ask Ben by button to merge. Then ask Ben about its worktree.
 7. **#658** (owner-led): the multi-league grill. Its first question is whose the baseball repositories are and on what terms.
 8. **The manager's order:** the crosswalk SQL waits on Ben's hand; then #616, #626, #597, #633, #637, #639, #644. The last manager session led with #633, #637, #639; the manager asks Ben which leads. Read each PR when asked.
@@ -65,7 +65,7 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 ### Waiting on Ben
 
 - Nothing of the planner's is in his queue.
-- The planner's button: the #654 confirmation. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
+- The planner's button: the approval of PR #660. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
 - His go in the manager's chat for #633, #637, #604, #590.
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
 
