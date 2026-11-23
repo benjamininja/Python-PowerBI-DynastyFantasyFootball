@@ -116,9 +116,10 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   - **b626-creds** (#626, Tier low, Profile none), session
     `7daad6fd-715d-4117-9ed2-49ffa75f0e58`, branch
     `worktree-b626-creds` (issues/626#issuecomment-7104312553).
-    Its **PR #659** is open (branch `worktree-b626-creds`); at this
-    save the builder was still working and had not reported it ready.
-    **Next:** when it reports the PR ready, ask Tools-builder-manager
+    Its **PR #659** is open (branch `worktree-b626-creds`) and the
+    builder reported it ready for re-proof, at head
+    `9a3a07e869a6a789d460e5fde3e200e4a8661f71`, after the manager had paused for the clear:
+    the re-proof is not started. **Next:** ask Tools-builder-manager
     for the test line, re-prove, run the code review round, merge on
     Ben's standing merge word for #626 when GREEN.
   - Both briefs hold the full suite: builders run their own test files
