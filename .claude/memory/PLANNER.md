@@ -13,22 +13,25 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-22 (see the commit time), session 65cb1676-fc95-4abf-8174-422c03a5f64e, before a compact. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
+**Saved:** 2026-11-23 (see the commit time), session e0f49660-15b2-44b9-8430-e04f2e6b243b, before a clear. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
 
-**Done today:** #629 (PR #638) and #630 (PR #636) merged. Data PRs land again (#640, #641, #645). #614's live proof is met: run 45068959547, `[ok] 01c`, all Chains published (issuecomment-7085725374). The cause was the secret's bytes: first the `.env` line, then the PowerShell pipe. A byte-exact `cmd` redirect fixed it. PR #632 merged (`c598e3e`), and Tools pruned root. The 2026 FA keep load is in: 109 rows in `app.contract_choices`, 30 keeps (#548). The planner fixed 14 Wilson team cells in Ben's workbook at Ben's word (issuecomment-7083799790; correction in issuecomment-7084469321).
+**Done 2026-11-22/23:** #548 brief 3 merged (#646, `61aa044`); #647, #649 (#648) and #642 (#623) merged. Gap #650 (the crosswalk loader read the wrong headers) was ticketed low, and PR #652 merged it. The ADR-0025 text for `GOAL-RUN.md` After a schema change lands and for `supabase-auditor.md` was posted at #548 issuecomment-7088321713 and merged as PR #651 on Ben's buttons. Ben's sign-in check is done, with Confirm email on by his ruling (issuecomment-7102523231). The planner ruled that brief 4 adds Confirm email to ADR-0025's dashboard list and checks it against the docs (issuecomment-7102774835). Main is at `828db84`.
+
+New tickets: #654 (owner-led grill: app roles, a site-admin impersonation role and season phases for regression walk-throughs, from Ben's pane Note; record issuecomment-7102641828); #655 (owner-led: about 53 GB of per-worktree `.venv`; the cause of closeout step 4 not removing worktrees is unknown, issuecomment-7102787917; the tools half is tools #250). Planner draft PR #653: `.claude/agents/supabase-look.md` from tools #247's template.
 
 ### Next (in order)
 
-1. **#548 brief 3** (b548-ownerxwalk, building). Planner rulings on its park are at issuecomment-7085556564: function 2 returns open, passed or none; the candidate bound is not built; the CI auth stub is allowed with four limits. Count 2 (PII digit-run rows) and the `pii_token_hashes` change stay parked with the manager. When its PR opens, send the manager the `GOAL-RUN.md` After-a-schema-change line and the supabase-auditor basis (ADR-0025 Consequences), plus the `supabase-auditor.md` line (a missing `needs:` on validate is no finding). Then write the after-deadline brief (Q6; `locked_value` on an app-origin row), then brief 4 (Discord sign-in and the page; it must land before the 2027 re-sign deadline and outside 2026-12-03 to 2027-01-07).
-2. **PR #647** (#643, with Ben's manual sheets-key-check workflow): it merges on green at Ben's word. Then **#648** (low): `continue-on-error` on the key step, so a bad key holds only team_manifest (F1 traces to the planner's #643 brief), plus a BOM line.
-3. **The manager's order:** #623 (b623-teamcount, building), #616 (its amend Decision first), #626, #597, #633, #637 (stale root and OneDrive text; can ride with #633), #639 (medium, a shared gsis remap for every `gsis_tables()` table; not urgent), #644 (low, reproof.py Temp leak). Read each PR when asked. Memory is near its limit, so propose no extra dispatch while three builders run.
-4. **#592** (held): rewrite its Change with #545's move to `ops.choice_deadline`. Then ticket #545's deadline reader move to the table.
-5. **#620** waits on tools PR #242's lock text (from Tools-builder-manager).
-6. **#604 and #590** at Ben's go. At the day's last save, ask Ben by button whether to prune merged worktrees (planner-589, planner-claudemd).
+1. **Q6 `locked_value` Decision** (in Ben's queue; record #548 issuecomment-7102450894; the planner recommends (a), no column, join `fact_salary_price_list`). On his answer, write the after-deadline brief: an idempotent copy as `etl_writer`, no `changed_by`, its table on the data-PR allowlist.
+2. **Offer Ben the #654 grill** before brief 4 is written. Then brief 4: Discord sign-in and the page, plus the Confirm email line. It must land before the 2027 re-sign deadline and outside 2026-12-03 to 2027-01-07.
+3. **#655:** put Ben the `dispatch.json` light-venv choice (item 3) by button, with exact paste text. The manager prunes (item 1; Ben's word per builder). The cause of step 4 must be found first.
+4. **PR #653** (supabase-look): mark it ready once tools #249 merges (after tools #205), then ask Ben by button to merge. The consultant line for `GOAL-RUN.md` and the builder-reach test are in Ben's queue; the reach result goes on tools #247.
+5. **The manager's order:** the crosswalk load (Ben chose to run it; first on the next manager session's list), #616 (its amend Decision first), #626, #597, #633, #637, #639, #644. Read each PR when asked.
+6. **#592** (held): rewrite with #545's move to `ops.choice_deadline`; then ticket #545's reader move.
+7. **#620** waits on tools PR #242's lock text. **#604 and #590** at Ben's go. Ask Ben by button whether to prune the planner's merged worktrees (planner-589, planner-claudemd, and planner-supabase-look after #653).
 
 ### Peers (queue ids)
 
-- dff-central-builder-manager: `1a0538b1-047b-4ba3-8967-ff325369e7ab` (`session-dispatch` loaded).
+- dff-central-builder-manager: a new session after its 2026-11-23 clear (the last app id seen: `local_102f2ba0-b400-4be8-a986-c12c63f83f34`); it sends its new id. Find it by name.
 - Tools-central-planner: `019c4c0b-d63a-4262-9ee1-558f1408fd4f`.
 - Tools-builder-manager: `55edaa09-855e-454f-991a-371eb4875402`.
 - personal-assistant: reads only, reports findings.
@@ -36,8 +39,9 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Waiting on Ben
 
-- His go in the manager's chat for #633, #637, #648, #604, #590.
-- The 49 leftover reproof Temp folders: his hand step (#644).
+- In his queue: the Q6 `locked_value` Decision, the consultant-line Action, the builder-reach Decision.
+- The planner's buttons: the #655 light-venv choice and the #654 grill offer.
+- His go in the manager's chat for #633, #637, #604, #590.
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
 
 ### Rules Ben set today
