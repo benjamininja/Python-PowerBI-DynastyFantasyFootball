@@ -298,13 +298,9 @@ class FantraxScraper:
 
     # --- auth -----------------------------------------------------------------
     def _creds(self) -> tuple[str, str]:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-        except ModuleNotFoundError:
-            pass  # env vars may already be set by the OS/scheduler
-        email = os.getenv("FANTRAX_EMAIL")
-        pwd = os.getenv("FANTRAX_PASSWORD")
+        import etl_run_log
+        email = os.getenv("FANTRAX_EMAIL") or etl_run_log.env_value("FANTRAX_EMAIL")
+        pwd = os.getenv("FANTRAX_PASSWORD") or etl_run_log.env_value("FANTRAX_PASSWORD")
         if not email or not pwd:
             raise RuntimeError(
                 "Set FANTRAX_EMAIL and FANTRAX_PASSWORD (in a gitignored .env "
