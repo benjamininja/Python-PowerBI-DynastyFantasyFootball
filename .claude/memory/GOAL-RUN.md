@@ -72,6 +72,8 @@ A session sees `supabase-dynasty` only if it started after the server was added.
 
 A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
 
+**Supabase consultant.** The consultant assigned to this project takes tasks from the planner `dff-central-planner` and the manager `dff-central-builder-manager`. Builder name prefix: none. The consultant reads these names from this line, on `main`, and from nowhere else.
+
 **Always parks, past the skill's list:**
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
 - a verify step that fails on real data (restore the tables from HEAD first);
