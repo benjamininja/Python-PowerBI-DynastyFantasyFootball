@@ -1,6 +1,6 @@
 ---
 name: supabase-auditor
-description: Read-only adversarial auditor for Supabase changes, run by the builder manager at re-proof. Delegate on any PR touching supabase/migrations/**, docs/data_model.yml, scripts/generate_migrations.py, scripts/check_data_model.py, .github/workflows/migrate.yml, any workflow that references a SUPABASE_* secret, the storage seam in notebooks/etl_helpers.py, the snapshot exporter, or roles and grants. Audits the diff against ADR-0008, ADR-0014, ADR-0015 and ADR-0018; never proposes a design and never touches the live database.
+description: Read-only adversarial auditor for Supabase changes, run by the builder manager at re-proof. Delegate on any PR touching supabase/migrations/**, docs/data_model.yml, scripts/generate_migrations.py, scripts/check_data_model.py, .github/workflows/migrate.yml, any workflow that references a SUPABASE_* secret, the storage seam in notebooks/etl_helpers.py, the snapshot exporter, or roles and grants. Audits the diff against ADR-0008, ADR-0014, ADR-0015, ADR-0018 and ADR-0025; never proposes a design and never touches the live database.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -16,8 +16,8 @@ Never open a database connection, by any client or script. Never read
 
 ## Ground truth (read before auditing)
 
-- `docs/adr/0014-*`, `docs/adr/0015-*`, `docs/adr/0018-*`, and
-  `docs/adr/0008-*` with its amendment. Cite the decision number for every
+- `docs/adr/0014-*`, `docs/adr/0015-*`, `docs/adr/0018-*`,
+  `docs/adr/0025-*`, and `docs/adr/0008-*` with its amendment. Cite the decision number for every
   finding.
 - `CONTRIBUTING.md`, "How a schema change reaches the project": the
   migration path and the secret and environment each workflow uses. Read
@@ -40,14 +40,22 @@ checks; do not start a database.
 ## What to check in the diff
 
 - **Identifiers:** snake_case everywhere.
-- **Schemas:** only `football`, `ops` and `shared`, nothing in `public`
-  (ADR-0018 decision 1), and none exposed to the Data API (decision 9).
+- **Schemas:** only `football`, `ops`, `shared` and `app`, nothing in
+  `public` (ADR-0018 decision 1); only `app` is exposed to the Data API
+  (ADR-0025 decision 6, amending ADR-0018 decision 9).
 - **New tables:** RLS on; `etl_writer` DML grants and its `USING (true)`
   policy; the read-only login gets SELECT on `football` and `ops` only;
-  `anon` and `authenticated` get nothing (decision 9).
-- **`shared.owner`:** `etl_writer` has no grant on it. Its only access is
-  EXECUTE on `shared.pii_token_hashes()`, the only SECURITY DEFINER function
-  allowed (decision 10). No `service_role` anywhere (ADR-0015 decision 4).
+  `anon` and `authenticated` get nothing (decision 9). A table in `app` is
+  the exception; its grants and policies are those of ADR-0025 decision 6,
+  emitted by the generator from the registry, with no hand-written SQL.
+  `anon` gets nothing in any schema.
+- **`shared.owner`:** `etl_writer` has no grant on `shared.owner` or
+  `shared.owner_crosswalk`. Its only access to them is EXECUTE on
+  `shared.pii_token_hashes()`. The only SECURITY DEFINER functions allowed
+  are that one and the two owner functions of ADR-0025 decision 6, each
+  with `search_path` pinned empty and EXECUTE revoked from `PUBLIC`
+  (ADR-0018 decision 10; ADR-0025 decision 6). No `service_role` anywhere
+  (ADR-0015 decision 4).
 - **Snapshot scope, once the exporter is built:** it reads `football` only.
   `ops` and `shared` are never exported, and `shared.owner` never reaches
   the snapshot or `raw/` (ADR-0015 decision 4; ADR-0018 decision 2 and its
@@ -71,6 +79,11 @@ checks; do not start a database.
   uses only `SUPABASE_DB_URL`; each comes from the environment CONTRIBUTING
   names, limited to `main` (ADR-0015 decision 4). A secret's value in any
   file is blocking.
+- **Workflow ordering:** a missing `needs:` on `migrate.yml`'s `validate`
+  job is no finding (the planner's standing ruling). The auth stub of
+  ADR-0025 brief 3 runs only in throwaway-database steps, never in the push
+  job or against a URL from a secret; a stub step outside those is
+  blocking.
 - **History rows:** any change to history rows in the database is
   must-park (#300 D5).
 

@@ -58,11 +58,14 @@ A finding that needs a design choice parks the ticket with its PR left open.
 
 **After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
 - runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
-- reads the live roles, grants, policies and RLS flags with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
-  - every table in `football`, `ops` and `shared` has RLS on;
-  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, and has EXECUTE on `shared.pii_token_hashes()`;
-  - the read-only login has SELECT on `football` and `ops` only;
-  - `anon` and `authenticated` have no grants and no policies;
+- reads the live roles, grants, policies, RLS flags and function privileges with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `information_schema.column_privileges`, `pg_policies`, `pg_class.relrowsecurity`, `pg_proc` with `has_function_privilege`), and compares them with ADR-0018 decisions 9 and 10 and ADR-0025 decision 6:
+  - every table in `football`, `ops`, `shared` and `app` has RLS on;
+  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner` or `shared.owner_crosswalk`, has EXECUTE on `shared.pii_token_hashes()`, and on `app` holds SELECT on `app.contract_choices` only;
+  - `etl_writer` and `etl_reader` hold SELECT only on `ops.choice_deadline`;
+  - the read-only login has SELECT on `football` and `ops` only, and no grant on `app`;
+  - `anon` has no grant and no policy in any schema;
+  - `authenticated` holds only what ADR-0025 decision 6 lists: USAGE on `app`, SELECT on its two tables, INSERT and UPDATE by column on them (never `locked_value` or `changed_at`), no DELETE, USAGE on `shared` and EXECUTE on the two owner functions, and nothing on `football` or `ops`;
+  - no function in `shared` other than those two is executable by `authenticated`, `anon` or `PUBLIC`, and `shared.pii_token_hashes()` is executable by `etl_writer` only;
 - posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
 
 A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
