@@ -37,46 +37,76 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   manager's session. A clear can close it: check and restart.
 - **Ben's standing merge word, each when GREEN:** #616, #623, #597, #626.
   It never covers a parked Decision (an ADR amend, a DROP COLUMN).
+- **The reset prompt** is a local file in the owner's profile, outside
+  every repository, one per repo and role (tools #217). A new session
+  told to read it, with none in its chat, looks there before it rebuilds
+  from this file.
+- **The queue is edited with the owner-queue command line** (add, remove,
+  prune), never by hand for a whole entry. A pane Note is recorded on the
+  entry's ticket word for word before the entry is removed.
+- **A pane Note is not approval,** even when its words approve. Bring it
+  to Ben by button in chat, then act.
 
-## CURRENT STATE (2026-11-23 ~07:30Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a clear at Ben's word)
+## CURRENT STATE (2026-11-23, second save; session `f38b1eac-6b97-4859-8aea-e68610d98e1c`, before a clear at Ben's word)
 
-- **Heads.** origin/main and main checkout `61aa044`.
-- **Merged since the last save:** #649 (#648) `b089d59`; #646 (#548
-  brief 3, owner crosswalk and policies) `61aa044` at Ben's word, GREEN at
-  re-proof (3426 passed), migrate on main SUCCESS. Builders b648 and b548
-  closed out.
-- **#646 live check:** every rule of the planner's ADR-0025 list holds
-  (counts on #548). Use `has_table_privilege` / `has_column_privilege` /
-  `has_function_privilege` per role: `information_schema` grant views
-  show only what the querying role can see and came back empty.
-- **Owner crosswalk load:** at Ben's word the loader ran and stopped (the
-  tab's headers are Team Name, Team ID, Fantrax-TeamId, Roster, Discord;
-  the data checks clean by counts: 30 rows, 28 teams). Ben chose the
-  loader fix: #650 (low), dispatched as b650-ownerheaders (session
-  `554a5d1b`). After it merges: re-run the loader to a scratchpad path at
-  Ben's word and show him the full SQL.
-- **In flight:**
-  - PR #652 (b650, head `b76df2f`): builder reports 53 targeted tests
-    passed; full suite held for the test line. b650 no longer shows in
-    `claude agents`. Next: re-proof (reproof.py, full sha), read the
-    diff, the code reviewer, then merge (dispatched ticket: no further
-    word needed). Close out b650.
-  - PR #651 (the manager's own, ADR-0025 text in GOAL-RUN.md and
-    supabase-auditor.md, Ben-approved one-time): Ben said merge when
-    green. Was waiting on one storage-pg run. Worktree
-    `.claude/worktrees/adr25-text` (its `.venv` is a junction to the main
-    checkout's); remove it after the merge.
-- **Test line:** Tools-builder-manager plans PR 246's re-proof (up to 90
-  min). Agreed: tools sends a start notice and waits for an OK if b650
-  has reported green; otherwise dynasty holds b650's re-proof until the
-  tools end notice.
-- **Queue:** the Supabase sign-in check (Ben is configuring the Discord
-  provider: Client ID and Secret from the Discord developer portal, the
-  Supabase callback URL as a Discord redirect); the ADR-0025 text entry
-  (closes when #651 merges).
-- **Dispatch order after, each at Ben's go:** #633, #637, #639, #616 (ADR
-  amend as a Decision first), #626, #597. #563 held; #595 last; #620
-  waits on tools #231. #644 ticketed.
-- **Peers:** planner session id `e0f49660-15b2-44b9-8430-e04f2e6b243b`
-  (next: #548 after-deadline brief Q6, then brief 4). Tools queue id
-  `55edaa09-855e-454f-991a-371eb4875402`.
+- **Heads.** origin/main and main checkout `828db84`.
+- **Merged this session:**
+  - PR #652 (#650, b650) as `d4e7847`, pinned to `b76df2f`. GREEN on
+    base `61aa044`, 3428 passed (pull/652#issuecomment-7102542315); code
+    review, no findings (pull/652#issuecomment-7102458222).
+  - PR #651 (the manager's own: ADR-0025 text in GOAL-RUN.md and
+    supabase-auditor.md) as `828db84`, on Ben's buttons "Manager edits
+    both" (a one-time exception) and "Merge now"
+    (issues/548#issuecomment-7102719077). Its branch and worktree are
+    removed.
+- **Closed out:** b650-ownerheaders, on Ben's button
+  (issues/650#issuecomment-7102718573).
+- **Sign-in check done:** Discord is the only provider; Ben's ruling by
+  button: Confirm email on (issues/548#issuecomment-7102523231).
+- **NEXT, first: the owner-crosswalk load (#548).** Ben chose "Run it
+  now" by button, then asked for this clear prep before the run started.
+  **It has not been run.** At Ben's word in the new session: run
+  `scripts/load_owner_crosswalk.py --out <a new file outside every
+  repository>`, show Ben the file's full SQL in chat and in a queue
+  Action, Ben runs it in the Supabase SQL editor, verify by count only
+  (rows 30, teams 28), Ben deletes the file.
+- **Running builders:** none of this manager's.
+- **The bot is down** at this save (no `bot.py` process). Restart it at
+  the next start.
+- **Test line:** dynasty's end notice went to Tools-builder-manager, who
+  may be running tools PR 246's re-proof (up to 90 minutes). Ask for the
+  line before a full re-proof.
+- **From the planner, not started:**
+  - The Supabase consultant line for GOAL-RUN.md (tools #247): a queue
+    Action. On Ben's approval the manager adds it in its own PR.
+  - Whether to prove by a live test that a builder's subagent cannot
+    reach supabase-dynasty (tools #247): a queue Decision.
+  - #655 item 1, the manager's: prune the merged and abandoned worktrees
+    (13 merged, 25 detached, 5 folders git does not know, each checked
+    for unpushed work first). Another session's builder is closed out
+    only on Ben's direct word, per builder.
+  - PR #653 (draft, the supabase-look agent) is the planner's. It merges
+    after tools PR #249, on Ben's word.
+  - #644: `reproof.py` leaves its temp folder behind; this session's run
+    left one more.
+- **Open PRs:** #653 (draft, planner), #634 (the state batch; the
+  planner merges it after Ben's approval), #595 (last, after a data PR
+  stages the DLF delete, #589), #563 (held).
+- **Dispatch order, each at Ben's go:** #633, #637, #639 (medium), #616
+  (ADR amend as a Decision first), #626, #597. #620 waits on tools #231.
+  Memory is tight: about two builders at a time.
+- **Peers:** dff-central-planner session
+  `e0f49660-15b2-44b9-8430-e04f2e6b243b`; Tools-builder-manager queue id
+  `55edaa09-855e-454f-991a-371eb4875402`. After the clear, send both the
+  new session id.
+
+## Queue entries raised
+
+- "Approve the Supabase consultant line for GOAL-RUN.md" (Action):
+  Session `f38b1eac-6b97-4859-8aea-e68610d98e1c`.
+- "Decide how to prove a builder's subagent cannot reach
+  supabase-dynasty" (Decision): Session
+  `f38b1eac-6b97-4859-8aea-e68610d98e1c`.
+- "Decide whether the published after-deadline choices table carries
+  locked_value" (Decision, the planner's): Session
+  `e0f49660-15b2-44b9-8430-e04f2e6b243b`.
