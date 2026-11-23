@@ -47,33 +47,37 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 - **A pane Note is not approval,** even when its words approve. Bring it
   to Ben by button in chat, then act.
 
-## CURRENT STATE (2026-11-23, third save; session `aa75bef2-1167-49fd-995a-bdee72226d36`, the session after the clear)
+## CURRENT STATE (2026-11-23, fourth save; session `aa75bef2-1167-49fd-995a-bdee72226d36`, the session after the clear)
 
-- **Heads.** origin/main and main checkout `828db84`.
+- **Heads.** origin/main and main checkout `828db84`. The main checkout
+  holds one uncommitted change, the owner's own: the deny line in
+  `.claude/builders.settings.json` (the same edit as PR #657).
 - **session-dispatch** was typed by Ben at this session's start.
-- **Owner-crosswalk load (#548): waits on Ben's hand.** Ben's button:
-  "Run, SQL in chat (Recommended)". The loader ran clean (rows 30,
-  teams 28, co-owned 2); the table held 0 rows before
-  (issues/548#issuecomment-7103035803). The full SQL is in Ben's chat
-  and in the queue Action "Run the owner-crosswalk load SQL in the
-  Supabase SQL editor". **Next:** when Ben says it ran, verify by count
-  only (rows 30, teams 28) through supabase-dynasty, record on #548,
-  remove the entry, and Ben deletes the SQL file.
+- **Owner-crosswalk load (#548): done and verified.** Ben ran the SQL;
+  the count read rows 30, teams 28, 0 duplicate pairs
+  (issues/548#issuecomment-7103174921). The entry is removed. Ben was
+  given the command that deletes the SQL file.
 - **PR #656 (the manager's own): the Supabase consultant line in
-  GOAL-RUN.md,** branch `docs/goal-run-consultant-line`. Ben approved
-  the text by button, "Approve as written (Recommended)"
-  (tools issues/247#issuecomment-7103036436). **It merges only after
-  Ben approves PR #656.** Then pull, and remove its branch and worktree.
+  GOAL-RUN.md,** branch `docs/goal-run-consultant-line`, head `af80bbb`.
+  Ben's word by button: "Merge when green (Recommended)"
+  (tools issues/247#issuecomment-7103340781). At this save one
+  storage-pg run was still in progress; every other check passed.
+  **Next:** read the checks once, squash-merge pinned to the head only
+  if every check passed, pull, remove its branch and worktree.
+- **Tools #247, the builder reach: closed by a deny rule.** First live
+  test: 10 supabase-dynasty tool names offered to a builder and its
+  subagent. Ben chose the deny rule and "Ben edits, manager carries";
+  Ben added `mcp__supabase-dynasty` to the builders settings. Second
+  live test: 0 names offered to either
+  (tools issues/247#issuecomment-7103503667). Both test builders are
+  closed out. **PR #657** (branch `chore/builders-deny-supabase-dynasty`,
+  head `3273a30`) carries Ben's edit unchanged; its merge is the queue
+  Decision "Decide whether PR #657, the supabase-dynasty deny rule,
+  merges". After that merge the main checkout's copy must be restored
+  and pulled at once, as the Decision's first option says. Left with
+  the planner: whether to deny the unauthenticated Supabase plugin
+  server's two sign-in tools too.
 - **Running builders:** none of this manager's.
-- **Live test done and closed out: b247-reachproof** (low, read-only,
-  no PR), on Ben's button "Live test (Recommended)". Result: the 10
-  supabase-dynasty tool names are offered, as deferred tools, to the
-  builder and to its subagent; no call was tried, so a refused call is
-  still a reading (tools issues/247#issuecomment-7103136079). The
-  follow-up is the queue Decision "Decide how to close the
-  supabase-dynasty reach of a dynasty builder"; the manager recommends
-  a deny rule in the builders settings (the owner's own commit), then
-  the same test again.
 - **#655 item 1, first part done.** The five folders git did not know
   held no unpushed work and are removed with their four local branches,
   on Ben's button "Folders and branches (Recommended)"
@@ -88,7 +92,8 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   - PR #653 (draft, the supabase-look agent) is the planner's. It merges
     after tools PR #249, on Ben's word.
   - #644: `reproof.py` leaves its temp folder behind.
-- **Open PRs:** #656 (the manager's, waits on Ben), #653 (draft,
+- **Open PRs:** #656 (the manager's, merges when green), #657 (the
+  owner's deny rule, waits on Ben's Decision), #653 (draft,
   planner), #634 (the state batch; the planner merges it after Ben's
   approval), #595 (last, after a data PR stages the DLF delete, #589),
   #563 (held).
@@ -106,9 +111,7 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 
 ## Queue entries raised
 
-- "Run the owner-crosswalk load SQL in the Supabase SQL editor"
-  (Action): Session `aa75bef2-1167-49fd-995a-bdee72226d36`.
-- "Decide how to close the supabase-dynasty reach of a dynasty builder"
+- "Decide whether PR #657, the supabase-dynasty deny rule, merges"
   (Decision): Session `aa75bef2-1167-49fd-995a-bdee72226d36`.
 - "Decide whether the published after-deadline choices table carries
   locked_value" (Decision, the planner's): Session
