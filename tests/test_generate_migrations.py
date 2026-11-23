@@ -509,10 +509,16 @@ class TestDiffRefusals:
         old["roles"] = old["roles"] + ["etl_extra"]
         assert "drop of role etl_extra" in gm.diff(old, model())["refusals"]
 
-    def test_a_changed_function_body_is_refused(self):
+    def test_a_changed_function_body_is_refused_except_the_pii_hash_function(self):
         old = model()
+        old["functions"]["shared.other"] = "CREATE FUNCTION shared.other() ..."
+        new = model()
+        new["functions"]["shared.other"] = "CREATE FUNCTION shared.other() ... changed"
+        assert gm.diff(old, new)["refusals"] == ["shared.other: change of function body"]
+        del old["functions"]["shared.other"]
         old["functions"]["shared.pii_token_hashes"] = "CREATE FUNCTION shared.pii_token_hashes() ..."
-        assert gm.diff(old, model())["refusals"] == ["shared.pii_token_hashes: change of function body"]
+        changes = gm.diff(old, model())
+        assert changes["refusals"] == [] and [n for n, _ in changes["function_replacements"]] == ["shared.pii_token_hashes"]
 
     def test_a_dropped_function_is_refused(self):
         old = model()

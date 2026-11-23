@@ -203,7 +203,7 @@ class TestGrantRules:
 
     def test_the_one_ops_table_may_not_grant_a_role_outside_the_two(self):
         refused(broken(lambda r: entry(r, "choice_deadline").update(
-            grants=[{"role": "anon", "privileges": ["SELECT"]}])), "not one of etl_writer, etl_reader")
+            grants=[{"role": "authenticated", "privileges": ["SELECT"]}])), "not one of etl_writer, etl_reader")
 
     def test_the_real_registry_gives_the_deadline_table_to_the_owner_alone_for_writing(self):
         import yaml
@@ -216,10 +216,17 @@ class TestGrantRules:
         state = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
         assert state["tables"]["ops.choice_deadline"] == spec
 
-    @pytest.mark.parametrize("role", ["etl_reader", "anon", "authenticated", "public", None])
-    def test_a_grant_to_any_role_but_the_writer_is_refused(self, role):
+    @pytest.mark.parametrize("role", ["etl_reader", "public", None])
+    def test_a_grant_to_any_role_but_the_writer_and_authenticated_is_refused(self, role):
         refused(broken(lambda r: entry(r, "choices").update(grants=[{"role": role, "privileges": ["SELECT"]}])),
-                "not one of etl_writer")
+                "not one of etl_writer, authenticated")
+
+    @pytest.mark.parametrize("name", ["choices", "choice_deadline"])
+    def test_anon_is_never_granted_and_never_given_a_policy(self, name):
+        refused(broken(lambda r: entry(r, name).update(grants=[{"role": "anon", "privileges": ["SELECT"]}])),
+                "anon is never granted anything")
+        refused(broken(lambda r: entry(r, name)["policies"][0].update(role="anon")),
+                "anon is never granted anything")
 
     def test_a_privilege_outside_the_four_is_refused(self):
         refused(broken(lambda r: entry(r, "choices")["grants"][0].update(privileges=["TRUNCATE"])), "is not one of SELECT")

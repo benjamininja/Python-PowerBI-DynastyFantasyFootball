@@ -63,6 +63,7 @@ class LeagueConfig:
     # Optional extras used by specific notebooks:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
+    owner_sheet_gid: str = "1895987887"
     # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
     fact_name: str = "fact_fantrax_adp"
     crosswalk_name: str = "dim_fantrax_crosswalk"
@@ -313,15 +314,47 @@ def _a1_col(index: int) -> str:
     return letters
 
 
+class SheetsNumberCells(RuntimeError):
+    # A column read as text held cells stored as numbers. One line: the column
+    # and the sheet's row numbers, never a cell value.
+    def __init__(self, column: str, rows: Sequence[int]):
+        self.column, self.rows = column, list(rows)
+        super().__init__(f"Google Sheets: {len(self.rows)} cell(s) of column {column} are stored as "
+                         f"numbers (rows {', '.join(str(r) for r in self.rows)})")
+
+
+def _sheet_columns(session, token: str, base: str, tab: str, header: list, names: list[str],
+                   unformatted: bool = False) -> list[list]:
+    # The named columns' cells, one list each (header cell first), by the values
+    # API. `unformatted` asks for the stored values: a text cell arrives as a JSON
+    # string and a number cell as a JSON number, so the two can be told apart.
+    ranges = []
+    for name in names:
+        letter = _a1_col(header.index(name))
+        ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
+    params = ranges + [("majorDimension", "COLUMNS")]
+    if unformatted:
+        params.append(("valueRenderOption", "UNFORMATTED_VALUE"))
+    body = _sheets_get(session, token, f"{base}/values:batchGet", params, expect=("valueRanges",))
+    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
+    if len(cols) != len(names):
+        raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
+    return cols
+
+
 def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
-                   optional: Sequence[str] = (), *, token: str | None = None,
-                   session=None) -> pd.DataFrame:
+                   optional: Sequence[str] = (), *, text: Sequence[str] = (),
+                   token: str | None = None, session=None) -> pd.DataFrame:
     # One tab of a Google Sheet as a DataFrame, signed in as the service account
     # with the read-only scope. Only the named columns leave the sheet: the tab's
     # header row is read to find them, then just their columns. A required
     # column absent from the header is left out, so the caller's own column
     # check raises as it did on the CSV download. Values are the displayed text,
     # run through pd.read_csv so dtypes and blanks match that download.
+    # `text` names columns that must be text: they are read by their stored
+    # values and kept as strings exactly as stored (a long id is never parsed as a
+    # number), and a cell stored as a number raises SheetsNumberCells. Without
+    # `text` the read is the one 01c has always made.
     token = _sheets_token() if token is None else token
     session = _make_session() if session is None else session
     base = f"{SHEETS_API}/{sheet_id}"
@@ -338,22 +371,26 @@ def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
     wanted = [c for c in dict.fromkeys([*columns, *optional]) if c in header]
     if not wanted:
         return pd.DataFrame()
-    ranges = []
-    for name in wanted:
-        letter = _a1_col(header.index(name))
-        ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
-    body = _sheets_get(session, token, f"{base}/values:batchGet",
-                       ranges + [("majorDimension", "COLUMNS")], expect=("valueRanges",))
-    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
-    if len(cols) != len(wanted):
-        raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
+    as_text = [c for c in wanted if c in text]
+    by_name = {}
+    plain = [c for c in wanted if c not in as_text]
+    if plain:
+        by_name.update(zip(plain, _sheet_columns(session, token, base, tab, header, plain)))
+    if as_text:
+        stored = _sheet_columns(session, token, base, tab, header, as_text, unformatted=True)
+        for name, cells in zip(as_text, stored):
+            numbers = [i + 1 for i, v in enumerate(cells) if i > 0 and not isinstance(v, str)]
+            if numbers:
+                raise SheetsNumberCells(name, numbers)
+            by_name[name] = cells
+    cols = [by_name[c] for c in wanted]
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(wanted)
     for i in range(1, max(len(c) for c in cols)):
         writer.writerow([c[i] if i < len(c) else "" for c in cols])
     buf.seek(0)
-    return pd.read_csv(buf)
+    return pd.read_csv(buf, dtype={c: str for c in as_text} or None)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"

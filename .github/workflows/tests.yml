@@ -72,6 +72,7 @@ jobs:
       - name: Apply the migrations and give etl_writer a scratch schema
         run: |
           createdb seam_check
+          psql -v ON_ERROR_STOP=1 -d seam_check -f tests/sql/auth_stub.sql
           for f in $(ls supabase/migrations/*.sql | sort); do
             psql -v ON_ERROR_STOP=1 -d seam_check -f "$f"
           done
