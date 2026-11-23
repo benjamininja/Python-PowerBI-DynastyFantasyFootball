@@ -1,4 +1,4 @@
-﻿# MANAGER — the builder manager's state
+# MANAGER — the builder manager's state
 
 The dynasty builder manager's working copy of its state. It links to
 the record on GitHub and does not replace it. **Only the newest state is
