@@ -1,4 +1,4 @@
-# MANAGER — the builder manager's state
+﻿# MANAGER — the builder manager's state
 
 The dynasty builder manager's working copy of its state. It links to
 the record on GitHub and does not replace it. **Only the newest state is
@@ -38,39 +38,45 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
 - **Ben's standing merge word, each when GREEN:** #616, #623, #597, #626.
   It never covers a parked Decision (an ADR amend, a DROP COLUMN).
 
-## CURRENT STATE (2026-11-22 ~21:40Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a compact at Ben's word)
+## CURRENT STATE (2026-11-23 ~07:30Z, session `1a0538b1-047b-4ba3-8967-ff325369e7ab`, before a clear at Ben's word)
 
-- **Heads.** origin/main and main checkout `ff035d7`.
-- **Merged since the last save:** #636 (#630) `eebdf68`; #638 (#629)
-  `dd59ac1`; #647 (#643 plus Ben's sheets-key-check workflow) `d2d267b`;
-  #642 (#623) `ff035d7`. All GREEN at re-proof. Builders b629, b630,
-  b643, b623 closed out. Stale data PRs #603, #618, #627, #628, #635 closed.
-- **Live proofs met:** #629 (data PRs #640, #641, #645 merged); #630 and
-  #614 ([ok] 01c in run 45068959547, after Ben's byte-exact re-save of
-  the Sheets secret; the earlier failures were the .env line, then a
-  PowerShell pipe).
-- **#548 FA keeps loaded:** 109 rows in app.contract_choices (30 keeps),
-  count-only check; the local SQL file is deleted.
+- **Heads.** origin/main and main checkout `61aa044`.
+- **Merged since the last save:** #649 (#648) `b089d59`; #646 (#548
+  brief 3, owner crosswalk and policies) `61aa044` at Ben's word, GREEN at
+  re-proof (3426 passed), migrate on main SUCCESS. Builders b648 and b548
+  closed out.
+- **#646 live check:** every rule of the planner's ADR-0025 list holds
+  (counts on #548). Use `has_table_privilege` / `has_column_privilege` /
+  `has_function_privilege` per role: `information_schema` grant views
+  show only what the querying role can see and came back empty.
+- **Owner crosswalk load:** at Ben's word the loader ran and stopped (the
+  tab's headers are Team Name, Team ID, Fantrax-TeamId, Roster, Discord;
+  the data checks clean by counts: 30 rows, 28 teams). Ben chose the
+  loader fix: #650 (low), dispatched as b650-ownerheaders (session
+  `554a5d1b`). After it merges: re-run the loader to a scratchpad path at
+  Ben's word and show him the full SQL.
 - **In flight:**
-  - b648-keyisolate (#648, session `40c1c6ac`), PR #649: local re-proof
-    GREEN on `ff035d7` (3312 passed); diff read, no findings. Waits on
-    storage-pg, which Ben is re-running (the runner-side cancel). Merge
-    on GREEN: Ben's word. Then close out b648.
-  - b548-ownerxwalk (#548 brief 3, session `938e2850`), draft PR #646.
-    Count 2 = 0 (posted on #548), so the builder adds the
-    pii_token_hashes() change, then marks ready. Re-proof: reproof.py,
-    the migration gate (the builder's own run was refused), the
-    supabase-auditor including migrate.yml and tests.yml (planner ruling
-    3). The planner owes the GOAL-RUN schema line and the auditor basis
-    (planner session was gone at ~21:10Z). No merge word from Ben yet.
-- **CI:** every storage-pg job was cancelled at ~21:16Z (runner-side).
-  Main's storage-pg has not completed since #647/#642.
-- **Rules learned today:** owner hand steps carry their full content
-  (root preferences). A builder's refused call is surfaced to Ben, never
-  run for it. Secret saves use cmd /c with < redirection.
+  - PR #652 (b650, head `b76df2f`): builder reports 53 targeted tests
+    passed; full suite held for the test line. b650 no longer shows in
+    `claude agents`. Next: re-proof (reproof.py, full sha), read the
+    diff, the code reviewer, then merge (dispatched ticket: no further
+    word needed). Close out b650.
+  - PR #651 (the manager's own, ADR-0025 text in GOAL-RUN.md and
+    supabase-auditor.md, Ben-approved one-time): Ben said merge when
+    green. Was waiting on one storage-pg run. Worktree
+    `.claude/worktrees/adr25-text` (its `.venv` is a junction to the main
+    checkout's); remove it after the merge.
+- **Test line:** Tools-builder-manager plans PR 246's re-proof (up to 90
+  min). Agreed: tools sends a start notice and waits for an OK if b650
+  has reported green; otherwise dynasty holds b650's re-proof until the
+  tools end notice.
+- **Queue:** the Supabase sign-in check (Ben is configuring the Discord
+  provider: Client ID and Secret from the Discord developer portal, the
+  Supabase callback URL as a Discord redirect); the ADR-0025 text entry
+  (closes when #651 merges).
 - **Dispatch order after, each at Ben's go:** #633, #637, #639, #616 (ADR
   amend as a Decision first), #626, #597. #563 held; #595 last; #620
-  waits on tools #231. #644 (reproof temp-folder leak) is ticketed.
-- **Queue:** empty.
-- **Peers:** dff-central-planner and Tools-builder-manager were not
-  running at ~21:10Z; personal-assistant up.
+  waits on tools #231. #644 ticketed.
+- **Peers:** planner session id `e0f49660-15b2-44b9-8430-e04f2e6b243b`
+  (next: #548 after-deadline brief Q6, then brief 4). Tools queue id
+  `55edaa09-855e-454f-991a-371eb4875402`.
