@@ -16,12 +16,25 @@ import etl_helpers as etl  # noqa: E402
 
 loader = importlib.import_module("load_owner_crosswalk")
 
-TEAMS = pd.DataFrame({"team_key": ["T1", "T2", "T3", "T4", "T5"],
-                      "team_name": ["Test Team One", "Test Team Two", "Test Team Three", "Twin", "Twin"]})
+HEADERS = ["Team Name", "Team ID", "Fantrax-TeamId", "Roster", "Discord"]
+TEAMS = pd.DataFrame({"team_key": ["T1", "T2", "T3"],
+                      "team_name": ["Test Team One", "Test Team Two", "Test Team Three"]})
 ID_A, ID_B, ID_C, ID_D = "10000000000000001", "20000000000000002", "30000000000000003", "400000000000000004"
-SECRETS = (ID_A, ID_B, ID_C, ID_D, "Test Team One", "Test Team Two", "Test Team Three")
-GOOD = pd.DataFrame({"team": ["Test Team One", "Test Team One", "Test Team Two", "Test Team Three"],
-                     "discord_user_id": [ID_A, ID_B, ID_C, ID_D]})
+SECRETS = (ID_A, ID_B, ID_C, ID_D, "Test Team One", "Test Team Two", "Test Team Three", "Renamed On The Tab")
+
+
+def frame(team_ids, ids, names=None):
+    """The owner tab as the sheet has it: the five real headers, the loader asks for two."""
+    count = len(team_ids)
+    return pd.DataFrame({"Team Name": names if names is not None else ["Some Name"] * count,
+                         "Team ID": team_ids,
+                         "Fantrax-TeamId": ["f"] * count,
+                         "Roster": ["r"] * count,
+                         "Discord": ids})
+
+
+GOOD = frame(["T1", "T1", "T2", "T3"], [ID_A, ID_B, ID_C, ID_D],
+             ["Test Team One", "Test Team One", "Test Team Two", "Test Team Three"])
 
 
 @pytest.fixture
@@ -54,18 +67,26 @@ def run(place, name="out.sql", **kw):
     return code, lines, out
 
 
-def frame(team, ids):
-    return pd.DataFrame({"team": team, "discord_user_id": ids})
-
-
 class TestTheReadAndTheFile:
     def test_it_reads_the_owner_tab_through_the_sheet_reader_on_the_two_columns(self, place, reader):
         run(place)
-        assert reader.calls == [(etl.CFG.team_sheet_id, etl.CFG.owner_sheet_gid, ["team", "discord_user_id"])]
+        assert reader.calls == [(etl.CFG.team_sheet_id, etl.CFG.owner_sheet_gid, ["Team ID", "Discord"])]
 
     def test_the_id_column_is_asked_for_as_text(self, place, reader):
         run(place)
-        assert reader.kwargs == [{"text": ["discord_user_id"]}]
+        assert reader.kwargs == [{"text": ["Discord"]}]
+
+    def test_a_team_name_that_differs_from_the_dim_loads_when_its_team_id_matches(self, place, reader):
+        reader.frame = frame(["T1", "T2"], [ID_A, ID_B], ["Renamed On The Tab", "Test Team Two"])
+        code, lines, out = run(place)
+        assert code == 0 and f"('T1', '{ID_A}')" in out.read_text(encoding="utf-8")
+        assert "rows: 2" in lines and not [s for s in SECRETS if s in "\n".join(lines)]
+
+    def test_the_team_name_is_never_matched(self, place, reader):
+        reader.frame = frame(["No Such Key", "T2"], [ID_A, ID_B], ["Test Team One", "Test Team Two"])
+        code, lines, out = run(place)
+        assert code == 1 and not out.exists()
+        assert any("Team ID is not a team_key (rows 2)" in line for line in lines)
 
     def test_the_owner_tab_has_its_own_gid_beside_the_team_tab(self):
         assert etl.CFG.owner_sheet_gid == "1895987887" and etl.CFG.owner_sheet_gid != etl.CFG.team_sheet_gid
@@ -103,17 +124,17 @@ class TestTheReadAndTheFile:
         assert not [s for s in SECRETS if s in text]
 
     def test_a_user_owning_two_teams_is_two_rows(self, place, reader):
-        reader.frame = frame(["Test Team One", "Test Team Two"], [ID_A, ID_A])
+        reader.frame = frame(["T1", "T2"], [ID_A, ID_A])
         code, lines, out = run(place)
         assert code == 0 and "rows: 2" in lines and "teams: 2" in lines and "co-owned teams: 0" in lines
 
     def test_cells_are_trimmed(self, place, reader):
-        reader.frame = frame(["  Test Team One ", "Test Team Two"], [f" {ID_A} ", ID_B])
+        reader.frame = frame(["  T1 ", "T2"], [f" {ID_A} ", ID_B])
         code, _, out = run(place)
         assert code == 0 and f"('T1', '{ID_A}')" in out.read_text(encoding="utf-8")
 
     def test_a_completely_blank_row_is_skipped(self, place, reader):
-        reader.frame = frame(["Test Team One", None], [ID_A, None])
+        reader.frame = frame(["T1", None], [ID_A, None], ["Test Team One", None])
         code, lines, _ = run(place)
         assert code == 0 and "rows: 1" in lines
 
@@ -122,7 +143,7 @@ class TestTheReadAndTheFile:
         monkeypatch.setattr(etl, "read_table", lambda name, columns=None: asked.append((name, list(columns))) or TEAMS)
         lines = []
         assert loader.load(place / "out.sql", out=lines.append) == 0
-        assert asked == [("dim_fantasy_teams", ["team_key", "team_name"])]
+        assert asked == [("dim_fantasy_teams", ["team_key"])]
 
 
 class TestEveryStopWritesNothing:
@@ -133,41 +154,43 @@ class TestEveryStopWritesNothing:
         assert not [s for s in SECRETS if s in "\n".join(lines)]
         return lines
 
-    def test_a_team_name_that_does_not_resolve(self, place, reader):
-        reader.frame = frame(["Test Team One", "No Such Team"], [ID_A, ID_B])
-        lines = self.stops(place, reader, "does not resolve to one team (rows 3)")
+    def test_a_team_id_that_is_not_in_the_dim(self, place, reader):
+        reader.frame = frame(["T1", "T9"], [ID_A, ID_B])
+        lines = self.stops(place, reader, "Team ID is not a team_key (rows 3)")
         assert lines[0].startswith("stopped: 1 row(s)")
 
-    def test_a_team_name_two_teams_carry(self, place, reader):
-        reader.frame = frame(["Twin"], [ID_A])
-        self.stops(place, reader, "does not resolve to one team (rows 2)")
+    def test_a_team_id_matches_exactly_not_by_case(self, place, reader):
+        reader.frame = frame(["t1"], [ID_A])
+        self.stops(place, reader, "Team ID is not a team_key (rows 2)")
 
     @pytest.mark.parametrize("bad", ["1" * 16, "1" * 21, "1" * 16 + "a", "12 34567890123456", "１" * 17, "-" + "1" * 17])
     def test_an_id_that_is_not_seventeen_to_twenty_digits(self, place, reader, bad):
-        reader.frame = frame(["Test Team One", "Test Team Two"], [ID_A, bad])
+        reader.frame = frame(["T1", "T2"], [ID_A, bad])
         self.stops(place, reader, "not 17 to 20 digits (rows 3)")
 
     def test_a_repeated_pair(self, place, reader):
-        reader.frame = frame(["Test Team One", "Test Team One", "Test Team Two"], [ID_A, ID_A, ID_A])
+        reader.frame = frame(["T1", "T1", "T2"], [ID_A, ID_A, ID_A])
         self.stops(place, reader, "repeating a team and id pair (rows 3)")
 
     def test_a_blank_team_or_a_blank_id(self, place, reader):
-        reader.frame = frame(["Test Team One", None, "Test Team Two"], [ID_A, ID_B, None])
+        reader.frame = frame(["T1", None, "T2"], [ID_A, ID_B, None])
         self.stops(place, reader, "blank team or id (rows 3, 4)")
 
     def test_an_empty_tab(self, place, reader):
-        reader.frame = pd.DataFrame({"team": [], "discord_user_id": []})
+        reader.frame = frame([], [])
         self.stops(place, reader, "has no rows")
 
     def test_a_tab_with_only_blank_rows(self, place, reader):
-        reader.frame = frame([None, None], [None, None])
+        reader.frame = frame([None, None], [None, None], [None, None])
         self.stops(place, reader, "has no rows")
 
     def test_a_missing_column(self, place, reader):
-        reader.frame = pd.DataFrame({"team": ["Test Team One"]})
-        self.stops(place, reader, "lacks the column(s) discord_user_id")
+        reader.frame = GOOD.drop(columns=["Discord"])
+        self.stops(place, reader, "lacks the column(s) Discord")
+        reader.frame = GOOD.drop(columns=["Team ID"])
+        self.stops(place, reader, "lacks the column(s) Team ID")
         reader.frame = pd.DataFrame()
-        self.stops(place, reader, "lacks the column(s) team, discord_user_id")
+        self.stops(place, reader, "lacks the column(s) Team ID, Discord")
 
     @pytest.mark.parametrize("ids,kind", [
         ([123456789012345000, 123456789012346000], "i"),
@@ -175,38 +198,39 @@ class TestEveryStopWritesNothing:
         ([float(ID_A), None], "f"),
         ([18446744073709551615, 18446744073709551614], "u")])
     def test_ids_that_arrive_as_numbers_are_refused_whatever_their_digits(self, place, reader, ids, kind):
-        reader.frame = frame(["Test Team One", "Test Team Two"], ids)
-        assert reader.frame["discord_user_id"].dtype.kind == kind
+        reader.frame = frame(["T1", "T2"], ids)
+        assert reader.frame["Discord"].dtype.kind == kind
         lines = self.stops(place, reader, "stored as numbers")
         assert lines[0] == ("stopped: " + loader.AS_NUMBERS)
         assert "Format, Number, Plain text" in lines[0] and "15 significant digits" in lines[0]
+        assert "Discord" in lines[0]
 
     def test_an_id_that_is_a_number_among_text_in_one_column_is_refused(self, place, reader):
-        reader.frame = pd.DataFrame({"team": ["Test Team One", "Test Team Two"],
-                                     "discord_user_id": pd.Series([ID_A, 123456789012345000], dtype=object)})
+        reader.frame = GOOD.iloc[:2].copy()
+        reader.frame["Discord"] = pd.Series([ID_A, 123456789012345000], dtype=object)
         self.stops(place, reader, "stored as numbers")
 
     def test_a_number_is_refused_even_when_a_team_would_not_resolve(self, place, reader):
-        reader.frame = frame(["No Such Team"], [123456789012345000])
+        reader.frame = frame(["No Such Key"], [123456789012345000])
         lines = self.stops(place, reader, "stored as numbers")
         assert len([line for line in lines if line.startswith("stopped:")]) == 1
 
     def test_an_id_column_with_no_value_at_all_reports_blank_cells(self, place, reader):
-        reader.frame = frame(["Test Team One", "Test Team Two"], [None, None])
+        reader.frame = frame(["T1", "T2"], [None, None])
         self.stops(place, reader, "blank team or id (rows 2, 3)")
 
     def test_every_problem_is_listed_in_one_stop(self, place, reader):
-        reader.frame = frame(["Test Team One", "No Such Team", "Test Team Two"], [ID_A, ID_B, "12"])
+        reader.frame = frame(["T1", "No Such Key", "T2"], [ID_A, ID_B, "12"])
         code, lines, out = run(place)
         assert code == 1 and not out.exists()
         assert len([line for line in lines if line.startswith("stopped:")]) == 2
 
     def test_a_number_cell_the_reader_reports_prints_the_plain_text_line_and_its_rows(self, place, reader):
-        reader.error = etl.SheetsNumberCells("discord_user_id", [3, 5])
+        reader.error = etl.SheetsNumberCells("Discord", [3, 5])
         code, lines, out = run(place)
         assert code == 1 and not out.exists()
         assert lines == ["stopped: " + loader.AS_NUMBERS,
-                         "stopped: Google Sheets: 2 cell(s) of column discord_user_id are stored as numbers (rows 3, 5)",
+                         "stopped: Google Sheets: 2 cell(s) of column Discord are stored as numbers (rows 3, 5)",
                          "nothing was written"]
 
     def test_a_sign_in_failure_prints_its_one_line_and_nothing_more(self, place, reader):
@@ -233,14 +257,15 @@ class TestThroughTheRealReader:
         monkeypatch.setattr(etl, "_sheets_token", lambda: "tok")
 
         def make(rows):
-            session = Session(rows, header=["team", "discord_user_id"], gid=etl.CFG.owner_sheet_gid)
+            session = Session(rows, header=HEADERS, gid=etl.CFG.owner_sheet_gid)
             monkeypatch.setattr(etl, "_make_session", lambda *a, **k: session)
             monkeypatch.setattr(etl, "read_table", lambda name, columns=None: TEAMS)
             return session
         return make
 
     def test_a_text_id_column_loads_in_full(self, place, sheet):
-        sheet([["Test Team One", ID_A], ["Test Team One", ID_B], ["Test Team Two", ID_D]])
+        sheet([["Test Team One", "T1", "f1", "r", ID_A], ["Test Team One", "T1", "f1", "r", ID_B],
+               ["Renamed On The Tab", "T2", "f2", "r", ID_D]])
         lines = []
         out = place / "out.sql"
         assert loader.load(out, out=lines.append) == 0
@@ -249,7 +274,7 @@ class TestThroughTheRealReader:
         assert "rows: 3" in lines and not [s for s in SECRETS if s in "\n".join(lines)]
 
     def test_any_number_cell_refuses_the_run_and_writes_nothing(self, place, sheet):
-        sheet([["Test Team One", ID_A], ["Test Team Two", 123456789012345000]])
+        sheet([["Test Team One", "T1", "f1", "r", ID_A], ["Test Team Two", "T2", "f2", "r", 123456789012345000]])
         lines = []
         out = place / "out.sql"
         assert loader.load(out, out=lines.append) == 1 and not out.exists()
@@ -257,14 +282,14 @@ class TestThroughTheRealReader:
         assert "123456789012345000" not in "\n".join(lines)
 
     def test_a_whole_column_stored_as_numbers_is_refused(self, place, sheet):
-        sheet([["Test Team One", int(ID_A)], ["Test Team Two", int(ID_B)]])
+        sheet([["Test Team One", "T1", "f1", "r", int(ID_A)], ["Test Team Two", "T2", "f2", "r", int(ID_B)]])
         lines = []
         out = place / "out.sql"
         assert loader.load(out, out=lines.append) == 1 and not out.exists()
         assert lines[0] == "stopped: " + loader.AS_NUMBERS
 
     def test_a_blank_id_cell_stops_as_a_blank_cell(self, place, sheet):
-        sheet([["Test Team One", ID_A], ["Test Team Two", ""]])
+        sheet([["Test Team One", "T1", "f1", "r", ID_A], ["Test Team Two", "T2", "f2", "r", ""]])
         lines = []
         out = place / "out.sql"
         assert loader.load(out, out=lines.append) == 1 and not out.exists()

@@ -3,11 +3,12 @@
     load_owner_crosswalk.py --out PATH
 
 Reads the owner tab of the team-manifest workbook live, as the Sheets service
-account (`etl.read_sheet_tab`, the reader 01c uses), on the two columns `team`
-and `discord_user_id`: one row per owner per team. It reads no xlsx. `team`
-resolves to a team_key through dim_fantasy_teams (exact team_name, one team);
-`discord_user_id` is digits only, 17 to 20 long. It checks everything first and
-writes nothing unless every check passes: a team that does not resolve, an id
+account (`etl.read_sheet_tab`, the reader 01c uses), on the tab's own two
+columns `Team ID` and `Discord`: one row per owner per team. It reads no xlsx.
+`Team ID` is a team_key and must match one in dim_fantasy_teams exactly (the
+team name is never matched); `Discord` is digits only, 17 to 20 long. It checks
+everything first and writes nothing unless every check passes: a Team ID that
+is not a team_key, an id
 that is not 17 to 20 digits, a blank cell, a duplicate (team, id) pair, an id
 that arrives as a number (a spreadsheet keeps 15 significant digits of a number,
 so the id is already wrong: the column must be plain text), or an empty tab
@@ -39,13 +40,14 @@ from load_contract_choices import inside_git_repo, literal  # noqa: E402
 
 TEAMS_TABLE = "dim_fantasy_teams"
 TARGET = "shared.owner_crosswalk"
-ID_COLUMN = "discord_user_id"
-COLUMNS = ["team", ID_COLUMN]
+TEAM_COLUMN = "Team ID"
+ID_COLUMN = "Discord"
+COLUMNS = [TEAM_COLUMN, ID_COLUMN]
 ID_LENGTHS = range(17, 21)
 
 
-AS_NUMBERS = ("discord_user_id is stored as numbers, and a spreadsheet keeps only 15 significant digits of a "
-              "number, so those ids are wrong; format the discord_user_id column as plain text "
+AS_NUMBERS = ("Discord is stored as numbers, and a spreadsheet keeps only 15 significant digits of a "
+              "number, so those ids are wrong; format the Discord column as plain text "
               "(Format, Number, Plain text) and re-enter the ids")
 
 
@@ -82,35 +84,32 @@ def resolve(frame: pd.DataFrame, teams: pd.DataFrame) -> tuple[list[tuple[str, s
     frame = frame[COLUMNS].dropna(how="all")
     if frame.empty:
         return [], ["the owner tab has no rows"]
-    ids = id_text(frame["discord_user_id"])
+    ids = id_text(frame[ID_COLUMN])
     if ids is None:
         return [], [AS_NUMBERS]
-    by_team = {}
-    for team_key, name in zip(teams["team_key"], teams["team_name"]):
-        by_team.setdefault(str(name).strip(), []).append(team_key)
+    team_keys = {str(key).strip() for key in teams["team_key"]}
     labels = {"blank": "row(s) with a blank team or id",
-              "team": "row(s) whose team does not resolve to one team",
+              "team": "row(s) whose Team ID is not a team_key",
               "id": "row(s) whose id is not 17 to 20 digits",
               "twice": "row(s) repeating a team and id pair"}
     where = {k: [] for k in labels}
     pairs, seen = [], set()
-    for number, name, owner in zip(frame.index + 2, frame["team"], ids):
-        name = "" if pd.isna(name) else str(name).strip()
-        if not name or not owner:
+    for number, team_key, owner in zip(frame.index + 2, frame[TEAM_COLUMN], ids):
+        team_key = "" if pd.isna(team_key) else str(team_key).strip()
+        if not team_key or not owner:
             where["blank"].append(number)
             continue
-        keys = by_team.get(name, [])
-        if len(keys) != 1:
+        if team_key not in team_keys:
             where["team"].append(number)
             continue
         if not is_id(owner):
             where["id"].append(number)
             continue
-        if (keys[0], owner) in seen:
+        if (team_key, owner) in seen:
             where["twice"].append(number)
             continue
-        seen.add((keys[0], owner))
-        pairs.append((keys[0], owner))
+        seen.add((team_key, owner))
+        pairs.append((team_key, owner))
     problems = [f"{len(where[k])} {labels[k]} (rows {', '.join(str(n) for n in where[k])})" for k in labels if where[k]]
     return sorted(pairs), problems
 
@@ -160,7 +159,7 @@ def load(out_path: Path, *, tables: dict | None = None, out=print) -> int:
         out(f"stopped: {(str(exc).splitlines() or [''])[0]}")
         out("nothing was written")
         return 1
-    teams = etl.read_table(TEAMS_TABLE, ["team_key", "team_name"]) if tables is None else tables["teams"]
+    teams = etl.read_table(TEAMS_TABLE, ["team_key"]) if tables is None else tables["teams"]
     pairs, problems = resolve(frame, teams)
     if problems:
         for line in problems:
