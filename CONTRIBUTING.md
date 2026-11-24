@@ -171,7 +171,9 @@ set (in the shell or in `.env`):
 ```
 
 It refuses, before any read, a table that has a `chain:`, is not in the
-registry, is private or has no snapshot tracked at HEAD. It runs the tables'
+registry, is private or has no snapshot tracked at HEAD, and a checkout that
+is not on `main` or whose index holds any staged path but the named tables'
+own. It runs the tables'
 Gate checks against the store, exports them to `data/` with the exporter the
 publish step uses, and lands them by the pipeline's data PR (branch
 `data/<date>-manual`, title `data: manual publish <date> (<tables>)`), gated and

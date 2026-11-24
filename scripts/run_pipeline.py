@@ -813,17 +813,41 @@ def manual_refusals(names: list[str], registry: dict[str, dict], tracked: set[st
     return out
 
 
+def manual_preflight(names: list[str], cwd: Path = REPO) -> list[str]:
+    """The checkout checks of --publish-manual (#616, PR #669 review), made
+    before any read: the checkout is on main, and the index holds no staged
+    path but the named tables' own, since commit_data commits all it finds
+    staged and a staged Chain table would land unchecked. Raises when git
+    cannot say."""
+    out = []
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd)
+    if branch.returncode != 0:
+        raise RuntimeError("git could not read the current branch")
+    if branch.stdout.strip() != "main":
+        out.append(f"on branch '{branch.stdout.strip()}', not main")
+    staged = _git("diff", "--cached", "--name-only", cwd=cwd)
+    if staged.returncode != 0:
+        raise RuntimeError("git could not read the index")
+    named = set(_parquet_paths(names))
+    others = sorted(p for p in staged.stdout.splitlines() if p and p not in named)
+    if others:
+        out.append(f"the index holds staged path(s) that are not named tables: {', '.join(others)}")
+    return out
+
+
 def publish_manual(names: list[str], accepted_shrink: list[str], push: bool, dry_run: bool,
                    cwd: Path = REPO) -> int:
     """--publish-manual (#616, ADR-0008 decision 3): the owner's command to
     publish named manual-only tables. Refuses, before any read, a table off
-    the allowlist (`manual_refusals`) or a store that is not Postgres. Then,
+    the allowlist (`manual_refusals`), a checkout off main or with other
+    staged paths (`manual_preflight`), or a store that is not Postgres. Then,
     read-only, runs the tables' Gate checks against the store and exports
     them to data/, and lands them by commit_data, the data PR of a Chain
     publish. Runs no step and signs in nowhere. Exit 0 published or nothing
     changed, 1 failed, 2 refused. Prints table names and counts only."""
     names = list(dict.fromkeys(names))
     refused = manual_refusals(names, etl_checks.load_registry(), tracked_at_head(names, cwd))
+    refused += manual_preflight(names, cwd)
     for line in refused:
         print(f"refused: {line}")
     if refused:

@@ -267,13 +267,40 @@ class TestChangeDetection:
         changed = git(world.origin, "show", "--name-only", "--format=", "main").stdout.split()
         assert changed == ["data/man_a.parquet"]
 
-    def test_a_staged_file_off_the_allowlist_aborts(self, world):
+    def test_a_staged_file_off_the_allowlist_is_refused_before_any_read(self, world):
         gh = world.gh()
         (world.repo / "notes.txt").write_text("x")
         git(world.repo, "add", "notes.txt")
-        assert publish(world, "man_a") == 1
-        assert gh.calls == []
-        assert "non-allowlisted" in FakeRunLog.instances[-1].finished["error"]
+        assert publish(world, "man_a") == 2
+        assert world.suite_calls == [] and world.exported == []
+        assert gh.calls == [] and FakeRunLog.instances == []
+
+    def test_a_staged_chain_parquet_is_refused_before_any_read(self, world, capsys):
+        gh = world.gh()
+        _write(world.repo, "chained", 7)
+        git(world.repo, "add", "data/chained.parquet")
+        assert publish(world, "man_a") == 2
+        assert world.suite_calls == [] and world.exported == []
+        assert gh.calls == [] and FakeRunLog.instances == []
+        assert "staged path(s) that are not named tables: data/chained.parquet" in capsys.readouterr().out
+        assert git(world.origin, "log", "-1", "--format=%s", "main").stdout.strip() == "seed"
+
+    def test_a_staged_named_table_is_not_refused(self, world):
+        world.gh()
+        _write(world.repo, "man_a", 7)
+        git(world.repo, "add", "data/man_a.parquet")
+        assert publish(world, "man_a") == 0
+        changed = git(world.origin, "show", "--name-only", "--format=", "main").stdout.split()
+        assert changed == ["data/man_a.parquet"]
+
+    def test_a_checkout_off_main_is_refused_before_any_read(self, world, capsys):
+        gh = world.gh()
+        git(world.repo, "switch", "-q", "-c", "side")
+        assert publish(world, "man_a") == 2
+        assert world.suite_calls == [] and world.exported == []
+        assert gh.calls == [] and FakeRunLog.instances == []
+        assert "on branch 'side', not main" in capsys.readouterr().out
+        assert data_is_clean(world.repo)
 
     def test_no_push_commits_locally_and_opens_no_pr(self, world):
         gh = world.gh()
