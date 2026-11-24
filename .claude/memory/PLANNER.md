@@ -55,7 +55,7 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 ### Next (in order)
 
-1. **PR #667 is merged** (`44dd334`); nothing is left of it. Send the manager the `GOAL-RUN.md` lines when it says #661's PR is open.
+1. **#661 is PR #685.** The planner's read is no breach at head `2acffd5` (PR #685 issuecomment-7135882049); repeat it if the head moves. Ben told the manager to merge it when green. Its check lines are on #661 (issuecomment-7135889563): the manager uses that comment for this merge. **Ben's button, 2026-11-24: one planner PR adds the #661 and #662 check lines to `GOAL-RUN.md`, after #662's lines exist; he approves its merge.** Write #662's lines when its PR opens. PR #685 leaves a held second migration (the `final_at` default is dropped at the owner's dispatch). Carry into the restated #663: nothing but grants keeps the table owner from changing a history row. #682's page wording must not promise that only the last version of a choice is shown. Review advisory F1 of PR #685 is backlog ticket #687.
 2. **The briefs are posted, all medium.** Order: #661, #662, #670 (same files, so one after the other), #682 (brief 4), the after-deadline copy (#548 issuecomment-7104493151; no ticket yet, file it when it is next in line), #663, #664, #665. Restate #663 to #665, #675 and #676 against the merged code before dispatch. Of the six points ADR-0026 lists as not decided, the read path is ruled (#670). When #670's PR opens, send the manager a `GOAL-RUN.md` line: every view in `app` has `security_invoker` on. What each brief holds (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
    - Foundations, before any owner write: the append-only history, the `final` instant (required, later than the deadline, not movable once passed), `origin` commissioner, `shared.app_role` with a league scope, the role, phase and action table and its policy tests.
    - Brief 4, the owner's page: Discord sign-in, the locked price beside each candidate, one backend fixed at build, a content security policy, the session rule of question 9, the Confirm email line for ADR-0025.
@@ -74,16 +74,17 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 Ids as of 2026-11-24, each sent by its session; find each by name.
 
-- dff-central-builder-manager: `695f05fc-6dff-445b-a9fd-af605c6997d9`. Builder b616-manualpublish has PR #669 open; PR #659 (b626-creds) is merged as `ea9876a`; the owner's queue was empty at 2026-11-24 13:54 UTC.
+- dff-central-builder-manager: `695f05fc-6dff-445b-a9fd-af605c6997d9`. PR #669 (#616) is merged as `1b1fc23`; PR #672 (#671) as `1eda32b`; PR #684 (#597) waits on Ben's `01c` re-run; b661-choicehist has PR #685 open. Ben's go to the manager: the chain #661, #662, #670, then #682.
 - Tools-central-planner: `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Tools PR #249 has not merged (it follows tools PRs #205 and #253); it sends a line when it does.
-- Tools-builder-manager: `5074d20f-d5f6-4edf-b1b1-e18d5f31db19`. It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
+- Tools-builder-manager: `e7026592-a1b4-4ccd-afea-61d5cf451e9f` (new after its clear on 2026-11-24). It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
 - personal-assistant: reads only, reports findings.
 - After a clear: send the manager and the Tools planner the new id.
 
 ### Waiting on Ben
 
 - Nothing of the planner's is in his queue.
-- The planner's button, once its checks pass: the merge of PR #667. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
+- #673: Ben and the partner sign the private agreement (Ben holds Claude's outline privately); a line on #673 when it is signed, then the planner's licence-file PR.
+- Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
 - His go in the manager's chat for #633, #637, #604, #590.
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
 
