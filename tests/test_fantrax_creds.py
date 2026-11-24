@@ -29,6 +29,31 @@ def test_creds_read_only_the_two_fantrax_names_from_dotenv(monkeypatch, tmp_path
     assert "FANTRAX_PASSWORD" not in os.environ
 
 
+def test_totp_secret_is_read_from_dotenv_and_sets_nothing(monkeypatch, tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("ETL_STORAGE=postgres\nFANTRAX_TOTP_SECRET=FAKEFAKEFAKEFAKE\n",
+                   encoding="utf-8")
+    monkeypatch.setattr(etl_run_log, "ENV_FILE", env)
+    monkeypatch.delenv("FANTRAX_TOTP_SECRET", raising=False)
+    monkeypatch.delenv("ETL_STORAGE", raising=False)
+    seen = []
+    scraper = fx.FantraxScraper.__new__(fx.FantraxScraper)
+    monkeypatch.setattr(scraper, "_totp_code", lambda secret, page: seen.append(secret) or "000000",
+                        raising=False)
+
+    class Page:
+        def __getattr__(self, name):
+            raise AssertionError("page touched: " + name)
+
+    try:
+        scraper._answer_code_prompt(Page())
+    except AssertionError:
+        pass
+    assert seen == ["FAKEFAKEFAKEFAKE"]
+    assert "FANTRAX_TOTP_SECRET" not in os.environ
+    assert "ETL_STORAGE" not in os.environ
+
+
 def test_creds_missing_raises(monkeypatch, tmp_path):
     monkeypatch.setattr(etl_run_log, "ENV_FILE", tmp_path / "absent.env")
     monkeypatch.delenv("FANTRAX_EMAIL", raising=False)
