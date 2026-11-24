@@ -53,87 +53,68 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-24, tenth save, before a compact; session `695f05fc-6dff-445b-a9fd-af605c6997d9`)
+## CURRENT STATE (2026-11-24, eleventh save, before a clear at Ben's word; session `695f05fc-6dff-445b-a9fd-af605c6997d9`)
 
-- **Heads.** origin/main and main checkout `43d053c` (PR #668). The
-  main checkout is clean.
-- **session-dispatch** was typed by Ben in session `695f05fc`. A
-  compact keeps the session; a clear makes a new one and Ben types it
-  again.
-- **Ben's words in this session, all recorded:** closeout of b626-creds
-  once PR #659 is merged (issues/626#issuecomment-7132525378); closeout
-  of b616-manualpublish once it has stopped and all its PRs are merged
-  (issues/616#issuecomment-7132525971); next dispatch #597
-  (issues/597#issuecomment-7132526468); and, typed in chat, "merge #659
-  when green, then dispatch #597".
-- **#626, PR #659** (builder **b626-creds**, Tier low, session
-  `7daad6fd-715d-4117-9ed2-49ffa75f0e58`, branch `worktree-b626-creds`),
-  head `389ca8dc4735d290509a23818b8e9ac7cadd6ca9`. Code review round
-  closed: F1 fixed, re-check accepted, nothing open
-  (pull/659#issuecomment-7132571868). Re-proof GREEN at this head on
-  base `f8b4584` (pull/659#issuecomment-7132684294), but main has moved
-  to `43d053c`. **Next:** when Tools-builder-manager's end notice for
-  tools PR #253 arrives (dynasty has the line next, agreed): send a
-  start notice, `git fetch origin`, re-run `reproof.py 659 <head>` in
-  the background, send the end notice, post the counts, read CI once
-  (every check SUCCESS), merge squash pinned, `git pull --ff-only`,
-  then close out b626-creds (git cherry or no-diff check, the interim
-  link check, `claude rm 7daad6fd`), record on #626.
-- **#597: dry run done and matches** (name `b597-teamabbr`, medium, no
-  profile, 59 deny rules). The brief is in the session scratchpad and
-  is rebuilt from the ticket if lost: ticket body plus the planner's
-  check and the cut in two (steps 1 and 2 only, no `pbi/`), full suite
-  held, the DROP COLUMN parks as a Decision, supabase-auditor at
-  re-proof. **Next:** after #659 is merged, run the dispatch with
-  `-Apply` (10-minute timeout), record the start on #597.
-- **#616, PR #669** (builder **b616-manualpublish**, Tier high, session
-  `38d02387-31bf-4bca-b945-9f78e851f66f`, branch
-  `worktree-b616-manualpublish`), head `e0eb103` at its report. Built
-  on Ben's pane Answer (a) (issues/616#issuecomment-7132412282). The
-  builder reports it green and waits. A first-round code review (full,
-  high) is running, and the planner is asked for its read (it amends
-  ADR-0008, CONTRIBUTING.md and CLAUDE.md). **Next:** post the findings
-  on the PR, run the one round if any (builder woken with
-  `resume_plain.ps1`), ask for the test line, re-prove, post counts,
-  merge pinned on Ben's standing merge word for #616 when GREEN and the
-  planner says no breach, then close out. Its live proof (#554's
-  price-list publish) is Ben's own command.
-- **Tools #247: done.** PR #668 merged as `43d053c` on Ben's pane
-  Answer (a); both deny lines are on main (lines 75 and 76); worktree
-  and branch removed; entry removed
-  (tools issues/247#issuecomment-7133028058).
-- **#654 is closed.** Planner PRs #660 and #667 are merged; the hold on
-  the auditor step of #661 is lifted.
-- **Dispatch order after #597,** each on Ben's go by button: #661, #662
-  (same files, in that order), then #670 (after both merge), then
-  brief 4 of #548 and the after-deadline copy (outside 2026-12-03 to
-  2027-01-07), #663, #664, #665 (restated by the planner first); and
-  #633, #637, #639, #644; #592 held; #620 waits on tools #242; #563
-  held; #595 last. About two builders at a time. Tell the planner when
-  #661's PR opens. #661 and #662 need the supabase-auditor and the
-  After a schema change lands check.
-- **Test line:** Tools-builder-manager holds it for tools PR #253
-  (started 13:21Z, about 59 minutes); dynasty is next for PR #659;
-  tools PR #255 follows dynasty's end notice. PR #669's re-proof needs
-  the line too: ask again.
-- **The bot is up** (checked 2026-11-24).
-- **Worktree removal, interim check** (issues/655#issuecomment-7104025813):
-  no link inside (`Get-ChildItem -Recurse -Force -Attributes
-  ReparsePoint` prints nothing), `git status --porcelain` prints
-  nothing, remove, confirm the folder is gone and `git worktree list`
-  no longer shows it; a removal that stops part way is reported on
-  #655, nothing forced.
-- **#655 item 1, the rest:** merged and detached worktrees only at
-  Ben's direct word per builder; 24 worktrees have a damaged git record
-  (issues/655#issuecomment-7104537108).
-- **Open PRs:** #669 (b616-manualpublish), #659 (b626-creds), #653
-  (draft, planner), #634 (the state batch), #595 (last), #563 (held).
-- **Peers:** dff-central-planner queue id
-  `cff0e612-f08d-401c-9bb6-2a60446c1492`; Tools-builder-manager
-  `5074d20f-d5f6-4edf-b1b1-e18d5f31db19`; Tools-central-planner
-  `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Builders are woken with
-  `resume_plain.ps1` (SendMessage does not list them); their messages
-  arrive by name.
+- **Heads.** origin/main and main checkout `1eda32b` (PR #672). The
+  main checkout is clean (only `.agents/` and `GEMINI.md` untracked).
+- **session-dispatch** was typed by Ben in session `695f05fc`. After
+  the clear Ben types it again before any dispatch, merge or closeout,
+  and gives the closeout word per builder again.
+- **Merged this session:** PR #659 (#626) `ea9876a`; PR #668 `43d053c`;
+  PR #669 (#616) `1b1fc23`; PR #672 (#671) `1eda32b`. **Closed out:**
+  b626-creds, b616-manualpublish, b671-dropwarn. **Closed:** #654,
+  #658, #674 (and #616, #626, #671 by their PRs).
+- **PR #685 (#661, builder b661-choicehist, session
+  `59eeebaa-541a-48e6-a59f-96f0871eee19`, branch
+  `worktree-b661-choicehist`), head
+  `2acffd56d598aabe576870d63c71f33fd5270856`.** Code review: no
+  blocking, F1 and F2 advisory (pull/685#issuecomment-7135947201).
+  supabase-auditor: no blocking, two advisories
+  (issuecomment-7135889854). Planner: no breach
+  (issuecomment-7135882049). Ben: "merge #685 when green"
+  (issues/661#issuecomment-7135951371). **Next:** ask the test line,
+  re-prove, post counts, one CI read, merge pinned, pull; then queue an
+  owner Action to dispatch `migrate.yml` for the held drops file
+  (`final_at DROP DEFAULT`); run the planner's check lines
+  (issues/661#issuecomment-7135889563); then dispatch #662 (brief
+  ready, see Do first). Closeout of b661 needs Ben's word.
+- **PR #684 (#597, builder b597-teamabbr, session
+  `4a1fed88-8d24-4502-83c3-25eaf5bf18b3`, branch
+  `worktree-b597-teamabbr`), head moving (was `24ccfdf`).** Ben re-ran
+  01c on the branch (Note recorded, issuecomment-7136034918); the
+  builder was woken to commit the table and read CI. Ben: "merge #684
+  when green" (issues/597#issuecomment-7135711716); DROP COLUMN
+  Decision answered (a) apply after merge
+  (issuecomment-7135625750). **Next:** on the builder's report, code
+  review (medium, full, high) and supabase-auditor, re-prove (it covers
+  the trade-tool export and bot suite), merge pinned, then give Ben the
+  `migrate.yml` dispatch step and run the After a schema change lands
+  check; then dispatch #686 (Ben's go, issues/686#issuecomment-7135826055).
+- **Dispatch chain on Ben's go, each after the one before merges:**
+  #661 (PR #685) then #662 (go: issuecomment-7134054704) then #670
+  (go: issuecomment-7134103462) then #682 = brief 4 of #548 (go:
+  issuecomment-7135826055 on #548 and issues/682#issuecomment-7134177639;
+  merge outside 2026-12-03 to 2027-01-07) then #663 then #664 then
+  #665 (each needs the planner's restated brief first). Separately:
+  #684 then #686. Backlog, no go yet: #683 (F3 of #669), #687 (F1 of
+  #685), #675 and #676 (map #658, planner restates first), #633, #637,
+  #639, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
+- **Owed to the planner:** one line when #662's PR opens and when
+  #670's PR opens; #682's owner Actions 2 to 4 are queued when its PR
+  opens (Action 1 is done).
+- **Test line:** tools runs PR #255 then #210; dynasty asks again for
+  #685 then #684, with start and end notices.
+- **Bot:** restarted 2026-11-24 in a terminal tab of this app.
+- **Worktree removal, interim check** (issues/655#issuecomment-7104025813)
+  as before; #655 item 1 and the 24 damaged-record worktrees unchanged.
+- **Open PRs:** #685, #684, #653 (draft, planner), #634 (state batch),
+  #595, #563.
+- **Peers:** dff-central-planner `125a6d6d-88c4-406a-8ea8-220374432d42`
+  (new after its clear); Tools-builder-manager
+  `e7026592-a1b4-4ccd-afea-61d5cf451e9f`; Tools-central-planner
+  `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Builders answer by name
+  through SendMessage while running; a stopped one is woken with
+  `resume_plain.ps1`.
 
 ## Queue entries raised
 
