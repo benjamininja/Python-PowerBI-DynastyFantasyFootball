@@ -175,11 +175,18 @@ class TestTheOwnerCrosswalkAndItsFunctions:
         assert "i.provider_id = c.discord_user_id" in sql and "i.user_id = auth.uid()" in sql
         assert "metadata" not in sql.lower()
 
-    def test_the_window_function_has_three_answers_and_no_row_is_none(self):
+    def test_the_window_function_has_four_answers_and_no_row_is_none(self):
         sql = gm.desired_model(crosswalk_registry())["functions"]["shared.choice_window"]
-        for word in ("'open'", "'passed'", "'none'"):
+        for word in ("'open'", "'passed'", "'final'", "'none'"):
             assert word in sql
-        assert "d.deadline_at > clock_timestamp()" in sql
+        assert "d.final_at <= clock_timestamp()" in sql and "d.deadline_at > clock_timestamp()" in sql
+        assert sql.index("'final'") < sql.index("'open'") < sql.index("'passed'")
+
+    def test_a_crosswalk_with_a_deadline_table_that_has_no_final_at_is_refused(self):
+        reg = crosswalk_registry()
+        entry(reg, "choice_deadline")["columns"] = [c for c in entry(reg, "choice_deadline")["columns"]
+                                                    if c["name"] != "final_at"]
+        refused(reg, "unknown column 'final_at'")
 
     def test_no_function_is_added_when_the_crosswalk_is_not_declared(self):
         assert set(gm.desired_model(app_registry())["functions"]) == {"shared.pii_token_hashes"}
@@ -230,6 +237,39 @@ class TestThePiiHashFunctionGainsTheCrosswalk:
         assert "shared.caller_team_keys: change of function body" in gm.diff(old, new)["refusals"]
 
 
+class TestTheWindowFunctionGainsFinal:
+    """shared.choice_window() is replaced in place (#661): CREATE OR REPLACE keeps its
+    REVOKE and its one GRANT, so the migration writes neither again."""
+    OLD_BODY = ("CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text\n"
+                "LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n"
+                "    SELECT coalesce((SELECT CASE WHEN d.deadline_at > clock_timestamp() THEN 'open' ELSE 'passed' END\n"
+                "         FROM ops.choice_deadline d\n"
+                "         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind), 'none')\n$fn$;")
+
+    def test_the_function_is_on_the_replaceable_list_beside_the_pii_hash(self):
+        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION)
+
+    def test_a_state_with_the_old_body_gets_create_or_replace_and_nothing_else(self):
+        old = gm.desired_model(crosswalk_registry())
+        old["functions"][gm.OPEN_FUNCTION] = self.OLD_BODY
+        changes = gm.diff(old, gm.desired_model(crosswalk_registry()))
+        assert changes["refusals"] == []
+        sql = gm.render(changes)
+        assert sql.startswith("CREATE OR REPLACE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text)")
+        assert "WHEN d.final_at <= clock_timestamp() THEN 'final'" in sql
+        assert sql.count("CREATE ") == 1 and "GRANT" not in sql and "REVOKE" not in sql
+
+    def test_a_replacement_keeps_the_function_a_definer_with_the_search_path_empty(self):
+        sql = gm.desired_model(crosswalk_registry())["functions"][gm.OPEN_FUNCTION]
+        assert "SECURITY DEFINER SET search_path = ''" in sql
+
+    def test_the_other_definer_function_stays_non_replaceable(self):
+        old = gm.desired_model(crosswalk_registry())
+        new = copy.deepcopy(old)
+        new["functions"][gm.TEAMS_FUNCTION] += " "
+        assert f"{gm.TEAMS_FUNCTION}: change of function body" in gm.diff(old, new)["refusals"]
+
+
 class TestTheRealRegistry:
     @pytest.fixture()
     def model(self):
@@ -271,11 +311,63 @@ class TestTheRealRegistry:
             if policy["command"] in ("INSERT", "UPDATE") and policy["role"] == "authenticated":
                 assert "origin = 'app'" in policy["check"]
 
-    def test_the_read_after_the_deadline_asks_for_passed_so_none_reads_nothing(self, model):
+    def test_the_read_after_the_deadline_asks_for_passed_or_final_so_none_reads_nothing(self, model):
         (policy,) = [p for p in model["tables"]["app.contract_choices"]["policies"]
                      if p["name"] == "signed_in_select_after_deadline"]
-        assert policy["using"] == "shared.choice_window(season_id, choice_kind) = 'passed'"
+        assert policy["using"] == "shared.choice_window(season_id, choice_kind) IN ('passed', 'final')"
         assert "NOT" not in policy["using"]
+
+    def test_the_owner_write_policies_still_ask_for_open_only(self, model):
+        for key in ("app.contract_choices", "app.team_choice_sharing"):
+            for policy in model["tables"][key]["policies"]:
+                if policy["command"] in ("INSERT", "UPDATE") and policy["role"] == "authenticated":
+                    assert "'passed'" not in policy["check"] and "'final'" not in policy["check"]
+                    assert "origin = 'app'" in policy["check"] or key == "app.team_choice_sharing"
+
+    def test_the_history_table_mirrors_the_three_authenticated_select_policies_and_grants_select_only(self, model):
+        choices = {p["name"]: p for p in model["tables"]["app.contract_choices"]["policies"]
+                   if p["role"] == "authenticated" and p["command"] == "SELECT"}
+        history = {p["name"]: p for p in model["tables"]["app.contract_choice_history"]["policies"]}
+        assert sorted(history) == sorted(choices) and len(history) == 3
+        for name, policy in history.items():
+            assert policy["role"] == "authenticated" and policy["command"] == "SELECT"
+            assert policy["using"].replace("contract_choice_history", "contract_choices") == choices[name]["using"]
+        assert model["tables"]["app.contract_choice_history"]["grants"] == [
+            {"role": "authenticated", "privileges": ["SELECT"]}]
+
+    def test_the_history_table_has_no_etl_grant_and_no_write_grant_to_anyone(self, model):
+        spec = model["tables"]["app.contract_choice_history"]
+        assert all(g["role"] == "authenticated" and g["privileges"] == ["SELECT"] for g in spec["grants"])
+        assert all(p["role"] == "authenticated" for p in spec["policies"])
+
+    def test_the_history_key_columns_are_required_and_the_action_id_is_not(self, model):
+        cols = {c["name"]: c for c in model["tables"]["app.contract_choice_history"]["columns"]}
+        for name in ("history_id", "season_id", "team_key", "scorer_id", "choice_kind", "choice", "origin",
+                     "changed_at", "recorded_at"):
+            assert cols[name]["not_null"], name
+        assert not cols["action_id"]["not_null"] and not cols["changed_by"]["not_null"]
+
+    def test_the_history_writer_is_the_one_definer_trigger_function_and_its_body_names_every_schema(self, model):
+        sql = model["trigger_functions"]["ops.record_choice_history"]
+        assert "LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''" in sql
+        assert "RETURNS trigger" in sql
+        assert [n for n, s in model["trigger_functions"].items() if "SECURITY DEFINER" in s] == \
+            ["ops.record_choice_history"]
+        assert " FROM contract_choice_history" not in sql and "INTO contract_choice_history" not in sql
+        assert "INTO app.contract_choice_history" in sql
+
+    def test_the_deadline_row_that_exists_takes_the_owners_final_instant_by_fill_and_the_check_holds(self, model):
+        spec = model["tables"]["ops.choice_deadline"]
+        (final,) = [c for c in spec["columns"] if c["name"] == "final_at"]
+        assert final["not_null"] and "default" not in final
+        assert final["fill"] == "timestamptz '2027-03-01 04:59:59+00'"
+        assert "final_at > deadline_at" in spec["checks"]
+
+    def test_origin_accepts_commissioner_and_the_owner_policies_still_hold_it_to_app(self, model):
+        spec = model["tables"]["app.contract_choices"]
+        assert "origin IN ('loader', 'app', 'commissioner')" in spec["checks"]
+        assert "commissioner" not in "".join(str(p.get("check", "")) + str(p.get("using", ""))
+                                             for p in spec["policies"])
 
     def test_the_rule_for_shared_names_exactly_three_functions(self, model):
         assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"])

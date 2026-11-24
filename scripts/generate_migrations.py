@@ -24,10 +24,17 @@ registry's `shared.owner_crosswalk` brings the two SECURITY DEFINER functions of
 FUNCTION_ACCESS, EXECUTE for authenticated only, and the first grant to
 authenticated on `app` revokes what anon could inherit there. A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
-(each in `ops`, `search_path` pinned empty, not SECURITY DEFINER, EXECUTE
-revoked from PUBLIC). Later changes to those fields on an existing table are
-refused. No change writes nothing and exits 0. A registry that breaks a rule
-exits 2.
+(each in `ops`, `search_path` pinned empty, EXECUTE revoked from PUBLIC, and
+SECURITY DEFINER only with `definer: true`, #661). On a table that exists, a
+trigger of a new name is added too; a change to or a drop of an existing one is
+refused. A required column carries a `fill` (#661) when it is added to a table
+that has rows: ADD COLUMN with the fill as its default, so no UPDATE runs and no
+trigger is touched, then DROP DEFAULT in the migration of its own that holds the
+drops (#534; the gate holds it for the owner's dispatch). The one policy of
+REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and
+`shared.choice_window` is replaced with CREATE OR REPLACE (REPLACEABLE_FUNCTIONS).
+Other later changes to those fields on an existing table are refused. No change
+writes nothing and exits 0. A registry that breaks a rule exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
 Line 1 of the migration holds the sha256 of the state file it produces. The
@@ -108,9 +115,6 @@ AS $fn$
     ) s
     WHERE s.token IS NOT NULL AND s.token <> ''
 $fn$;"""
-# The one function whose body a later registry may change: it is generator-owned
-# text, written as CREATE OR REPLACE, which keeps its grants.
-REPLACEABLE_FUNCTIONS = (PII_FUNCTION,)
 
 CROSSWALK_TABLE = "shared.owner_crosswalk"
 TEAMS_FUNCTION = "shared.caller_team_keys"
@@ -127,11 +131,21 @@ OPEN_FUNCTION_SQL = """CREATE FUNCTION shared.choice_window(p_season_id text, p_
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $fn$
     SELECT coalesce(
-        (SELECT CASE WHEN d.deadline_at > clock_timestamp() THEN 'open' ELSE 'passed' END
+        (SELECT CASE WHEN d.final_at <= clock_timestamp() THEN 'final'
+                     WHEN d.deadline_at > clock_timestamp() THEN 'open'
+                     ELSE 'passed' END
          FROM ops.choice_deadline d
          WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),
         'none')
 $fn$;"""
+# The functions whose body a later registry may change: generator-owned text,
+# written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
+# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661).
+REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION)
+# The one policy a later registry may change in place (ADR-0026 decision 6, #661):
+# written as ALTER POLICY, which keeps its name, role and command. A change to any
+# other policy, or to this one's role or command, stays refused.
+REPLACEABLE_POLICIES = (("app.contract_choices", "signed_in_select_after_deadline"),)
 # Per `shared` function: the argument list its REVOKE and GRANT name, and the
 # roles (and only those) that hold EXECUTE (ADR-0025 decision 6).
 FUNCTION_ACCESS = {
@@ -345,11 +359,17 @@ def _table_spec(entry, default_schema):
         column = {"name": col_name, "sql_type": sql_type, "not_null": False}
         if col.get("default") is not None:
             column["default"] = _fragment(col["default"], f"{where}.{col_name} default")
+        if col.get("fill") is not None:
+            column["fill"] = _fragment(col["fill"], f"{where}.{col_name} fill")
         columns.append(column)
     _known(types, pk, f"{where} pk")
     _known(types, required, f"{where} required_keys")
     for col in columns:
         col["not_null"] = col["name"] in pk or col["name"] in required
+        if "fill" in col and not col["not_null"]:
+            raise RegistryError(f"{where}.{col['name']}: fill is for a required column only")
+        if "fill" in col and "default" in col:
+            raise RegistryError(f"{where}.{col['name']}: a column holds a default or a fill, not both")
     checks = []
     for expr in entry.get("checks") or []:
         expr = _fragment(expr, f"{where} check")
@@ -404,7 +424,11 @@ def _trigger_function(entry):
         raise RegistryError(f"trigger function {name}: needs a body")
     if "$fn$" in body:
         raise RegistryError(f"trigger function {name}: the body may not hold $fn$")
-    sql = (f"CREATE FUNCTION {name}() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\n"
+    definer = entry.get("definer", False)
+    if not isinstance(definer, bool):
+        raise RegistryError(f"trigger function {name}: definer: expected true or false")
+    security = " SECURITY DEFINER" if definer else ""
+    sql = (f"CREATE FUNCTION {name}() RETURNS trigger\nLANGUAGE plpgsql{security} SET search_path = ''\n"
            f"AS $fn$\n{body.strip()}\n$fn$;")
     return name, sql
 
@@ -454,6 +478,8 @@ def desired_model(registry):
         _known({c["name"] for c in crosswalk["columns"]}, ["team_key", "discord_user_id"], CROSSWALK_TABLE)
         if "ops.choice_deadline" not in specs:
             raise RegistryError(f"{CROSSWALK_TABLE}: the definer functions read ops.choice_deadline, which is not declared")
+        _known({c["name"] for c in specs["ops.choice_deadline"]["columns"]}, ["deadline_at", "final_at"],
+               "ops.choice_deadline")
         functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
         functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
         functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
@@ -573,6 +599,8 @@ def _table_changes(key, old, new, out, flagged):
         before = old_cols.get(col["name"])
         if before is None:
             out["columns"].append((key, col))
+            if col.get("fill"):
+                out["default_drops"].append((key, col["name"]))
             continue
         if before["sql_type"] != col["sql_type"]:
             refuse.append(f"{key}.{col['name']}: type change from {before['sql_type']} to {col['sql_type']}")
@@ -580,13 +608,15 @@ def _table_changes(key, old, new, out, flagged):
             refuse.append(f"{key}.{col['name']}: change of NOT NULL")
         if before.get("default") != col.get("default"):
             refuse.append(f"{key}.{col['name']}: change of default")
-    if old.get("triggers", []) != new.get("triggers", []):
-        refuse.append(f"{key}: change of triggers")
-    for field, ident in (("grants", "role"), ("policies", "name")):
+    for field, ident in (("grants", "role"), ("policies", "name"), ("triggers", "name")):
         before, after = {i[ident]: i for i in old.get(field, [])}, {i[ident]: i for i in new.get(field, [])}
-        if any(after.get(name) != item for name, item in before.items()):
+        changed = [name for name, item in before.items() if after.get(name) != item]
+        replaced = [n for n in changed if field == "policies" and (key, n) in REPLACEABLE_POLICIES and n in after
+                    and all(after[n][k] == before[n][k] for k in ("role", "command"))]
+        if len(replaced) < len(changed):
             refuse.append(f"{key}: change of {field}")
         else:
+            out["policy_replacements"] += [(key, after[name]) for name in replaced]
             out[field] += [(key, item) for name, item in after.items() if name not in before]
     if old["pk"] != new["pk"]:
         refuse.append(f"{key}: change of primary key from {old['pk']} to {new['pk']}")
@@ -622,7 +652,7 @@ def diff(old, new, drops=NO_DROPS):
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
            "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
-           "refusals": []}
+           "triggers": [], "policy_replacements": [], "default_drops": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -693,7 +723,8 @@ def render(changes):
     out += [_role(r) for r in changes["roles"]]
     out += [_create_table(spec) for spec in changes["tables"]]
     for key, col in changes["columns"]:
-        out.append(f"ALTER TABLE {key} ADD COLUMN {_column_sql(col)};")
+        shown = {**col, "default": col["fill"]} if col.get("fill") else col
+        out.append(f"ALTER TABLE {key} ADD COLUMN {_column_sql(shown)};")
     for key, old_expr, new_expr in changes["check_swaps"]:
         table_name = key.split(".")[1]
         out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(table_name, old_expr)};")
@@ -756,23 +787,34 @@ def render(changes):
     for key, grant in changes.get("grants", []):
         out += grant_lines(key.split(".")[0], key, grant)
     out += [policy_line(key, p) for key, p in changes.get("policies", [])]
+    for key, policy in changes.get("policy_replacements", []):
+        clauses = "".join(f" {word} ({policy[field]})" for field, word in (("using", "USING"), ("check", "WITH CHECK"))
+                          if field in policy)
+        out.append(f"ALTER POLICY {policy['name']} ON {key}{clauses};")
     for name, sql in changes.get("trigger_functions", []):
         out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;"]
+
+    def trigger_line(qualified, trigger):
+        return (f"CREATE TRIGGER {trigger['name']} {trigger['timing']} {' OR '.join(trigger['events'])} "
+                f"ON {qualified} FOR EACH {trigger['level']} EXECUTE FUNCTION {trigger['function']}();")
+
     for spec in changes["tables"]:
-        for trigger in spec.get("triggers", []):
-            out.append(f"CREATE TRIGGER {trigger['name']} {trigger['timing']} {' OR '.join(trigger['events'])} "
-                       f"ON {spec['schema']}.{spec['name']} FOR EACH {trigger['level']} "
-                       f"EXECUTE FUNCTION {trigger['function']}();")
+        out += [trigger_line(f"{spec['schema']}.{spec['name']}", t) for t in spec.get("triggers", [])]
+    out += [trigger_line(key, t) for key, t in changes.get("triggers", [])]
     for key, idx in changes["indexes"]:
         where = f" WHERE {idx['where']}" if idx["where"] else ""
         out.append(f"CREATE {'UNIQUE ' if idx['unique'] else ''}INDEX {idx['name']} ON {key} "
                    f"({', '.join(idx['columns'])}){where};")
     out += [f"ALTER TABLE {key} DROP COLUMN {name};" for key, name in changes["column_drops"]]
+    out += [f"ALTER TABLE {key} ALTER COLUMN {name} DROP DEFAULT;" for key, name in changes.get("default_drops", [])]
     out += [f"DROP TABLE {key};" for key in changes["table_drops"]]
     return "\n\n".join(out) + "\n"
 
 
-DROP_KINDS = ("column_drops", "table_drops")
+# A DROP DEFAULT (the end of a `fill`, #661) is held by the destructive gate like
+# any DROP, and a held migration holds only drops (#534), so it goes in the
+# migration of its own with the column and table drops.
+DROP_KINDS = ("column_drops", "table_drops", "default_drops")
 
 
 def _with_dropped(old, new, changes):

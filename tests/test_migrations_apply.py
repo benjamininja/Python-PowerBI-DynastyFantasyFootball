@@ -175,9 +175,17 @@ def _count_as(conn, role, sql="SELECT count(*) FROM app.contract_choices"):
     return n
 
 
-def _deadline(conn, kind, when):
-    conn.execute(f"INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at) VALUES ('S', %s, {when})",
-                 (kind,))
+LATER_FINAL = "now() + interval '30 days'"
+FINAL_ROW = ("now() - interval '2 hours'", "now() - interval '1 hour'")
+
+
+def _deadline(conn, kind, when, final=LATER_FINAL):
+    conn.execute("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at, final_at) "
+                 f"VALUES ('S', %s, {when}, {final})", (kind,))
+
+
+def _final(conn, kind="fa_keep"):
+    _deadline(conn, kind, *FINAL_ROW)
 
 
 def test_the_choices_table_has_its_key_its_checks_and_its_foreign_keys(conn):
@@ -277,8 +285,8 @@ def test_changed_at_is_set_on_insert_and_moves_on_an_update_that_tries_to_set_it
     assert second > first
 
 
-DEADLINE_WRITES = ("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at) "
-                   "VALUES ('S', 'resign', now() - interval '1 hour')",
+DEADLINE_WRITES = ("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at, final_at) "
+                   "VALUES ('S', 'resign', now() - interval '1 hour', now() + interval '30 days')",
                    "UPDATE ops.choice_deadline SET deadline_at = now() - interval '1 hour'",
                    "DELETE FROM ops.choice_deadline")
 
@@ -358,7 +366,7 @@ def test_the_loaders_file_leaves_an_owners_row_alone_and_updates_a_loader_row(co
     assert got == {"x": "keep/app/-", "y": "let_go/loader/5", "z": "let_go/loader/5"}
 
 
-def test_the_two_trigger_functions_are_in_ops_and_closed_to_everyone(conn):
+def test_the_trigger_functions_are_in_ops_closed_to_everyone_and_only_the_history_writer_is_a_definer(conn):
     rows = conn.execute(
         "SELECT p.proname, p.prosecdef, p.proconfig, "
         "(SELECT count(*) FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a "
@@ -366,9 +374,13 @@ def test_the_two_trigger_functions_are_in_ops_and_closed_to_everyone(conn):
         "(SELECT count(*) FROM aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a "
         " WHERE a.grantee <> p.proowner) "
         "FROM pg_proc p WHERE p.pronamespace = 'ops'::regnamespace ORDER BY p.proname").fetchall()
-    assert [r[0] for r in rows] == ["refuse_passed_deadline_change", "set_changed_at"]
-    for _, definer, config, to_public, to_others in rows:
-        assert not definer and "search_path=" in "".join(config or []) and to_public == 0 and to_others == 0
+    assert [r[0] for r in rows] == ["record_choice_history", "refuse_passed_deadline_change", "set_changed_at"]
+    for name, definer, config, to_public, to_others in rows:
+        assert definer is (name == "record_choice_history"), name
+        assert "search_path=" in "".join(config or []) and to_public == 0 and to_others == 0, name
+    for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+        assert not conn.execute("SELECT has_function_privilege(%s, 'ops.record_choice_history()', 'EXECUTE')",
+                                (role,)).fetchone()[0], role
     assert conn.execute("SELECT count(*) FROM pg_proc WHERE pronamespace = 'app'::regnamespace").fetchone()[0] == 0
 
 
@@ -543,11 +555,13 @@ def test_no_owner_deletes_a_row(conn):
     _denied(conn, U1, "DELETE FROM app.team_choice_sharing")
 
 
-@pytest.mark.parametrize("state", ["passed", "none"])
+@pytest.mark.parametrize("state", ["passed", "final", "none"])
 def test_every_owner_write_is_refused_once_the_deadline_has_passed_and_with_no_deadline_row(conn, state):
     _world(conn)
     if state == "passed":
         _deadline(conn, "fa_keep", PAST)
+    elif state == "final":
+        _final(conn)
     conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "app", U1))
     _denied(conn, U1, OWN_INSERT, ("T", "y", "fa_keep", "app", U1))
     update = "UPDATE app.contract_choices SET choice = 'let_go', origin = 'app', changed_by = %s WHERE scorer_id = 'x'"
@@ -565,11 +579,13 @@ def _choices_seen_by(conn, uid):
     return _read(conn, uid, "SELECT count(*) FROM app.contract_choices WHERE scorer_id = 'x'")
 
 
-@pytest.mark.parametrize("state,others,owner", [("open", 0, 1), ("passed", 1, 1), ("none", 0, 1)])
-def test_a_row_is_private_while_open_public_once_passed_and_private_again_with_no_deadline_row(
+@pytest.mark.parametrize("state,others,owner", [("open", 0, 1), ("passed", 1, 1), ("final", 1, 1), ("none", 0, 1)])
+def test_a_row_is_private_while_open_public_once_passed_or_final_and_private_with_no_deadline_row(
         conn, state, others, owner):
     _world(conn)
-    if state != "none":
+    if state == "final":
+        _final(conn)
+    elif state != "none":
         _deadline(conn, "fa_keep", FUTURE if state == "open" else PAST)
     conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
     for uid in (U3, U4, U5):
@@ -694,12 +710,59 @@ def test_signed_in_callers_get_only_their_own_teams_and_a_state_from_the_window_
     assert _read(conn, U4, window) == "passed"
 
 
+def test_the_window_function_gives_each_of_its_four_states_from_one_row(conn):
+    _world(conn)
+    window = "SELECT shared.choice_window('S', 'fa_keep')"
+    assert [_read(conn, U1, window)] == ["none"]
+    for deadline, final, expected in (("now() + interval '1 day'", "now() + interval '2 days'", "open"),
+                                      ("now() - interval '1 hour'", "now() + interval '2 days'", "passed"),
+                                      ("now() - interval '2 hours'", "now() - interval '1 hour'", "final")):
+        conn.execute("SAVEPOINT state_row")
+        _deadline(conn, "fa_keep", deadline, final)
+        assert _read(conn, U1, window) == expected
+        conn.execute("ROLLBACK TO SAVEPOINT state_row")
+    _deadline(conn, "resign", FUTURE)
+    assert _read(conn, U1, window) == "none"
+
+
+def test_a_final_instant_not_later_than_the_deadline_is_refused_and_the_column_is_required(conn):
+    for deadline, final in (("now() + interval '1 day'", "now() + interval '1 day'"),
+                            ("now() + interval '1 day'", "now() + interval '1 hour'")):
+        conn.execute("SAVEPOINT bad_row")
+        with pytest.raises(psycopg.errors.CheckViolation):
+            _deadline(conn, "fa_keep", deadline, final)
+        conn.execute("ROLLBACK TO SAVEPOINT bad_row")
+    conn.execute("SAVEPOINT bad_row")
+    with pytest.raises(psycopg.errors.NotNullViolation):
+        conn.execute("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at) "
+                     "VALUES ('S', 'fa_keep', now() + interval '1 day')")
+    conn.execute("ROLLBACK TO SAVEPOINT bad_row")
+    assert conn.execute("SELECT column_default FROM information_schema.columns WHERE table_schema = 'ops' "
+                        "AND table_name = 'choice_deadline' AND column_name = 'final_at'").fetchone() == (None,)
+
+
+def test_a_final_row_cannot_be_changed_or_deleted_even_by_the_owner(conn):
+    _final(conn)
+    for sql in ("UPDATE ops.choice_deadline SET final_at = now() + interval '1 year'",
+                "DELETE FROM ops.choice_deadline"):
+        _fails(conn, "NONE", sql, psycopg.errors.RaiseException)
+
+
+def test_a_choice_row_stays_readable_to_every_signed_in_user_in_final(conn):
+    _world(conn)
+    _final(conn)
+    conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
+    for uid in (U1, U2, U3, U4, U5, U6):
+        assert _choices_seen_by(conn, uid) == 1, uid
+    assert _count_as(conn, "etl_writer") == 1
+
+
 def test_anon_reads_and_writes_nothing_anywhere(conn):
     _world(conn)
     _deadline(conn, "fa_keep", PAST)
     conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
     for sql in ("SELECT * FROM app.contract_choices", "SELECT * FROM app.team_choice_sharing",
-                "SELECT * FROM football.dim_season", "SELECT * FROM ops.choice_deadline",
+                "SELECT * FROM app.contract_choice_history", "SELECT * FROM football.dim_season", "SELECT * FROM ops.choice_deadline",
                 "SELECT * FROM shared.owner_crosswalk", "SELECT * FROM shared.owner",
                 OWN_INSERT % ("'T'", "'z'", "'fa_keep'", "'app'", "NULL"),
                 "UPDATE app.contract_choices SET choice = 'let_go'", "DELETE FROM app.contract_choices"):
@@ -727,6 +790,15 @@ def test_authenticated_holds_usage_on_app_and_shared_and_no_table_outside_app(co
         for privilege in ("DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
             assert not conn.execute("SELECT has_table_privilege('authenticated', %s, %s)",
                                     (table, privilege)).fetchone()[0], (table, privilege)
+    for privilege in ("INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
+        assert not conn.execute("SELECT has_table_privilege('authenticated', 'app.contract_choice_history', %s)",
+                                (privilege,)).fetchone()[0], privilege
+    assert conn.execute("SELECT has_table_privilege('authenticated', 'app.contract_choice_history', 'SELECT')"
+                        ).fetchone()[0]
+    for column in ("history_id", "choice", "origin", "changed_at", "action_id", "recorded_at"):
+        for privilege in ("INSERT", "UPDATE"):
+            assert not conn.execute("SELECT has_column_privilege('authenticated', 'app.contract_choice_history', "
+                                    "%s, %s)", (column, privilege)).fetchone()[0], (column, privilege)
 
 
 def test_authenticated_holds_the_columns_the_adr_names_and_never_locked_value_or_changed_at(conn):
@@ -751,10 +823,13 @@ def test_authenticated_holds_the_columns_the_adr_names_and_never_locked_value_or
 
 
 def test_the_etl_roles_keep_their_posture_on_app(conn):
-    for table in ("app.contract_choices", "app.team_choice_sharing"):
+    for table in ("app.contract_choices", "app.team_choice_sharing", "app.contract_choice_history"):
         for privilege in ("SELECT", "INSERT", "UPDATE", "DELETE"):
             assert not conn.execute("SELECT has_table_privilege('etl_reader', %s, %s)",
                                     (table, privilege)).fetchone()[0], (table, privilege)
+    for role in ("etl_writer", "etl_reader"):
+        assert not conn.execute("SELECT has_table_privilege(%s, 'app.contract_choice_history', "
+                                "'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')", (role,)).fetchone()[0], role
     assert not conn.execute("SELECT has_table_privilege('etl_writer', 'app.team_choice_sharing', "
                             "'SELECT,INSERT,UPDATE,DELETE')").fetchone()[0]
     assert conn.execute("SELECT has_table_privilege('etl_writer', 'app.contract_choices', 'SELECT')").fetchone()[0]
@@ -827,10 +902,13 @@ def test_the_pii_hash_list_holds_the_sha256_of_each_crosswalk_id_and_never_the_i
     assert not set(DISCORD.values()) & got
 
 
-def test_the_owner_policies_are_the_eight_named_and_all_for_authenticated(conn):
+def test_the_owner_policies_are_the_eleven_named_and_all_for_authenticated(conn):
     rows = conn.execute("SELECT tablename, policyname, cmd, roles::text[] FROM pg_policies WHERE schemaname = 'app' "
                         "AND roles::text[] <@ ARRAY['authenticated'] ORDER BY 1, 2").fetchall()
     assert [(t, p, c) for t, p, c, _ in rows] == [
+        ("contract_choice_history", "owner_select_own_team", "SELECT"),
+        ("contract_choice_history", "signed_in_select_after_deadline", "SELECT"),
+        ("contract_choice_history", "signed_in_select_shared_team", "SELECT"),
         ("contract_choices", "owner_insert_own_team_while_open", "INSERT"),
         ("contract_choices", "owner_select_own_team", "SELECT"),
         ("contract_choices", "owner_update_own_team_while_open", "UPDATE"),
@@ -881,3 +959,215 @@ def test_the_crosswalk_takes_digits_only_seventeen_to_twenty_long(conn, value, a
         with pytest.raises(psycopg.errors.CheckViolation):
             conn.execute(sql, (value,))
         conn.rollback()
+
+
+# --- origin commissioner, the history and the final window (ADR-0026 decisions 4 to 6; #661) ---------
+
+def _history(conn, where="scorer_id = 'x'"):
+    return conn.execute("SELECT choice, origin, coalesce(changed_by::text, '-') FROM app.contract_choice_history "
+                        f"WHERE {where} ORDER BY recorded_at, changed_at").fetchall()
+
+
+OWN_UPDATE = "UPDATE app.contract_choices SET choice = 'let_go', origin = 'app', changed_by = %s WHERE scorer_id = 'x'"
+HISTORY_INSERT = ("INSERT INTO app.contract_choice_history (season_id, team_key, scorer_id, choice_kind, choice, "
+                  "origin, changed_at) VALUES ('S', 'T', 'x', 'fa_keep', 'keep', 'app', now())")
+
+
+def test_the_table_takes_origin_commissioner_and_an_owner_cannot_write_it_on_insert_or_update(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    _denied(conn, U1, OWN_INSERT, ("T", "x", "fa_keep", "commissioner", U1))
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "commissioner"))
+    assert _choice(conn)[1] == "commissioner"
+    _denied(conn, U1, "UPDATE app.contract_choices SET origin = 'commissioner', changed_by = %s WHERE scorer_id = 'x'",
+            (U1,))
+    assert _choice(conn)[1] == "commissioner"
+
+
+def test_an_owner_overwrites_a_commissioners_entry_while_the_window_is_open_and_the_row_returns_to_app(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    conn.execute("INSERT INTO app.contract_choices (season_id, team_key, scorer_id, choice_kind, choice, origin, "
+                 "changed_by) VALUES ('S', 'T', 'x', 'fa_keep', 'keep', 'commissioner', %s)", (U3,))
+    assert _do(conn, U1, OWN_UPDATE, (U1,)) == 1
+    assert _choice(conn) == ("let_go", "app", U1)
+
+
+def test_an_origin_outside_the_three_is_still_refused(conn):
+    with pytest.raises(psycopg.errors.CheckViolation):
+        conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "owner"))
+    conn.rollback()
+
+
+def test_the_history_table_has_its_key_and_its_foreign_keys(conn):
+    (pk,) = conn.execute(
+        "SELECT array_agg(a.attname::text) FROM pg_index i JOIN pg_attribute a "
+        "ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) "
+        "WHERE i.indrelid = 'app.contract_choice_history'::regclass AND i.indisprimary").fetchone()
+    assert pk == ["history_id"]
+    fks = dict(conn.execute("SELECT conname, confrelid::regclass::text FROM pg_constraint "
+                            "WHERE conrelid = 'app.contract_choice_history'::regclass AND contype = 'f'").fetchall())
+    assert fks == {"contract_choice_history_season_id_fkey": "football.dim_season",
+                   "contract_choice_history_team_key_fkey": "football.dim_fantasy_teams"}
+
+
+def test_an_insert_by_any_route_writes_one_history_row_with_the_database_set_columns(conn):
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "loader"))
+    assert _history(conn) == [("keep", "loader", "-")]
+    action, ok, key = conn.execute("SELECT action_id, recorded_at BETWEEN now() AND clock_timestamp(), history_id "
+                                   "FROM app.contract_choice_history").fetchone()
+    assert action is None and ok and key is not None
+
+
+def test_an_owner_insert_and_each_update_write_one_history_row_each_with_who_wrote_it(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    assert _do(conn, U1, OWN_INSERT, ("T", "x", "fa_keep", "app", U1)) == 1
+    assert _history(conn) == [("keep", "app", U1)]
+    assert _do(conn, U1, OWN_UPDATE, (U1,)) == 1
+    assert _do(conn, U2, OWN_UPDATE.replace("let_go", "keep"), (U2,)) == 1
+    assert _history(conn) == [("keep", "app", U1), ("let_go", "app", U1), ("keep", "app", U2)]
+    assert conn.execute("SELECT count(*) FROM app.contract_choice_history").fetchone()[0] == 3
+
+
+def test_an_update_of_a_row_with_no_history_first_records_the_old_version_and_only_once(conn):
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "loader"))
+    (first_changed_at,) = conn.execute("SELECT changed_at FROM app.contract_choices").fetchone()
+    conn.execute("DELETE FROM app.contract_choice_history")
+    conn.execute("SELECT pg_sleep(0.05)")
+    conn.execute("UPDATE app.contract_choices SET choice = 'let_go'")
+    assert _history(conn) == [("keep", "loader", "-"), ("let_go", "loader", "-")]
+    (old_changed_at,) = conn.execute("SELECT changed_at FROM app.contract_choice_history "
+                                     "WHERE choice = 'keep'").fetchone()
+    assert old_changed_at == first_changed_at
+    conn.execute("UPDATE app.contract_choices SET choice = 'keep'")
+    assert [r[0] for r in _history(conn)] == ["keep", "let_go", "keep"]
+
+
+def test_a_history_is_kept_per_row_and_one_rows_update_leaves_the_others_alone(conn):
+    for scorer in ("x", "y"):
+        conn.execute("INSERT INTO app.contract_choices (season_id, team_key, scorer_id, choice_kind, choice, origin) "
+                     "VALUES ('S', 'T', %s, 'fa_keep', 'keep', 'loader')", (scorer,))
+    conn.execute("DELETE FROM app.contract_choice_history WHERE scorer_id = 'y'")
+    conn.execute("UPDATE app.contract_choices SET choice = 'let_go' WHERE scorer_id = 'x'")
+    assert len(_history(conn, "scorer_id = 'x'")) == 2 and _history(conn, "scorer_id = 'y'") == []
+
+
+@pytest.mark.parametrize("role", ["authenticated", "anon", "etl_writer", "etl_reader"])
+def test_no_role_inserts_updates_or_deletes_a_history_row(conn, role):
+    _world(conn)
+    conn.execute(CHOICE_INSERT, ("fa_keep", "keep", "loader"))
+    for sql in (HISTORY_INSERT, "UPDATE app.contract_choice_history SET choice = 'let_go'",
+                "DELETE FROM app.contract_choice_history", "TRUNCATE app.contract_choice_history"):
+        _denied(conn, U1, sql, role=role)
+    assert len(_history(conn)) == 1
+
+
+def test_the_history_writer_cannot_be_called_by_any_role(conn):
+    _world(conn)
+    for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+        _denied(conn, U1, "SELECT ops.record_choice_history()", role=role)
+
+
+@pytest.mark.parametrize("state", ["open", "passed", "final", "none"])
+def test_a_history_row_is_hidden_from_a_caller_exactly_when_its_choice_row_is(conn, state):
+    _world(conn)
+    if state == "final":
+        _final(conn)
+    elif state != "none":
+        _deadline(conn, "fa_keep", FUTURE if state == "open" else PAST)
+    conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
+    conn.execute("UPDATE app.contract_choices SET choice = 'let_go'")
+    for uid in (U1, U2, U3, U4, U5, U6):
+        seen = _choices_seen_by(conn, uid)
+        kept = _read(conn, uid, "SELECT count(*) FROM app.contract_choice_history WHERE scorer_id = 'x'")
+        assert kept == 2 * seen, (state, uid)
+    assert (_choices_seen_by(conn, U3) == 1) is (state in ("passed", "final"))
+
+
+def test_a_history_row_follows_the_teams_toggle_like_its_choice_row(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
+    count = "SELECT count(*) FROM app.contract_choice_history"
+    assert _read(conn, U3, count) == 0
+    conn.execute("INSERT INTO app.team_choice_sharing (season_id, team_key, shared) VALUES ('S', 'T', true)")
+    assert _read(conn, U3, count) == 1 and _read(conn, U4, count) == 1
+    conn.execute("UPDATE app.team_choice_sharing SET shared = false")
+    assert _read(conn, U3, count) == 0 and _read(conn, U1, count) == 1
+
+
+def test_a_refused_owner_write_leaves_no_history_row(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    _denied(conn, U1, OWN_INSERT, ("T", "x", "fa_keep", "loader", U1))
+    _denied(conn, U3, OWN_INSERT, ("T", "x", "fa_keep", "app", U3))
+    assert conn.execute("SELECT count(*) FROM app.contract_choice_history").fetchone()[0] == 0
+
+
+def test_the_loaders_file_writes_a_history_row_for_each_row_it_writes(conn):
+    import load_contract_choices as loader
+    rows = [{"team_key": "T", "scorer_id": s, "choice": "let_go", "locked_value": 5.0} for s in ("x", "y", "z")]
+    body = loader.sql_file("S", rows).replace("BEGIN;\n", "").replace("COMMIT;\n", "")
+    written, _ = conn.execute(body).fetchone()
+    assert written == 3
+    assert conn.execute("SELECT count(*) FROM app.contract_choice_history").fetchone()[0] == 3
+
+
+NEW_MIGRATION = "_choice_history_final_window.sql"
+NEW_DROPS = "_choice_history_final_window_drops.sql"
+
+
+def _final_at_default(c):
+    return c.execute("SELECT column_default FROM information_schema.columns WHERE table_schema = 'ops' "
+                     "AND table_name = 'choice_deadline' AND column_name = 'final_at'").fetchone()[0]
+
+
+def test_the_migration_gives_the_one_passed_row_its_final_instant_with_the_guard_untouched():
+    """A throwaway database made here (never the one under test): every migration before
+    the new ones applies, one passed deadline row and one choice row are put in, then the
+    new migration applies, and then the one that drops the fill's default."""
+    from psycopg import conninfo
+    files = sorted((REPO / "supabase" / "migrations").glob("*.sql"))
+    (new,) = [f for f in files if f.name.endswith(NEW_MIGRATION)]
+    (drops,) = [f for f in files if f.name.endswith(NEW_DROPS)]
+    assert files.index(drops) == files.index(new) + 1
+    before = files[:files.index(new)]
+    name = "migration_before_final_window"
+    with psycopg.connect(URL, autocommit=True) as admin:
+        admin.execute(f"DROP DATABASE IF EXISTS {name}")
+        admin.execute(f"CREATE DATABASE {name}")
+    try:
+        with psycopg.connect(conninfo.make_conninfo(URL, dbname=name), autocommit=True) as c:
+            c.execute(AUTH_STUB.read_text(encoding="utf-8"))
+            for path in before:
+                c.execute(path.read_text(encoding="utf-8"))
+            c.execute("SET session_replication_role = replica")
+            c.execute("INSERT INTO ops.choice_deadline (season_id, choice_kind, deadline_at) "
+                      "VALUES ('S', 'fa_keep', now() - interval '1 hour')")
+            c.execute("INSERT INTO app.contract_choices (season_id, team_key, scorer_id, choice_kind, choice, origin) "
+                      "VALUES ('S', 'T', 'x', 'fa_keep', 'keep', 'loader')")
+            c.execute("SET session_replication_role = origin")
+            assert not c.execute("SELECT to_regclass('app.contract_choice_history')").fetchone()[0]
+            c.execute(new.read_text(encoding="utf-8"))
+            assert c.execute("SELECT count(*), bool_and(final_at = timestamptz '2027-03-01 04:59:59+00' "
+                             "AND deadline_at < final_at) FROM ops.choice_deadline").fetchone() == (1, True)
+            assert c.execute("SELECT tgenabled FROM pg_trigger WHERE tgrelid = 'ops.choice_deadline'::regclass "
+                             "AND tgname = 'choice_deadline_guard_row'").fetchone() == ("O",)
+            assert "2027-03-01" in _final_at_default(c)
+            c.execute(drops.read_text(encoding="utf-8"))
+            assert _final_at_default(c) is None
+            assert c.execute("SELECT count(*), bool_and(final_at = timestamptz '2027-03-01 04:59:59+00') "
+                             "FROM ops.choice_deadline").fetchone() == (1, True)
+            with pytest.raises(psycopg.errors.RaiseException):
+                c.execute("UPDATE ops.choice_deadline SET final_at = final_at + interval '1 day'")
+            with pytest.raises(psycopg.errors.RaiseException):
+                c.execute("DELETE FROM ops.choice_deadline")
+            assert c.execute("SELECT shared.choice_window('S', 'fa_keep')").fetchone() == ("passed",)
+            with c.transaction(force_rollback=True):
+                c.execute("UPDATE app.contract_choices SET choice = 'let_go'")
+                assert c.execute("SELECT choice FROM app.contract_choice_history ORDER BY recorded_at, changed_at"
+                                 ).fetchall() == [("keep",), ("let_go",)]
+    finally:
+        with psycopg.connect(URL, autocommit=True) as admin:
+            admin.execute(f"DROP DATABASE IF EXISTS {name}")
