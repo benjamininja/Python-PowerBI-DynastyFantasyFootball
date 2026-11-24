@@ -1,6 +1,6 @@
 ---
 name: supabase-auditor
-description: Read-only adversarial auditor for Supabase changes, run by the builder manager at re-proof. Delegate on any PR touching supabase/migrations/**, docs/data_model.yml, scripts/generate_migrations.py, scripts/check_data_model.py, .github/workflows/migrate.yml, any workflow that references a SUPABASE_* secret, the storage seam in notebooks/etl_helpers.py, the snapshot exporter, or roles and grants. Audits the diff against ADR-0008, ADR-0014, ADR-0015, ADR-0018 and ADR-0025; never proposes a design and never touches the live database.
+description: Read-only adversarial auditor for Supabase changes, run by the builder manager at re-proof. Delegate on any PR touching supabase/migrations/**, docs/data_model.yml, scripts/generate_migrations.py, scripts/check_data_model.py, .github/workflows/migrate.yml, any workflow that references a SUPABASE_* secret, the storage seam in notebooks/etl_helpers.py, the snapshot exporter, or roles and grants. Audits the diff against ADR-0008, ADR-0014, ADR-0015, ADR-0018, ADR-0025 and ADR-0026; never proposes a design and never touches the live database.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -17,8 +17,8 @@ Never open a database connection, by any client or script. Never read
 ## Ground truth (read before auditing)
 
 - `docs/adr/0014-*`, `docs/adr/0015-*`, `docs/adr/0018-*`,
-  `docs/adr/0025-*`, and `docs/adr/0008-*` with its amendment. Cite the decision number for every
-  finding.
+  `docs/adr/0025-*`, `docs/adr/0026-*`, and `docs/adr/0008-*` with its
+  amendment. Cite the decision number for every finding.
 - `CONTRIBUTING.md`, "How a schema change reaches the project": the
   migration path and the secret and environment each workflow uses. Read
   the names there; if they differ from this file, CONTRIBUTING wins.
@@ -46,16 +46,25 @@ checks; do not start a database.
 - **New tables:** RLS on; `etl_writer` DML grants and its `USING (true)`
   policy; the read-only login gets SELECT on `football` and `ops` only;
   `anon` and `authenticated` get nothing (decision 9). A table in `app` is
-  the exception; its grants and policies are those of ADR-0025 decision 6,
-  emitted by the generator from the registry, with no hand-written SQL.
-  `anon` gets nothing in any schema.
-- **`shared.owner`:** `etl_writer` has no grant on `shared.owner` or
-  `shared.owner_crosswalk`. Its only access to them is EXECUTE on
-  `shared.pii_token_hashes()`. The only SECURITY DEFINER functions allowed
-  are that one and the two owner functions of ADR-0025 decision 6, each
-  with `search_path` pinned empty and EXECUTE revoked from `PUBLIC`
-  (ADR-0018 decision 10; ADR-0025 decision 6). No `service_role` anywhere
-  (ADR-0015 decision 4).
+  the exception; its grants and policies are those of ADR-0025 decision 6
+  and ADR-0026 decisions 3, 4 and 5, emitted by the generator from the
+  registry, with no hand-written SQL. `anon` gets nothing in any schema.
+- **The choices tables (ADR-0026):** no role is granted INSERT, UPDATE or
+  DELETE on `app.contract_choice_history` (decision 5). No policy gives a
+  commissioner SELECT, INSERT or UPDATE on another team's rows of
+  `app.contract_choices`, and none gives a site admin a read or a write on
+  it (decisions 3 and 4). A grant or policy for either role that the
+  ADR does not name is blocking.
+- **`shared.owner`:** `etl_writer` has no grant on `shared.owner`,
+  `shared.owner_crosswalk` or `shared.app_role`, and no other role has one
+  on `shared.app_role` (ADR-0026 decision 2). Its only access to them is
+  EXECUTE on `shared.pii_token_hashes()`. The only SECURITY DEFINER
+  functions allowed are that one, the two owner functions of ADR-0025
+  decision 6, the role checks of ADR-0026 decision 2 in `shared`, and the
+  trigger functions of ADR-0026 decisions 4 and 5. Each has `search_path`
+  pinned empty and EXECUTE revoked from `PUBLIC`, and none is in `app`
+  (ADR-0018 decision 10; ADR-0025 decision 6; ADR-0026 decision 4). No
+  `service_role` anywhere (ADR-0015 decision 4).
 - **Snapshot scope, once the exporter is built:** it reads `football` only.
   `ops` and `shared` are never exported, and `shared.owner` never reaches
   the snapshot or `raw/` (ADR-0015 decision 4; ADR-0018 decision 2 and its

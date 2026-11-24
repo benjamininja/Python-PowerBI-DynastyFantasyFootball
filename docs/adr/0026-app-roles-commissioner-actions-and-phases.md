@@ -1,6 +1,6 @@
 # App roles, commissioner actions and choice-window phases: who may do what in the owners' app
 
-- Status: proposed. The design was settled with the owner on [#654](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/654) on 2026-11-23, by button in the planner's chat; each answer is a comment on that ticket. Nine answers are the owner's words. The points marked *(planner)* are the planner's rulings, and the owner accepts or sends back any of them at review. Docs only: nothing in this ADR is built by the PR that records it.
+- Status: accepted. The owner approved it at review and it merged on 2026-11-24 (PR #660); not yet built. The design was settled with the owner on [#654](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/654) on 2026-11-23, by button in the planner's chat; each answer is a comment on that ticket. Nine answers are the owner's words. The points marked *(planner)* are the planner's rulings. Docs only: nothing in this ADR is built by the PR that records it.
 - Date: 2026-11-23
 - Amends:
   - [ADR-0025](0025-owner-write-path-contract-choices.md): decision 3 (a third `origin`, a history of every row version, the commissioner's tables), decision 4 (a second stored instant, `final`), decision 6 (roles, a role table, new functions and grants), decision 9 (the page's address, its session and its content security policy) and decision 10 point 1 (ruled: the published table carries no `locked_value`).
