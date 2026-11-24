@@ -74,7 +74,7 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 Ids as of 2026-11-24, each sent by its session; find each by name.
 
-- dff-central-builder-manager: `695f05fc-6dff-445b-a9fd-af605c6997d9`. PR #669 (#616) is merged as `1b1fc23`; PR #672 (#671) as `1eda32b`; PR #684 (#597) waits on Ben's `01c` re-run; b661-choicehist has PR #685 open. Ben's go to the manager: the chain #661, #662, #670, then #682.
+- dff-central-builder-manager: `c2116a9a-72a7-4688-89d3-26574767e13b` (new after its clear on 2026-11-24). PR #669 (#616) is merged as `1b1fc23`; PR #672 (#671) as `1eda32b`; PR #684 (#597) waits on Ben's `01c` re-run; b661-choicehist has PR #685 open. Ben's go to the manager: the chain #661, #662, #670, then #682.
 - Tools-central-planner: `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Tools PR #249 has not merged (it follows tools PRs #205 and #253); it sends a line when it does.
 - Tools-builder-manager: `e7026592-a1b4-4ccd-afea-61d5cf451e9f` (new after its clear on 2026-11-24). It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
 - personal-assistant: reads only, reports findings.
