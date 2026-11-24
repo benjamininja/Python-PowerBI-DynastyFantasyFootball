@@ -122,7 +122,8 @@ the parquet alone.
   exception**: `scripts/run_pipeline.py` (the scheduled orchestrator) lands the
   machine-generated published snapshot (`data/*.parquet`) by its own data PR,
   gated by the required checks, which it merges itself — only the passing
-  Chains' tables, never manual-only or new ones (allowlist-verified,
+  Chains' tables, and a manual-only table only on the owner's
+  `--publish-manual` command, never new ones (allowlist-verified,
   change-detected, never a push to `main` — CONTRIBUTING.md).
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,

@@ -30,9 +30,10 @@ once the PR has merged, and its `snapshot_commit_sha` is the commit as it
 landed on `main`. A failed check, a timeout or a refused merge leaves the PR
 open, ends the run `failed` with the PR number in its error, and sends the
 Discord notice. `--no-push` keeps its meaning: commit locally, push nothing,
-open no PR. Manual-only tables (no `chain:` in `docs/data_model.yml`) and
-brand-new parquet files are never staged by the pipeline — they reach `main` by
-a PR of their own.
+open no PR. Brand-new parquet files are never staged by the pipeline: they
+reach `main` by a PR of their own. A run never stages a manual-only table (no
+`chain:` in `docs/data_model.yml`) either. It reaches `main` by a PR of its own
+or, on the owner's command, by `--publish-manual` (below).
 Code, notebooks, PBI, and docs always go feature branch → PR.
 Watchpoint: parquet history growth — revisit (LFS/releases) only if repo size
 becomes a problem.
@@ -158,6 +159,28 @@ Two scripts the owner runs by hand, never an agent, with `SUPABASE_DB_URL` set
   default `data/`) through the same exporter the pipeline's publish step uses.
 
 Both print table names and counts only.
+
+### Publishing a manual-only table (#616)
+
+After a hand load of a manual-only table into the store, the owner runs, from
+the main checkout on `main`, with `ETL_STORAGE=postgres` and `SUPABASE_DB_URL`
+set (in the shell or in `.env`):
+
+```powershell
+.\run.ps1 scripts\run_pipeline.py --publish-manual TABLE [TABLE ...]
+```
+
+It refuses, before any read, a table that has a `chain:`, is not in the
+registry, is private or has no snapshot tracked at HEAD, and a checkout that
+is not on `main` or whose index holds any staged path but the named tables'
+own. It runs the tables'
+Gate checks against the store, exports them to `data/` with the exporter the
+publish step uses, and lands them by the pipeline's data PR (branch
+`data/<date>-manual`, title `data: manual publish <date> (<tables>)`), gated and
+merged exactly as a Chain publish. Nothing changed: no PR. `--dry-run` prints
+what it would publish and reads nothing; `--no-push` commits locally only. The
+run log records it with trigger `manual`. An agent never runs it: only the
+owner's command is the go.
 
 ## Security rule
 
