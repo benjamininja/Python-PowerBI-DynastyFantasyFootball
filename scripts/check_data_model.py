@@ -239,6 +239,11 @@ def validate(data: dict) -> int:
     errors += drop_errors(data)
     errors += model_errors(data)
 
+    try:
+        flagged = generate_migrations.registry_drops(data)["columns"]
+    except generate_migrations.RegistryError:
+        flagged = {}
+
     # column-drift check: declared columns vs real parquet schema
     for t in tables:
         name = t.get("name")
@@ -253,6 +258,13 @@ def validate(data: dict) -> int:
             errors.append(f"[{name}] no data/{name}.parquet found in the published snapshot")
             continue
         real_cols = {c: str(d) for c, d in stored.dtypes.items()}
+        key = f"{t.get('schema') or 'football'}.{name}"
+        for col in sorted(real_cols):
+            ticket = flagged.get((key, col))
+            if ticket is not None:
+                del real_cols[col]
+                print(f"WARN  [{name}] column {col} is still in the published snapshot; "
+                      f"its drops: entry (#{ticket}) means the next published snapshot removes it.")
         errors += etl_checks.schema_errors(t, real_cols)
 
     # edge-target check: every edge.to / edge.via must be a declared table
