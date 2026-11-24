@@ -35,6 +35,7 @@
 4. **Security requirements.**
    - **Owner PII lives only in `shared.owner`** (`owner_id`, `team_key`, `human_name`, `email`, `fantrax_username`). RLS on; no grant to any read or anon role; never exported to the snapshot or to raw storage. Team names, abbreviations and Fantrax team ids are public identity.
    - *Amended 2026-11-15 by [ADR-0025](0025-owner-write-path-contract-choices.md) (#548): owner PII is confined to the `shared` schema, now in two tables. `shared.owner_crosswalk` holds each team's Discord user ids under the same confinement: row-level security on, no grant to any ETL or anon role, never exported.*
+   - *Amended 2026-11-23 by [ADR-0026](0026-app-roles-commissioner-actions-and-phases.md) (#654, proposed): a third table, `shared.app_role`, holds the Discord user ids of commissioners and site admins under the same confinement.*
    - A **CI PII check** (and pre-commit hook) fails any commit containing an email pattern or a known `human_name`/`fantrax_username`. It runs inside the data-commit job *before* the push, and on every PR.
      - *Amended 2026-11-05 (#361, PR #364; recorded by #365): the data job pushes a data branch, not `main`. `pii-scan` runs as a required check on the data PR, which the pipeline merges only when `pii-scan`, `tests` and `bot-tests` pass. Nothing is pushed to `main` and nothing is bypassed.*
    - The ETL uses a **least-privilege Postgres writer role**, never the `service_role` key.

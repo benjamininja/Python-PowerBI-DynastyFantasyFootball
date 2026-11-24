@@ -383,6 +383,46 @@ Fantrax team ids are public league identity, not Owner PII — even when a team
 name contains a person's name.
 _Avoid_: owner (that's the team, as in Original/Current Owner), user data
 
+### The owners' app
+
+**Contract Choice**:
+What a team decides for one rostered copy at a deadline: re-sign or decline a
+Year-2 player, keep or let go an FA copy. A value is always recorded; nothing is
+deleted.
+_Avoid_: selection, pick (a pick is a Draft Pick)
+
+**Choice Window**:
+Where one season's choices of one kind stand against the clock: **none** (no
+deadline set; closed to all), **open** (owners choose), **passed** (owners are
+locked and the choices are public) and **final** (no one changes anything; the
+rollover reads them). These four states are the app's phases.
+_Avoid_: deadline status, season phase (say which window)
+
+**App Role**:
+What a signed-in person may do: **owner** (a person linked to a team),
+**commissioner** or **site admin**. A signed-in person with none is a
+**stranger**. One person may hold several. Here an owner is a person; in
+Original Owner and Current Owner it is a team.
+_Avoid_: user type, permission level
+
+**Role Switch**:
+A person choosing which of their own App Roles is active. It narrows what the
+page shows and gives no power.
+_Avoid_: impersonation
+
+**View-As**:
+A site admin seeing the page as another role or team sees it, read-only and
+masked: who has access and what exists, never another team's private Contract
+Choices.
+_Avoid_: impersonation, act-as (acting as another person exists only on made-up
+data, in tests)
+
+**Commissioner Action**:
+One batch of changes a commissioner makes to one team's Contract Choices, with
+one reason from a fixed list and one dated note. Before a deadline it is written
+blind: the commissioner is never shown what the owner had entered.
+_Avoid_: correction (that word is taken by stat corrections), override
+
 ### Valuation & trade diagnostic
 
 **Stance**:
