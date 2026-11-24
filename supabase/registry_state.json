@@ -1,7 +1,7 @@
 {
   "functions": {
     "shared.caller_team_keys": "CREATE FUNCTION shared.caller_team_keys() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT c.team_key\n    FROM shared.owner_crosswalk c\n    JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = c.discord_user_id\n    WHERE i.user_id = auth.uid()\n$fn$;",
-    "shared.choice_window": "CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT coalesce(\n        (SELECT CASE WHEN d.deadline_at > clock_timestamp() THEN 'open' ELSE 'passed' END\n         FROM ops.choice_deadline d\n         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),\n        'none')\n$fn$;",
+    "shared.choice_window": "CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT coalesce(\n        (SELECT CASE WHEN d.final_at <= clock_timestamp() THEN 'final'\n                     WHEN d.deadline_at > clock_timestamp() THEN 'open'\n                     ELSE 'passed' END\n         FROM ops.choice_deadline d\n         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),\n        'none')\n$fn$;",
     "shared.pii_token_hashes": "CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')\n    FROM (\n        SELECT regexp_split_to_table(lower(o.human_name), '[[:space:]]+') AS token FROM shared.owner o\n        UNION\n        SELECT lower(o.fantrax_username) FROM shared.owner o\n        UNION\n        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n    ) s\n    WHERE s.token IS NOT NULL AND s.token <> ''\n$fn$;"
   },
   "roles": [
@@ -15,10 +15,140 @@
     "app"
   ],
   "tables": {
+    "app.contract_choice_history": {
+      "checks": [],
+      "columns": [
+        {
+          "default": "gen_random_uuid()",
+          "name": "history_id",
+          "not_null": true,
+          "sql_type": "uuid"
+        },
+        {
+          "name": "season_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "scorer_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "choice_kind",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "choice",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "origin",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "changed_by",
+          "not_null": false,
+          "sql_type": "uuid"
+        },
+        {
+          "name": "changed_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "name": "action_id",
+          "not_null": false,
+          "sql_type": "uuid"
+        },
+        {
+          "default": "clock_timestamp()",
+          "name": "recorded_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "season_id"
+          ],
+          "name": "contract_choice_history_season_id_fkey",
+          "ref": [
+            "season_id"
+          ],
+          "to": "football.dim_season"
+        },
+        {
+          "columns": [
+            "team_key"
+          ],
+          "name": "contract_choice_history_team_key_fkey",
+          "ref": [
+            "team_key"
+          ],
+          "to": "football.dim_fantasy_teams"
+        }
+      ],
+      "grants": [
+        {
+          "privileges": [
+            "SELECT"
+          ],
+          "role": "authenticated"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "season_id",
+            "team_key",
+            "scorer_id",
+            "choice_kind"
+          ],
+          "name": "contract_choice_history_key_idx",
+          "unique": false,
+          "where": null
+        }
+      ],
+      "name": "contract_choice_history",
+      "pk": [
+        "history_id"
+      ],
+      "policies": [
+        {
+          "command": "SELECT",
+          "name": "owner_select_own_team",
+          "role": "authenticated",
+          "using": "team_key IN (SELECT shared.caller_team_keys())"
+        },
+        {
+          "command": "SELECT",
+          "name": "signed_in_select_shared_team",
+          "role": "authenticated",
+          "using": "EXISTS (SELECT 1 FROM app.team_choice_sharing s WHERE s.season_id = contract_choice_history.season_id AND s.team_key = contract_choice_history.team_key AND s.shared)"
+        },
+        {
+          "command": "SELECT",
+          "name": "signed_in_select_after_deadline",
+          "role": "authenticated",
+          "using": "shared.choice_window(season_id, choice_kind) IN ('passed', 'final')"
+        }
+      ],
+      "schema": "app"
+    },
     "app.contract_choices": {
       "checks": [
         "choice_kind IN ('resign', 'fa_keep')",
-        "origin IN ('loader', 'app')",
+        "origin IN ('loader', 'app', 'commissioner')",
         "(choice_kind = 'resign' AND choice IN ('resign', 'decline')) OR (choice_kind = 'fa_keep' AND choice IN ('keep', 'let_go'))"
       ],
       "columns": [
@@ -154,7 +284,7 @@
           "command": "SELECT",
           "name": "signed_in_select_after_deadline",
           "role": "authenticated",
-          "using": "shared.choice_window(season_id, choice_kind) = 'passed'"
+          "using": "shared.choice_window(season_id, choice_kind) IN ('passed', 'final')"
         },
         {
           "check": "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open' AND origin = 'app' AND changed_by = auth.uid()",
@@ -180,6 +310,16 @@
           "level": "ROW",
           "name": "contract_choices_set_changed_at",
           "timing": "BEFORE"
+        },
+        {
+          "events": [
+            "INSERT",
+            "UPDATE"
+          ],
+          "function": "ops.record_choice_history",
+          "level": "ROW",
+          "name": "contract_choices_record_history",
+          "timing": "AFTER"
         }
       ]
     },
@@ -3602,7 +3742,8 @@
     },
     "ops.choice_deadline": {
       "checks": [
-        "choice_kind IN ('resign', 'fa_keep')"
+        "choice_kind IN ('resign', 'fa_keep')",
+        "final_at > deadline_at"
       ],
       "columns": [
         {
@@ -3617,6 +3758,12 @@
         },
         {
           "name": "deadline_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        },
+        {
+          "fill": "timestamptz '2027-03-01 04:59:59+00'",
+          "name": "final_at",
           "not_null": true,
           "sql_type": "timestamptz"
         }
@@ -4272,6 +4419,7 @@
     }
   },
   "trigger_functions": {
+    "ops.record_choice_history": "CREATE FUNCTION ops.record_choice_history() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nBEGIN\n    IF TG_OP = 'UPDATE' AND NOT EXISTS (\n        SELECT 1 FROM app.contract_choice_history h\n        WHERE h.season_id = OLD.season_id AND h.team_key = OLD.team_key\n          AND h.scorer_id = OLD.scorer_id AND h.choice_kind = OLD.choice_kind\n    ) THEN\n        INSERT INTO app.contract_choice_history\n            (season_id, team_key, scorer_id, choice_kind, choice, origin, changed_by, changed_at)\n        VALUES (OLD.season_id, OLD.team_key, OLD.scorer_id, OLD.choice_kind, OLD.choice,\n                OLD.origin, OLD.changed_by, OLD.changed_at);\n    END IF;\n    INSERT INTO app.contract_choice_history\n        (season_id, team_key, scorer_id, choice_kind, choice, origin, changed_by, changed_at)\n    VALUES (NEW.season_id, NEW.team_key, NEW.scorer_id, NEW.choice_kind, NEW.choice,\n            NEW.origin, NEW.changed_by, NEW.changed_at);\n    RETURN NULL;\nEND;\n$fn$;",
     "ops.refuse_passed_deadline_change": "CREATE FUNCTION ops.refuse_passed_deadline_change() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    IF OLD.deadline_at < clock_timestamp() THEN\n        RAISE EXCEPTION 'a deadline that has passed cannot be changed';\n    END IF;\n    IF TG_OP = 'DELETE' THEN\n        RETURN OLD;\n    END IF;\n    RETURN NEW;\nEND;\n$fn$;",
     "ops.set_changed_at": "CREATE FUNCTION ops.set_changed_at() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\nAS $fn$\nBEGIN\n    NEW.changed_at := clock_timestamp();\n    RETURN NEW;\nEND;\n$fn$;"
   }

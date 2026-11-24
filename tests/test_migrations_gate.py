@@ -299,14 +299,23 @@ class TestTheGate:
         flagged = gm.registry_drops(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
         column_drop = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) DROP COLUMN ([a-z][a-z0-9_]*)")
         table_drop = re.compile(r"DROP TABLE (?:[a-z_]+\.)?([a-z][a-z0-9_]*)")
+        default_drop = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) ALTER COLUMN ([a-z][a-z0-9_]*) DROP DEFAULT")
+        registry = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        filled = {(f"{t.get('schema') or 'football'}.{t['name']}", c["name"])
+                  for section in ("tables", "other_tables") for t in registry.get(section) or []
+                  for c in t["columns"] if c.get("fill")}
         for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
             sql = path.read_text(encoding="utf-8")
             if not mg.is_destructive(sql):
                 continue
             for stmt in mg.statements(sql):
                 col, tab = column_drop.fullmatch(stmt), table_drop.fullmatch(stmt)
-                assert col or tab, f"{path.name}: a held migration holds only drops, found {stmt!r}"
-                if col:
+                dflt = default_drop.fullmatch(stmt)
+                assert col or tab or dflt, f"{path.name}: a held migration holds only drops, found {stmt!r}"
+                if dflt:
+                    assert (dflt.group(1), dflt.group(2)) in filled, \
+                        f"{path.name}: {stmt!r} ends no fill declared in docs/data_model.yml"
+                elif col:
                     assert (col.group(1), col.group(2)) in flagged["columns"], \
                         f"{path.name}: {stmt!r} has no drops entry in docs/data_model.yml"
                 else:
