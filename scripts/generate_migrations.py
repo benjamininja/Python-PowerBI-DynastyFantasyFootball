@@ -22,7 +22,10 @@ no blanket grant. On a table that exists, a grant to a role it has none for and
 a policy of a new name are added; any other change to them stays refused. The
 registry's `shared.owner_crosswalk` brings the two SECURITY DEFINER functions of
 FUNCTION_ACCESS, EXECUTE for authenticated only, and the first grant to
-authenticated on `app` revokes what anon could inherit there. A column may
+authenticated on `app` revokes what anon could inherit there. The registry's
+`shared.app_role` (#662) brings two more of them, the commissioner check per team
+and the site admin check, and puts its ids in `shared.pii_token_hashes()` (a
+replacement of that function). A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
 (each in `ops`, `search_path` pinned empty, EXECUTE revoked from PUBLIC, and
 SECURITY DEFINER only with `definer: true`, #661). On a table that exists, a
@@ -138,6 +141,45 @@ AS $fn$
          WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),
         'none')
 $fn$;"""
+# With the role table declared (ADR-0026 decision 2, #662) the list holds its ids too.
+PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
+    "        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n",
+    "        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n"
+    "        UNION\n"
+    "        SELECT r.discord_user_id FROM shared.app_role r\n")
+
+# The role table and the two checks policies will call (ADR-0026 decisions 1 to 3,
+# #662). A commissioner row names its league; a site admin row holds ALL_LEAGUES.
+# LEAGUE_PLACEHOLDER is the one league there is until #658 decides the key: that
+# issue changes the values the loader writes and the one literal in
+# COMMISSIONER_FUNCTION_SQL, and no key and no policy.
+ROLE_TABLE = "shared.app_role"
+COMMISSIONER_FUNCTION = "shared.caller_is_commissioner_for"
+ADMIN_FUNCTION = "shared.caller_is_site_admin"
+LEAGUE_PLACEHOLDER = "main"
+ALL_LEAGUES = "*"
+TEAMS_TABLE = "football.dim_fantasy_teams"
+COMMISSIONER_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT EXISTS (
+        SELECT 1
+        FROM shared.app_role r
+        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
+        JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key
+        WHERE r.role = 'commissioner' AND r.league_key = '{LEAGUE_PLACEHOLDER}' AND i.user_id = auth.uid()
+    )
+$fn$;"""
+ADMIN_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_site_admin() RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT EXISTS (
+        SELECT 1
+        FROM shared.app_role r
+        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
+        WHERE r.role = 'site_admin' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
+    )
+$fn$;"""
 # The functions whose body a later registry may change: generator-owned text,
 # written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
 # gained its fourth state, `final`, this way (ADR-0026 decision 6, #661).
@@ -152,6 +194,8 @@ FUNCTION_ACCESS = {
     PII_FUNCTION: ("()", ("etl_writer",)),
     TEAMS_FUNCTION: ("()", ("authenticated",)),
     OPEN_FUNCTION: ("(text, text)", ("authenticated",)),
+    COMMISSIONER_FUNCTION: ("(text)", ("authenticated",)),
+    ADMIN_FUNCTION: ("()", ("authenticated",)),
 }
 
 
@@ -483,6 +527,17 @@ def desired_model(registry):
         functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
         functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
         functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
+    roles = specs.get(ROLE_TABLE)
+    if roles is not None:
+        if crosswalk is None:
+            raise RegistryError(f"{ROLE_TABLE}: the owner crosswalk is not declared")
+        _known({c["name"] for c in roles["columns"]}, ["discord_user_id", "role", "league_key"], ROLE_TABLE)
+        if TEAMS_TABLE not in specs:
+            raise RegistryError(f"{ROLE_TABLE}: the commissioner check reads {TEAMS_TABLE}, which is not declared")
+        _known({c["name"] for c in specs[TEAMS_TABLE]["columns"]}, ["team_key"], TEAMS_TABLE)
+        functions[PII_FUNCTION] = PII_FUNCTION_ROLES_SQL
+        functions[COMMISSIONER_FUNCTION] = COMMISSIONER_FUNCTION_SQL
+        functions[ADMIN_FUNCTION] = ADMIN_FUNCTION_SQL
     raw_functions = registry.get("trigger_functions") or []
     if not isinstance(raw_functions, list):
         raise RegistryError("trigger_functions: expected a list")

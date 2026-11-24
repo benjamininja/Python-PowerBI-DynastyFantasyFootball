@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import sys
@@ -694,8 +695,10 @@ def test_the_crosswalk_is_unreadable_and_unwritable_to_every_role_but_its_owner(
 
 @pytest.mark.parametrize("role", ["anon", "etl_writer", "etl_reader"])
 @pytest.mark.parametrize("call", ["SELECT * FROM shared.caller_team_keys()",
-                                  "SELECT shared.choice_window('S', 'fa_keep')"])
-def test_the_two_definer_functions_cannot_be_called_by_anon_or_an_etl_role(conn, role, call):
+                                  "SELECT shared.choice_window('S', 'fa_keep')",
+                                  "SELECT shared.caller_is_commissioner_for('T')",
+                                  "SELECT shared.caller_is_site_admin()"])
+def test_the_four_definer_functions_cannot_be_called_by_anon_or_an_etl_role(conn, role, call):
     _world(conn)
     _denied(conn, U1, call, role=role)
 
@@ -840,18 +843,19 @@ def test_the_etl_roles_keep_their_posture_on_app(conn):
                                 "'SELECT,INSERT,UPDATE,DELETE')", (role,)).fetchone()[0]
 
 
-DEFINERS = ("caller_team_keys", "choice_window")
+DEFINERS = ("caller_is_commissioner_for", "caller_is_site_admin", "caller_team_keys", "choice_window")
 SHARED_FUNCTIONS_TODAY = 1
 
 
-def test_the_functions_in_shared_are_the_pii_hash_and_the_two_definers_and_no_others(conn):
+def test_the_functions_in_shared_are_the_pii_hash_and_the_four_definers_and_no_others(conn):
     names = [r[0] for r in conn.execute("SELECT proname FROM pg_proc WHERE pronamespace = 'shared'::regnamespace "
                                         "ORDER BY proname").fetchall()]
-    assert names == ["caller_team_keys", "choice_window", "pii_token_hashes"]
+    assert names == ["caller_is_commissioner_for", "caller_is_site_admin", "caller_team_keys", "choice_window",
+                     "pii_token_hashes"]
     assert len(names) == SHARED_FUNCTIONS_TODAY + len(DEFINERS)
 
 
-def test_no_function_in_shared_but_the_two_definers_is_executable_by_authenticated_anon_or_public(conn):
+def test_no_function_in_shared_but_the_four_definers_is_executable_by_authenticated_anon_or_public(conn):
     rows = conn.execute("SELECT p.proname, p.oid FROM pg_proc p WHERE p.pronamespace = 'shared'::regnamespace").fetchall()
     others = [(name, oid) for name, oid in rows if name not in DEFINERS]
     assert others
@@ -861,7 +865,7 @@ def test_no_function_in_shared_but_the_two_definers_is_executable_by_authenticat
                 (name, role)
 
 
-def test_the_two_definers_are_executable_by_authenticated_alone_and_pin_the_search_path(conn):
+def test_the_four_definers_are_executable_by_authenticated_alone_and_pin_the_search_path(conn):
     rows = conn.execute("SELECT p.proname, p.prosecdef, p.proconfig, p.oid FROM pg_proc p "
                         "WHERE p.pronamespace = 'shared'::regnamespace AND p.proname = ANY(%s)",
                         (list(DEFINERS),)).fetchall()
@@ -1171,3 +1175,247 @@ def test_the_migration_gives_the_one_passed_row_its_final_instant_with_the_guard
     finally:
         with psycopg.connect(URL, autocommit=True) as admin:
             admin.execute(f"DROP DATABASE IF EXISTS {name}")
+
+
+# --- the role table, its two checks and the role, phase and action table (ADR-0026 decisions 1, 2 and 7; #662) ---
+# Made-up users, ids and teams. A stranger has a Discord identity the crosswalk does not list; the two owners own
+# T and T2; the commissioner and the site admin hold a role and own no team.
+PERSONAS = {"stranger": ("00000000-0000-0000-0000-0000000000a1", "71111111111111111"),
+            "owner_of_team": ("00000000-0000-0000-0000-0000000000a2", "72222222222222222"),
+            "owner_of_other_team": ("00000000-0000-0000-0000-0000000000a3", "73333333333333333"),
+            "commissioner": ("00000000-0000-0000-0000-0000000000a4", "74444444444444444"),
+            "site_admin": ("00000000-0000-0000-0000-0000000000a5", "75555555555555555")}
+ROLES_OF = {"commissioner": ("commissioner", gm.LEAGUE_PLACEHOLDER), "site_admin": ("site_admin", gm.ALL_LEAGUES)}
+OWNS = {"owner_of_team": "T", "owner_of_other_team": "T2"}
+ROLE_INSERT = "INSERT INTO shared.app_role (discord_user_id, role, league_key) VALUES (%s, %s, %s)"
+TABLE_FILE = REPO / "tests" / "role_phase_action.csv"
+PHASES = ("none", "open", "passed", "final")
+
+
+def _roles_world(conn):
+    """Teams T and T2, each persona's Discord identity, the crosswalk rows and the two role rows."""
+    for team in ("T", "T2"):
+        conn.execute("INSERT INTO football.dim_fantasy_teams (team_key) VALUES (%s)", (team,))
+    for name, (uid, discord_id) in PERSONAS.items():
+        conn.execute("INSERT INTO auth.identities (user_id, provider, provider_id) VALUES (%s, 'discord', %s)",
+                     (uid, discord_id))
+        if name in OWNS:
+            conn.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES (%s, %s)",
+                         (OWNS[name], discord_id))
+        if name in ROLES_OF:
+            conn.execute(ROLE_INSERT, (discord_id, *ROLES_OF[name]))
+
+
+def test_the_role_table_is_unreadable_and_unwritable_to_every_role_but_its_owner(conn):
+    _roles_world(conn)
+    uid = PERSONAS["commissioner"][0]
+    for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+        _denied(conn, uid, "SELECT * FROM shared.app_role", role=role)
+        _denied(conn, uid, ROLE_INSERT % ("'99999999999999999'", "'site_admin'", "'*'"), role=role)
+        _denied(conn, uid, "UPDATE shared.app_role SET role = 'site_admin'", role=role)
+        _denied(conn, uid, "DELETE FROM shared.app_role", role=role)
+    assert conn.execute("SELECT relrowsecurity FROM pg_class WHERE oid = 'shared.app_role'::regclass").fetchone()[0]
+    assert not conn.execute("SELECT count(*) FROM pg_policies WHERE tablename = 'app_role'").fetchone()[0]
+    assert conn.execute("SELECT count(*) FROM shared.app_role").fetchone()[0] == 2
+
+
+def test_the_role_table_has_its_key_and_no_foreign_key(conn):
+    (pk,) = conn.execute(
+        "SELECT array_agg(a.attname::text ORDER BY a.attnum) FROM pg_index i JOIN pg_attribute a "
+        "ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey) "
+        "WHERE i.indrelid = 'shared.app_role'::regclass AND i.indisprimary").fetchone()
+    assert pk == ["discord_user_id", "role", "league_key"]
+    assert conn.execute("SELECT count(*) FROM pg_constraint WHERE conrelid = 'shared.app_role'::regclass "
+                        "AND contype = 'f'").fetchone()[0] == 0
+
+
+@pytest.mark.parametrize("value,accepted", [("1" * 17, True), ("9" * 20, True), ("1" * 16, False),
+                                            ("1" * 21, False), ("1" * 16 + "a", False), ("", False),
+                                            ("1" * 8 + " " + "1" * 8, False)])
+def test_the_role_table_takes_digits_only_seventeen_to_twenty_long(conn, value, accepted):
+    if accepted:
+        conn.execute(ROLE_INSERT, (value, "commissioner", "main"))
+    else:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            conn.execute(ROLE_INSERT, (value, "commissioner", "main"))
+        conn.rollback()
+
+
+@pytest.mark.parametrize("role,league,accepted", [
+    ("commissioner", "main", True), ("commissioner", "other", True), ("site_admin", "*", True),
+    ("commissioner", "*", False), ("site_admin", "main", False), ("owner", "main", False),
+    ("", "main", False), ("Commissioner", "main", False)])
+def test_a_commissioner_names_a_league_a_site_admin_holds_every_league_and_no_other_role_exists(
+        conn, role, league, accepted):
+    if accepted:
+        conn.execute(ROLE_INSERT, ("1" * 17, role, league))
+    else:
+        with pytest.raises(psycopg.errors.CheckViolation):
+            conn.execute(ROLE_INSERT, ("1" * 17, role, league))
+        conn.rollback()
+
+
+def test_a_person_may_hold_both_roles_and_a_repeated_pair_is_refused(conn):
+    conn.execute(ROLE_INSERT, ("1" * 17, "commissioner", "main"))
+    conn.execute(ROLE_INSERT, ("1" * 17, "site_admin", "*"))
+    conn.execute("SAVEPOINT twice")
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        conn.execute(ROLE_INSERT, ("1" * 17, "commissioner", "main"))
+    conn.execute("ROLLBACK TO SAVEPOINT twice")
+
+
+def test_the_two_checks_tell_the_truth_for_each_kind_of_caller(conn):
+    _roles_world(conn)
+    commissioner_of = "SELECT shared.caller_is_commissioner_for(%s)"
+    admin = "SELECT shared.caller_is_site_admin()"
+    answers = {name: (_read(conn, uid, commissioner_of, ("T",)), _read(conn, uid, commissioner_of, ("T2",)),
+                      _read(conn, uid, admin)) for name, (uid, _) in PERSONAS.items()}
+    assert answers == {"commissioner": (True, True, False), "site_admin": (False, False, True),
+                       "owner_of_team": (False, False, False), "owner_of_other_team": (False, False, False),
+                       "stranger": (False, False, False)}
+    assert _read(conn, "", commissioner_of, ("T",)) is False and _read(conn, "", admin) is False
+    assert _read(conn, PERSONAS["commissioner"][0], commissioner_of, ("NO_SUCH_TEAM",)) is False
+
+
+def test_a_person_holding_both_roles_passes_both_checks(conn):
+    _roles_world(conn)
+    uid, discord_id = PERSONAS["stranger"]
+    conn.execute(ROLE_INSERT, (discord_id, "commissioner", "main"))
+    conn.execute(ROLE_INSERT, (discord_id, "site_admin", "*"))
+    assert _read(conn, uid, "SELECT shared.caller_is_commissioner_for('T')") is True
+    assert _read(conn, uid, "SELECT shared.caller_is_site_admin()") is True
+
+
+def test_a_commissioner_of_another_league_is_no_commissioner_of_this_one(conn):
+    _roles_world(conn)
+    uid, discord_id = PERSONAS["stranger"]
+    conn.execute(ROLE_INSERT, (discord_id, "commissioner", "another_league"))
+    assert _read(conn, uid, "SELECT shared.caller_is_commissioner_for('T')") is False
+
+
+def test_a_role_is_read_from_the_discord_identity_and_never_from_another_provider(conn):
+    _roles_world(conn)
+    other = "00000000-0000-0000-0000-0000000000b1"
+    conn.execute("INSERT INTO auth.identities (user_id, provider, provider_id) VALUES (%s, 'github', %s)",
+                 (other, PERSONAS["site_admin"][1]))
+    assert _read(conn, other, "SELECT shared.caller_is_site_admin()") is False
+    assert _read(conn, other, "SELECT shared.caller_is_commissioner_for('T')") is False
+
+
+def test_the_role_file_replaces_every_row_so_a_removed_role_is_gone(conn):
+    sys.path.insert(0, str(REPO / "notebooks"))
+    import load_app_roles as loader
+    _roles_world(conn)
+    admin_uid = PERSONAS["site_admin"][0]
+    assert _read(conn, admin_uid, "SELECT shared.caller_is_site_admin()") is True
+    rows = [(PERSONAS["commissioner"][1], "commissioner", "main"), (PERSONAS["stranger"][1], "site_admin", "*")]
+    body = loader.sql_file(rows).replace("BEGIN;\n", "").replace("COMMIT;\n", "")
+    with conn.cursor() as cur:
+        for statement in (s for s in body.split(";\n") if s.strip()):
+            cur.execute(statement)
+        assert cur.fetchone() == (2, 2)
+    assert _read(conn, admin_uid, "SELECT shared.caller_is_site_admin()") is False
+    assert _read(conn, PERSONAS["stranger"][0], "SELECT shared.caller_is_site_admin()") is True
+    assert _read(conn, PERSONAS["commissioner"][0], "SELECT shared.caller_is_commissioner_for('T')") is True
+
+
+def test_the_pii_hash_list_holds_the_sha256_of_each_role_table_id_and_never_the_id(conn):
+    import hashlib
+    _roles_world(conn)
+    with conn.cursor() as cur:
+        cur.execute("SET LOCAL ROLE etl_writer")
+        cur.execute("SELECT * FROM shared.pii_token_hashes()")
+        got = {r[0] for r in cur.fetchall()}
+    conn.rollback()
+
+    def digest(text):
+        return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    in_the_table = {PERSONAS["commissioner"][1], PERSONAS["site_admin"][1]}
+    assert {digest(i) for i in in_the_table} <= got
+    assert digest(PERSONAS["stranger"][1]) not in got
+    assert not {i for _, i in PERSONAS.values()} & got
+
+
+def _table_rows():
+    with TABLE_FILE.open(encoding="utf-8", newline="") as fh:
+        return list(csv.DictReader(line for line in fh if not line.startswith("#")))
+
+
+def _seed_phase(conn, phase):
+    for kind in ("resign", "fa_keep"):
+        if phase == "open":
+            _deadline(conn, kind, FUTURE)
+        elif phase == "passed":
+            _deadline(conn, kind, PAST)
+        elif phase == "final":
+            _deadline(conn, kind, *FINAL_ROW)
+
+
+def _attempt(conn, who, sql, params=(), fetch=False):
+    """True when the persona's statement went through: a write that changed a row, or a read that
+    returned a row. Postgres raises insufficient_privilege for a row-level security refusal too."""
+    uid = PERSONAS[who][0] if who in PERSONAS else ""
+    conn.execute("SAVEPOINT cell_try")
+    try:
+        _as(conn, uid, "anon" if who == "signed_out" else "authenticated")
+        cur = conn.execute(sql, params)
+        return bool(cur.fetchall()) if fetch else cur.rowcount == 1
+    except psycopg.errors.InsufficientPrivilege:
+        return False
+    finally:
+        conn.execute("ROLLBACK TO SAVEPOINT cell_try")
+
+
+def _who(who):
+    return PERSONAS[who][0] if who in PERSONAS else None
+
+
+ACTIONS = {
+    "read_choices": lambda conn, who: _attempt(conn, who, "SELECT 1 FROM app.contract_choices WHERE team_key = 'T'",
+                                               fetch=True),
+    "write_choices": lambda conn, who: _attempt(conn, who, OWN_INSERT, ("T", "w", "fa_keep", "app", _who(who))),
+    "read_toggle": lambda conn, who: _attempt(conn, who, "SELECT 1 FROM app.team_choice_sharing WHERE team_key = 'T'",
+                                              fetch=True),
+    "write_toggle": lambda conn, who: _attempt(conn, who, SHARE_INSERT, ("T", True, _who(who))),
+}
+
+
+def _outcome(conn, who, action, phase):
+    conn.execute("SAVEPOINT cell")
+    try:
+        _roles_world(conn)
+        _seed_phase(conn, phase)
+        conn.execute(OWN_INSERT, ("T", "x", "fa_keep", "loader", None))
+        if action == "read_toggle":
+            conn.execute("INSERT INTO app.team_choice_sharing (season_id, team_key, shared, changed_by) "
+                         "VALUES ('S', 'T', false, NULL)")
+        return "allowed" if ACTIONS[action](conn, who) else "refused"
+    finally:
+        conn.execute("ROLLBACK TO SAVEPOINT cell")
+        conn.execute("RELEASE SAVEPOINT cell")
+
+
+def test_the_table_names_every_persona_and_action_once_and_every_cell_is_allowed_or_refused():
+    rows = _table_rows()
+    assert list(rows[0]) == ["persona", "action", *PHASES]
+    keys = [(r["persona"], r["action"]) for r in rows]
+    assert len(keys) == len(set(keys))
+    personas = {"stranger", "owner_of_team", "owner_of_other_team", "commissioner", "site_admin", "signed_out"}
+    assert set(PERSONAS) | {"signed_out"} == personas
+    assert set(keys) == {(p, a) for p in personas for a in ACTIONS}
+    for row in rows:
+        assert all(row[phase] in ("allowed", "refused") for phase in PHASES), row
+
+
+def test_a_commissioner_and_a_site_admin_hold_exactly_a_strangers_powers_on_the_app_tables():
+    by = {(r["persona"], r["action"]): [r[p] for p in PHASES] for r in _table_rows()}
+    for action in ACTIONS:
+        for persona in ("commissioner", "site_admin", "owner_of_other_team"):
+            assert by[(persona, action)] == by[("stranger", action)], (persona, action)
+
+
+@pytest.mark.parametrize("phase", PHASES)
+@pytest.mark.parametrize("persona,action", [(r["persona"], r["action"]) for r in _table_rows()])
+def test_every_cell_of_the_role_phase_and_action_table_is_proved_by_the_policies(conn, persona, action, phase):
+    expected = {(r["persona"], r["action"]): r for r in _table_rows()}[(persona, action)][phase]
+    assert _outcome(conn, persona, action, phase) == expected

@@ -73,6 +73,10 @@
 #   SECURITY DEFINER functions of `shared` that policies call (ADR-0025
 #   decision 6): shared.caller_team_keys() and shared.choice_window(season,
 #   kind), the latter returning none, open, passed or final (ADR-0026 decision 6).
+#   Declaring shared.app_role (ADR-0026 decisions 1 to 3) adds two more, for
+#   authenticated only: shared.caller_is_commissioner_for(team_key) and
+#   shared.caller_is_site_admin(), and puts the table's ids in
+#   shared.pii_token_hashes().
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
@@ -1625,6 +1629,25 @@ other_tables:
     columns:
       - { name: team_key, sql_type: text }
       - { name: discord_user_id, sql_type: text }
+
+  # Who holds an app role (ADR-0026 decisions 1 and 2, #662): one row per person
+  # and role. Owner PII, like the crosswalk: database only, never exported,
+  # never committed, no grant to any role; only the definer functions of `shared`
+  # read it. `league_key` is in the key so the league key #658 decides changes
+  # values and one function body, never a key: `main` is the one league until
+  # then, and `*` (every league) is the site admin's. Loaded by
+  # scripts/load_app_roles.py, which writes a SQL file for the owner to run.
+  - name: app_role
+    schema: shared
+    pk: [discord_user_id, role, league_key]
+    checks:
+      - "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
+      - "role IN ('commissioner', 'site_admin')"
+      - "(role = 'site_admin' AND league_key = '*') OR (role = 'commissioner' AND league_key <> '*')"
+    columns:
+      - { name: discord_user_id, sql_type: text }
+      - { name: role, sql_type: text }
+      - { name: league_key, sql_type: text }
 
   # The owners' contract choices (ADR-0025, #548 brief 2). Schema `app` is not
   # granted the blanket way: the table names its own grants and its one policy.
