@@ -53,69 +53,47 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-24, eleventh save, before a clear at Ben's word; session `695f05fc-6dff-445b-a9fd-af605c6997d9`)
+## CURRENT STATE (2026-11-24, twelfth save, before a clear at Ben's word; session `c2116a9a-72a7-4688-89d3-26574767e13b`)
 
-- **Heads.** origin/main and main checkout `1eda32b` (PR #672). The
-  main checkout is clean (only `.agents/` and `GEMINI.md` untracked).
-- **session-dispatch** was typed by Ben in session `695f05fc`. After
-  the clear Ben types it again before any dispatch, merge or closeout,
-  and gives the closeout word per builder again.
-- **Merged this session:** PR #659 (#626) `ea9876a`; PR #668 `43d053c`;
-  PR #669 (#616) `1b1fc23`; PR #672 (#671) `1eda32b`. **Closed out:**
-  b626-creds, b616-manualpublish, b671-dropwarn. **Closed:** #654,
-  #658, #674 (and #616, #626, #671 by their PRs).
-- **PR #685 (#661, builder b661-choicehist, session
-  `59eeebaa-541a-48e6-a59f-96f0871eee19`, branch
-  `worktree-b661-choicehist`), head
-  `2acffd56d598aabe576870d63c71f33fd5270856`.** Code review: no
-  blocking, F1 and F2 advisory (pull/685#issuecomment-7135947201).
-  supabase-auditor: no blocking, two advisories
-  (issuecomment-7135889854). Planner: no breach
-  (issuecomment-7135882049). Ben: "merge #685 when green"
-  (issues/661#issuecomment-7135951371). **Next:** ask the test line,
-  re-prove, post counts, one CI read, merge pinned, pull; then queue an
-  owner Action to dispatch `migrate.yml` for the held drops file
-  (`final_at DROP DEFAULT`); run the planner's check lines
-  (issues/661#issuecomment-7135889563); then dispatch #662 (brief
-  ready, see Do first). Closeout of b661 needs Ben's word.
-- **PR #684 (#597, builder b597-teamabbr, session
-  `4a1fed88-8d24-4502-83c3-25eaf5bf18b3`, branch
-  `worktree-b597-teamabbr`), head moving (was `24ccfdf`).** Ben re-ran
-  01c on the branch (Note recorded, issuecomment-7136034918); the
-  builder was woken to commit the table and read CI. Ben: "merge #684
-  when green" (issues/597#issuecomment-7135711716); DROP COLUMN
-  Decision answered (a) apply after merge
-  (issuecomment-7135625750). **Next:** on the builder's report, code
-  review (medium, full, high) and supabase-auditor, re-prove (it covers
-  the trade-tool export and bot suite), merge pinned, then give Ben the
-  `migrate.yml` dispatch step and run the After a schema change lands
-  check; then dispatch #686 (Ben's go, issues/686#issuecomment-7135826055).
-- **Dispatch chain on Ben's go, each after the one before merges:**
-  #661 (PR #685) then #662 (go: issuecomment-7134054704) then #670
-  (go: issuecomment-7134103462) then #682 = brief 4 of #548 (go:
-  issuecomment-7135826055 on #548 and issues/682#issuecomment-7134177639;
-  merge outside 2026-12-03 to 2027-01-07) then #663 then #664 then
-  #665 (each needs the planner's restated brief first). Separately:
-  #684 then #686. Backlog, no go yet: #683 (F3 of #669), #687 (F1 of
-  #685), #675 and #676 (map #658, planner restates first), #633, #637,
-  #639, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
-- **Owed to the planner:** one line when #662's PR opens and when
-  #670's PR opens; #682's owner Actions 2 to 4 are queued when its PR
-  opens (Action 1 is done).
-- **Test line:** tools runs PR #255 then #210; dynasty asks again for
-  #685 then #684, with start and end notices.
-- **Bot:** restarted 2026-11-24 in a terminal tab of this app.
-- **Worktree removal, interim check** (issues/655#issuecomment-7104025813)
-  as before; #655 item 1 and the 24 damaged-record worktrees unchanged.
-- **Open PRs:** #685, #684, #653 (draft, planner), #634 (state batch),
-  #595, #563.
-- **Peers:** dff-central-planner `125a6d6d-88c4-406a-8ea8-220374432d42`
-  (new after its clear); Tools-builder-manager
-  `e7026592-a1b4-4ccd-afea-61d5cf451e9f`; Tools-central-planner
-  `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Builders answer by name
-  through SendMessage while running; a stopped one is woken with
-  `resume_plain.ps1`.
+- **Heads.** origin/main and the main checkout at `86e4d00` (PR #685). The main checkout is clean (only `.agents/` and `GEMINI.md` untracked).
+- **session-dispatch** was typed by Ben in session `c2116a9a`. After the clear, Ben types it again before any dispatch, merge or closeout. Closeout words are per builder.
+- **Done this session:**
+  - PR #685 (#661) re-proved GREEN on base `1eda32b` (3529 passed, 0 Gate failures) and merged as `86e4d00`. The merged tree equals the re-proved tree.
+  - The first migration applied on merge. Ben dispatched `migrate.yml` for the held `final_at` drop: SUCCESS.
+  - The After a schema change lands check holds every line (issues/661#issuecomment-7137075042, -7137669797). #661 is closed, and b661 is closed out (recorded on #661 and #655).
+  - Ben accepted two security advisor findings as by design: INFO `shared.owner_crosswalk` RLS with no policy, and WARN Auth leaked-password protection (issues/661#issuecomment-7137326774). Later checks skip them, as they skip `shared.owner`.
+  - The planner ruled no action on the performance advisories, except `auth_rls_initplan`, which goes into the restated #663 (issuecomment-7137103517).
+  - #662 dispatched as b662-approles. #688 dispatched as b688-migorder on Ben's go.
+- **PR #684 (#597, b597-teamabbr, session `4a1fed88-8d24-4502-83c3-25eaf5bf18b3`), head `1be8dbcdebc9b1b3593ed862bb9b21d57927148b`.**
+  - Restamped on Ben's word (issues/597#issuecomment-7136939338): the migration is now `20261124155956_registry_update.sql`, after main's newest. The manager checked the order.
+  - Code review: no findings (pull/684#issuecomment-7136414266). Audit: F1, the Power BI column, closed as settled by #624; F2 and F3 advisory (issuecomment-7136372003). The review and audit stand for the code after the restamp.
+  - Ben: merge when green (issues/597#issuecomment-7135711716).
+  - **Next:** take the test line after tools #210 (start and end notices); re-prove at the head; read CI once (storage-pg was pending at the builder's read); merge pinned; pull.
+  - Then give Ben the `migrate.yml` dispatch Action for the held DROP COLUMN (he chose apply after merge, issuecomment-7135625750), and run the After a schema change lands check.
+  - Then dispatch #686 (go: issues/686#issuecomment-7135826055). Ask Ben for b597's closeout word.
+- **PR #690 (#688, b688-migorder, session `ee0a7309-35fe-46b4-b1f3-cbbec6eec8fb`), head `8d3b1807a20dbe7d604088f038e02d978d281df8`.**
+  - Code review: no findings. Audit: no blocking; F3 and F4 closed by the manager, F5 to F7 advisory (pull/690#issuecomment-7137805673, -7137791128).
+  - Planner: no breach (issuecomment-7137847468).
+  - **Next:** re-prove after #684 on the test line. Read `scripts/check_migration_order.py`, then run it (the builder's mode refused it). Read CI once; storage-pg was pending. Then merge.
+  - It has no merge word from Ben yet: ask him by button before merging. Closeout of b688 needs his word.
+- **PR #689 (#662, b662-approles, session `cad4e1c1-5c27-4f2f-8371-056a362856ed`), head `1263c4853be9fe8bb4b3238146a0b9ef8249f255`.**
+  - The builder reports it green.
+  - **Next:** code review (Tier medium: full, high) and supabase-auditor (it touches migrations, the generator and the registry; tell it to read only); ask the planner's read; re-prove; merge.
+  - Note for the review: `tests/test_registry_keys.py` is outside the ticket's file list (one line, which the suite needs). Answers to the ticket's question are in the builder's plan comment (issues/662#issuecomment-7137065714).
+  - Owner Action 1 (the App roles tab) is queued. Action 2 (loader run, `scripts/load_app_roles.py --gid <gid> --out <file outside every repo>`, then a paste into the SQL editor) is queued after the merge and the schema check.
+  - #662's go covers the dispatch; ask Ben by button about the merge, unless the ticket records a merge word.
+  - Tell the planner when #670's PR opens.
+- **Migration order:** #684 (`20261124155956`) and #689 (`20261124160456`) are in stamp order. Merge #684 before #689, or check the order by eye again before re-proving #689. #690 adds no migration.
+- **Chain after #662**, each after the one before merges: #670, then #682 (merge outside 2026-12-03 to 2027-01-07), then #663, #664, #665 (the last three need the planner's restated brief). Separately: #684 then #686. Backlog, no go: #683, #687, #675, #676, #633, #637, #639, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
+- **Test line (shared with tools):** tools #210 holds it (started about 16:20 UTC, about 61 minutes). Order: tools #210, then dynasty #684, then dynasty #690 and #689. Ask Tools-builder-manager after the clear.
+- **Bot:** running (`bot.py`, discord_bot `.botvenv`).
+- **Builders running:** b597-teamabbr (done, waiting), b662-approles and b688-migorder (waiting on the manager).
+- **Peers:** dff-central-planner (clearing; it sends its new id), Tools-builder-manager `e7026592-a1b4-4ccd-afea-61d5cf451e9f`, Tools-central-planner `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`.
+- **Learned this session:**
+  - `information_schema.role_table_grants` hides grants from the connector's role. Read privileges with `has_table_privilege` and `has_column_privilege`.
+  - A held destructive migration makes the push job fail at its last step by design.
+  - A new committed script is not on the builders' allow list, so the manager runs it at re-proof.
 
 ## Queue entries raised
 
-- None open. The queue is empty.
+- #662: add the App roles tab (Action, 2026-11-24). Open.
