@@ -13,7 +13,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-23 (see the commit time), session 986a10cc-2c8b-4d55-9600-5cc9306c91be, before a clear. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
+**Saved:** 2026-11-24 (see the commit time), session cff0e612-f08d-401c-9bb6-2a60446c1492. One Current block (Ben's button, benjamininja/skills-plugins-hooks-agents#243). Stacked history: `995f0cf` on `docs/state-2026-11-16` (PR #575, `0916977`). State branch `docs/state-2026-11-22`; the manager opens its PR.
 
 **Done 2026-11-22/23:** #548 brief 3 merged (#646, `61aa044`); #647, #649 (#648) and #642 (#623) merged. Gap #650 (the crosswalk loader read the wrong headers) was ticketed low, and PR #652 merged it. The ADR-0025 text for `GOAL-RUN.md` After a schema change lands and for `supabase-auditor.md` was posted at #548 issuecomment-7088321713 and merged as PR #651 on Ben's buttons. Ben's sign-in check is done, with Confirm email on by his ruling (issuecomment-7102523231). The planner ruled that brief 4 adds Confirm email to ADR-0025's dashboard list and checks it against the docs (issuecomment-7102774835). Main is at `828db84`.
 
@@ -37,10 +37,17 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 - **#655:** two planner worktrees removed on Ben's button (issuecomment-7102991352). Ben's eleven answers from the assistant's grill are recorded as a relay (issuecomment-7103311428), not yet checked against the assistant's chat.
 - **Tools #247:** the planner answered that the builders' settings should also deny the unauthenticated Supabase plugin server (tools #247 issuecomment-7103639275). PR #656 (the consultant line) merged as `97dbebb`.
 
+**Done 2026-11-24:**
+
+- **PR #660 (ADR-0026) merged** as `f8b4584` at 13:07:35Z, on Ben's button asked again in the new session (PR #660 issuecomment-7132405769). #654 has its resolution pointer (issuecomment-7132410402) and the manager closed it. The PR's worktree and local branch are removed on Ben's button; the removal stopped part way once, recorded at #655 issuecomment-7132486482.
+- **Planner PR #667** (branch `docs/auditor-basis-adr-0026`, head `b774bd1`): the supabase-auditor's basis follows ADR-0026 and ADR-0026's status reads accepted. Ben approved its plan by button; the merge is not yet asked.
+- **PR #659 finding F1:** the planner's read is fix in this PR, and #626's done condition now names three Fantrax names (PR #659 issuecomment-7132497362).
+- #661 and #662 carry `Profile: none`. Ben chose #597 as the manager's next dispatch; #661 follows in the next slot on his go. Ben answered #616's Decision (a).
+
 ### Next (in order)
 
-1. **PR #660 (ADR-0026, branch `docs/adr-0026-app-roles`):** Ben confirmed the grill (Yes, draft them) and set the final date (the season's last day; #654 issuecomment-7104535169). Ben approved the merge by button (PR #660 issuecomment-7104694818; head `b964a4c`); both `storage-pg` runs were still going at the clear, so it is not merged. Merge by squash, pinned to that head, once every check reads SUCCESS on one read (run `gh pr merge` with the repository named, since the PR's worktree is on its branch). If the head moved or a check failed, ask Ben again. Then ask the manager to close #654, and tell it the briefs may be dispatched in order on Ben's go there. The ADR differs from question 8's wording in one way, said in the PR body: the blind write is a trigger behind ordinary inserts, so no function is callable from the app. Then: send the manager the `GOAL-RUN.md` lines when #661's PR opens, and open the planner PR that adds ADR-0026 to the supabase-auditor's basis.
-2. **The briefs are posted, all medium; nothing dispatches before PR #660 merges.** Order: #661, #662 (same files, so one after the other), brief 4 restated whole (#548 issuecomment-7104491120), the after-deadline copy (#548 issuecomment-7104493151), #663, #664, #665. Restate #663 to #665 against the merged code before dispatch. Six points are listed in ADR-0026 as not decided; the planner rules the page's read path before brief 4 dispatches. What each brief holds (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
+1. **PR #667:** once every check reads SUCCESS on one read, ask Ben by button to merge, pinned to its head; then tell the manager (it holds the auditor step of #661's re-proof until then) and ask Ben about the worktree on that branch (link check first). Send the manager the `GOAL-RUN.md` lines when it says #661's PR is open.
+2. **The briefs are posted, all medium.** Order: #661, #662 (same files, so one after the other), brief 4 restated whole (#548 issuecomment-7104491120), the after-deadline copy (#548 issuecomment-7104493151), #663, #664, #665. Restate #663 to #665 against the merged code before dispatch. Six points are listed in ADR-0026 as not decided; the planner rules the page's read path before brief 4 dispatches. What each brief holds (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
    - Foundations, before any owner write: the append-only history, the `final` instant (required, later than the deadline, not movable once passed), `origin` commissioner, `shared.app_role` with a league scope, the role, phase and action table and its policy tests.
    - Brief 4, the owner's page: Discord sign-in, the locked price beside each candidate, one backend fixed at build, a content security policy, the session rule of question 9, the Confirm email line for ADR-0025.
    - The after-deadline copy: idempotent, as `etl_writer`, no `changed_by`, no `locked_value`, its table on the data-PR allowlist, carrying `origin` and honouring `final`.
@@ -56,18 +63,18 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 ### Peers (queue ids)
 
-All three cleared at Ben's word on 2026-11-23 near 14:55Z and send new ids; find each by name. The last ids seen:
+Ids as of 2026-11-24, each sent by its session; find each by name.
 
-- dff-central-builder-manager: `aa75bef2-1167-49fd-995a-bdee72226d36`. At its clear: builder b616-manualpublish waits on Ben's amend Decision; builder b626-creds has PR #659 open; the second deny line is a queued Action.
-- Tools-central-planner: `6b47c44d-e4cb-43be-8d0a-51ec2776881b`.
-- Tools-builder-manager: `55edaa09-855e-454f-991a-371eb4875402`. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
+- dff-central-builder-manager: `695f05fc-6dff-445b-a9fd-af605c6997d9`. Builder b616-manualpublish builds; builder b626-creds has PR #659 open; the second deny line is a queued Action.
+- Tools-central-planner: `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Tools PR #249 has not merged (it follows tools PRs #205 and #253); it sends a line when it does.
+- Tools-builder-manager: `5074d20f-d5f6-4edf-b1b1-e18d5f31db19`. It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
 - personal-assistant: reads only, reports findings.
 - After a clear: send the manager and the Tools planner the new id.
 
 ### Waiting on Ben
 
 - Nothing of the planner's is in his queue.
-- The planner's button: the approval of PR #660. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
+- The planner's button, once its checks pass: the merge of PR #667. Coming later, with their briefs: the domain Action and the Docker and Supabase CLI steps for his PC.
 - His go in the manager's chat for #633, #637, #604, #590.
 - Power BI hold: #563 and #567 wait until Ben lifts it; #624 offseason.
 
