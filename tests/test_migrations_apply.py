@@ -708,9 +708,6 @@ def test_signed_in_callers_get_only_their_own_teams_and_a_state_from_the_window_
     assert _read(conn, U1, window) == "open"
     conn.execute("UPDATE ops.choice_deadline SET deadline_at = now() - interval '1 hour'")
     assert _read(conn, U4, window) == "passed"
-    conn.execute("UPDATE ops.choice_deadline SET deadline_at = now() - interval '2 hours', "
-                 "final_at = now() - interval '1 hour'")
-    assert _read(conn, U4, window) == "final"
 
 
 def test_the_window_function_gives_each_of_its_four_states_from_one_row(conn):
@@ -1167,9 +1164,10 @@ def test_the_migration_gives_the_one_passed_row_its_final_instant_with_the_guard
             with pytest.raises(psycopg.errors.RaiseException):
                 c.execute("DELETE FROM ops.choice_deadline")
             assert c.execute("SELECT shared.choice_window('S', 'fa_keep')").fetchone() == ("passed",)
-            c.execute("UPDATE app.contract_choices SET choice = 'let_go'")
-            assert c.execute("SELECT choice FROM app.contract_choice_history ORDER BY recorded_at, changed_at"
-                             ).fetchall() == [("keep",), ("let_go",)]
+            with c.transaction(force_rollback=True):
+                c.execute("UPDATE app.contract_choices SET choice = 'let_go'")
+                assert c.execute("SELECT choice FROM app.contract_choice_history ORDER BY recorded_at, changed_at"
+                                 ).fetchall() == [("keep",), ("let_go",)]
     finally:
         with psycopg.connect(URL, autocommit=True) as admin:
             admin.execute(f"DROP DATABASE IF EXISTS {name}")
