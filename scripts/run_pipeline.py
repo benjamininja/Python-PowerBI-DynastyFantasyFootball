@@ -11,8 +11,11 @@ Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
 and each registry table carries one). After the steps, notebooks/etl_checks.py runs
 the Gate checks on every table of each Chain that ran. A Chain with a failed
 or skipped step or a failed Gate is held: its tracked parquet is restored
-from git HEAD and never staged; the other Chains still publish. Manual-only
-tables (no Chain) are never staged here — they reach main by PR.
+from git HEAD and never staged; the other Chains still publish. A run never
+stages a manual-only table (no Chain). It reaches main by a PR of its own or,
+on the owner's command only, by `--publish-manual TABLE ...` (#616): an
+allowlisted manual-only table is Gate-checked and exported from the store,
+then lands by the same data PR as a Chain publish.
 
 Phase model (derived from 04a's week label + the season calendar):
   INSEASON   week label != PRE and the NFL season hasn't ended
@@ -34,6 +37,8 @@ write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
       .\\run.ps1 scripts\\run_pipeline.py --check-only   (suite only, no steps)
+      .\\run.ps1 scripts\\run_pipeline.py --publish-manual TABLE [TABLE ...]
+                                                     (the owner only, #616)
 """
 from __future__ import annotations
 
@@ -533,8 +538,14 @@ def _pr_view(pr: int, cwd: Path) -> dict:
     return info if isinstance(info, dict) else {}
 
 
-def _pr_body(staged: list[str], run_id: str | None, rows: dict | None) -> str:
-    lines = ["Machine-generated parquet refresh via scripts/run_pipeline.py "
+PR_INTRO = "Machine-generated parquet refresh via scripts/run_pipeline.py"
+MANUAL_INTRO = ("Manual-only table(s) exported from the store on the owner's "
+                "--publish-manual command via scripts/run_pipeline.py (#616)")
+
+
+def _pr_body(staged: list[str], run_id: str | None, rows: dict | None,
+             intro: str = PR_INTRO) -> str:
+    lines = [f"{intro} "
              "(allowlisted data-only commit). Opened and merged by the pipeline "
              "once pii-scan, tests and bot-tests pass.", "",
              f"Run log: {run_id or 'not written'}", "", "Tables:"]
@@ -569,7 +580,8 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
                 restore: list[str], cwd: Path = REPO, run_id: str | None = None,
                 rows: dict | None = None, landed: dict | None = None,
                 checks_timeout_s: float = CHECKS_TIMEOUT_S,
-                poll_s: float = CHECKS_POLL_S) -> str:
+                poll_s: float = CHECKS_POLL_S, title: str | None = None,
+                branch_stem: str | None = None, intro: str = PR_INTRO) -> str:
     """Allowlisted data commit, per Chain, landed by its own data PR (#361).
     Restores the failed Chains' tracked parquet from HEAD, stages exactly the
     passing Chains' tracked parquet (never a glob), verifies every staged
@@ -578,7 +590,9 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     a PR, waits for the required checks (bounded) and rebase-merges it. A
     failed check, a timeout or a refused merge leaves the PR open. `landed`,
     when given, receives {"pr", "sha"} once the PR has merged. Without push
-    the commit stays on local main and nothing is pushed.
+    the commit stays on local main and nothing is pushed. `title`,
+    `branch_stem` and `intro` replace the run's PR title, branch stem and
+    body opening (the manual publish of #616 sets them).
     `publish`/`restore` are table names. Returns a one-line outcome."""
     branch = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd).stdout.strip()
     if branch != "main":
@@ -603,15 +617,16 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     if bad:
         _git("reset", cwd=cwd)
         return f"ABORTED: non-allowlisted staged path(s): {bad}"
-    title = f"data: pipeline refresh {date.today().isoformat()} ({phase.lower()}, wk {week})"
+    title = title or f"data: pipeline refresh {date.today().isoformat()} ({phase.lower()}, wk {week})"
     msg = (f"{title}\n\n"
-           f"Machine-generated parquet refresh via scripts/run_pipeline.py "
+           f"{intro} "
            f"(allowlisted data-only commit).\n\n"
            f"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>")
     data_branch = None
     if push:
         wk = re.sub(r"[^A-Za-z0-9._-]", "", week)
-        data_branch = _free_branch(f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}", cwd)
+        data_branch = _free_branch(
+            branch_stem or f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}", cwd)
         s = _git("switch", "-c", data_branch, cwd=cwd)
         if s.returncode != 0:
             _git("reset", cwd=cwd)
@@ -636,7 +651,7 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
         _drop_branch(data_branch, cwd)
         return f"ABORTED: push failed: {p.stderr.strip()[:200]}"
     made = _gh("pr", "create", "--base", "main", "--head", data_branch, "--title", title,
-               "--body", _pr_body(staged, run_id, rows), cwd=cwd)
+               "--body", _pr_body(staged, run_id, rows, intro), cwd=cwd)
     found = re.search(r"/pull/(\d+)", made.stdout) if made.returncode == 0 else None
     if not found:
         _drop_branch(data_branch, cwd)
@@ -768,6 +783,106 @@ def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str |
                 return f"ABORTED: export failed ({pg.describe(exc)}); recovery failed ({pg.describe(again)})"
             return f"ABORTED: export failed: {pg.describe(exc)}"
     return None
+
+
+def tracked_at_head(tables: list[str], cwd: Path = REPO) -> set[str]:
+    """The `data/<table>.parquet` paths of `tables` that HEAD holds. Raises
+    when git cannot say, so a git error never reads as tracked."""
+    r = _git("ls-tree", "--name-only", "HEAD", "--", *_parquet_paths(tables), cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not list data/ at HEAD")
+    return set(r.stdout.split())
+
+
+def manual_refusals(names: list[str], registry: dict[str, dict], tracked: set[str]) -> list[str]:
+    """The allowlist of --publish-manual (#616): one line per named table that
+    may not go by it. A table passes only when docs/data_model.yml declares it
+    with no `chain:`, it is published (not private), and HEAD already tracks
+    its snapshot. Pure: reads no store and no file."""
+    out = []
+    for name in names:
+        entry = registry.get(name)
+        if entry is None:
+            out.append(f"{name}: not declared in docs/data_model.yml")
+        elif entry.get("chain"):
+            out.append(f"{name}: in Chain {entry['chain']}, which publishes it")
+        elif etl_helpers.is_private(entry):
+            out.append(f"{name}: private, never published")
+        elif f"data/{name}.parquet" not in tracked:
+            out.append(f"{name}: no snapshot tracked at HEAD (a new table goes by its own PR)")
+    return out
+
+
+def publish_manual(names: list[str], accepted_shrink: list[str], push: bool, dry_run: bool,
+                   cwd: Path = REPO) -> int:
+    """--publish-manual (#616, ADR-0008 decision 3): the owner's command to
+    publish named manual-only tables. Refuses, before any read, a table off
+    the allowlist (`manual_refusals`) or a store that is not Postgres. Then,
+    read-only, runs the tables' Gate checks against the store and exports
+    them to data/, and lands them by commit_data, the data PR of a Chain
+    publish. Runs no step and signs in nowhere. Exit 0 published or nothing
+    changed, 1 failed, 2 refused. Prints table names and counts only."""
+    names = list(dict.fromkeys(names))
+    refused = manual_refusals(names, etl_checks.load_registry(), tracked_at_head(names, cwd))
+    for line in refused:
+        print(f"refused: {line}")
+    if refused:
+        return 2
+    if dry_run:
+        print(f"[dry run] would publish {len(names)} manual-only table(s): {', '.join(names)}")
+        if not storage_is_postgres():
+            print("[dry run] a real run refuses: ETL_STORAGE is not postgres")
+        return 0
+    import etl_storage_pg as pg
+    if not storage_is_postgres():
+        print("refused: ETL_STORAGE is not postgres; the store is the source of a manual publish")
+        return 2
+    if not os.environ.get(pg.URL_ENV):
+        print(f"refused: {pg.URL_ENV} is not set")
+        return 2
+    runlog = etl_run_log.RunLog("manual")
+    runlog.start(etl_run_log.head_sha(cwd))
+    rows, changes, landed = None, {}, {}
+    try:
+        with pg.session_read_only():
+            suite = etl_checks.run_suite(names, accepted_shrink, data_dir=None)
+        for r in suite:
+            if not r.ok:
+                mark = "FAIL" if r.tier == "gate" else "FIND"
+                print(f"[{mark}] {r.tier:6} {r.check:15} {r.table}"
+                      + (f" — {r.detail}" if r.detail else ""))
+        gate_fail = [r for r in suite if r.tier == "gate" and not r.ok]
+        if gate_fail:
+            line = ("ABORTED: Gate failed, nothing exported: "
+                    + "; ".join(f"{g.check} {g.table}" for g in gate_fail))
+        else:
+            try:
+                with pg.session_read_only():
+                    rows = pg.export_published(names, cwd / "data", changes)
+                line = None
+            except Exception as exc:
+                rows = None
+                _data_to_head(names, cwd)
+                line = f"ABORTED: export failed: {pg.describe(exc)}"
+            if line is None:
+                today = date.today().isoformat()
+                line = commit_data("MANUAL", "", push=push, publish=names, restore=[], cwd=cwd,
+                                   run_id=runlog.run_id, rows=rows, landed=landed,
+                                   title=f"data: manual publish {today} ({', '.join(names)})",
+                                   branch_stem=f"data/{today}-manual", intro=MANUAL_INTRO)
+        code = 1 if line.startswith("ABORTED") else 0
+        runlog.finish(
+            etl_run_log.final_status(code, line),
+            snapshot_commit_sha=(landed.get("sha") if etl_run_log.data_merged(line)
+                                 else etl_run_log.head_sha(cwd)
+                                 if etl_run_log.data_committed(line) else None),
+            rows_written=rows, error=line if code else None,
+            column_changes=changes or None)
+    except BaseException as exc:
+        runlog.finish("failed", error=f"{type(exc).__name__} raised before the manual publish finished")
+        raise
+    print(f"[info] {line}")
+    return code
 
 
 def notify(text: str) -> None:
@@ -1018,9 +1133,22 @@ def main() -> int:
                     help="let TABLE shrink past its limit (known rollover); repeatable")
     ap.add_argument("--trigger", choices=etl_run_log.TRIGGERS, default="manual",
                     help="what started the run, for ops.etl_run_log")
+    ap.add_argument("--publish-manual", nargs="+", metavar="TABLE",
+                    help="the owner's command only (#616): export the named manual-only "
+                         "tables from the store and land them by the data PR; no steps")
     args = ap.parse_args()
 
     print(f"storage: {resolve_storage_env()}")
+
+    if args.publish_manual:
+        clash = [flag for flag, on in (("--steps", args.steps), ("--group", args.group),
+                                       ("--profile", args.profile), ("--check-only", args.check_only),
+                                       ("--no-commit", args.no_commit)) if on]
+        if clash:
+            print(f"refused: --publish-manual runs no steps; drop {', '.join(clash)}")
+            return 2
+        return publish_manual(args.publish_manual, args.accept_shrink,
+                              push=not args.no_push, dry_run=args.dry_run)
 
     if args.check_only:
         return check_only(args.accept_shrink)
