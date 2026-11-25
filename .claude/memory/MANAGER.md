@@ -53,47 +53,32 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   After that PR merges, restore the main checkout's copy and pull at
   once: git refuses a pull over the same edit left uncommitted.
 
-## CURRENT STATE (2026-11-24, twelfth save, before a clear at Ben's word; session `c2116a9a-72a7-4688-89d3-26574767e13b`)
+## CURRENT STATE (2026-11-25, thirteenth save, before a compact at Ben's word; session `4ff97ebc-bfd4-4723-997c-406160d975ba`)
 
-- **Heads.** origin/main and the main checkout at `86e4d00` (PR #685). The main checkout is clean (only `.agents/` and `GEMINI.md` untracked).
-- **session-dispatch** was typed by Ben in session `c2116a9a`. After the clear, Ben types it again before any dispatch, merge or closeout. Closeout words are per builder.
+- **Heads.** origin/main and the main checkout at `8e217ed` (PR #690). The main checkout is clean (only `.agents/` and `GEMINI.md` untracked).
+- **session-dispatch** was typed by Ben in session `4ff97ebc`. A compact keeps it; a clear needs it typed again.
 - **Done this session:**
-  - PR #685 (#661) re-proved GREEN on base `1eda32b` (3529 passed, 0 Gate failures) and merged as `86e4d00`. The merged tree equals the re-proved tree.
-  - The first migration applied on merge. Ben dispatched `migrate.yml` for the held `final_at` drop: SUCCESS.
-  - The After a schema change lands check holds every line (issues/661#issuecomment-7137075042, -7137669797). #661 is closed, and b661 is closed out (recorded on #661 and #655).
-  - Ben accepted two security advisor findings as by design: INFO `shared.owner_crosswalk` RLS with no policy, and WARN Auth leaked-password protection (issues/661#issuecomment-7137326774). Later checks skip them, as they skip `shared.owner`.
-  - The planner ruled no action on the performance advisories, except `auth_rls_initplan`, which goes into the restated #663 (issuecomment-7137103517).
-  - #662 dispatched as b662-approles. #688 dispatched as b688-migorder on Ben's go.
-- **PR #684 (#597, b597-teamabbr, session `4a1fed88-8d24-4502-83c3-25eaf5bf18b3`), head `1be8dbcdebc9b1b3593ed862bb9b21d57927148b`.**
-  - Restamped on Ben's word (issues/597#issuecomment-7136939338): the migration is now `20261124155956_registry_update.sql`, after main's newest. The manager checked the order.
-  - Code review: no findings (pull/684#issuecomment-7136414266). Audit: F1, the Power BI column, closed as settled by #624; F2 and F3 advisory (issuecomment-7136372003). The review and audit stand for the code after the restamp.
-  - Ben: merge when green (issues/597#issuecomment-7135711716).
-  - **Next:** take the test line after tools #210 (start and end notices); re-prove at the head; read CI once (storage-pg was pending at the builder's read); merge pinned; pull.
-  - Then give Ben the `migrate.yml` dispatch Action for the held DROP COLUMN (he chose apply after merge, issuecomment-7135625750), and run the After a schema change lands check.
-  - Then dispatch #686 (go: issues/686#issuecomment-7135826055). Ask Ben for b597's closeout word.
-- **PR #690 (#688, b688-migorder, session `ee0a7309-35fe-46b4-b1f3-cbbec6eec8fb`), head `8d3b1807a20dbe7d604088f038e02d978d281df8`.**
-  - Code review: no findings. Audit: no blocking; F3 and F4 closed by the manager, F5 to F7 advisory (pull/690#issuecomment-7137805673, -7137791128).
-  - Planner: no breach (issuecomment-7137847468).
-  - **Next:** re-prove after #684 on the test line. Read `scripts/check_migration_order.py`, then run it (the builder's mode refused it). Read CI once; storage-pg was pending. Then merge.
-  - It has no merge word from Ben yet: ask him by button before merging. Closeout of b688 needs his word.
-- **PR #689 (#662, b662-approles, session `cad4e1c1-5c27-4f2f-8371-056a362856ed`), head `1263c4853be9fe8bb4b3238146a0b9ef8249f255`.**
-  - The builder reports it green.
-  - **Next:** code review (Tier medium: full, high) and supabase-auditor (it touches migrations, the generator and the registry; tell it to read only); ask the planner's read; re-prove; merge.
-  - Note for the review: `tests/test_registry_keys.py` is outside the ticket's file list (one line, which the suite needs). Answers to the ticket's question are in the builder's plan comment (issues/662#issuecomment-7137065714).
-  - Owner Action 1 (the App roles tab) is queued. Action 2 (loader run, `scripts/load_app_roles.py --gid <gid> --out <file outside every repo>`, then a paste into the SQL editor) is queued after the merge and the schema check.
-  - #662's go covers the dispatch; ask Ben by button about the merge, unless the ticket records a merge word.
-  - Tell the planner when #670's PR opens.
-- **Migration order:** #684 (`20261124155956`) and #689 (`20261124160456`) are in stamp order. Merge #684 before #689, or check the order by eye again before re-proving #689. #690 adds no migration.
-- **Chain after #662**, each after the one before merges: #670, then #682 (merge outside 2026-12-03 to 2027-01-07), then #663, #664, #665 (the last three need the planner's restated brief). Separately: #684 then #686. Backlog, no go: #683, #687, #675, #676, #633, #637, #639, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
-- **Test line (shared with tools):** tools #210 holds it (started about 16:20 UTC, about 61 minutes). Order: tools #210, then dynasty #684, then dynasty #690 and #689. Ask Tools-builder-manager after the clear.
-- **Bot:** running (`bot.py`, discord_bot `.botvenv`).
-- **Builders running:** b597-teamabbr (done, waiting), b662-approles and b688-migorder (waiting on the manager).
-- **Peers:** dff-central-planner (clearing; it sends its new id), Tools-builder-manager `e7026592-a1b4-4ccd-afea-61d5cf451e9f`, Tools-central-planner `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`.
+  - PR #684 (#597) re-proved GREEN on base `86e4d00` (3529 passed) and merged as `3544eb0`. Ben dispatched `migrate.yml` for the held drop (run 45615491025): SUCCESS. The schema check holds every line (issues/597#issuecomment-7162996556). #597 closed; b597 closed out.
+  - PR #690 (#688) re-proved GREEN on base `3544eb0` (3534 passed) and merged as `8e217ed` on Ben's button word. b688 closed out (issues/688#issuecomment-7162912346). #688 stays open for the planner's GOAL-RUN.md check-lines PR.
+  - #686 dispatched as b686-dropload (session `17c21010-6d47-4c03-b1c5-0bdea138ca41`); #639 dispatched as b639-gsisremap (session `f9b3cf43-e574-451b-851d-5e14ac8dbf62`), both medium, profile none, on Ben's go.
+  - Bot restarted after the clear (terminal tab of this session).
+- **PR #689 (#662, b662-approles, session `cad4e1c1-5c27-4f2f-8371-056a362856ed`), head `a19a5b32059465b2e1a1ef66f62dde7d80b6893d`.**
+  - Resumed on Ben's word (issues/662#issuecomment-7162720212): main merged, migration regenerated as `20261125124252_app_role_and_checks.sql`, F1 to F3 fixed. Builder reports CI green.
+  - Review round closed, no blocking finding (pull/689#issuecomment-7163211816). Audit F2 to F4 advisory, open. Planner: no breach at a19a5b3 (issuecomment-7162949880). Migration order OK (manager ran the script).
+  - Ben: merge when green (issues/662#issuecomment-7163217152).
+  - **Next:** on Tools-builder-manager's end notice for tools #267, take the test line; `reproof.py 689 a19a5b32059465b2e1a1ef66f62dde7d80b6893d`; one CI read; merge pinned; pull; check the merged tree; end notice (tools takes it for #259).
+  - Then: the migration has no destructive statement, so the push run should apply it; run the After a schema change lands check with #661's lines (issues/661#issuecomment-7135889563) and #662's (issues/662#issuecomment-7162418443): the functions of `shared` now number four. The expected advisor lint on `shared.app_role` goes to Ben as a Decision (the planner has not accepted it).
+  - Then: send the planner the merge commit (it writes the GOAL-RUN.md check-lines PR, with #688's line, and checks #670's and #675's bodies). Queue Owner Action 2 (loader run) once Ben has posted the gid. Ask Ben for b662's closeout word.
+- **PR #692 (#686, b686-dropload).** `tests` failed on `tests/test_pg_marker.py`; fixed locally at 5018d9c. Its push `git push origin <branch>` was refused (allowed forms: `git push`, `git push -u origin *`); told to use `git push` (issues/686#issuecomment-7163228435). Waits on its green report; then review (full, high) and supabase-auditor (storage seam), re-proof.
+- **#639 (b639-gsisremap).** Building. It blocks data PR #691 (fails `test_gsis_current`: one old gsis_id in `dim_fantrax_crosswalk` and `fact_fantrax_adp`; pull/691#issuecomment-7162641975). Last proof after merge: the next scheduled data PR's tests check.
+- **Chain after #662**, each on Ben's go and the planner's last body check: #675 (before #663; never beside #670 or #663), #670, #682 (merge outside 2026-12-03 to 2027-01-07), #663, #664, #665. Backlog, no go: #683, #687, #676, #633, #637, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
+- **Test line:** tools #267 holds it (started about 12:45 UTC, 26 to 58 minutes). Next: dynasty #689, then tools #259.
+- **Builders running:** b662-approles (waiting), b686-dropload, b639-gsisremap.
+- **Peers:** dff-central-planner `9bcc0c9c-574c-4ebb-b4f4-18edc03af9aa`, Tools-builder-manager `dabbbcd0-2b97-445e-a2d9-4502691fb617`, Tools-central-planner `ad857488-55b0-4c62-90d5-3ee43f4e0c99`.
 - **Learned this session:**
-  - `information_schema.role_table_grants` hides grants from the connector's role. Read privileges with `has_table_privilege` and `has_column_privilege`.
-  - A held destructive migration makes the push job fail at its last step by design.
-  - A new committed script is not on the builders' allow list, so the manager runs it at re-proof.
+  - A builder's push form matters: only `git push` and `git push -u origin *` are allowed.
+  - A push run on a later merge (here #690 touching `migrate.yml`) holds nothing once the owner's dispatch has applied the held migration.
 
 ## Queue entries raised
 
-- #662: add the App roles tab (Action, 2026-11-24). Open.
+- #662: add the App roles tab (Action, 2026-11-24). Open. Session line `4ff97ebc-bfd4-4723-997c-406160d975ba`.
