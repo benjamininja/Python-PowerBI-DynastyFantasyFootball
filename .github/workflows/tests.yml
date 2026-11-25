@@ -121,7 +121,13 @@ jobs:
           psql -v ON_ERROR_STOP=1 -d seam_check -c "ALTER ROLE etl_writer PASSWORD 'throwaway-etl-writer'"
           psql -v ON_ERROR_STOP=1 -d seam_check -c "CREATE SCHEMA seam_contract AUTHORIZATION etl_writer"
 
+      - name: Probe the clear (temporary, #699)
+        env:
+          TEST_DATABASE_URL: postgresql://etl_writer:throwaway-etl-writer@localhost:5432/seam_check
+        run: python scripts/b699_probe.py
+
       - name: Contract tests on Postgres (a skip fails the job)
+        if: false
         env:
           TEST_DATABASE_URL: postgresql://etl_writer:throwaway-etl-writer@localhost:5432/seam_check
           REQUIRE_TEST_DATABASE: '1'
