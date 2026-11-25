@@ -21,7 +21,7 @@ import pytest
 import backfill_postgres as backfill
 import etl_helpers as etl
 import etl_storage_pg as pg
-from test_etl_storage import TABLES, database_url
+from test_etl_storage import TABLES, database_url, empty_published
 
 pytestmark = pytest.mark.pg
 
@@ -40,7 +40,7 @@ def zero_digits(monkeypatch):
     import psycopg
     from psycopg.conninfo import make_conninfo
     url = database_url()
-    pg.clear_published(url, TABLES)
+    empty_published(url, TABLES)
     forced = make_conninfo(url, options="-c extra_float_digits=0")
     with psycopg.connect(forced) as conn:
         assert conn.execute("SHOW extra_float_digits").fetchone()[0] == "0"
@@ -48,7 +48,7 @@ def zero_digits(monkeypatch):
     try:
         yield url, forced
     finally:
-        pg.clear_published(url, TABLES)
+        empty_published(url, TABLES)
 
 
 def float_tables(frames):

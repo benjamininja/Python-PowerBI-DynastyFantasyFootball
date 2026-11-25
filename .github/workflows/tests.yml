@@ -125,7 +125,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql://etl_writer:throwaway-etl-writer@localhost:5432/seam_check
           REQUIRE_TEST_DATABASE: '1'
-        run: python -m pytest tests/ -m pg -v -rs
+        run: python -m pytest tests/ -m pg -v -rs --durations=25
 
   # The data-model, sources and Gate checks the manager used to run by hand at
   # re-proof (#695). No secret, no network: they read the committed yaml, docs

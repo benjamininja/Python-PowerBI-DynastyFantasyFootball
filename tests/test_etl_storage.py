@@ -124,6 +124,36 @@ def database_url():
     return url
 
 
+def empty_published(url, names):
+    """Empty the football tables `names` for a fixture's setup and teardown (#699).
+    DELETE as etl_writer costs 15 to 18 s on the real snapshot, nearly all of it
+    the deferred foreign-key checks at COMMIT scanning child columns that hold no
+    index. etl_writer has no TRUNCATE, so where the job gives the admin login of
+    its throwaway server (PGUSER, PGPASSWORD), one TRUNCATE of all the tables,
+    and of any table holding a foreign key to them, runs as that login (the
+    DELETE needs those empty too, to commit); without one, pg.clear_published
+    runs as before. Cases
+    still read and write as the login in url."""
+    allowed = os.environ.get("TEST_DATABASE_URL")
+    if not allowed or url != allowed:
+        raise RuntimeError("empty_published runs only against TEST_DATABASE_URL")
+    admin, secret = os.environ.get("PGUSER"), os.environ.get("PGPASSWORD")
+    if not names or not admin or not secret or admin == "etl_writer":
+        pg.clear_published(url, names)
+        return
+    import psycopg
+    from psycopg import sql
+    from psycopg.conninfo import make_conninfo
+    with psycopg.connect(make_conninfo(url, user=admin, password=secret), autocommit=True) as conn:
+        held = conn.execute(
+            "WITH RECURSIVE r(oid) AS (SELECT c.oid FROM pg_class c WHERE c.relnamespace = %s::regnamespace "
+            "AND c.relname = ANY(%s) UNION SELECT k.conrelid FROM pg_constraint k JOIN r ON k.confrelid = r.oid "
+            "WHERE k.contype = 'f') SELECT n.nspname, c.relname FROM r JOIN pg_class c ON c.oid = r.oid "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace ORDER BY 1, 2", (pg.SCHEMA, list(names))).fetchall()
+        tables = sql.SQL(", ").join(sql.Identifier(schema, name) for schema, name in held)
+        conn.execute(sql.SQL("TRUNCATE {}").format(tables))
+
+
 def pg_scratch(tmp_path, monkeypatch):
     """Point the seam at the fixture registry in the scratch schema of the
     test database, empty tables, and drop them after the case. The schema
@@ -646,14 +676,14 @@ def golden_pg():
     functions are the backfill's (etl_storage_pg)."""
     url = database_url()
     frames = {t: published_frame(t) for t in TABLES}
-    pg.clear_published(url, TABLES)
+    empty_published(url, TABLES)
     try:
         report = pg.load_published(url, frames, replace=True).problems
         if report:
             pytest.fail("the database refuses published rows:\n  " + "\n  ".join(report), pytrace=False)
         yield url, frames
     finally:
-        pg.clear_published(url, TABLES)
+        empty_published(url, TABLES)
 
 
 class TestGolden:

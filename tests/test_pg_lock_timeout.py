@@ -20,7 +20,7 @@ import pytest
 import backfill_postgres as backfill
 import etl_helpers as etl
 import etl_storage_pg as pg
-from test_etl_storage import TABLES, database_url
+from test_etl_storage import TABLES, database_url, empty_published
 
 pytestmark = pytest.mark.pg
 
@@ -105,13 +105,13 @@ def frames():
 @pytest.fixture
 def db(monkeypatch):
     url = database_url()
-    pg.clear_published(url, TABLES)
+    empty_published(url, TABLES)
     monkeypatch.setenv(pg.URL_ENV, url)
     monkeypatch.setattr(pg, "LOCK_TIMEOUT_MS", BOUND_MS)
     try:
         yield url
     finally:
-        pg.clear_published(url, TABLES)
+        empty_published(url, TABLES)
 
 
 def waited(call):

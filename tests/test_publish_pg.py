@@ -27,7 +27,7 @@ import etl_helpers as etl
 import etl_storage_pg as pg
 import run_pipeline as rp
 from conftest import git
-from test_etl_storage import TABLES, database_url
+from test_etl_storage import TABLES, database_url, empty_published
 
 pytestmark = pytest.mark.pg
 
@@ -45,13 +45,13 @@ def db(monkeypatch):
     """The test database with every football table empty, before and after,
     and the seam pointed at it."""
     url = database_url()
-    pg.clear_published(url, TABLES)
+    empty_published(url, TABLES)
     monkeypatch.setenv(pg.URL_ENV, url)
     monkeypatch.setenv("ETL_STORAGE", "postgres")
     try:
         yield url
     finally:
-        pg.clear_published(url, TABLES)
+        empty_published(url, TABLES)
 
 
 @pytest.fixture
