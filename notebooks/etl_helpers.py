@@ -1645,6 +1645,131 @@ def current_gsis(ids: pd.Series, links: pd.DataFrame | None = None) -> pd.Series
     return ids.where(~ids.isin(list(newest)), ids.map(newest))
 
 
+REKEY_COMPOSITE_TABLE = "fact_dynasty_ranking_metrics"
+REKEY_COMPOSITE = "Composite"
+REKEY_COMPOSITE_PREFIX = REKEY_COMPOSITE + "|"
+
+
+class RekeyRefused(Exception):
+    """A table's remap would break a check; the table is left as it is."""
+
+
+def rekey_frame(name: str, df: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """`df` with each old gsis_id of dim_gsis_link `links` replaced by its newest
+    id (#639). On the Composite rows of fact_dynasty_ranking_metrics,
+    source_player_id and the id after "Composite|" in source_uid move with it,
+    as 04y builds them. Only id columns change."""
+    out = df.copy()
+    out["gsis_id"] = current_gsis(out["gsis_id"], links)
+    if name == REKEY_COMPOSITE_TABLE:
+        comp = out["source_name"] == REKEY_COMPOSITE
+        out.loc[comp, "source_player_id"] = current_gsis(out.loc[comp, "source_player_id"], links)
+        uid = out.loc[comp, "source_uid"]
+        tagged = uid.str.startswith(REKEY_COMPOSITE_PREFIX)
+        moved = REKEY_COMPOSITE_PREFIX + current_gsis(uid.str[len(REKEY_COMPOSITE_PREFIX):], links)
+        out.loc[comp, "source_uid"] = uid.where(~tagged, moved)
+    return out
+
+
+def rekey_id_columns(name: str) -> list[str]:
+    cols = ["gsis_id"]
+    return cols + ["source_player_id", "source_uid"] if name == REKEY_COMPOSITE_TABLE else cols
+
+
+def _changed_cells(before: pd.DataFrame, after: pd.DataFrame, col: str) -> int:
+    same = (before[col] == after[col]) | (before[col].isna() & after[col].isna())
+    return int((~same).sum())
+
+
+def _orphans(df: pd.DataFrame, valid: set) -> int:
+    return int((~df["gsis_id"].dropna().isin(valid)).sum())
+
+
+def _split_rows(df: pd.DataFrame) -> int:
+    comp = df[df["source_name"] == REKEY_COMPOSITE]
+    agree = (comp["source_player_id"] == comp["gsis_id"]) & \
+            (comp["source_uid"] == REKEY_COMPOSITE_PREFIX + comp["gsis_id"].astype(str))
+    return int((~agree).sum())
+
+
+def rekey_check(name: str, before: pd.DataFrame, after: pd.DataFrame, valid: set,
+                links: pd.DataFrame) -> dict:
+    """The checks of a remap, before any write. Raises RekeyRefused when a
+    column other than the id columns changed, the registry key would break
+    (null or shared), a gsis_id would newly miss dim_nfl_players (`valid`), or
+    a Composite row would newly disagree with itself. Returns counts only."""
+    assert list(after.columns) == list(before.columns) and len(after) == len(before)
+    ids = rekey_id_columns(name)
+    rest = [c for c in before.columns if c not in ids]
+    if not after[rest].equals(before[rest]):
+        raise RekeyRefused(f"{name}: a column other than the id columns changed")
+    key = table_grain(_table_entry(name))
+    nulls = int(after[key].isna().any(axis=1).sum())
+    dupes = int(after.duplicated(subset=key, keep=False).sum())
+    if nulls or dupes:
+        raise RekeyRefused(f"{name}: key {tuple(key)} would break -- {nulls} row(s) with a null key, "
+                           f"{dupes} row(s) sharing a key")
+    orphans_before, orphans_after = _orphans(before, valid), _orphans(after, valid)
+    if orphans_after > orphans_before:
+        raise RekeyRefused(f"{name}: gsis_id missing from dim_nfl_players would rise "
+                           f"{orphans_before} -> {orphans_after}")
+    if name == REKEY_COMPOSITE_TABLE:
+        split_before, split_after = _split_rows(before), _split_rows(after)
+        if split_after > split_before:
+            raise RekeyRefused(f"{name}: Composite rows whose three id columns disagree would rise "
+                               f"{split_before} -> {split_after}")
+    return {"orphans": (orphans_before, orphans_after),
+            "still_old": int(after["gsis_id"].isin(set(links["old_gsis_id"])).sum()),
+            "changed": {c: _changed_cells(before, after, c) for c in ids}}
+
+
+def gsis_id_tables() -> list[str]:
+    """The published tables that hold a gsis_id column and data (#639): the
+    tables tests/test_gsis_current.py scans, less dim_nfl_players, which keeps
+    its DROPPED rows by design, and less the private tables, which nothing
+    publishes (their ids reach a published table)."""
+    return sorted(n for n, e in _registry().items()
+                  if n != "dim_nfl_players" and not is_private(e)
+                  and "gsis_id" in [c["name"] for c in e.get("columns", [])]
+                  and table_exists(n))
+
+
+def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False) -> dict:
+    """Put every old gsis_id of the stored tables on its newest id (#639): the
+    one place the remap is done, for the pipeline after its steps and for
+    scripts/rekey_gsis_history.py. `only` limits it to those of
+    `gsis_id_tables()`. A table is read whole only when its gsis_id column
+    holds an old id, checked with `rekey_check`, and written through the seam
+    only then; a table whose check refuses stays as it is. Returns
+    {"changed": [table], "refused": {table: reason}, "stats": {table: counts}}.
+    Counts and names only, never an id."""
+    out: dict = {"changed": [], "refused": {}, "stats": {}}
+    if not table_exists(GSIS_LINK_TABLE):
+        return out
+    links = read_table(GSIS_LINK_TABLE)
+    names = [n for n in gsis_id_tables() if only is None or n in set(only)]
+    if links.empty or not names:
+        return out
+    old = set(links["old_gsis_id"])
+    valid = set(read_table("dim_nfl_players")["gsis_id"].dropna())
+    for name in names:
+        if not old & set(read_table(name, ["gsis_id"])["gsis_id"].dropna()):
+            continue
+        before = read_table(name)
+        after = rekey_frame(name, before, links)
+        try:
+            stats = rekey_check(name, before, after, valid, links)
+        except RekeyRefused as exc:
+            out["refused"][name] = str(exc)
+            continue
+        out["stats"][name] = stats
+        if any(stats["changed"].values()):
+            if not dry_run:
+                write_table(name, after)
+            out["changed"].append(name)
+    return out
+
+
 PRICE_LIST_TABLE = "fact_salary_price_list"
 
 
