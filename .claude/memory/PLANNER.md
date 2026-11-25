@@ -37,7 +37,7 @@ Ids as of 2026-11-25; find each by name. After a clear, send the manager and the
 - dff-central-builder-manager: `4ff97ebc-bfd4-4723-997c-406160d975ba`
 - Tools-central-planner: `2c14b7ab-3b12-4984-ae56-5c6526f96566`
 - Tools-builder-manager: `dabbbcd0-2b97-445e-a2d9-4502691fb617`
-- personal-assistant: reads only, reports findings.
+- personal-assistant: reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
 
 ### Waiting on Ben
 
