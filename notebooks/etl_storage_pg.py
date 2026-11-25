@@ -556,9 +556,13 @@ def load_published(url: str, frames: dict, *, replace: bool = False, verify: boo
     database before the commit. `replace` empties each table first and is off
     unless a caller asks for it, since it deletes; without it a table that
     holds rows is a primary-key error. `empty_only` locks the tables and
-    refuses, in the same transaction, if any holds a row."""
+    refuses, in the same transaction, if any holds a row. A frame is a published
+    table: a column its table's `drops:` entry names is left out (#686), and
+    every other column goes to `_check_batch` as it is."""
     import etl_helpers as etl
     psycopg, sql = _psycopg()
+    frames = {name: etl.without_dropped_columns(frame, etl._table_entry(name))
+              for name, frame in frames.items()}
     problems, counts, refused = [], {}, False
     with psycopg.connect(url, prepare_threshold=None) as conn:
         with conn.transaction() as tx:
