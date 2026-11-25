@@ -23,14 +23,6 @@ name: migrate
 
 on:
   pull_request:
-    paths:
-      - 'supabase/**'
-      - 'docs/data_model.yml'
-      - 'scripts/generate_migrations.py'
-      - 'scripts/migration_gate.py'
-      - 'tests/test_migrations_*.py'
-      - 'tests/sql/**'
-      - '.github/workflows/migrate.yml'
   push:
     branches:
       - main
@@ -46,8 +38,49 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  # One output, run (#715). It is false only on a pull request whose changed
+  # paths are all off this list: supabase/*, docs/data_model.yml,
+  # scripts/generate_migrations.py, scripts/migration_gate.py,
+  # tests/test_migrations_*.py, tests/sql/* and .github/workflows/migrate.yml
+  # (the list the pull_request paths filter held before). A path nobody listed
+  # is off the list, an empty diff runs validate, and so does a scope job that
+  # fails: validate skips only when scope succeeded and said false. validate
+  # skips through if:, never a paths filter, so it reports as skipped on a PR
+  # that changes only a .md file, and a skipped check counts as passed.
+  scope:
     if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "$files"
+          run=false
+          if [ -z "$files" ]; then
+            run=true
+          fi
+          while IFS= read -r f; do
+            case "$f" in
+              supabase/* | docs/data_model.yml | scripts/generate_migrations.py | scripts/migration_gate.py | tests/test_migrations_*.py | tests/sql/* | .github/workflows/migrate.yml) run=true ;;
+            esac
+          done <<< "$files"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "run=$run"
+
+  validate:
+    needs: scope
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && (needs.scope.result != 'success' || needs.scope.outputs.run == 'true') }}
     runs-on: ubuntu-latest
     services:
       postgres:
