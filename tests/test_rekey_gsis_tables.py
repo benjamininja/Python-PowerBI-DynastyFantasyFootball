@@ -383,6 +383,7 @@ class TestRekeyGsisLinks:
         monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, accepted, **kw: [
             rp.etl_checks.Result("grain", t, "fantrax_core", "gate", t not in gate_fails)
             for t in tables])
+        monkeypatch.setattr(rp, "read_published", lambda tables, cwd=None: {t: None for t in tables})
         return restored
 
     def plan(self, **kw):
@@ -414,3 +415,177 @@ class TestRekeyGsisLinks:
         plan = {"passed": ["fantrax_core"], "failed": {"nflverse": ["x"]}, "publish": [XW, ADP], "restore": []}
         rp.rekey_gsis_links(plan, CHAINS, [], {})
         assert restored == [] and ids(XW) == [OLD, OTHER] and "did not pass" in capsys.readouterr().out
+
+
+KEYED = "fact_keyed_by_gsis"
+REGISTRY_WITH_KEYED = {"tables": REGISTRY["tables"] + [
+    entry(KEYED, ["season", "gsis_id"], ["season", "gsis_id"], "rookie")]}
+CHAINS_WITH_KEYED = {**CHAINS, "rookie": [KEYED]}
+PUBLISHED_LINKS = pd.DataFrame(columns=etl.GSIS_LINK_COLUMNS)
+PUBLISHED_PLAYERS = pd.DataFrame({"gsis_id": [OLD, OTHER]})
+
+
+@pytest.fixture
+def keyed_store(tmp_path, monkeypatch):
+    registry = tmp_path / "registry.yml"
+    registry.write_text(yaml.safe_dump(REGISTRY_WITH_KEYED), encoding="utf-8")
+    monkeypatch.setattr(etl, "REGISTRY_PATH", registry)
+    monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path))
+    return tmp_path
+
+
+def run_in_step_writers():
+    """What 04z and the dynasty crosswalk do in their own step (#697): the link
+    row the nflverse step of the same run wrote is read from the store, and
+    etl.current_gsis puts each id on its newest."""
+    put(NPL, [(NEW,), (OTHER,), (OLD,)], ["gsis_id"])
+    put(LINK, [(OLD, NEW, "smart_id", "2026-11-25")], etl.GSIS_LINK_COLUMNS)
+    written = pd.DataFrame([("s1", OLD), ("s2", OTHER)], columns=["scorer_id", "gsis_id"])
+    written["gsis_id"] = etl.current_gsis(written["gsis_id"])
+    etl.write_table(XW, written)
+    adp = pd.DataFrame([("s1", "2026", "PRE", OLD), ("s1", "2026", "1", OLD), ("s2", "2026", "PRE", OTHER)],
+                       columns=["scorer_id", "season", "week", "gsis_id"])
+    adp["gsis_id"] = etl.current_gsis(adp["gsis_id"])
+    etl.write_table(ADP, adp)
+
+
+def published_tables(plan):
+    return [t for t in plan["publish"] if t in etl.gsis_id_tables() or t == KEYED]
+
+
+class TestNflverseHeldAfterItsLinkRowWasWritten:
+    """#697: nflverse writes a link row and is then held; another Chain passes."""
+
+    def wire(self, monkeypatch, gate_fails=(), published_links=PUBLISHED_LINKS):
+        monkeypatch.setattr(rp, "read_published", lambda tables, cwd=None: {
+            etl.GSIS_LINK_TABLE: published_links, NPL: PUBLISHED_PLAYERS}.copy())
+        monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, accepted, **kw: [
+            rp.etl_checks.Result("grain", t, "fantrax_core", "gate", t not in gate_fails)
+            for t in tables])
+
+    def held(self, passed=("fantrax_core",)):
+        plan = {"passed": list(passed), "failed": {"nflverse": ["Gate failed"]},
+                "publish": sorted(t for c in passed for t in CHAINS_WITH_KEYED[c]),
+                "restore": sorted(CHAINS_WITH_KEYED["nflverse"])}
+        return plan
+
+    def test_the_run_leaves_the_new_id_in_the_other_chains_tables(self, keyed_store):
+        run_in_step_writers()
+        assert ids(XW) == [NEW, OTHER] and ids(ADP) == [NEW, NEW, OTHER]
+
+    def test_no_published_table_holds_the_new_id(self, keyed_store, monkeypatch, capsys):
+        run_in_step_writers()
+        self.wire(monkeypatch)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert {XW, ADP} <= set(plan["publish"]) and plan["failed"].keys() == {"nflverse"}
+        assert {t: NEW in ids(t) for t in published_tables(plan)} == {XW: False, ADP: False}
+        assert ids(XW) == [OLD, OTHER] and ids(ADP) == [OLD, OLD, OTHER]
+        assert "put back" in capsys.readouterr().out
+
+    def test_only_the_id_column_changes_and_the_row_order_stays(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+        before = etl.read_table(ADP)
+        self.wire(monkeypatch)
+        rp.rekey_gsis_links(self.held(), CHAINS_WITH_KEYED, [], {})
+        after = etl.read_table(ADP)
+        assert after.drop(columns="gsis_id").equals(before.drop(columns="gsis_id"))
+
+    def test_the_link_rows_the_snapshot_holds_are_kept(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+        published = pd.DataFrame([(OLD, NEW, "smart_id", "2026-11-20")], columns=etl.GSIS_LINK_COLUMNS)
+        self.wire(monkeypatch, published_links=published)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert ids(XW) == [NEW, OTHER] and ids(ADP) == [NEW, NEW, OTHER]
+
+    def test_a_chain_of_unpublished_links_goes_back_to_the_first_published_id(self, keyed_store, monkeypatch):
+        put(NPL, [("MID1",), (NEW,), (OTHER,), (OLD,)], ["gsis_id"])
+        put(LINK, [(OLD, "MID1", "smart_id", "2026-11-24"), ("MID1", NEW, "smart_id", "2026-11-25")],
+            etl.GSIS_LINK_COLUMNS)
+        put(XW, [("s1", NEW), ("s2", OTHER)], ["scorer_id", "gsis_id"])
+        self.wire(monkeypatch)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert ids(XW) == [OLD, OTHER]
+
+    def test_a_table_that_cannot_go_back_holds_its_own_chain_only(self, keyed_store, monkeypatch, capsys):
+        run_in_step_writers()
+        put(KEYED, [("2025", OLD), ("2025", NEW)], ["season", "gsis_id"])
+        self.wire(monkeypatch)
+        plan = self.held(passed=("fantrax_core", "rookie"))
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert plan["passed"] == ["fantrax_core"] and set(plan["failed"]) == {"nflverse", "rookie"}
+        assert "sharing a key" in plan["failed"]["rookie"][0] and NEW not in plan["failed"]["rookie"][0]
+        assert KEYED in plan["restore"] and KEYED not in plan["publish"]
+        assert ids(KEYED) == [OLD, NEW]
+        assert ids(XW) == [OLD, OTHER] and {XW, ADP} <= set(plan["publish"])
+
+    def test_a_table_that_fails_its_gate_after_the_put_back_holds_its_chain(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+        self.wire(monkeypatch, gate_fails=(XW,))
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert plan["passed"] == [] and "Gate failed" in plan["failed"]["fantrax_core"][0]
+        assert plan["publish"] == [] and {XW, ADP} <= set(plan["restore"])
+
+    def test_a_step_that_raises_holds_every_passing_chain(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+        self.wire(monkeypatch)
+
+        def boom(unpublished, valid, only=None, dry_run=False):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(etl, "put_back_gsis_tables", boom)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert plan["passed"] == [] and "a step raised" in plan["failed"]["fantrax_core"][0]
+        assert plan["publish"] == [] and {XW, ADP} <= set(plan["restore"])
+
+    def test_published_rows_that_cannot_be_read_hold_every_passing_chain(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+
+        def unreadable(tables, cwd=None):
+            raise RuntimeError("git could not list data/ at HEAD")
+
+        monkeypatch.setattr(rp, "read_published", unreadable)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert plan["passed"] == [] and plan["publish"] == []
+
+    def test_with_no_link_row_unpublished_nothing_is_read_back_or_written(self, keyed_store, monkeypatch):
+        run_in_step_writers()
+        published = etl.read_table(LINK)
+        self.wire(monkeypatch, published_links=published)
+        plan = self.held()
+        rp.rekey_gsis_links(plan, CHAINS_WITH_KEYED, [], {})
+        assert plan["passed"] == ["fantrax_core"] and ids(XW) == [NEW, OTHER]
+
+    def test_with_nflverse_passing_the_put_back_stays_out_of_the_rekey(self, keyed_store):
+        plan = plan_of()
+
+        def never(tables, dry_run):
+            raise AssertionError("put_back called")
+
+        assert rp.put_back_unpublished_ids(plan, CHAINS_WITH_KEYED, never, lambda t: []) == []
+
+
+class TestUnpublishedLinks:
+    def test_the_rows_the_snapshot_does_not_hold_are_the_unpublished_ones(self):
+        stored = pd.DataFrame([("A", "B", "smart_id", "d1"), ("B", "C", "smart_id", "d2")],
+                              columns=etl.GSIS_LINK_COLUMNS)
+        published = stored.iloc[:1]
+        out = etl.unpublished_gsis_links(stored, published)
+        assert out[["old_gsis_id", "new_gsis_id"]].values.tolist() == [["B", "C"]]
+
+    def test_with_no_published_table_every_row_is_unpublished(self):
+        stored = pd.DataFrame([("A", "B", "smart_id", "d1")], columns=etl.GSIS_LINK_COLUMNS)
+        assert len(etl.unpublished_gsis_links(stored, None)) == 1
+
+    def test_a_loop_among_unpublished_links_refuses_each_table(self, keyed_store):
+        run_in_step_writers()
+        loop = pd.DataFrame([(OLD, NEW, "smart_id", "d"), (NEW, OLD, "smart_id", "d")],
+                            columns=etl.GSIS_LINK_COLUMNS)
+        done = etl.put_back_gsis_tables(loop, {OLD, OTHER})
+        assert set(done["refused"]) == {XW, ADP} and done["changed"] == []
+        assert all(OLD not in why and NEW not in why for why in done["refused"].values())

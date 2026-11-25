@@ -1670,21 +1670,27 @@ class RekeyRefused(Exception):
     """A table's remap would break a check; the table is left as it is."""
 
 
-def rekey_frame(name: str, df: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
-    """`df` with each old gsis_id of dim_gsis_link `links` replaced by its newest
-    id (#639). On the Composite rows of fact_dynasty_ranking_metrics,
-    source_player_id and the id after "Composite|" in source_uid move with it,
-    as 04y builds them. Only id columns change."""
+def _move_gsis_ids(name: str, df: pd.DataFrame, move: Callable[[pd.Series], pd.Series]) -> pd.DataFrame:
+    """`df` with `move` applied to every id column of table `name`: gsis_id and,
+    on the Composite rows of fact_dynasty_ranking_metrics, source_player_id and
+    the id after "Composite|" in source_uid, as 04y builds them. Only id
+    columns change. The one place both directions of a remap go through."""
     out = df.copy()
-    out["gsis_id"] = current_gsis(out["gsis_id"], links)
+    out["gsis_id"] = move(out["gsis_id"])
     if name == REKEY_COMPOSITE_TABLE:
         comp = out["source_name"] == REKEY_COMPOSITE
-        out.loc[comp, "source_player_id"] = current_gsis(out.loc[comp, "source_player_id"], links)
+        out.loc[comp, "source_player_id"] = move(out.loc[comp, "source_player_id"])
         uid = out.loc[comp, "source_uid"]
         tagged = uid.str.startswith(REKEY_COMPOSITE_PREFIX)
-        moved = REKEY_COMPOSITE_PREFIX + current_gsis(uid.str[len(REKEY_COMPOSITE_PREFIX):], links)
+        moved = REKEY_COMPOSITE_PREFIX + move(uid.str[len(REKEY_COMPOSITE_PREFIX):])
         out.loc[comp, "source_uid"] = uid.where(~tagged, moved)
     return out
+
+
+def rekey_frame(name: str, df: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """`df` with each old gsis_id of dim_gsis_link `links` replaced by its newest
+    id (#639). Only id columns change; see `_move_gsis_ids`."""
+    return _move_gsis_ids(name, df, lambda ids: current_gsis(ids, links))
 
 
 def rekey_id_columns(name: str) -> list[str]:
@@ -1777,14 +1783,25 @@ def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
     except ValueError:
         out["refused"] = {n: f"{n}: the links in {GSIS_LINK_TABLE} loop" for n in names}
         return out
-    old = set(links["old_gsis_id"])
     valid = set(read_table("dim_nfl_players")["gsis_id"].dropna())
+    return _remap_tables(names, set(links["old_gsis_id"]),
+                         lambda name, df: rekey_frame(name, df, links), links, valid, dry_run, undo)
+
+
+def _remap_tables(names: list[str], moving: set,
+                  remap: Callable[[str, pd.DataFrame], pd.DataFrame], links: pd.DataFrame,
+                  valid: set, dry_run: bool, undo: dict | None) -> dict:
+    """The loop both directions share: a table of `names` whose gsis_id column
+    holds an id of `moving` is read whole, remapped, checked with `rekey_check`
+    and written through the seam only when its id columns change; a refused
+    table stays as it is. Returns the dict of `rekey_gsis_tables`."""
+    out: dict = {"changed": [], "refused": {}, "stats": {}}
     for name in names:
-        if not old & set(read_table(name, ["gsis_id"])["gsis_id"].dropna()):
+        if not moving & set(read_table(name, ["gsis_id"])["gsis_id"].dropna()):
             continue
         before = read_table(name)
         try:
-            after = rekey_frame(name, before, links)
+            after = remap(name, before)
             stats = rekey_check(name, before, after, valid, links)
         except RekeyRefused as exc:
             out["refused"][name] = str(exc)
@@ -1797,6 +1814,64 @@ def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
                 write_table(name, after)
             out["changed"].append(name)
     return out
+
+
+def unpublished_gsis_links(stored: pd.DataFrame, published: pd.DataFrame | None) -> pd.DataFrame:
+    """The rows of the stored dim_gsis_link `stored` that the published one
+    does not hold, matched on (old_gsis_id, new_gsis_id) (#697). With no
+    published table every stored row is unpublished."""
+    stored = stored[GSIS_LINK_COLUMNS].reset_index(drop=True)
+    if published is None or published.empty:
+        return stored
+    have = set(zip(published["old_gsis_id"], published["new_gsis_id"]))
+    kept = [pair not in have for pair in zip(stored["old_gsis_id"], stored["new_gsis_id"])]
+    return stored[kept].reset_index(drop=True)
+
+
+def _published_ends(unpublished: pd.DataFrame) -> dict:
+    """new_gsis_id of an unpublished link -> the id the published snapshot
+    knew, found by walking back along unpublished links until the id is no
+    unpublished link's new id. A loop raises ValueError."""
+    back = dict(zip(unpublished["new_gsis_id"], unpublished["old_gsis_id"]))
+    ends = {}
+    for new in back:
+        seen, cur = {new}, back[new]
+        while cur in back:
+            if cur in seen:
+                raise ValueError(f"{GSIS_LINK_TABLE}: the links ending at {new!r} loop")
+            seen.add(cur)
+            cur = back[cur]
+        ends[new] = cur
+    return ends
+
+
+def put_back_gsis_tables(unpublished: pd.DataFrame, valid: set,
+                         only: Sequence[str] | None = None, dry_run: bool = False) -> dict:
+    """Put every id that is the new id of an `unpublished` link row (see
+    `unpublished_gsis_links`) back on the id the published rows knew (#697): the
+    inverse of `rekey_gsis_tables`, for a run whose `nflverse` Chain does not
+    publish, so its link row and `dim_nfl_players` go back to HEAD. An in-step
+    writer (04z, the dynasty crosswalk) that already applied the link
+    otherwise leaves a table that publishes on an id the published
+    `dim_nfl_players` lacks. `valid` is the published dim_nfl_players gsis_ids;
+    `only`, `dry_run` and the checks are those of `rekey_gsis_tables`.
+
+    Returns the same dict. Counts and names only, never an id."""
+    out: dict = {"changed": [], "refused": {}, "stats": {}}
+    names = [n for n in gsis_id_tables() if only is None or n in set(only)]
+    if unpublished.empty or not names:
+        return out
+    try:
+        ends = _published_ends(unpublished)
+    except ValueError:
+        out["refused"] = {n: f"{n}: the links in {GSIS_LINK_TABLE} loop" for n in names}
+        return out
+
+    def move(ids: pd.Series) -> pd.Series:
+        return ids.where(~ids.isin(list(ends)), ids.map(ends))
+
+    return _remap_tables(names, set(ends), lambda name, df: _move_gsis_ids(name, df, move),
+                         unpublished, valid, dry_run, None)
 
 
 PRICE_LIST_TABLE = "fact_salary_price_list"
