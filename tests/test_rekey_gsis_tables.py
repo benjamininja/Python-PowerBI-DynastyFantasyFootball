@@ -1,6 +1,6 @@
 """#639: one shared remap of old gsis_ids for every published table with a
-gsis_id column (etl.rekey_gsis_tables), and its place in the pipeline
-(run_pipeline.ride_along).
+gsis_id column (etl.rekey_gsis_tables), and its place in the pipeline as the
+nflverse Chain's all-or-nothing re-key (run_pipeline.rekey_all_or_nothing).
 
 Everything runs on a temporary store with its own registry, through the seam.
 The failure it answers: the nflverse Chain writes a new dim_gsis_link row, and
@@ -25,6 +25,7 @@ import run_pipeline as rp
 NPL, LINK = "dim_nfl_players", etl.GSIS_LINK_TABLE
 XW, ADP, SNAP, OVR = "dim_fantrax_crosswalk", "fact_fantrax_adp", "fact_nfl_snap_counts", "dim_override_private"
 OLD, NEW, OTHER = "OLD1", "NEW1", "KEEP1"
+CHAINS = {"nflverse": [LINK, NPL, SNAP], "fantrax_core": [XW, ADP]}
 
 
 def entry(name, cols, pk, chain, schema=None):
@@ -125,6 +126,13 @@ class TestRekeyGsisTables:
         assert set(done["changed"]) == {XW, ADP, SNAP}
         assert ids(XW) == [OLD, OTHER]
 
+    def test_undo_receives_each_written_tables_rows_as_they_were(self, store):
+        seed()
+        before = etl.read_table(XW)
+        saved = {}
+        etl.rekey_gsis_tables(only=[XW], undo=saved)
+        assert list(saved) == [XW] and saved[XW].equals(before)
+
     def test_no_link_table_changes_nothing(self, store):
         put(NPL, [(OLD,)], ["gsis_id"])
         put(XW, [("s1", OLD)], ["scorer_id", "gsis_id"])
@@ -147,6 +155,12 @@ class TestRekeyGsisTables:
         assert ids(XW) == [NEW, OTHER]
         assert OLD not in done["refused"][SNAP]
 
+    def test_a_loop_in_the_links_refuses_each_table_without_naming_an_id(self, store):
+        seed(links=((OLD, NEW), (NEW, OLD)))
+        done = etl.rekey_gsis_tables()
+        assert set(done["refused"]) == {XW, ADP, SNAP} and done["changed"] == []
+        assert all(OLD not in why and NEW not in why for why in done["refused"].values())
+
 
 def test_every_published_gsis_table_of_the_real_registry_is_covered():
     scanned = {n for n, e in etl._registry().items()
@@ -156,93 +170,200 @@ def test_every_published_gsis_table_of_the_real_registry_is_covered():
     assert len(scanned) > 1
 
 
-class TestRideAlong:
-    def plan(self, **kw):
-        base = {"passed": ["nflverse"], "failed": {}, "publish": [LINK, NPL, SNAP], "restore": []}
-        base.update(kw)
-        return base
+class Pipe:
+    """The callables rekey_all_or_nothing takes, over the temp store. `published`
+    is each table's rows at HEAD; the store is whatever the run left."""
 
-    def run(self, plan, candidates, restore=None, gate=None):
-        return rp.ride_along(plan, candidates, restore or (lambda t: None),
-                             lambda t: etl.rekey_gsis_tables(only=t)["changed"],
-                             gate or (lambda t: []))
+    def __init__(self, published, gate_fails=(), step_raises=False, restore_raises=False):
+        self.published, self.gate_fails = published, set(gate_fails)
+        self.step_raises, self.restore_raises = step_raises, restore_raises
+        self.saved, self.restored = {}, []
+        self.old = {OLD}
 
-    def test_a_chain_that_did_not_run_publishes_the_remapped_tables(self, store):
+    def needs(self, tables):
+        return [t for t in tables if self.old & set(self.published[t]["gsis_id"])]
+
+    def restore(self, tables):
+        if self.restore_raises:
+            raise RuntimeError("restore failed")
+        self.restored.append(list(tables))
+        for t in tables:
+            etl.write_table(t, self.published[t])
+
+    def rekey(self, tables, dry_run):
+        if self.step_raises and not dry_run:
+            etl.rekey_gsis_tables(only=tables[:1], undo=self.saved)
+            raise RuntimeError("step raised")
+        return etl.rekey_gsis_tables(only=tables, dry_run=dry_run, undo=self.saved)
+
+    def undo(self, tables):
+        for t in tables:
+            if t in self.saved:
+                etl.write_table(t, self.saved[t])
+
+    def gate(self, tables):
+        return [t for t in tables if t in self.gate_fails]
+
+    def run(self, plan, candidates=(XW, ADP)):
+        return rp.rekey_all_or_nothing(plan, CHAINS, list(candidates), self.needs, self.restore,
+                                       self.rekey, self.undo, self.gate)
+
+
+def published_now():
+    return {n: etl.read_table(n) for n in (XW, ADP, SNAP)}
+
+
+def plan_of(passed=("nflverse",), failed=None):
+    chains = {c: CHAINS[c] for c in passed}
+    return {"passed": list(passed), "failed": failed or {}, "publish": sorted(t for ts in chains.values() for t in ts),
+            "restore": sorted(t for c in (failed or {}) for t in CHAINS[c])}
+
+
+class TestAllOrNothing:
+    def test_a_chain_that_did_not_run_rides_with_the_nflverse_link_row(self, store):
         seed()
-        plan = self.plan()
-        riders = self.run(plan, [XW, ADP])
-        assert riders == [XW, ADP]
+        pipe = Pipe(published_now())
+        plan = plan_of()
+        assert pipe.run(plan) == [XW, ADP]
         assert {XW, ADP} <= set(plan["publish"]) and plan["restore"] == []
+        assert plan["riders"] == [XW, ADP] and plan["passed"] == ["nflverse"]
         assert ids(XW) == [NEW, OTHER] and ids(ADP) == [NEW, NEW, OTHER]
+        assert ids(SNAP) == [NEW, OTHER]
 
-    def test_a_held_chain_is_restored_first_so_no_unvetted_row_rides(self, store):
+    def test_a_held_chain_goes_back_to_its_published_rows_so_no_unvetted_row_rides(self, store):
         seed()
-        published = etl.read_table(XW)
+        pipe = Pipe(published_now())
         put(XW, [("s1", OLD), ("s2", OTHER), ("s9", OLD)], ["scorer_id", "gsis_id"])
-        calls = []
-
-        def restore(tables):
-            calls.append(list(tables))
-            etl.write_table(XW, published)
-
-        plan = self.plan(failed={"fantrax_core": ["step 04t failed"]}, restore=[ADP, XW])
-        self.run(plan, [XW, ADP], restore=restore)
-        assert calls[0] == [ADP, XW] or calls[0] == [XW, ADP]
+        plan = plan_of(failed={"fantrax_core": ["step 04t failed"]})
+        pipe.run(plan)
         assert etl.read_table(XW)["scorer_id"].tolist() == ["s1", "s2"]
         assert ids(XW) == [NEW, OTHER]
         assert plan["restore"] == [] and {XW, ADP} <= set(plan["publish"])
 
-    def test_a_rider_whose_gate_fails_is_restored_and_stays_out(self, store):
+    def test_a_store_a_failed_run_left_remapped_is_found_again_from_the_published_rows(self, store):
         seed()
-        restored = []
-        plan = self.plan(restore=[XW])
-        riders = self.run(plan, [XW, ADP], restore=lambda t: restored.append(list(t)),
-                          gate=lambda t: [XW])
-        assert riders == [ADP]
-        assert XW not in plan["publish"] and plan["restore"] == [XW]
-        assert [XW] in restored
+        pipe = Pipe(published_now())
+        put(XW, [("s1", NEW), ("s2", OTHER)], ["scorer_id", "gsis_id"])
+        put(ADP, [("s1", "2026", "PRE", NEW), ("s1", "2026", "1", NEW), ("s2", "2026", "PRE", OTHER)],
+            ["scorer_id", "season", "week", "gsis_id"])
+        plan = plan_of()
+        assert pipe.run(plan) == [XW, ADP]
+        assert pipe.restored == [[XW, ADP]]
 
-    def test_the_pipeline_call_publishes_a_held_chains_remapped_tables(self, store, monkeypatch, capsys):
+    def test_with_nflverse_held_nothing_is_remapped_from_the_run_s_links(self, store):
         seed()
+        pipe = Pipe(published_now())
+        plan = plan_of(passed=("fantrax_core",), failed={"nflverse": ["Gate failed"]})
+        before = {n: ids(n) for n in (XW, ADP, SNAP)}
+        assert pipe.run(plan) == []
+        assert {n: ids(n) for n in (XW, ADP, SNAP)} == before
+        assert pipe.restored == [] and pipe.saved == {} and "riders" not in plan
+
+    def test_with_nflverse_not_run_nothing_is_remapped_either(self, store):
+        seed()
+        pipe = Pipe(published_now())
+        plan = {"passed": ["fantrax_core"], "failed": {}, "publish": [XW, ADP], "restore": []}
+        assert pipe.run(plan) == []
+        assert ids(XW) == [OLD, OTHER]
+
+    def test_one_table_refusing_holds_nflverse_and_nothing_publishes_or_is_written(self, store):
+        seed()
+        put(SNAP, [("2025", "1", OLD), ("2025", "1", NEW)], ["season", "week", "gsis_id"])
+        pipe = Pipe(published_now())
+        plan = plan_of()
+        before = {n: ids(n) for n in (XW, ADP, SNAP)}
+        assert pipe.run(plan) == []
+        assert {n: ids(n) for n in (XW, ADP, SNAP)} == before
+        assert plan["passed"] == [] and "nflverse" in plan["failed"]
+        assert "sharing a key" in plan["failed"]["nflverse"][0] and OLD not in plan["failed"]["nflverse"][0]
+        assert plan["publish"] == [] and {LINK, NPL, SNAP} <= set(plan["restore"])
+        assert "riders" not in plan
+
+    def test_a_rider_failing_its_gate_puts_every_remapped_table_back_and_holds_nflverse(self, store):
+        seed()
+        pipe = Pipe(published_now(), gate_fails=[XW])
+        plan = plan_of()
+        before = {n: etl.read_table(n) for n in (XW, ADP, SNAP)}
+        assert pipe.run(plan) == []
+        for n in (XW, ADP, SNAP):
+            assert etl.read_table(n).equals(before[n])
+        assert plan["passed"] == [] and "Gate failed" in plan["failed"]["nflverse"][0]
+        assert {LINK, NPL, SNAP} <= set(plan["restore"])
+        assert plan["publish"] == [] and "riders" not in plan
+
+    def test_a_remapped_table_of_the_passing_nflverse_chain_failing_its_gate_holds_it_too(self, store):
+        seed()
+        pipe = Pipe(published_now(), gate_fails=[SNAP])
+        plan = plan_of()
+        pipe.run(plan)
+        assert ids(SNAP) == [OLD, OTHER] and ids(XW) == [OLD, OTHER]
+        assert "nflverse" in plan["failed"] and plan["publish"] == []
+
+    def test_a_step_that_raises_puts_every_written_table_back_and_holds_nflverse(self, store):
+        seed()
+        pipe = Pipe(published_now(), step_raises=True)
+        plan = plan_of()
+        before = {n: etl.read_table(n) for n in (XW, ADP, SNAP)}
+        assert pipe.run(plan) == []
+        for n in (XW, ADP, SNAP):
+            assert etl.read_table(n).equals(before[n])
+        assert "a step raised" in plan["failed"]["nflverse"][0] and plan["passed"] == []
+
+    def test_a_restore_that_fails_is_not_caught(self, store):
+        seed()
+        pipe = Pipe(published_now(), restore_raises=True)
+        with pytest.raises(RuntimeError, match="restore failed"):
+            pipe.run(plan_of())
+
+    def test_nothing_old_anywhere_moves_nothing(self, store):
+        seed(links=(("ZZZ", "YYY"),))
+        pipe = Pipe(published_now())
+        pipe.old = {"ZZZ"}
+        plan = plan_of()
+        assert pipe.run(plan) == []
+        assert plan["passed"] == ["nflverse"] and "riders" not in plan
+
+
+class TestRekeyGsisLinks:
+    def wire(self, monkeypatch, gate_fails=()):
         restored = []
         monkeypatch.setattr(rp, "restore_to_head", lambda t: restored.append(list(t)))
-        monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, accepted, **kw: [])
-        chains = {"nflverse": [LINK, NPL, SNAP], "fantrax_core": [XW, ADP]}
-        plan = self.plan(failed={"fantrax_core": ["step 04t failed"]}, restore=[ADP, XW])
-        rp.ride_gsis_links(plan, chains, [], {})
-        assert set(plan["publish"]) == {LINK, NPL, SNAP, XW, ADP} and plan["restore"] == []
+        monkeypatch.setattr(rp, "_data_to_head", lambda t, cwd=None: None)
+        monkeypatch.setattr(rp, "tracked_at_head",
+                            lambda t, cwd=None: {f"data/{n}.parquet" for n in t})
+        monkeypatch.setattr(rp.etl_helpers, "read_stored",
+                            lambda name, data_dir=None: pd.DataFrame({"gsis_id": [OLD, OTHER]}))
+        monkeypatch.setattr(rp.etl_checks, "run_suite", lambda tables, accepted, **kw: [
+            rp.etl_checks.Result("grain", t, "fantrax_core", "gate", t not in gate_fails)
+            for t in tables])
+        return restored
+
+    def plan(self, **kw):
+        base = plan_of()
+        base.update(kw)
+        return base
+
+    def test_the_pipeline_call_publishes_a_chain_that_did_not_run_with_the_link_row(self, store, monkeypatch, capsys):
+        seed()
+        self.wire(monkeypatch)
+        plan = self.plan()
+        rp.rekey_gsis_links(plan, CHAINS, [], {})
+        assert {XW, ADP} <= set(plan["publish"]) and plan["riders"] == sorted([XW, ADP])
         assert ids(XW) == [NEW, OTHER] and ids(ADP) == [NEW, NEW, OTHER]
         assert "riders" in capsys.readouterr().out
-        assert restored == [sorted([ADP, XW])]
 
-    def test_a_failure_in_the_pipeline_call_restores_and_never_raises(self, store, monkeypatch, capsys):
+    def test_the_pipeline_call_holds_nflverse_when_a_rider_fails_its_gate(self, store, monkeypatch, capsys):
         seed()
-        restored = []
-        monkeypatch.setattr(rp, "restore_to_head", lambda t: restored.append(list(t)))
-
-        def boom(tables, accepted, **kw):
-            raise RuntimeError("gate down")
-
-        monkeypatch.setattr(rp.etl_checks, "run_suite", boom)
-        chains = {"nflverse": [LINK, NPL, SNAP], "fantrax_core": [XW, ADP]}
+        self.wire(monkeypatch, gate_fails=(ADP,))
         plan = self.plan()
-        rp.ride_gsis_links(plan, chains, [], {})
-        assert plan["publish"] == [LINK, NPL, SNAP] and "riders" not in plan
-        assert restored[-1] == sorted([XW, ADP])
-        assert "ride along failed" in capsys.readouterr().out
+        rp.rekey_gsis_links(plan, CHAINS, [], {})
+        assert "nflverse" in plan["failed"] and plan["publish"] == []
+        assert ids(XW) == [OLD, OTHER] and ids(ADP) == [OLD, OLD, OTHER] and ids(SNAP) == [OLD, OTHER]
+        assert "HELD" in capsys.readouterr().out
 
-    def test_an_unreadable_store_skips_the_pipeline_call_and_never_raises(self, store, monkeypatch, capsys):
-        def down():
-            raise RuntimeError("no database")
-
-        monkeypatch.setattr(rp.etl_helpers, "gsis_id_tables", down)
-        plan = self.plan()
-        rp.ride_gsis_links(plan, {"fantrax_core": [XW]}, [], {})
-        assert plan["publish"] == [LINK, NPL, SNAP]
-        assert "ride along skipped" in capsys.readouterr().out
-
-    def test_nothing_to_remap_moves_nothing(self, store):
-        seed(links=(("ZZZ", "YYY"),))
-        plan = self.plan()
-        assert self.run(plan, [XW, ADP]) == []
-        assert plan["publish"] == [LINK, NPL, SNAP] and "riders" not in plan
+    def test_the_pipeline_call_does_nothing_when_nflverse_did_not_pass(self, store, monkeypatch, capsys):
+        seed()
+        restored = self.wire(monkeypatch)
+        plan = {"passed": ["fantrax_core"], "failed": {"nflverse": ["x"]}, "publish": [XW, ADP], "restore": []}
+        rp.rekey_gsis_links(plan, CHAINS, [], {})
+        assert restored == [] and ids(XW) == [OLD, OTHER] and "did not pass" in capsys.readouterr().out

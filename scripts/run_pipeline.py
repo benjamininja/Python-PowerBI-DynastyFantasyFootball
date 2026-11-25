@@ -11,12 +11,14 @@ Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
 and each registry table carries one). After the steps, notebooks/etl_checks.py runs
 the Gate checks on every table of each Chain that ran. A Chain with a failed
 or skipped step or a failed Gate is held: its tracked parquet is restored
-from git HEAD and never staged; the other Chains still publish. A run never
-stages a manual-only table (no Chain), with one id-only exception (#639): a
-published table holding a gsis_id of a Chain that did not run or was held is
-restored to HEAD, has each old gsis_id of dim_gsis_link put on its newest id,
-passes its Gate and then publishes with the run, so a link row the nflverse
-Chain wrote never meets an old id in another Chain's table. It reaches main by a PR of its own or,
+from git HEAD and never staged; the other Chains still publish. One id-only
+exception (ADR-0008 amendment, #639): the gsis_id re-key belongs to the nflverse
+Chain and is all or nothing. A table holding a gsis_id of a Chain that did not
+run or was held goes back to its published rows, has each old gsis_id of
+dim_gsis_link put on its newest id and publishes with the nflverse Chain's link
+row, or neither does (one table refusing, one Gate failing or a step raising
+puts every remapped table back and holds nflverse). A run never
+stages a manual-only table (no Chain). It reaches main by a PR of its own or,
 on the owner's command only, by `--publish-manual TABLE ...` (#616): an
 allowlisted manual-only table is Gate-checked and exported from the store,
 then lands by the same data PR as a Chain publish.
@@ -704,6 +706,7 @@ def _withhold(plan: dict) -> None:
     """Nothing publishes: the passing Chains are listed as not published."""
     plan["publish"] = []
     plan["unpublished"] = list(plan["passed"])
+    plan.pop("riders", None)
 
 
 def _dirty_data(tables: list[str], cwd: Path) -> int:
@@ -800,88 +803,147 @@ def restore_to_head(tables: list[str], cwd: Path = REPO) -> None:
     url = os.environ.get(pg.URL_ENV)
     if not url:
         raise RuntimeError(f"{pg.URL_ENV} is not set")
+    moved = _dirty_data(tables, cwd)
+    if moved:
+        raise RuntimeError(f"{moved} file(s) under data/ differ from HEAD; the snapshot to reload from is not clean")
     loaded = pg.reload_snapshot(url, tables, cwd / "data")
     if loaded.problems:
         raise RuntimeError(loaded.problems[0])
 
 
-def ride_along(plan: dict, candidates: list[str],
-               restore: Callable[[list[str]], None],
-               rekey: Callable[[list[str]], list[str]],
-               gate: Callable[[list[str]], list[str]]) -> list[str]:
-    """The tables that hold a gsis_id and are not in a passing Chain (#639): a
-    Chain that did not run this run, or was held. A link row the nflverse Chain
-    wrote reaches them only here, since their own writers may not have run.
+GSIS_CHAIN = "nflverse"
 
-    A held table first goes back to its published rows (`restore`), so no
-    unvetted row of the held run rides. `rekey` puts every old id on its newest
-    id and returns the tables it changed (ids only). `gate` returns the tables
-    among them whose Gate fails; those go back to the published rows and stay
-    out. The rest move into plan["publish"] (out of plan["restore"]) and are
-    listed in plan["riders"]. Returns the riders; a step that raises is the
-    caller's to report, with nothing moved."""
-    held = [t for t in candidates if t in plan["restore"]]
-    if held:
-        restore(held)
-    changed = rekey(candidates)
-    if not changed:
+
+def hold_chain(plan: dict, chain: str, reason: str, chains: dict[str, list[str]]) -> None:
+    """Hold a Chain that had passed: it leaves plan["passed"], its tables go to
+    plan["restore"], and so do the riders, which stop publishing with it."""
+    riders = set(plan.pop("riders", ()))
+    plan["passed"] = [c for c in plan["passed"] if c != chain]
+    plan["failed"] = {**plan["failed"], chain: [reason]}
+    out = set(chains.get(chain, ())) | riders
+    plan["publish"] = sorted(set(plan["publish"]) - out)
+    plan["restore"] = sorted(set(plan["restore"]) | out)
+
+
+def rekey_all_or_nothing(plan: dict, chains: dict[str, list[str]], candidates: list[str],
+                         needs: Callable[[list[str]], list[str]],
+                         restore: Callable[[list[str]], None],
+                         rekey: Callable[[list[str], bool], dict],
+                         undo: Callable[[list[str]], None],
+                         gate: Callable[[list[str]], list[str]]) -> list[str]:
+    """The gsis_id re-key belongs to the nflverse Chain (#639, ADR-0008
+    amendment): the link row it publishes and the id change in every published
+    table that holds a gsis_id publish together, or none of it does.
+
+    Does nothing unless nflverse is a passing Chain. The targets are the gsis
+    tables of the passing Chains (this run's vetted rows) and the `candidates`
+    outside them, a Chain that did not run or was held, of which `needs` picks
+    those whose PUBLISHED rows hold an old id; each of those goes back to its
+    published rows first (`restore`), so a store a failed or `--no-commit` run
+    left remapped heals, and no unvetted row rides. `rekey(tables, dry_run)`
+    must return the rekey_gsis_tables dict. The dry run decides first: one
+    refused table holds nflverse and nothing is written. Then the remap is
+    written and `gate` returns the changed tables whose Gate fails; one failure,
+    or any step that raises, puts every remapped table back (`undo`) and holds
+    nflverse (`hold_chain`). A failing `restore` or `undo` is not caught: the
+    run ends as failed. On success the riders move into plan["publish"] and
+    plan["riders"]. Returns the riders."""
+    if GSIS_CHAIN not in plan["passed"]:
         return []
-    bad = gate(changed)
-    if bad:
-        restore(bad)
-    riders = [t for t in changed if t not in bad]
-    plan["publish"] = sorted(set(plan["publish"]) | set(riders))
-    plan["restore"] = sorted(set(plan["restore"]) - set(riders))
-    plan["riders"] = riders
-    return riders
+    passing = [t for c in plan["passed"] for t in chains.get(c, ())]
+    written: list[str] = []
+    reason = None
+    try:
+        riders = needs(candidates)
+    except Exception as exc:
+        return hold_with(plan, chains, f"gsis re-key held: published rows unreadable ({type(exc).__name__})")
+    if riders:
+        restore(riders)
+    targets = sorted(set(passing) | set(riders))
+    try:
+        dry = rekey(targets, True)
+        if dry["refused"]:
+            reason = "gsis re-key held: " + "; ".join(sorted(dry["refused"].values()))
+        elif dry["changed"]:
+            done = rekey(targets, False)
+            written = list(done["changed"])
+            failing = gate(written)
+            if failing:
+                reason = f"gsis re-key held: Gate failed on {', '.join(failing)} after the id change"
+    except Exception as exc:
+        reason = f"gsis re-key held: a step raised ({type(exc).__name__})"
+        written = written or targets
+    if reason:
+        if written:
+            undo(written)
+        hold_chain(plan, GSIS_CHAIN, reason, chains)
+        return []
+    rode = [t for t in written if t in riders]
+    if rode:
+        plan["publish"] = sorted(set(plan["publish"]) | set(rode))
+        plan["restore"] = sorted(set(plan["restore"]) - set(rode))
+        plan["riders"] = rode
+    return rode
 
 
-def rekey_report(where: str, result: dict) -> None:
-    """Print what a `rekey_gsis_tables` call did: names and counts only."""
+def hold_with(plan: dict, chains: dict[str, list[str]], reason: str) -> list[str]:
+    hold_chain(plan, GSIS_CHAIN, reason, chains)
+    return []
+
+
+def rekey_report(result: dict) -> None:
+    """Print what a `rekey_gsis_tables` call changed, names and counts only."""
     for name in result["changed"]:
         moved = ", ".join(f"{c} {n}" for c, n in result["stats"][name]["changed"].items())
-        print(f"[gsis] {name}: old gsis_id put on its newest id ({moved}), {where}")
-    for name, why in result["refused"].items():
-        print(f"[gsis] {name}: REFUSED, left as it is ({why})")
+        print(f"[gsis] {name}: old gsis_id put on its newest id ({moved})")
 
 
-def ride_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: list[str],
-                    read_from: dict) -> None:
-    """#639: the gsis tables outside a passing Chain get the run's link rows
-    (`ride_along`). Never aborts the run: a failure restores those tables to
-    the published rows, is printed, and the data PR's own test then reports
-    the old id."""
+def rekey_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: list[str],
+                     read_from: dict) -> None:
+    """#639: `rekey_all_or_nothing` over the real store. Not caught here: a
+    restore or an undo that fails ends the run as failed, its notice sent."""
+    if GSIS_CHAIN not in plan["passed"]:
+        print(f"[gsis] {GSIS_CHAIN} did not pass: no gsis_id is re-keyed from this run's links")
+        return
     chain_of = {t: c for c, ts in chains.items() for t in ts}
-    try:
-        candidates = [t for t in etl_helpers.gsis_id_tables()
-                      if chain_of.get(t) and chain_of[t] not in plan["passed"]]
-    except Exception as exc:
-        print(f"[gsis] ride along skipped, the store could not be listed ({type(exc).__name__})")
-        return
-    if not candidates:
-        return
+    listed = [t for t in etl_helpers.gsis_id_tables()
+              if chain_of.get(t) and chain_of[t] not in plan["passed"]]
+    tracked = tracked_at_head(listed) if listed else set()
+    candidates = [t for t in listed if f"data/{t}.parquet" in tracked]
+    old = (set(etl_helpers.read_table(etl_helpers.GSIS_LINK_TABLE)["old_gsis_id"])
+           if etl_helpers.table_exists(etl_helpers.GSIS_LINK_TABLE) else set())
+    saved: dict = {}
+
+    def needs(tables):
+        if not storage_is_postgres():
+            _data_to_head(tables, REPO)
+        out = []
+        for t in tables:
+            ids = etl_helpers.read_stored(t, REPO / "data")["gsis_id"].dropna()
+            if old & set(ids):
+                out.append(t)
+        return out
+
+    def rekey(tables, dry_run):
+        done = etl_helpers.rekey_gsis_tables(only=tables, dry_run=dry_run, undo=saved)
+        if not dry_run:
+            rekey_report(done)
+        return done
+
+    def undo(tables):
+        for t in tables:
+            if t in saved:
+                etl_helpers.write_table(t, saved[t])
 
     def gate(tables):
         suite = etl_checks.run_suite(tables, accept_shrink, **read_from)
         return sorted({r.table for r in suite if r.tier == "gate" and not r.ok})
 
-    def rekey(tables):
-        done = etl_helpers.rekey_gsis_tables(only=tables)
-        rekey_report("a Chain that did not publish", done)
-        return done["changed"]
-
-    try:
-        riders = ride_along(plan, candidates, restore_to_head, rekey, gate)
-    except Exception as exc:
-        print(f"[gsis] ride along failed ({type(exc).__name__}); {len(candidates)} table(s) "
-              f"go back to the published rows")
-        try:
-            restore_to_head(candidates)
-        except Exception as again:
-            print(f"[gsis] restore failed too ({type(again).__name__}); check data/ against HEAD")
-        return
+    riders = rekey_all_or_nothing(plan, chains, candidates, needs, restore_to_head, rekey, undo, gate)
     if riders:
-        print(f"[chain] riders: {', '.join(riders)} publish with an id-only remap")
+        print(f"[chain] riders: {', '.join(riders)} publish with the {GSIS_CHAIN} re-key")
+    elif GSIS_CHAIN not in plan["passed"]:
+        print(f"[chain] {GSIS_CHAIN}: HELD — {'; '.join(plan['failed'][GSIS_CHAIN])}")
 
 
 def tracked_at_head(tables: list[str], cwd: Path = REPO) -> set[str]:
@@ -1178,6 +1240,9 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
                   for c in plan["passed"]]
         lines += [f"🛑 {c}: held at HEAD — {'; '.join(w)[:300]}"
                   for c, w in plan["failed"].items()]
+        if plan.get("riders"):
+            lines.append(f"♻️ gsis ids put on their newest id and published outside their Chain: "
+                         f"{', '.join(plan['riders'])}")
         lines += [f"♻️ {n}" for n in plan.get("notes", [])]
     if filed:
         lines.append(f"🔎 Review findings: {filed['open']} open "
@@ -1315,24 +1380,21 @@ def main() -> int:
             ran = {s["chain"] for s in steps if s["name"] in {r["name"] for r in results}}
             # data_dir=None: under Postgres the Gates read the database.
             read_from = {"data_dir": None} if storage_is_postgres() else {}
-            # #639: no table of a Chain that ran keeps an old gsis_id into its Gate.
-            try:
-                rekey_report("a Chain that ran", etl_helpers.rekey_gsis_tables(
-                    only=[t for c in ran for t in chains.get(c, [])]))
-            except Exception as exc:
-                print(f"[gsis] remap of the Chains that ran failed ({type(exc).__name__}); "
-                      f"the Gate and the data PR's test report any old id")
-            suite = etl_checks.run_suite([t for c in ran for t in chains.get(c, [])],
-                                         args.accept_shrink, **read_from)
+            ran_tables = [t for c in ran for t in chains.get(c, [])]
+            suite = etl_checks.run_suite(ran_tables, args.accept_shrink, **read_from)
             plan = plan_publish(steps, results, suite, chains)
             for c in plan["passed"]:
                 print(f"[chain] {c}: pass")
             for c, w in plan["failed"].items():
                 print(f"[chain] {c}: HELD — {'; '.join(w)}")
+            # #639: the gsis_id re-key is the nflverse Chain's and is all or
+            # nothing. Nothing publishes under --no-commit, and a held Chain's
+            # output stays on disk for inspection, so it does not run there.
+            if not args.no_commit:
+                rekey_gsis_links(plan, chains, args.accept_shrink, read_from)
             # File only what publishes: a held Chain's tables revert to HEAD.
             filed = etl_checks.file_review(
                 [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
-            ride_gsis_links(plan, chains, args.accept_shrink, read_from)
 
         reviews = review_counts()
         rows, landed = None, {}

@@ -1734,15 +1734,21 @@ def gsis_id_tables() -> list[str]:
                   and table_exists(n))
 
 
-def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False) -> dict:
+def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
+                      undo: dict | None = None) -> dict:
     """Put every old gsis_id of the stored tables on its newest id (#639): the
     one place the remap is done, for the pipeline after its steps and for
     scripts/rekey_gsis_history.py. `only` limits it to those of
     `gsis_id_tables()`. A table is read whole only when its gsis_id column
     holds an old id, checked with `rekey_check`, and written through the seam
-    only then; a table whose check refuses stays as it is. Returns
-    {"changed": [table], "refused": {table: reason}, "stats": {table: counts}}.
-    Counts and names only, never an id."""
+    only then; a table whose check refuses (a key that would break, or a loop
+    in the links) stays as it is and is listed in "refused". It reads the
+    stored dim_gsis_link and dim_nfl_players: the caller decides whether those
+    publish. `undo`, when given, receives each written table's rows as they
+    were, so a caller can put them back.
+
+    Returns {"changed": [table], "refused": {table: reason}, "stats": {table:
+    counts}}. Counts and names only, never an id."""
     out: dict = {"changed": [], "refused": {}, "stats": {}}
     if not table_exists(GSIS_LINK_TABLE):
         return out
@@ -1756,15 +1762,20 @@ def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False) 
         if not old & set(read_table(name, ["gsis_id"])["gsis_id"].dropna()):
             continue
         before = read_table(name)
-        after = rekey_frame(name, before, links)
         try:
+            after = rekey_frame(name, before, links)
             stats = rekey_check(name, before, after, valid, links)
         except RekeyRefused as exc:
             out["refused"][name] = str(exc)
             continue
+        except ValueError:
+            out["refused"][name] = f"{name}: the links in {GSIS_LINK_TABLE} loop"
+            continue
         out["stats"][name] = stats
         if any(stats["changed"].values()):
             if not dry_run:
+                if undo is not None:
+                    undo[name] = before
                 write_table(name, after)
             out["changed"].append(name)
     return out

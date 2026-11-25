@@ -20,7 +20,11 @@ This is deliberate and narrowly scoped: the orchestrator stages only the
 tracked parquet of the Chains that passed their steps and Gate checks (ADR-0008
 amendment, #115), restores a held Chain's parquet from `HEAD`, verifies every
 staged path matches `data/*.parquet` (aborts otherwise) and skips the commit
-entirely when nothing changed. It then commits to a new branch
+entirely when nothing changed. One id-only exception (ADR-0008 amendment,
+#639): the `gsis_id` re-key belongs to the `nflverse` Chain and is all or
+nothing, so a table of a Chain that did not run or was held, put back to its
+published rows with only its id columns moved to the newest id, is staged with
+the `nflverse` Chain's link row, or neither is. It then commits to a new branch
 `data/<date>-<phase>-wk<NN>` (with a `-2`, `-3` suffix when an earlier run's
 branch still exists), rebases it on `origin/main`, pushes the branch and
 opens a PR titled `data: pipeline refresh <date> (<phase>, wk <NN>)`. It polls
