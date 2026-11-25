@@ -10,13 +10,53 @@ name: tests
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 jobs:
+  # One output, heavy (#581). False only on a pull request whose every changed
+  # path ends in .md or starts with .claude/memory/; any other path, every .yml
+  # included (the tests read docs/data_model.yml and docs/sources.yml), makes it
+  # true, and so does a push to main. The heavy jobs skip through if:, never a
+  # paths filter, so a skipped required check reports as passed.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      heavy: ${{ steps.diff.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          heavy=true
+          if [ "$EVENT" = "pull_request" ]; then
+            files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+            if [ -n "$files" ]; then
+              heavy=false
+              while IFS= read -r f; do
+                case "$f" in
+                  *.md | .claude/memory/*) ;;
+                  *) heavy=true ;;
+                esac
+              done <<< "$files"
+            fi
+            echo "$files"
+          fi
+          echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+
   tests:
+    needs: scope
+    if: needs.scope.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +76,8 @@ jobs:
   # login the scheduled run uses, into a scratch schema it owns. A skipped
   # case fails the job. No secret; nothing here reaches the real project.
   storage-pg:
+    needs: scope
+    if: needs.scope.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -110,6 +152,8 @@ jobs:
       - run: python scripts/run_pipeline.py --check-only
 
   bot-tests:
+    needs: scope
+    if: needs.scope.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
