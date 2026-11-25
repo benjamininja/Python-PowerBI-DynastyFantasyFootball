@@ -61,6 +61,8 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 ### Next (in order)
 
+0. **Owed first, 2026-11-25.** (a) When the manager sends PR #689's merge commit: check the bodies of #670 and #675 once more against the merged code (registry, generator, test files, `tests/role_phase_action.csv` unchanged since `a19a5b3`?) and tell the manager before either dispatches. (b) Then write the one `GOAL-RUN.md` check-lines PR (#661's lines, #662's lines, #688's re-proof line); ask Ben again by button if the session has changed. (c) When #670's PR opens: its check lines on #670, with the `security_invoker` line. (d) Read #639's and #686's PRs when the manager asks. (e) 2026-11-28: the draft advisory. (f) Before 2026-12-03: the `02d` switch question.
+
 1. **#661 merged as PR #685 (`86e4d00`).** Its check lines are on #661 (issuecomment-7135889563): the manager uses that comment for this merge. **Ben's button, 2026-11-24: one planner PR adds the #661 and #662 check lines to `GOAL-RUN.md`, after #662's lines exist; he approves its merge.** Write #662's lines when its PR opens. PR #685 leaves a held second migration (the `final_at` default is dropped at the owner's dispatch). Carry into the restated #663: nothing but grants keeps the table owner from changing a history row. #682's page wording must not promise that only the last version of a choice is shown. Review advisory F1 of PR #685 is backlog ticket #687.
 2. **The briefs are posted, all medium.** Order: #661, #662, #670 (same files, so one after the other), #682 (brief 4), the after-deadline copy (#548 issuecomment-7104493151; no ticket yet, file it when it is next in line), #663, #664, #665. Restate #663 to #665, #675 and #676 against the merged code before dispatch. Of the six points ADR-0026 lists as not decided, the read path is ruled (#670). When #670's PR opens, send the manager a `GOAL-RUN.md` line: every view in `app` has `security_invoker` on. What each brief holds (brief 4 lands outside 2026-12-03 to 2027-01-07 and before the 2027 re-sign deadline):
    - Foundations, before any owner write: the append-only history, the `final` instant (required, later than the deadline, not movable once passed), `origin` commissioner, `shared.app_role` with a league scope, the role, phase and action table and its policy tests.
@@ -78,11 +80,11 @@ New tickets: #654 (owner-led grill, below); #655 (owner-led: about 53 GB of per-
 
 ### Peers (queue ids)
 
-Ids as of 2026-11-25, each sent by its session; find each by name. Tools-central-planner is now `ad857488-55b0-4c62-90d5-3ee43f4e0c99` and Tools-builder-manager `dabbbcd0-2b97-445e-a2d9-4502691fb617`; the two lines below for them hold older ids.
+Ids as of 2026-11-25, each sent by its session; find each by name.
 
 - dff-central-builder-manager: `4ff97ebc-bfd4-4723-997c-406160d975ba` (new after its clear on 2026-11-24). PR #669 (#616) is merged as `1b1fc23`; PR #672 (#671) as `1eda32b`; PR #684 (#597) waits on Ben's `01c` re-run; b661-choicehist has PR #685 open. Ben's go to the manager: the chain #661, #662, #670, then #682.
-- Tools-central-planner: `2f55ae6a-00e1-46b6-9f89-e3d2d939e0de`. Tools PR #249 has not merged (it follows tools PRs #205 and #253); it sends a line when it does.
-- Tools-builder-manager: `e7026592-a1b4-4ccd-afea-61d5cf451e9f` (new after its clear on 2026-11-24). It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
+- Tools-central-planner: `ad857488-55b0-4c62-90d5-3ee43f4e0c99`. Tools PR #210 merged as `f873dd3` (session-rules text changed; a session loads it at its next start). Tools PR #249 has not merged (it follows tools PRs #205 and #253); it sends a line when it does.
+- Tools-builder-manager: `dabbbcd0-2b97-445e-a2d9-4502691fb617`. It sends the lock text for #620 after tools PR #242 merges. It asks Ben's go for tools #137 by button once the planner's refreshed brief is posted.
 - personal-assistant: reads only, reports findings.
 - After a clear: send the manager and the Tools planner the new id.
 
