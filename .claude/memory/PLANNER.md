@@ -29,6 +29,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 9. **Waiting, no date:** gap tickets #683 (low) and #687 (low, backlog) on the owner's go to the manager. #592 held (rewrite with #545's move to `ops.choice_deadline`). #620 waits on tools PR #242's lock text. #604 and #590 at the owner's go.
 10. **#711:** the Current block, the reset prompt and the role file's read list are slimmed (PR #712 merged as `2ba4932`, 2026-11-25 15:17 UTC). Still owed: after the next clear, measure the start with the method on tools #258 and post the number on #711.
 11. **The stored GitHub login is the narrowed token** (tools #204): a refused call that worked before is reported to the Tools planner, not retried.
+12. **The tools Windows check:** the owner's word in the Tools planner's chat (2026-11-25, about 16:10 UTC) is that it comes back only after the research on tools #187 and after this planner has read the Tools planner's plan and approved or rejected it, recorded on tools #187; then the owner is asked. Nothing is owed until the plan arrives. Dynasty's CI practice and the advice are on tools #187 issuecomment-7167705958.
 
 ### Peers (queue ids)
 
