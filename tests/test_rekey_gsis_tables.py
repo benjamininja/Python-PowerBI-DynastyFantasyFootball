@@ -10,6 +10,7 @@ applied the link. Nothing here touches data/ or git.
 """
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "scripts"))
@@ -322,6 +323,52 @@ class TestAllOrNothing:
         plan = plan_of()
         assert pipe.run(plan) == []
         assert plan["passed"] == ["nflverse"] and "riders" not in plan
+
+
+class TestMainFiling:
+    def test_a_held_chains_review_results_are_not_filed_when_its_tables_ride(self, store, monkeypatch, tmp_path):
+        seed()
+        real = rp.etl_checks.chain_tables(rp.etl_checks.load_registry())
+        chain_of = {t: c for c, ts in real.items() for t in ts}
+        steps = [{"name": "s_nfl", "cmd": [], "phases": {"INSEASON"}, "needs": [],
+                  "chain": "nflverse", "group": "pre_season"},
+                 {"name": "s_fx", "cmd": [], "phases": {"INSEASON"}, "needs": [],
+                  "chain": "fantrax_core", "group": "regular_season"}]
+        filed = []
+
+        def suite(tables, accepted, **kw):
+            return ([rp.etl_checks.Result("grain", t, chain_of[t], "gate", True) for t in tables]
+                    + [rp.etl_checks.Result("rows", t, chain_of[t], "review", False, "x",
+                                            findings=[("k", "d")]) for t in tables])
+
+        monkeypatch.setattr(sys, "argv", ["run_pipeline.py", "--phase", "INSEASON", "--no-push"])
+        monkeypatch.setattr(rp, "_load_04a", lambda: SimpleNamespace(derive_week_label=lambda cfg: "8", CFG=None))
+        monkeypatch.setattr(rp, "build_steps", lambda profile: steps)
+        monkeypatch.setattr(rp, "run_steps", lambda *a, **k: [
+            {"name": "s_nfl", "status": "ok", "detail": ""},
+            {"name": "s_fx", "status": "failed", "detail": "boom"}])
+        monkeypatch.setattr(rp, "read_contract_list", lambda: None)
+        monkeypatch.setattr(rp.etl_checks, "run_suite", suite)
+        monkeypatch.setattr(rp.etl_checks, "file_review",
+                            lambda results, run_id=None: filed.extend(r.table for r in results) or
+                            {"open": 0, "opened": 0, "cleared": 0, "repeated": 0})
+        monkeypatch.setattr(rp, "restore_to_head", lambda t: None)
+        monkeypatch.setattr(rp, "_data_to_head", lambda t, cwd=None: None)
+        monkeypatch.setattr(rp, "tracked_at_head", lambda t, cwd=None: {f"data/{n}.parquet" for n in t})
+        monkeypatch.setattr(rp.etl_helpers, "read_stored",
+                            lambda name, data_dir=None: pd.DataFrame({"gsis_id": [OLD, OTHER]}))
+        committed = {}
+        monkeypatch.setattr(rp, "commit_data", lambda *a, **k: committed.update(k) or "stub")
+        monkeypatch.setattr(rp, "notify", lambda text: None)
+        monkeypatch.setattr(rp, "review_counts", lambda: {})
+        monkeypatch.setattr(rp, "OUT_DIR", tmp_path)
+
+        rp.main()
+
+        assert {XW, ADP} <= set(committed["publish"])
+        assert filed and not ({XW, ADP} & set(filed))
+        assert LINK in filed
+        assert ids(XW) == [NEW, OTHER]
 
 
 class TestRekeyGsisLinks:

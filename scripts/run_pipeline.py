@@ -915,7 +915,10 @@ def rekey_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: li
     saved: dict = {}
 
     def needs(tables):
-        if not storage_is_postgres():
+        if storage_is_postgres():
+            if _dirty_data(tables, REPO):
+                raise RuntimeError("data/ differs from HEAD; the published rows are not clean")
+        else:
             _data_to_head(tables, REPO)
         out = []
         for t in tables:
@@ -1393,8 +1396,13 @@ def main() -> int:
             if not args.no_commit:
                 rekey_gsis_links(plan, chains, args.accept_shrink, read_from)
             # File only what publishes: a held Chain's tables revert to HEAD.
+            # A rider's rows are its published rows, whose findings were filed
+            # when they published, and the results here were computed on the
+            # held run's unvetted rows (ADR-0008 amendment, #639).
+            riders = set(plan.get("riders", ()))
             filed = etl_checks.file_review(
-                [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
+                [r for r in suite if r.table in plan["publish"] and r.table not in riders],
+                run_id=_run_id())
 
         reviews = review_counts()
         rows, landed = None, {}

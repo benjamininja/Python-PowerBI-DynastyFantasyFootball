@@ -1756,6 +1756,11 @@ def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
     names = [n for n in gsis_id_tables() if only is None or n in set(only)]
     if links.empty or not names:
         return out
+    try:
+        _gsis_link_map(links)
+    except ValueError:
+        out["refused"] = {n: f"{n}: the links in {GSIS_LINK_TABLE} loop" for n in names}
+        return out
     old = set(links["old_gsis_id"])
     valid = set(read_table("dim_nfl_players")["gsis_id"].dropna())
     for name in names:
@@ -1767,9 +1772,6 @@ def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
             stats = rekey_check(name, before, after, valid, links)
         except RekeyRefused as exc:
             out["refused"][name] = str(exc)
-            continue
-        except ValueError:
-            out["refused"][name] = f"{name}: the links in {GSIS_LINK_TABLE} loop"
             continue
         out["stats"][name] = stats
         if any(stats["changed"].values()):
