@@ -15,13 +15,31 @@ DROP COLUMN or DROP TABLE when the state file still holds it; an entry whose
 item the state no longer holds is history and writes nothing. Drops go in a
 migration of their own, after the run's other changes. Every other drop
 stays refused. A table in a schema in OWN_GRANT_SCHEMAS (ADR-0025) is not
-granted the blanket way: it names its own `grants` and `policies`, and so does
-the one `ops` table in OWN_GRANT_TABLES, which then gets no blanket grant. A column may
+granted the blanket way: it names its own `grants` (to etl_writer or
+authenticated, never anon, with an optional `columns` key per privilege) and
+`policies`, and so does the one `ops` table in OWN_GRANT_TABLES, which then gets
+no blanket grant. On a table that exists, a grant to a role it has none for and
+a policy of a new name are added; any other change to them stays refused. The
+registry's `shared.owner_crosswalk` brings the two SECURITY DEFINER functions of
+FUNCTION_ACCESS, EXECUTE for authenticated only, and the first grant to
+authenticated on `app` revokes what anon could inherit there. The registry's
+`shared.app_role` (#662) brings two more of them, the commissioner check per team
+and the site admin check, and puts its ids in `shared.pii_token_hashes()` (a
+replacement of that function). Each of the two tables also brings a load function
+(#700, LOAD_CROSSWALK_FUNCTION and LOAD_ROLES_FUNCTION), EXECUTE for etl_writer
+only. A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
-(each in `ops`, `search_path` pinned empty, not SECURITY DEFINER, EXECUTE
-revoked from PUBLIC). Later changes to those fields on an existing table are
-refused. No change writes nothing and exits 0. A registry that breaks a rule
-exits 2.
+(each in `ops`, `search_path` pinned empty, EXECUTE revoked from PUBLIC, and
+SECURITY DEFINER only with `definer: true`, #661). On a table that exists, a
+trigger of a new name is added too; a change to or a drop of an existing one is
+refused. A required column carries a `fill` (#661) when it is added to a table
+that has rows: ADD COLUMN with the fill as its default, so no UPDATE runs and no
+trigger is touched, then DROP DEFAULT in the migration of its own that holds the
+drops (#534; the gate holds it for the owner's dispatch). The one policy of
+REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and
+`shared.choice_window` is replaced with CREATE OR REPLACE (REPLACEABLE_FUNCTIONS).
+Other later changes to those fields on an existing table are refused. No change
+writes nothing and exits 0. A registry that breaks a rule exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
 Line 1 of the migration holds the sha256 of the state file it produces. The
@@ -47,7 +65,10 @@ SCHEMAS = ("football", "shared", "ops", "app")
 GRANTED_SCHEMAS = ("football", "ops")
 OWN_GRANT_SCHEMAS = ("app",)
 OWN_GRANT_TABLES = ("ops.choice_deadline",)
+OWN_GRANT_ROLES = ("etl_writer", "authenticated")
+NEVER_GRANTED = ("anon",)
 PRIVILEGES = ("SELECT", "INSERT", "UPDATE", "DELETE")
+COLUMN_PRIVILEGES = ("INSERT", "UPDATE")
 TRIGGER_SCHEMA = "ops"
 TRIGGER_TIMINGS = ("BEFORE", "AFTER")
 TRIGGER_EVENTS = ("INSERT", "UPDATE", "DELETE", "TRUNCATE")
@@ -82,6 +103,193 @@ AS $fn$
     ) s
     WHERE s.token IS NOT NULL AND s.token <> ''
 $fn$;"""
+# With the owner crosswalk declared (ADR-0025 decision 5) the list also holds each
+# Discord id, so the data-commit check fails a commit that carries one. The split
+# class is written `[[:space:]]`, the same set `\s` names, because the migration
+# gate holds any single-quoted string with a backslash.
+PII_FUNCTION_CROSSWALK_SQL = """CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')
+    FROM (
+        SELECT regexp_split_to_table(lower(o.human_name), '[[:space:]]+') AS token FROM shared.owner o
+        UNION
+        SELECT lower(o.fantrax_username) FROM shared.owner o
+        UNION
+        SELECT c.discord_user_id FROM shared.owner_crosswalk c
+    ) s
+    WHERE s.token IS NOT NULL AND s.token <> ''
+$fn$;"""
+
+CROSSWALK_TABLE = "shared.owner_crosswalk"
+TEAMS_FUNCTION = "shared.caller_team_keys"
+TEAMS_FUNCTION_SQL = """CREATE FUNCTION shared.caller_team_keys() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT c.team_key
+    FROM shared.owner_crosswalk c
+    JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = c.discord_user_id
+    WHERE i.user_id = auth.uid()
+$fn$;"""
+OPEN_FUNCTION = "shared.choice_window"
+OPEN_FUNCTION_SQL = """CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT coalesce(
+        (SELECT CASE WHEN d.final_at <= clock_timestamp() THEN 'final'
+                     WHEN d.deadline_at > clock_timestamp() THEN 'open'
+                     ELSE 'passed' END
+         FROM ops.choice_deadline d
+         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),
+        'none')
+$fn$;"""
+# With the role table declared (ADR-0026 decision 2, #662) the list holds its ids too.
+PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
+    "        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n",
+    "        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n"
+    "        UNION\n"
+    "        SELECT r.discord_user_id FROM shared.app_role r\n")
+
+# The role table and the two checks policies will call (ADR-0026 decisions 1 to 3,
+# #662). A commissioner row names its league; a site admin row holds ALL_LEAGUES.
+# LEAGUE_PLACEHOLDER is the one league there is until #658 decides the key. That
+# issue changes the values the loader writes and the body of COMMISSIONER_FUNCTION_SQL
+# (the literal becomes the team's league), and no key and no policy. The function
+# is not in REPLACEABLE_FUNCTIONS today, so the generator refuses a changed body:
+# #658 adds COMMISSIONER_FUNCTION to that tuple in the same change.
+ROLE_TABLE = "shared.app_role"
+COMMISSIONER_FUNCTION = "shared.caller_is_commissioner_for"
+ADMIN_FUNCTION = "shared.caller_is_site_admin"
+LEAGUE_PLACEHOLDER = "main"
+ALL_LEAGUES = "*"
+TEAMS_TABLE = "football.dim_fantasy_teams"
+COMMISSIONER_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT EXISTS (
+        SELECT 1
+        FROM shared.app_role r
+        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
+        JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key
+        WHERE r.role = 'commissioner' AND r.league_key = '{LEAGUE_PLACEHOLDER}' AND i.user_id = auth.uid()
+    )
+$fn$;"""
+ADMIN_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_site_admin() RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT EXISTS (
+        SELECT 1
+        FROM shared.app_role r
+        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
+        WHERE r.role = 'site_admin' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
+    )
+$fn$;"""
+# The two load functions (ADR-0026 decision 2 as amended, #700): the scheduled run
+# replaces each table's rows through one of them, as `etl_writer`, which holds no
+# grant on either table. Each takes the whole set as two parallel arrays, refuses
+# without changing anything (an empty set, a malformed id, an unknown role word, a
+# team the database does not have, a repeated row) and returns row counts only. A
+# refusal message holds a count and never a value, and the write sits in an inner
+# block whose handler re-raises with the SQLSTATE alone, so a constraint's DETAIL
+# (which quotes the row) never leaves the function. The two names are the only
+# function bodies scripts/migration_gate.py lets hold a DELETE FROM.
+LOAD_CROSSWALK_FUNCTION = "shared.load_owner_crosswalk"
+LOAD_ROLES_FUNCTION = "shared.load_app_roles"
+LOAD_ARGS = "(text[], text[])"
+LOAD_CROSSWALK_FUNCTION_SQL = """CREATE FUNCTION shared.load_owner_crosswalk(p_team_keys text[], p_discord_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_keys integer := coalesce(cardinality(p_team_keys), 0);
+    v_ids integer := coalesce(cardinality(p_discord_ids), 0);
+    v_bad integer;
+BEGIN
+    IF v_keys = 0 OR v_keys <> v_ids THEN
+        RAISE EXCEPTION 'owner tab: refused, % team key(s) and % id(s); nothing changed', v_keys, v_ids;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)
+    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)
+    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM football.dim_fantasy_teams d WHERE d.team_key = u.t);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the database does not have; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT (u.t, u.i)) INTO v_bad FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % repeated row(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.owner_crosswalk;
+    BEGIN
+        DELETE FROM shared.owner_crosswalk WHERE true;
+        INSERT INTO shared.owner_crosswalk (team_key, discord_user_id)
+        SELECT u.t, u.i FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'owner tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.owner_crosswalk;
+    RETURN NEXT;
+END
+$fn$;"""
+LOAD_ROLES_FUNCTION_SQL = f"""CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_ids integer := coalesce(cardinality(p_discord_ids), 0);
+    v_roles integer := coalesce(cardinality(p_roles), 0);
+    v_bad integer;
+BEGIN
+    IF v_ids = 0 OR v_ids <> v_roles THEN
+        RAISE EXCEPTION 'App roles tab: refused, % id(s) and % role(s); nothing changed', v_ids, v_roles;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)
+    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_roles) AS u(r)
+    WHERE u.r IS NULL OR u.r NOT IN ('commissioner', 'site_admin');
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % role(s) are neither commissioner nor site_admin; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT (u.i, u.r)) INTO v_bad FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % repeated row(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.app_role;
+    BEGIN
+        DELETE FROM shared.app_role WHERE true;
+        INSERT INTO shared.app_role (discord_user_id, role, league_key)
+        SELECT u.i, u.r, CASE u.r WHEN 'site_admin' THEN '{ALL_LEAGUES}' ELSE '{LEAGUE_PLACEHOLDER}' END
+        FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.app_role;
+    RETURN NEXT;
+END
+$fn$;"""
+# The functions whose body a later registry may change: generator-owned text,
+# written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
+# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661).
+REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION)
+# The one policy a later registry may change in place (ADR-0026 decision 6, #661):
+# written as ALTER POLICY, which keeps its name, role and command. A change to any
+# other policy, or to this one's role or command, stays refused.
+REPLACEABLE_POLICIES = (("app.contract_choices", "signed_in_select_after_deadline"),)
+# Per `shared` function: the argument list its REVOKE and GRANT name, and the
+# roles (and only those) that hold EXECUTE (ADR-0025 decision 6).
+FUNCTION_ACCESS = {
+    PII_FUNCTION: ("()", ("etl_writer",)),
+    TEAMS_FUNCTION: ("()", ("authenticated",)),
+    OPEN_FUNCTION: ("(text, text)", ("authenticated",)),
+    COMMISSIONER_FUNCTION: ("(text)", ("authenticated",)),
+    ADMIN_FUNCTION: ("()", ("authenticated",)),
+    LOAD_CROSSWALK_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
+    LOAD_ROLES_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
+}
 
 
 class RegistryError(Exception):
@@ -124,19 +332,20 @@ def _known(columns, names, what):
 
 def _own_roles(schema, name):
     """The roles a table may name in its own grants, or None when it takes the
-    blanket grant: a table of a schema in OWN_GRANT_SCHEMAS may name etl_writer;
-    a table in OWN_GRANT_TABLES (a blanket schema's one exception, ADR-0025)
-    may name both ETL roles."""
+    blanket grant: a table of a schema in OWN_GRANT_SCHEMAS may name the roles of
+    OWN_GRANT_ROLES (never anon, never etl_reader); a table in OWN_GRANT_TABLES
+    (a blanket schema's one exception, ADR-0025) may name both ETL roles."""
     if schema in OWN_GRANT_SCHEMAS:
-        return ("etl_writer",)
+        return OWN_GRANT_ROLES
     if f"{schema}.{name}" in OWN_GRANT_TABLES:
         return ROLES
     return None
 
 
-def _grants(entry, where, roles):
-    """The table's own grants, `[{role, privileges}]`, only to a role `roles`
-    names."""
+def _grants(entry, where, roles, types):
+    """The table's own grants, `[{role, privileges, columns?}]`, only to a role
+    `roles` names. `columns` is `{INSERT: [...], UPDATE: [...]}`: a privilege it
+    names is granted on those columns alone, and the others on the whole table."""
     raw = entry.get("grants")
     if raw is None:
         return []
@@ -150,6 +359,8 @@ def _grants(entry, where, roles):
         if not isinstance(grant, dict):
             raise RegistryError(f"{where}: grant {grant!r}: expected a mapping")
         role = grant.get("role")
+        if role in NEVER_GRANTED:
+            raise RegistryError(f"{where}: grant to {role}: {role} is never granted anything")
         if role not in roles:
             raise RegistryError(f"{where}: grant to {role!r}: not one of {', '.join(roles)}")
         if role in seen:
@@ -159,7 +370,23 @@ def _grants(entry, where, roles):
         bad = [p for p in privileges if p not in PRIVILEGES]
         if bad:
             raise RegistryError(f"{where}: grant to {role}: {bad[0]!r} is not one of {', '.join(PRIVILEGES)}")
-        grants.append({"role": role, "privileges": sorted(privileges, key=PRIVILEGES.index)})
+        spec = {"role": role, "privileges": sorted(privileges, key=PRIVILEGES.index)}
+        if grant.get("columns") is not None:
+            by_privilege = grant["columns"]
+            if not isinstance(by_privilege, dict) or not by_privilege:
+                raise RegistryError(f"{where}: grant to {role}: columns: expected a mapping of privilege to columns")
+            for privilege, names in by_privilege.items():
+                if privilege not in COLUMN_PRIVILEGES:
+                    raise RegistryError(f"{where}: grant to {role}: columns: {privilege!r} is not one of "
+                                        f"{', '.join(COLUMN_PRIVILEGES)}")
+                if privilege not in privileges:
+                    raise RegistryError(f"{where}: grant to {role}: columns names {privilege}, "
+                                        f"which the grant does not hold")
+                _known(types, _names(names, f"{where} grant to {role} {privilege} columns"),
+                       f"{where} grant to {role} {privilege} columns")
+            spec["columns"] = {p: _names(by_privilege[p], f"{where} grant to {role} {p} columns")
+                               for p in COLUMN_PRIVILEGES if p in by_privilege}
+        grants.append(spec)
     return grants
 
 
@@ -184,6 +411,8 @@ def _policies(entry, where, roles, grants):
             raise RegistryError(f"{where}: policy {name!r} is declared twice")
         names.add(name)
         role, command = policy.get("role"), policy.get("command")
+        if role in NEVER_GRANTED:
+            raise RegistryError(f"{where}: policy {name}: {role} is never granted anything")
         if role not in roles:
             raise RegistryError(f"{where}: policy {name}: role {role!r} is not one of {', '.join(roles)}")
         if command not in PRIVILEGES:
@@ -267,11 +496,17 @@ def _table_spec(entry, default_schema):
         column = {"name": col_name, "sql_type": sql_type, "not_null": False}
         if col.get("default") is not None:
             column["default"] = _fragment(col["default"], f"{where}.{col_name} default")
+        if col.get("fill") is not None:
+            column["fill"] = _fragment(col["fill"], f"{where}.{col_name} fill")
         columns.append(column)
     _known(types, pk, f"{where} pk")
     _known(types, required, f"{where} required_keys")
     for col in columns:
         col["not_null"] = col["name"] in pk or col["name"] in required
+        if "fill" in col and not col["not_null"]:
+            raise RegistryError(f"{where}.{col['name']}: fill is for a required column only")
+        if "fill" in col and "default" in col:
+            raise RegistryError(f"{where}.{col['name']}: a column holds a default or a fill, not both")
     checks = []
     for expr in entry.get("checks") or []:
         expr = _fragment(expr, f"{where} check")
@@ -303,7 +538,7 @@ def _table_spec(entry, default_schema):
     spec = {"schema": schema, "name": name, "columns": columns, "pk": pk,
             "checks": checks, "fks": fks, "indexes": indexes}
     roles = _own_roles(schema, name)
-    grants = _grants(entry, where, roles)
+    grants = _grants(entry, where, roles, types)
     for key, items in (("grants", grants), ("policies", _policies(entry, where, roles, grants)),
                        ("triggers", _triggers(entry, where))):
         if items:
@@ -326,7 +561,11 @@ def _trigger_function(entry):
         raise RegistryError(f"trigger function {name}: needs a body")
     if "$fn$" in body:
         raise RegistryError(f"trigger function {name}: the body may not hold $fn$")
-    sql = (f"CREATE FUNCTION {name}() RETURNS trigger\nLANGUAGE plpgsql SET search_path = ''\n"
+    definer = entry.get("definer", False)
+    if not isinstance(definer, bool):
+        raise RegistryError(f"trigger function {name}: definer: expected true or false")
+    security = " SECURITY DEFINER" if definer else ""
+    sql = (f"CREATE FUNCTION {name}() RETURNS trigger\nLANGUAGE plpgsql{security} SET search_path = ''\n"
            f"AS $fn$\n{body.strip()}\n$fn$;")
     return name, sql
 
@@ -371,6 +610,29 @@ def desired_model(registry):
     if owner is not None:
         _known({c["name"] for c in owner["columns"]}, ["human_name", "fantrax_username"], "shared.owner")
         functions[PII_FUNCTION] = PII_FUNCTION_SQL
+    crosswalk = specs.get(CROSSWALK_TABLE)
+    if crosswalk is not None:
+        _known({c["name"] for c in crosswalk["columns"]}, ["team_key", "discord_user_id"], CROSSWALK_TABLE)
+        if "ops.choice_deadline" not in specs:
+            raise RegistryError(f"{CROSSWALK_TABLE}: the definer functions read ops.choice_deadline, which is not declared")
+        _known({c["name"] for c in specs["ops.choice_deadline"]["columns"]}, ["deadline_at", "final_at"],
+               "ops.choice_deadline")
+        functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
+        functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
+        functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
+        functions[LOAD_CROSSWALK_FUNCTION] = LOAD_CROSSWALK_FUNCTION_SQL
+    roles = specs.get(ROLE_TABLE)
+    if roles is not None:
+        if crosswalk is None:
+            raise RegistryError(f"{ROLE_TABLE}: the owner crosswalk is not declared")
+        _known({c["name"] for c in roles["columns"]}, ["discord_user_id", "role", "league_key"], ROLE_TABLE)
+        if TEAMS_TABLE not in specs:
+            raise RegistryError(f"{ROLE_TABLE}: the commissioner check reads {TEAMS_TABLE}, which is not declared")
+        _known({c["name"] for c in specs[TEAMS_TABLE]["columns"]}, ["team_key"], TEAMS_TABLE)
+        functions[PII_FUNCTION] = PII_FUNCTION_ROLES_SQL
+        functions[COMMISSIONER_FUNCTION] = COMMISSIONER_FUNCTION_SQL
+        functions[ADMIN_FUNCTION] = ADMIN_FUNCTION_SQL
+        functions[LOAD_ROLES_FUNCTION] = LOAD_ROLES_FUNCTION_SQL
     raw_functions = registry.get("trigger_functions") or []
     if not isinstance(raw_functions, list):
         raise RegistryError("trigger_functions: expected a list")
@@ -487,6 +749,8 @@ def _table_changes(key, old, new, out, flagged):
         before = old_cols.get(col["name"])
         if before is None:
             out["columns"].append((key, col))
+            if col.get("fill"):
+                out["default_drops"].append((key, col["name"]))
             continue
         if before["sql_type"] != col["sql_type"]:
             refuse.append(f"{key}.{col['name']}: type change from {before['sql_type']} to {col['sql_type']}")
@@ -494,9 +758,16 @@ def _table_changes(key, old, new, out, flagged):
             refuse.append(f"{key}.{col['name']}: change of NOT NULL")
         if before.get("default") != col.get("default"):
             refuse.append(f"{key}.{col['name']}: change of default")
-    for field in ("grants", "policies", "triggers"):
-        if old.get(field, []) != new.get(field, []):
+    for field, ident in (("grants", "role"), ("policies", "name"), ("triggers", "name")):
+        before, after = {i[ident]: i for i in old.get(field, [])}, {i[ident]: i for i in new.get(field, [])}
+        changed = [name for name, item in before.items() if after.get(name) != item]
+        replaced = [n for n in changed if field == "policies" and (key, n) in REPLACEABLE_POLICIES and n in after
+                    and all(after[n][k] == before[n][k] for k in ("role", "command"))]
+        if len(replaced) < len(changed):
             refuse.append(f"{key}: change of {field}")
+        else:
+            out["policy_replacements"] += [(key, after[name]) for name in replaced]
+            out[field] += [(key, item) for name, item in after.items() if name not in before]
     if old["pk"] != new["pk"]:
         refuse.append(f"{key}: change of primary key from {old['pk']} to {new['pk']}")
     gone = [e for e in old["checks"] if e not in new["checks"]]
@@ -530,7 +801,8 @@ def diff(old, new, drops=NO_DROPS):
     changes it holds that a migration may not make (`refusals`)."""
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
-           "column_drops": [], "table_drops": [], "refusals": []}
+           "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
+           "triggers": [], "policy_replacements": [], "default_drops": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -555,7 +827,10 @@ def diff(old, new, drops=NO_DROPS):
         if name not in old["functions"]:
             out["functions"].append((name, sql))
         elif old["functions"][name] != sql:
-            out["refusals"].append(f"{name}: change of function body")
+            if name in REPLACEABLE_FUNCTIONS:
+                out["function_replacements"].append((name, sql))
+            else:
+                out["refusals"].append(f"{name}: change of function body")
     out["refusals"] += [f"{n}: drop of function" for n in old["functions"] if n not in new["functions"]]
     old_triggers, new_triggers = old.get("trigger_functions", {}), new.get("trigger_functions", {})
     for name, sql in new_triggers.items():
@@ -598,7 +873,8 @@ def render(changes):
     out += [_role(r) for r in changes["roles"]]
     out += [_create_table(spec) for spec in changes["tables"]]
     for key, col in changes["columns"]:
-        out.append(f"ALTER TABLE {key} ADD COLUMN {_column_sql(col)};")
+        shown = {**col, "default": col["fill"]} if col.get("fill") else col
+        out.append(f"ALTER TABLE {key} ADD COLUMN {_column_sql(shown)};")
     for key, old_expr, new_expr in changes["check_swaps"]:
         table_name = key.split(".")[1]
         out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(table_name, old_expr)};")
@@ -619,39 +895,76 @@ def render(changes):
                 f"CREATE POLICY etl_writer_all ON {qualified} FOR ALL TO etl_writer USING (true) WITH CHECK (true);",
                 f"CREATE POLICY etl_reader_select ON {qualified} FOR SELECT TO etl_reader USING (true);"]
     usage = []
+    for name, sql in changes["functions"]:
+        sig, roles = FUNCTION_ACCESS[name]
+        schema = name.split(".")[0]
+        out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}{sig} FROM PUBLIC;"]
+        for role in roles:
+            if (schema, role) not in usage:
+                usage.append((schema, role))
+                out.append(f"GRANT USAGE ON SCHEMA {schema} TO {role};")
+            out.append(f"GRANT EXECUTE ON FUNCTION {name}{sig} TO {role};")
+    out += [sql.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
+            for _, sql in changes.get("function_replacements", [])]
+
+    def grant_lines(schema, qualified, grant):
+        lines = []
+        if schema not in GRANTED_SCHEMAS and (schema, grant["role"]) not in usage:
+            usage.append((schema, grant["role"]))
+            lines.append(f"GRANT USAGE ON SCHEMA {schema} TO {grant['role']};")
+            if grant["role"] == "authenticated" and schema in OWN_GRANT_SCHEMAS:
+                lines += [f"REVOKE ALL ON SCHEMA {schema} FROM anon;",
+                          f"REVOKE ALL ON ALL TABLES IN SCHEMA {schema} FROM anon;",
+                          f"ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM anon;"]
+        columns = grant.get("columns", {})
+        whole = [p for p in grant["privileges"] if p not in columns]
+        if whole:
+            lines.append(f"GRANT {', '.join(whole)} ON {qualified} TO {grant['role']};")
+        lines += [f"GRANT {p} ({', '.join(columns[p])}) ON {qualified} TO {grant['role']};"
+                  for p in COLUMN_PRIVILEGES if p in columns]
+        return lines
+
+    def policy_line(qualified, policy):
+        clauses = "".join(f" {word} ({policy[key]})" for key, word in (("using", "USING"), ("check", "WITH CHECK"))
+                          if key in policy)
+        return f"CREATE POLICY {policy['name']} ON {qualified} FOR {policy['command']} TO {policy['role']}{clauses};"
+
     for spec in changes["tables"]:
         qualified = f"{spec['schema']}.{spec['name']}"
         for grant in spec.get("grants", []):
-            if spec["schema"] not in GRANTED_SCHEMAS and (spec["schema"], grant["role"]) not in usage:
-                usage.append((spec["schema"], grant["role"]))
-                out.append(f"GRANT USAGE ON SCHEMA {spec['schema']} TO {grant['role']};")
-            out.append(f"GRANT {', '.join(grant['privileges'])} ON {qualified} TO {grant['role']};")
-        for policy in spec.get("policies", []):
-            clauses = "".join(f" {word} ({policy[key]})" for key, word in (("using", "USING"), ("check", "WITH CHECK"))
-                              if key in policy)
-            out.append(f"CREATE POLICY {policy['name']} ON {qualified} FOR {policy['command']} "
-                       f"TO {policy['role']}{clauses};")
-    for name, sql in changes["functions"]:
-        out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;",
-                f"GRANT USAGE ON SCHEMA {name.split('.')[0]} TO etl_writer;",
-                f"GRANT EXECUTE ON FUNCTION {name}() TO etl_writer;"]
+            out += grant_lines(spec["schema"], qualified, grant)
+        out += [policy_line(qualified, p) for p in spec.get("policies", [])]
+    for key, grant in changes.get("grants", []):
+        out += grant_lines(key.split(".")[0], key, grant)
+    out += [policy_line(key, p) for key, p in changes.get("policies", [])]
+    for key, policy in changes.get("policy_replacements", []):
+        clauses = "".join(f" {word} ({policy[field]})" for field, word in (("using", "USING"), ("check", "WITH CHECK"))
+                          if field in policy)
+        out.append(f"ALTER POLICY {policy['name']} ON {key}{clauses};")
     for name, sql in changes.get("trigger_functions", []):
         out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;"]
+
+    def trigger_line(qualified, trigger):
+        return (f"CREATE TRIGGER {trigger['name']} {trigger['timing']} {' OR '.join(trigger['events'])} "
+                f"ON {qualified} FOR EACH {trigger['level']} EXECUTE FUNCTION {trigger['function']}();")
+
     for spec in changes["tables"]:
-        for trigger in spec.get("triggers", []):
-            out.append(f"CREATE TRIGGER {trigger['name']} {trigger['timing']} {' OR '.join(trigger['events'])} "
-                       f"ON {spec['schema']}.{spec['name']} FOR EACH {trigger['level']} "
-                       f"EXECUTE FUNCTION {trigger['function']}();")
+        out += [trigger_line(f"{spec['schema']}.{spec['name']}", t) for t in spec.get("triggers", [])]
+    out += [trigger_line(key, t) for key, t in changes.get("triggers", [])]
     for key, idx in changes["indexes"]:
         where = f" WHERE {idx['where']}" if idx["where"] else ""
         out.append(f"CREATE {'UNIQUE ' if idx['unique'] else ''}INDEX {idx['name']} ON {key} "
                    f"({', '.join(idx['columns'])}){where};")
     out += [f"ALTER TABLE {key} DROP COLUMN {name};" for key, name in changes["column_drops"]]
+    out += [f"ALTER TABLE {key} ALTER COLUMN {name} DROP DEFAULT;" for key, name in changes.get("default_drops", [])]
     out += [f"DROP TABLE {key};" for key in changes["table_drops"]]
     return "\n\n".join(out) + "\n"
 
 
-DROP_KINDS = ("column_drops", "table_drops")
+# A DROP DEFAULT (the end of a `fill`, #661) is held by the destructive gate like
+# any DROP, and a held migration holds only drops (#534), so it goes in the
+# migration of its own with the column and table drops.
+DROP_KINDS = ("column_drops", "table_drops", "default_drops")
 
 
 def _with_dropped(old, new, changes):

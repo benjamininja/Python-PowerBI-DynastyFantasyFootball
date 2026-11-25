@@ -1,0 +1,38 @@
+# Role, phase and action (ADR-0026 decision 7; #662). The one table the policy tests read.
+# Each row: who (persona) may do what (action) in each of the four window states of a choice.
+# Every action is aimed at one team, T. The persona is named by how it stands to T:
+#   stranger            signed in, no role, owns no team
+#   owner_of_team       signed in, owns T
+#   owner_of_other_team signed in, owns another team, not T
+#   commissioner        signed in, holds the commissioner role, owns no team
+#   site_admin          signed in, holds the site admin role, owns no team
+#   signed_out          the anon role
+# Actions: read_choices and write_choices are on T's rows of app.contract_choices; read_toggle and
+# write_toggle are on T's row of app.team_choice_sharing (a write is one new row, saved as the persona).
+# Phases: none (no deadline row), open, passed, final. An empty share toggle is off.
+# A cell is `allowed` or `refused`. A later brief adds its actions as new rows of this file.
+persona,action,none,open,passed,final
+stranger,read_choices,refused,refused,allowed,allowed
+stranger,write_choices,refused,refused,refused,refused
+stranger,read_toggle,allowed,allowed,allowed,allowed
+stranger,write_toggle,refused,refused,refused,refused
+owner_of_team,read_choices,allowed,allowed,allowed,allowed
+owner_of_team,write_choices,refused,allowed,refused,refused
+owner_of_team,read_toggle,allowed,allowed,allowed,allowed
+owner_of_team,write_toggle,refused,allowed,refused,refused
+owner_of_other_team,read_choices,refused,refused,allowed,allowed
+owner_of_other_team,write_choices,refused,refused,refused,refused
+owner_of_other_team,read_toggle,allowed,allowed,allowed,allowed
+owner_of_other_team,write_toggle,refused,refused,refused,refused
+commissioner,read_choices,refused,refused,allowed,allowed
+commissioner,write_choices,refused,refused,refused,refused
+commissioner,read_toggle,allowed,allowed,allowed,allowed
+commissioner,write_toggle,refused,refused,refused,refused
+site_admin,read_choices,refused,refused,allowed,allowed
+site_admin,write_choices,refused,refused,refused,refused
+site_admin,read_toggle,allowed,allowed,allowed,allowed
+site_admin,write_toggle,refused,refused,refused,refused
+signed_out,read_choices,refused,refused,refused,refused
+signed_out,write_choices,refused,refused,refused,refused
+signed_out,read_toggle,refused,refused,refused,refused
+signed_out,write_toggle,refused,refused,refused,refused

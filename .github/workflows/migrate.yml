@@ -29,6 +29,7 @@ on:
       - 'scripts/generate_migrations.py'
       - 'scripts/migration_gate.py'
       - 'tests/test_migrations_*.py'
+      - 'tests/sql/**'
       - '.github/workflows/migrate.yml'
   push:
     branches:
@@ -68,6 +69,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      - name: A new migration must sort after the newest on the base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 scripts/check_migration_order.py --base "origin/$BASE_REF"
 
       - uses: actions/setup-python@v5
         with:
@@ -83,6 +90,7 @@ jobs:
       - name: Apply each migration with psql
         run: |
           createdb apply_check
+          psql -v ON_ERROR_STOP=1 -d apply_check -f tests/sql/auth_stub.sql
           for f in $(ls supabase/migrations/*.sql | sort); do
             psql -v ON_ERROR_STOP=1 -d apply_check -f "$f"
           done
@@ -100,6 +108,7 @@ jobs:
       - name: Push with the Supabase CLI to a second throwaway database
         run: |
           createdb cli_check
+          psql -v ON_ERROR_STOP=1 -d cli_check -f tests/sql/auth_stub.sql
           supabase db push --yes --db-url "postgresql://postgres:throwaway-ci-password@localhost:5432/cli_check?sslmode=disable"
           expected=$(ls supabase/migrations/*.sql | wc -l)
           applied=$(psql -At -d cli_check -c "SELECT count(*) FROM supabase_migrations.schema_migrations")

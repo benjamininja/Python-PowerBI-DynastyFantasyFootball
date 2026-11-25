@@ -35,7 +35,8 @@ def app_registry():
          "triggers": [{"name": "choices_stamp", "timing": "BEFORE", "events": ["UPDATE"],
                        "level": "ROW", "function": "ops.stamp"}]},
         {"name": "choice_deadline", "schema": "ops", "pk": ["season_id", "choice_kind"],
-         "columns": [col("season_id"), col("choice_kind"), col("deadline_at", "timestamptz")],
+         "columns": [col("season_id"), col("choice_kind"), col("deadline_at", "timestamptz"),
+                     col("final_at", "timestamptz")],
          "grants": [{"role": "etl_writer", "privileges": ["SELECT"]},
                     {"role": "etl_reader", "privileges": ["SELECT"]}],
          "policies": [{"name": "etl_writer_select", "role": "etl_writer", "command": "SELECT", "using": "true"},
@@ -203,7 +204,7 @@ class TestGrantRules:
 
     def test_the_one_ops_table_may_not_grant_a_role_outside_the_two(self):
         refused(broken(lambda r: entry(r, "choice_deadline").update(
-            grants=[{"role": "anon", "privileges": ["SELECT"]}])), "not one of etl_writer, etl_reader")
+            grants=[{"role": "authenticated", "privileges": ["SELECT"]}])), "not one of etl_writer, etl_reader")
 
     def test_the_real_registry_gives_the_deadline_table_to_the_owner_alone_for_writing(self):
         import yaml
@@ -216,10 +217,17 @@ class TestGrantRules:
         state = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
         assert state["tables"]["ops.choice_deadline"] == spec
 
-    @pytest.mark.parametrize("role", ["etl_reader", "anon", "authenticated", "public", None])
-    def test_a_grant_to_any_role_but_the_writer_is_refused(self, role):
+    @pytest.mark.parametrize("role", ["etl_reader", "public", None])
+    def test_a_grant_to_any_role_but_the_writer_and_authenticated_is_refused(self, role):
         refused(broken(lambda r: entry(r, "choices").update(grants=[{"role": role, "privileges": ["SELECT"]}])),
-                "not one of etl_writer")
+                "not one of etl_writer, authenticated")
+
+    @pytest.mark.parametrize("name", ["choices", "choice_deadline"])
+    def test_anon_is_never_granted_and_never_given_a_policy(self, name):
+        refused(broken(lambda r: entry(r, name).update(grants=[{"role": "anon", "privileges": ["SELECT"]}])),
+                "anon is never granted anything")
+        refused(broken(lambda r: entry(r, name)["policies"][0].update(role="anon")),
+                "anon is never granted anything")
 
     def test_a_privilege_outside_the_four_is_refused(self):
         refused(broken(lambda r: entry(r, "choices")["grants"][0].update(privileges=["TRUNCATE"])), "is not one of SELECT")
@@ -440,4 +448,224 @@ class TestMainOnTheNewForms:
     def test_a_first_run_from_the_committed_state_adds_only_what_the_registry_adds(self):
         committed = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
         assert "app.contract_choices" in committed["tables"] and "ops.choice_deadline" in committed["tables"]
-        assert set(committed["trigger_functions"]) == {"ops.refuse_passed_deadline_change", "ops.set_changed_at"}
+        assert set(committed["trigger_functions"]) == {"ops.record_choice_history",
+                                                       "ops.refuse_passed_deadline_change", "ops.set_changed_at"}
+
+
+class TestADefinerTriggerFunction:
+    """`definer: true` on a trigger_functions entry (#661, ADR-0026 decision 5)."""
+
+    def with_definer(self, value=True):
+        return broken(lambda r: r["trigger_functions"][0].update(definer=value))
+
+    def test_renders_security_definer_with_the_search_path_empty_and_execute_revoked_from_public(self):
+        sql = sql_of(self.with_definer())
+        assert ("CREATE FUNCTION ops.stamp() RETURNS trigger\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\n"
+                f"AS $fn$\n{STAMP_BODY}\n$fn$;") in sql
+        assert "REVOKE EXECUTE ON FUNCTION ops.stamp() FROM PUBLIC;" in sql
+        assert "GRANT EXECUTE ON FUNCTION ops.stamp" not in sql
+
+    def test_the_function_still_lives_in_ops(self):
+        refused(broken(lambda r: r["trigger_functions"][0].update(name="shared.stamp", definer=True)), "lives in ops")
+
+    def test_only_the_flagged_function_is_a_definer(self):
+        sql = sql_of(self.with_definer())
+        assert "SECURITY DEFINER" not in sql.split("CREATE FUNCTION ops.guard")[1].split("CREATE FUNCTION ops.stamp")[0]
+
+    def test_false_and_no_flag_render_the_same_text(self):
+        assert sql_of(self.with_definer(False)) == sql_of()
+
+    @pytest.mark.parametrize("bad", ["yes", "true", 1, None, ["x"]])
+    def test_a_flag_that_is_not_true_or_false_is_refused(self, bad):
+        refused(self.with_definer(bad), "definer: expected true or false")
+
+    def test_turning_the_flag_on_later_is_a_change_of_function_body_and_refused(self):
+        old = gm.desired_model(app_registry())
+        assert "ops.stamp: change of function body" in gm.diff(old, gm.desired_model(self.with_definer()))["refusals"]
+
+
+class TestAFillOnARequiredColumn:
+    """`fill` (#661): the value the rows that exist take when a required column is added."""
+    FILL = "timestamptz '2027-03-01 04:59:59+00'"
+
+    def old(self):
+        reg = app_registry()
+        entry(reg, "choice_deadline")["columns"] = entry(reg, "choice_deadline")["columns"][:3]
+        return gm.desired_model(reg)
+
+    def new_registry(self, fill=FILL, required=True):
+        reg = app_registry()
+        table = entry(reg, "choice_deadline")
+        if required:
+            table["required_keys"] = ["final_at"]
+        if fill is not None:
+            table["columns"][3]["fill"] = fill
+        return reg
+
+    def sql(self, **kw):
+        changes = gm.diff(self.old(), gm.desired_model(self.new_registry(**kw)))
+        assert changes["refusals"] == []
+        return gm.render(changes)
+
+    def test_the_column_is_added_with_the_fill_as_its_default_and_the_default_is_dropped_last(self):
+        sql = self.sql()
+        add = f"ALTER TABLE ops.choice_deadline ADD COLUMN final_at timestamptz NOT NULL DEFAULT {self.FILL};"
+        drop = "ALTER TABLE ops.choice_deadline ALTER COLUMN final_at DROP DEFAULT;"
+        assert add in sql and sql.endswith(drop + "\n") and sql.index(add) < sql.index(drop)
+
+    def test_the_drop_goes_in_a_migration_of_its_own_so_the_first_holds_no_drop(self):
+        old = self.old()
+        new = gm.desired_model(self.new_registry())
+        first, second = gm.split_drops(old, new, gm.diff(old, new))
+        assert "DROP" not in gm.render(first[0])
+        assert f"ADD COLUMN final_at timestamptz NOT NULL DEFAULT {self.FILL};" in gm.render(first[0])
+        assert gm.render(second[0]) == "ALTER TABLE ops.choice_deadline ALTER COLUMN final_at DROP DEFAULT;\n"
+        assert first[1] == second[1] == new
+
+    def test_a_run_writes_two_files_and_the_second_is_the_drop_alone(self, tmp_path):
+        base = app_registry()
+        entry(base, "choice_deadline")["columns"] = entry(base, "choice_deadline")["columns"][:3]
+        assert run(tmp_path, base, now=NOW) == 0
+        assert run(tmp_path, self.new_registry(), now=LATER) == 0
+        files = migrations(tmp_path)
+        names = [p.name for p in files if p.suffix == ".sql"]
+        assert len(names) == 3 and names[2].endswith("_registry_update_drops.sql")
+        assert "DROP" not in files[1].read_text(encoding="utf-8")
+        assert files[2].read_text(encoding="utf-8").split("\n\n", 1)[1] == (
+            "ALTER TABLE ops.choice_deadline ALTER COLUMN final_at DROP DEFAULT;\n")
+
+    def test_no_update_runs_and_no_trigger_is_touched(self):
+        sql = self.sql()
+        for word in ("UPDATE ", "DISABLE", "ENABLE TRIGGER", "DROP TRIGGER", "ALTER TABLE ops.choice_deadline "
+                     "ALTER COLUMN final_at SET"):
+            assert word not in sql
+
+    def test_the_state_holds_the_fill_and_no_default(self):
+        (final,) = [c for c in gm.desired_model(self.new_registry())["tables"]["ops.choice_deadline"]["columns"]
+                    if c["name"] == "final_at"]
+        assert final["fill"] == self.FILL and "default" not in final and final["not_null"]
+
+    def test_a_required_column_with_no_fill_is_added_as_before(self):
+        sql = self.sql(fill=None)
+        assert "ADD COLUMN final_at timestamptz NOT NULL;" in sql and "DROP DEFAULT" not in sql
+
+    def test_a_column_in_a_new_table_carries_no_default_from_its_fill(self):
+        sql = sql_of(self.new_registry())
+        assert "final_at timestamptz NOT NULL,\n" in sql and "DEFAULT timestamptz" not in sql
+
+    def test_once_added_the_fill_is_history_and_removing_it_is_no_change(self):
+        old = gm.desired_model(self.new_registry())
+        assert not gm.has_changes(gm.diff(old, gm.desired_model(self.new_registry(fill=None))))
+
+    def test_a_fill_on_a_column_that_is_not_required_is_refused(self):
+        refused(self.new_registry(required=False), "fill is for a required column only")
+
+    def test_a_fill_and_a_default_together_are_refused(self):
+        def mutate(r):
+            entry(r, "choice_deadline")["columns"][3]["default"] = "clock_timestamp()"
+        reg = self.new_registry()
+        mutate(reg)
+        refused(reg, "a default or a fill, not both")
+
+    @pytest.mark.parametrize("bad", ["now(); DROP", "now() -- x", "/* x */ now()", ""])
+    def test_a_fill_may_not_hold_a_statement_or_a_comment(self, bad):
+        refused(self.new_registry(fill=bad), "fill|may not hold")
+
+
+class TestATriggerAddedToATableThatExists:
+    """A trigger of a new name is an addition on a table that exists (#661); a changed
+    or dropped one stays refused."""
+    EXTRA = {"name": "choices_audit", "timing": "AFTER", "events": ["INSERT", "UPDATE"], "level": "ROW",
+             "function": "ops.guard"}
+
+    def new_registry(self):
+        reg = app_registry()
+        entry(reg, "choices")["triggers"].append(dict(self.EXTRA))
+        return reg
+
+    def test_the_new_trigger_is_an_addition_and_renders_after_the_functions(self):
+        old = gm.desired_model(app_registry())
+        changes = gm.diff(old, gm.desired_model(self.new_registry()))
+        assert changes["refusals"] == []
+        assert [(k, t["name"]) for k, t in changes["triggers"]] == [("app.choices", "choices_audit")]
+        sql = gm.render(changes)
+        assert sql == ("CREATE TRIGGER choices_audit AFTER INSERT OR UPDATE ON app.choices FOR EACH ROW "
+                       "EXECUTE FUNCTION ops.guard();\n")
+
+    def test_the_trigger_of_a_new_function_comes_after_that_function(self):
+        reg = self.new_registry()
+        reg["trigger_functions"].append({"name": "ops.audit", "body": GUARD_BODY})
+        entry(reg, "choices")["triggers"][-1]["function"] = "ops.audit"
+        sql = gm.render(gm.diff(gm.desired_model(app_registry()), gm.desired_model(reg)))
+        assert sql.index("CREATE FUNCTION ops.audit") < sql.index("CREATE TRIGGER choices_audit")
+
+    def test_the_same_registry_is_no_change(self):
+        assert not gm.has_changes(gm.diff(gm.desired_model(self.new_registry()), gm.desired_model(self.new_registry())))
+
+    def test_a_trigger_that_names_no_declared_function_is_refused(self):
+        reg = self.new_registry()
+        entry(reg, "choices")["triggers"][-1]["function"] = "ops.missing"
+        refused(reg, "unknown trigger function")
+
+    @pytest.mark.parametrize("field,value", [("timing", "AFTER"), ("events", ["INSERT"]),
+                                             ("level", "STATEMENT"), ("function", "ops.guard")])
+    def test_a_changed_existing_trigger_is_refused(self, field, value):
+        old = gm.desired_model(app_registry())
+        new = copy.deepcopy(old)
+        new["tables"]["app.choices"]["triggers"][0][field] = value
+        assert "app.choices: change of triggers" in gm.diff(old, new)["refusals"]
+
+    def test_an_added_trigger_beside_a_changed_one_is_still_refused_whole(self):
+        old = gm.desired_model(app_registry())
+        new = gm.desired_model(self.new_registry())
+        new["tables"]["app.choices"]["triggers"][0]["timing"] = "AFTER"
+        changes = gm.diff(old, new)
+        assert "app.choices: change of triggers" in changes["refusals"]
+
+
+class TestThePolicyThatMayChangeInPlace:
+    """REPLACEABLE_POLICIES (#661): one named policy is changed with ALTER POLICY; any
+    other change to a policy is refused."""
+    KEY, NAME = "app.choices", "etl_writer_select_open"
+    NEW_USING = "EXISTS (SELECT 1 FROM ops.deadline d WHERE d.season_id = choices.season_id AND d.deadline_at < now())"
+
+    def changed(self, **fields):
+        old = gm.desired_model(app_registry())
+        new = copy.deepcopy(old)
+        (policy,) = [p for p in new["tables"][self.KEY]["policies"] if p["name"] == self.NAME]
+        policy.update(fields)
+        return old, new
+
+    def test_the_real_list_names_the_one_policy_of_the_choices_table(self):
+        assert gm.REPLACEABLE_POLICIES == (("app.contract_choices", "signed_in_select_after_deadline"),)
+
+    def test_a_policy_on_the_list_is_replaced_with_alter_policy_keeping_name_role_and_command(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_POLICIES", ((self.KEY, self.NAME),))
+        old, new = self.changed(using=self.NEW_USING)
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == []
+        assert [(k, p["name"]) for k, p in changes["policy_replacements"]] == [(self.KEY, self.NAME)]
+        assert gm.render(changes) == f"ALTER POLICY {self.NAME} ON {self.KEY} USING ({self.NEW_USING});\n"
+
+    def test_the_same_policy_with_a_new_role_or_command_is_still_refused(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_POLICIES", ((self.KEY, self.NAME),))
+        for fields in ({"role": "etl_reader"}, {"command": "DELETE"}):
+            old, new = self.changed(**fields)
+            assert f"{self.KEY}: change of policies" in gm.diff(old, new)["refusals"]
+
+    def test_a_policy_not_on_the_list_is_refused(self):
+        old, new = self.changed(using=self.NEW_USING)
+        assert f"{self.KEY}: change of policies" in gm.diff(old, new)["refusals"]
+
+    def test_a_policy_on_the_list_may_not_be_dropped(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_POLICIES", ((self.KEY, self.NAME),))
+        old = gm.desired_model(app_registry())
+        new = copy.deepcopy(old)
+        new["tables"][self.KEY]["policies"] = []
+        assert f"{self.KEY}: change of policies" in gm.diff(old, new)["refusals"]
+
+    def test_a_replacement_beside_a_refused_change_is_refused_whole(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_POLICIES", ((self.KEY, self.NAME),))
+        old, new = self.changed(using=self.NEW_USING)
+        new["tables"][self.KEY]["grants"][0]["privileges"] = ["SELECT", "UPDATE"]
+        assert f"{self.KEY}: change of grants" in gm.diff(old, new)["refusals"]

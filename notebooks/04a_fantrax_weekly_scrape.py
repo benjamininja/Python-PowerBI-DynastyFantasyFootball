@@ -298,13 +298,9 @@ class FantraxScraper:
 
     # --- auth -----------------------------------------------------------------
     def _creds(self) -> tuple[str, str]:
-        try:
-            from dotenv import load_dotenv
-            load_dotenv()
-        except ModuleNotFoundError:
-            pass  # env vars may already be set by the OS/scheduler
-        email = os.getenv("FANTRAX_EMAIL")
-        pwd = os.getenv("FANTRAX_PASSWORD")
+        import etl_run_log
+        email = os.getenv("FANTRAX_EMAIL") or etl_run_log.env_value("FANTRAX_EMAIL")
+        pwd = os.getenv("FANTRAX_PASSWORD") or etl_run_log.env_value("FANTRAX_PASSWORD")
         if not email or not pwd:
             raise RuntimeError(
                 "Set FANTRAX_EMAIL and FANTRAX_PASSWORD (in a gitignored .env "
@@ -404,7 +400,8 @@ class FantraxScraper:
         return totp.at(now)
 
     def _answer_code_prompt(self, page) -> None:
-        secret = os.getenv(self.TOTP_ENV)
+        import etl_run_log
+        secret = os.getenv(self.TOTP_ENV) or etl_run_log.env_value(self.TOTP_ENV)
         if not secret or not secret.strip():
             raise TotpSecretMissing(
                 f"Fantrax asked for a second-factor code and {self.TOTP_ENV} "

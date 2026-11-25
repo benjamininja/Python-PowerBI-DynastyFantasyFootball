@@ -20,7 +20,11 @@ This is deliberate and narrowly scoped: the orchestrator stages only the
 tracked parquet of the Chains that passed their steps and Gate checks (ADR-0008
 amendment, #115), restores a held Chain's parquet from `HEAD`, verifies every
 staged path matches `data/*.parquet` (aborts otherwise) and skips the commit
-entirely when nothing changed. It then commits to a new branch
+entirely when nothing changed. One id-only exception (ADR-0008 amendment,
+#639): the `gsis_id` re-key belongs to the `nflverse` Chain and is all or
+nothing, so a table of a Chain that did not run or was held, put back to its
+published rows with only its id columns moved to the newest id, is staged with
+the `nflverse` Chain's link row, or neither is. It then commits to a new branch
 `data/<date>-<phase>-wk<NN>` (with a `-2`, `-3` suffix when an earlier run's
 branch still exists), rebases it on `origin/main`, pushes the branch and
 opens a PR titled `data: pipeline refresh <date> (<phase>, wk <NN>)`. It polls
@@ -30,9 +34,10 @@ once the PR has merged, and its `snapshot_commit_sha` is the commit as it
 landed on `main`. A failed check, a timeout or a refused merge leaves the PR
 open, ends the run `failed` with the PR number in its error, and sends the
 Discord notice. `--no-push` keeps its meaning: commit locally, push nothing,
-open no PR. Manual-only tables (no `chain:` in `docs/data_model.yml`) and
-brand-new parquet files are never staged by the pipeline — they reach `main` by
-a PR of their own.
+open no PR. Brand-new parquet files are never staged by the pipeline: they
+reach `main` by a PR of their own. A run never stages a manual-only table (no
+`chain:` in `docs/data_model.yml`) either. It reaches `main` by a PR of its own
+or, on the owner's command, by `--publish-manual` (below).
 Code, notebooks, PBI, and docs always go feature branch → PR.
 Watchpoint: parquet history growth — revisit (LFS/releases) only if repo size
 becomes a problem.
@@ -138,7 +143,12 @@ added and dropped, never a value. A rename shows as one dropped and one added na
 the registry marks no rename. A frame that is not the registry's columns is
 drift: the export raises, the run aborts and the database is reloaded from
 the snapshot at HEAD. Between the merge and the next run the snapshot keeps
-its old columns; a consumer that reads a new column waits for that run.
+its old columns; a consumer that reads a new column waits for that run. A
+load of that snapshot into the store (the reload from the snapshot, the
+backfill, the restore drill, a capture copy) leaves out a column the table's
+own `drops:` entry names and prints one line for it; any other column the
+registry does not declare still refuses the load, and so does every pipeline
+write (#686).
 
 ### The owner's delete and re-export scripts (#459, #589)
 
@@ -158,6 +168,28 @@ Two scripts the owner runs by hand, never an agent, with `SUPABASE_DB_URL` set
   default `data/`) through the same exporter the pipeline's publish step uses.
 
 Both print table names and counts only.
+
+### Publishing a manual-only table (#616)
+
+After a hand load of a manual-only table into the store, the owner runs, from
+the main checkout on `main`, with `ETL_STORAGE=postgres` and `SUPABASE_DB_URL`
+set (in the shell or in `.env`):
+
+```powershell
+.\run.ps1 scripts\run_pipeline.py --publish-manual TABLE [TABLE ...]
+```
+
+It refuses, before any read, a table that has a `chain:`, is not in the
+registry, is private or has no snapshot tracked at HEAD, and a checkout that
+is not on `main` or whose index holds any staged path but the named tables'
+own. It runs the tables'
+Gate checks against the store, exports them to `data/` with the exporter the
+publish step uses, and lands them by the pipeline's data PR (branch
+`data/<date>-manual`, title `data: manual publish <date> (<tables>)`), gated and
+merged exactly as a Chain publish. Nothing changed: no PR. `--dry-run` prints
+what it would publish and reads nothing; `--no-push` commits locally only. The
+run log records it with trigger `manual`. An agent never runs it: only the
+owner's command is the go.
 
 ## Security rule
 

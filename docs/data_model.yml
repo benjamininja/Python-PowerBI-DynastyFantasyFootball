@@ -51,14 +51,36 @@
 #   Schema `app` (ADR-0025) is not granted the blanket way, and these fields
 #   are for its tables and for ops.choice_deadline (and `default` and
 #   `triggers` for any other_tables entry): `default` on a column, a SQL expression, written after NOT NULL;
-#   `grants`, [{role, privileges}], to etl_writer only (both ETL roles on
-#   ops.choice_deadline, which then takes no blanket grant); `policies`, [{name,
+#   `grants`, [{role, privileges, columns}], to etl_writer or authenticated on
+#   an `app` table (never anon, never etl_reader), both ETL roles on
+#   ops.choice_deadline, which then takes no blanket grant; `columns` is
+#   {INSERT: [...], UPDATE: [...]}, and a privilege it names is granted on those
+#   columns alone; `policies`, [{name,
 #   role, command, using / check}], each needing a grant of its command;
 #   `triggers`, [{name, timing, events, level, function}]. A trigger names a
-#   function of the top-level `trigger_functions`, [{name: ops.<name>, body}]:
-#   the generator pins its search_path empty, makes it no SECURITY DEFINER and
-#   revokes EXECUTE from PUBLIC. A later change to any of these on a table that
-#   exists is refused. check_data_model.py reports the generator's refusal.
+#   function of the top-level `trigger_functions`, [{name: ops.<name>, body,
+#   definer?}]: the generator pins its search_path empty, makes it SECURITY
+#   DEFINER only when `definer: true`, and revokes EXECUTE from PUBLIC. On a table
+#   that exists, a new grant to a role it has none for, a new policy name and a
+#   new trigger name are added; any other change to these is refused, except the
+#   one policy of REPLACEABLE_POLICIES in the generator (ALTER POLICY).
+#   `fill` on a required column: the value the rows that exist take when the
+#   column is added to a table that has rows (ADD COLUMN ... DEFAULT <fill>, no
+#   UPDATE; then DROP DEFAULT in the migration of its own that holds the drops,
+#   which the destructive gate holds for the owner's dispatch).
+#   check_data_model.py reports the generator's refusal.
+#   Declaring shared.owner_crosswalk also makes the generator write the two
+#   SECURITY DEFINER functions of `shared` that policies call (ADR-0025
+#   decision 6): shared.caller_team_keys() and shared.choice_window(season,
+#   kind), the latter returning none, open, passed or final (ADR-0026 decision 6).
+#   Declaring shared.app_role (ADR-0026 decisions 1 to 3) adds two more, for
+#   authenticated only: shared.caller_is_commissioner_for(team_key) and
+#   shared.caller_is_site_admin(), and puts the table's ids in
+#   shared.pii_token_hashes().
+#   Each of shared.owner_crosswalk and shared.app_role also brings a load function
+#   (shared.load_owner_crosswalk, shared.load_app_roles; ADR-0026 decision 2 as
+#   amended, #700): SECURITY DEFINER, EXECUTE for etl_writer only, which holds no
+#   grant on either table. The scheduled run calls it with the whole set.
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
@@ -253,12 +275,13 @@ tables:
     columns:
       - { name: team_key, dtype: str, sql_type: text }
       - { name: team_name, dtype: str, sql_type: text }
-      - { name: team_abbr, dtype: str, sql_type: text }
       - { name: fantrax_team_id, dtype: str, sql_type: text }
       - { name: conference, dtype: str, sql_type: text }
       - { name: division, dtype: str, sql_type: text }
       - { name: original_cap, dtype: int64, sql_type: integer }
       - { name: reinvestment_cap, dtype: int64, sql_type: integer }
+    drops:
+      - { column: team_abbr, ticket: 597 }
     edges:
       - { to: dim_division, via: direct, on: conference }
 
@@ -1597,6 +1620,42 @@ other_tables:
       - { name: email, sql_type: text }
       - { name: fantrax_username, sql_type: text }
 
+  # Which Discord users own which team (ADR-0025 decision 5, #548 brief 3). Owner
+  # PII: database only, never exported, never committed, no grant to any role.
+  # Only the definer functions of `shared` read it. Loaded by the scheduled run
+  # (scripts/load_access_tables.py, through shared.load_owner_crosswalk); the
+  # manual fallback is scripts/load_owner_crosswalk.py, which writes a SQL file.
+  - name: owner_crosswalk
+    schema: shared
+    pk: [team_key, discord_user_id]
+    checks:
+      - "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
+    fk:
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+    columns:
+      - { name: team_key, sql_type: text }
+      - { name: discord_user_id, sql_type: text }
+
+  # Who holds an app role (ADR-0026 decisions 1 and 2, #662): one row per person
+  # and role. Owner PII, like the crosswalk: database only, never exported,
+  # never committed, no grant to any role; only the definer functions of `shared`
+  # read it. `league_key` is in the key so the league key #658 decides changes
+  # values and one function body, never a key: `main` is the one league until
+  # then, and `*` (every league) is the site admin's. Loaded by the scheduled run
+  # (scripts/load_access_tables.py, through shared.load_app_roles); the manual
+  # fallback is scripts/load_app_roles.py, which writes a SQL file.
+  - name: app_role
+    schema: shared
+    pk: [discord_user_id, role, league_key]
+    checks:
+      - "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
+      - "role IN ('commissioner', 'site_admin')"
+      - "(role = 'site_admin' AND league_key = '*') OR (role = 'commissioner' AND league_key <> '*')"
+    columns:
+      - { name: discord_user_id, sql_type: text }
+      - { name: role, sql_type: text }
+      - { name: league_key, sql_type: text }
+
   # The owners' contract choices (ADR-0025, #548 brief 2). Schema `app` is not
   # granted the blanket way: the table names its own grants and its one policy.
   # The key columns, `choice`, `origin` and `changed_at` are required; `changed_at`
@@ -1610,17 +1669,44 @@ other_tables:
       - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
     checks:
       - "choice_kind IN ('resign', 'fa_keep')"
-      - "origin IN ('loader', 'app')"
+      - "origin IN ('loader', 'app', 'commissioner')"
       - "(choice_kind = 'resign' AND choice IN ('resign', 'decline')) OR (choice_kind = 'fa_keep' AND choice IN ('keep', 'let_go'))"
     grants:
       - { role: etl_writer, privileges: [SELECT] }
+      - role: authenticated
+        privileges: [SELECT, INSERT, UPDATE]
+        columns:
+          INSERT: [season_id, team_key, scorer_id, choice_kind, choice, origin, changed_by]
+          UPDATE: [choice, origin, changed_by]
     policies:
       - name: etl_writer_select_after_deadline
         role: etl_writer
         command: SELECT
         using: "EXISTS (SELECT 1 FROM ops.choice_deadline d WHERE d.season_id = contract_choices.season_id AND d.choice_kind = contract_choices.choice_kind AND d.deadline_at < clock_timestamp())"
+      - name: owner_select_own_team
+        role: authenticated
+        command: SELECT
+        using: "team_key IN (SELECT shared.caller_team_keys())"
+      - name: signed_in_select_shared_team
+        role: authenticated
+        command: SELECT
+        using: "EXISTS (SELECT 1 FROM app.team_choice_sharing s WHERE s.season_id = contract_choices.season_id AND s.team_key = contract_choices.team_key AND s.shared)"
+      - name: signed_in_select_after_deadline
+        role: authenticated
+        command: SELECT
+        using: "shared.choice_window(season_id, choice_kind) IN ('passed', 'final')"
+      - name: owner_insert_own_team_while_open
+        role: authenticated
+        command: INSERT
+        check: "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open' AND origin = 'app' AND changed_by = auth.uid()"
+      - name: owner_update_own_team_while_open
+        role: authenticated
+        command: UPDATE
+        using: "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open'"
+        check: "team_key IN (SELECT shared.caller_team_keys()) AND shared.choice_window(season_id, choice_kind) = 'open' AND origin = 'app' AND changed_by = auth.uid()"
     triggers:
       - { name: contract_choices_set_changed_at, timing: BEFORE, events: [UPDATE], level: ROW, function: ops.set_changed_at }
+      - { name: contract_choices_record_history, timing: AFTER, events: [INSERT, UPDATE], level: ROW, function: ops.record_choice_history }
     columns:
       - { name: season_id, sql_type: text }
       - { name: team_key, sql_type: text }
@@ -1632,6 +1718,89 @@ other_tables:
       - { name: changed_by, sql_type: uuid }
       - { name: changed_at, sql_type: timestamptz, default: "clock_timestamp()" }
 
+  # Every version of a choice row (ADR-0026 decision 5, #661). Append-only: the
+  # trigger ops.record_choice_history writes it after every insert and update of
+  # app.contract_choices, by any role and route. No role holds INSERT, UPDATE or
+  # DELETE on it, and the ETL roles hold nothing. A signed-in user reads a version
+  # exactly when the choice row would be readable: the three policies below mirror
+  # the three authenticated SELECT policies of app.contract_choices. `action_id`
+  # is filled by the commissioner-action brief that follows; it has no key yet.
+  - name: contract_choice_history
+    schema: app
+    pk: [history_id]
+    required_keys: [season_id, team_key, scorer_id, choice_kind, choice, origin, changed_at, recorded_at]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+    indexes:
+      - { columns: [season_id, team_key, scorer_id, choice_kind], name: contract_choice_history_key_idx }
+    grants:
+      - { role: authenticated, privileges: [SELECT] }
+    policies:
+      - name: owner_select_own_team
+        role: authenticated
+        command: SELECT
+        using: "team_key IN (SELECT shared.caller_team_keys())"
+      - name: signed_in_select_shared_team
+        role: authenticated
+        command: SELECT
+        using: "EXISTS (SELECT 1 FROM app.team_choice_sharing s WHERE s.season_id = contract_choice_history.season_id AND s.team_key = contract_choice_history.team_key AND s.shared)"
+      - name: signed_in_select_after_deadline
+        role: authenticated
+        command: SELECT
+        using: "shared.choice_window(season_id, choice_kind) IN ('passed', 'final')"
+    columns:
+      - { name: history_id, sql_type: uuid, default: "gen_random_uuid()" }
+      - { name: season_id, sql_type: text }
+      - { name: team_key, sql_type: text }
+      - { name: scorer_id, sql_type: text }
+      - { name: choice_kind, sql_type: text }
+      - { name: choice, sql_type: text }
+      - { name: origin, sql_type: text }
+      - { name: changed_by, sql_type: uuid }
+      - { name: changed_at, sql_type: timestamptz }
+      - { name: action_id, sql_type: uuid }
+      - { name: recorded_at, sql_type: timestamptz, default: "clock_timestamp()" }
+
+  # One share toggle per team and season (ADR-0025 decision 3, Q11). Every
+  # signed-in user reads every row; an owner of the team writes its toggle while
+  # at least one choice window of the season is open. No ETL role has a grant.
+  - name: team_choice_sharing
+    schema: app
+    pk: [season_id, team_key]
+    required_keys: [shared, changed_at]
+    fk:
+      - { columns: [season_id], to: dim_season, ref: [season_id] }
+      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+    grants:
+      - role: authenticated
+        privileges: [SELECT, INSERT, UPDATE]
+        columns:
+          INSERT: [season_id, team_key, shared, changed_by]
+          UPDATE: [shared, changed_by]
+    policies:
+      - name: signed_in_select_all
+        role: authenticated
+        command: SELECT
+        using: "true"
+      - name: owner_insert_own_team_while_open
+        role: authenticated
+        command: INSERT
+        check: "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open') AND changed_by = auth.uid()"
+      - name: owner_update_own_team_while_open
+        role: authenticated
+        command: UPDATE
+        using: "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open')"
+        check: "team_key IN (SELECT shared.caller_team_keys()) AND (shared.choice_window(season_id, 'resign') = 'open' OR shared.choice_window(season_id, 'fa_keep') = 'open') AND changed_by = auth.uid()"
+    triggers:
+      - { name: team_choice_sharing_set_changed_at, timing: BEFORE, events: [UPDATE], level: ROW, function: ops.set_changed_at }
+    columns:
+      - { name: season_id, sql_type: text }
+      - { name: team_key, sql_type: text }
+      - { name: shared, sql_type: boolean }
+      - { name: changed_by, sql_type: uuid }
+      - { name: changed_at, sql_type: timestamptz, default: "clock_timestamp()" }
+
   # The deadline of each choice window (ADR-0025 decision 4). It gates the
   # etl_writer read of app.contract_choices, so no ETL role may write it: both
   # roles read it (the deadline is public) and only the table owner writes it,
@@ -1640,11 +1809,12 @@ other_tables:
   - name: choice_deadline
     schema: ops
     pk: [season_id, choice_kind]
-    required_keys: [deadline_at]
+    required_keys: [deadline_at, final_at]
     fk:
       - { columns: [season_id], to: dim_season, ref: [season_id] }
     checks:
       - "choice_kind IN ('resign', 'fa_keep')"
+      - "final_at > deadline_at"
     grants:
       - { role: etl_writer, privileges: [SELECT] }
       - { role: etl_reader, privileges: [SELECT] }
@@ -1657,11 +1827,19 @@ other_tables:
       - { name: season_id, sql_type: text }
       - { name: choice_kind, sql_type: text }
       - { name: deadline_at, sql_type: timestamptz }
+      # The fourth phase (ADR-0026 decision 6, #661): at or after final_at the
+      # window is `final` and no role writes. `fill` is the value the one row
+      # that exists when this column is added takes (the season's last day, the
+      # end of 2027-02-28 in America/New_York); it is a default for that ADD COLUMN
+      # only and is dropped by the migration of its own that follows. That one is
+      # held by the destructive gate and applies on the owner's dispatch.
+      - { name: final_at, sql_type: timestamptz, fill: "timestamptz '2027-03-01 04:59:59+00'" }
 
 # Trigger functions (ADR-0025 decision 10 point 3 and the brief's point 6). The
 # generator renders each as `CREATE FUNCTION ... RETURNS trigger LANGUAGE plpgsql
-# SET search_path = ''`, not SECURITY DEFINER, with EXECUTE revoked from PUBLIC
-# and granted to no one. The registry holds the name (in `ops`) and the body.
+# SET search_path = ''`, not SECURITY DEFINER unless the entry says `definer: true`
+# (#661), with EXECUTE revoked from PUBLIC and granted to no one. The registry holds
+# the name (in `ops`) and the body; a body names every object with its schema.
 trigger_functions:
   - name: ops.set_changed_at
     body: |
@@ -1679,4 +1857,28 @@ trigger_functions:
               RETURN OLD;
           END IF;
           RETURN NEW;
+      END;
+  # Writes the history of app.contract_choices (ADR-0026 decision 5). A definer,
+  # because the caller holds no write on the history table. A row that has no
+  # history yet is recorded in its old version first, so rows loaded before the
+  # trigger existed keep their first version without a data migration.
+  - name: ops.record_choice_history
+    definer: true
+    body: |
+      BEGIN
+          IF TG_OP = 'UPDATE' AND NOT EXISTS (
+              SELECT 1 FROM app.contract_choice_history h
+              WHERE h.season_id = OLD.season_id AND h.team_key = OLD.team_key
+                AND h.scorer_id = OLD.scorer_id AND h.choice_kind = OLD.choice_kind
+          ) THEN
+              INSERT INTO app.contract_choice_history
+                  (season_id, team_key, scorer_id, choice_kind, choice, origin, changed_by, changed_at)
+              VALUES (OLD.season_id, OLD.team_key, OLD.scorer_id, OLD.choice_kind, OLD.choice,
+                      OLD.origin, OLD.changed_by, OLD.changed_at);
+          END IF;
+          INSERT INTO app.contract_choice_history
+              (season_id, team_key, scorer_id, choice_kind, choice, origin, changed_by, changed_at)
+          VALUES (NEW.season_id, NEW.team_key, NEW.scorer_id, NEW.choice_kind, NEW.choice,
+                  NEW.origin, NEW.changed_by, NEW.changed_at);
+          RETURN NULL;
       END;

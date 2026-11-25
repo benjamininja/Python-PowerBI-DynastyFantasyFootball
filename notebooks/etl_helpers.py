@@ -63,6 +63,8 @@ class LeagueConfig:
     # Optional extras used by specific notebooks:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
+    owner_sheet_gid: str = "1895987887"
+    app_roles_sheet_gid: str = "1489461039"
     # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
     fact_name: str = "fact_fantrax_adp"
     crosswalk_name: str = "dim_fantrax_crosswalk"
@@ -258,6 +260,10 @@ def _sheets_token() -> str:
         creds = service_account.Credentials.from_service_account_file(key_path, scopes=[SHEETS_SCOPE])
         creds.refresh(Request())
         token = creds.token
+    except json.JSONDecodeError as e:
+        raise SheetsAuthError(
+            f"Sheets sign-in: Google did not accept the key named by {SHEETS_KEY_ENV} "
+            f"(JSONDecodeError at line {int(e.lineno)} column {int(e.colno)}).") from None
     except Exception as e:
         raise SheetsAuthError(
             f"Sheets sign-in: Google did not accept the key named by {SHEETS_KEY_ENV} "
@@ -309,15 +315,47 @@ def _a1_col(index: int) -> str:
     return letters
 
 
+class SheetsNumberCells(RuntimeError):
+    # A column read as text held cells stored as numbers. One line: the column
+    # and the sheet's row numbers, never a cell value.
+    def __init__(self, column: str, rows: Sequence[int]):
+        self.column, self.rows = column, list(rows)
+        super().__init__(f"Google Sheets: {len(self.rows)} cell(s) of column {column} are stored as "
+                         f"numbers (rows {', '.join(str(r) for r in self.rows)})")
+
+
+def _sheet_columns(session, token: str, base: str, tab: str, header: list, names: list[str],
+                   unformatted: bool = False) -> list[list]:
+    # The named columns' cells, one list each (header cell first), by the values
+    # API. `unformatted` asks for the stored values: a text cell arrives as a JSON
+    # string and a number cell as a JSON number, so the two can be told apart.
+    ranges = []
+    for name in names:
+        letter = _a1_col(header.index(name))
+        ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
+    params = ranges + [("majorDimension", "COLUMNS")]
+    if unformatted:
+        params.append(("valueRenderOption", "UNFORMATTED_VALUE"))
+    body = _sheets_get(session, token, f"{base}/values:batchGet", params, expect=("valueRanges",))
+    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
+    if len(cols) != len(names):
+        raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
+    return cols
+
+
 def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
-                   optional: Sequence[str] = (), *, token: str | None = None,
-                   session=None) -> pd.DataFrame:
+                   optional: Sequence[str] = (), *, text: Sequence[str] = (),
+                   token: str | None = None, session=None) -> pd.DataFrame:
     # One tab of a Google Sheet as a DataFrame, signed in as the service account
     # with the read-only scope. Only the named columns leave the sheet: the tab's
     # header row is read to find them, then just their columns. A required
     # column absent from the header is left out, so the caller's own column
     # check raises as it did on the CSV download. Values are the displayed text,
     # run through pd.read_csv so dtypes and blanks match that download.
+    # `text` names columns that must be text: they are read by their stored
+    # values and kept as strings exactly as stored (a long id is never parsed as a
+    # number), and a cell stored as a number raises SheetsNumberCells. Without
+    # `text` the read is the one 01c has always made.
     token = _sheets_token() if token is None else token
     session = _make_session() if session is None else session
     base = f"{SHEETS_API}/{sheet_id}"
@@ -334,22 +372,26 @@ def read_sheet_tab(sheet_id: str, gid: str, columns: Sequence[str],
     wanted = [c for c in dict.fromkeys([*columns, *optional]) if c in header]
     if not wanted:
         return pd.DataFrame()
-    ranges = []
-    for name in wanted:
-        letter = _a1_col(header.index(name))
-        ranges.append(("ranges", f"{tab}!{letter}:{letter}"))
-    body = _sheets_get(session, token, f"{base}/values:batchGet",
-                       ranges + [("majorDimension", "COLUMNS")], expect=("valueRanges",))
-    cols = [(vr.get("values") or [[]])[0] for vr in body["valueRanges"]]
-    if len(cols) != len(wanted):
-        raise RuntimeError("Google Sheets API: reply has a different number of columns than asked")
+    as_text = [c for c in wanted if c in text]
+    by_name = {}
+    plain = [c for c in wanted if c not in as_text]
+    if plain:
+        by_name.update(zip(plain, _sheet_columns(session, token, base, tab, header, plain)))
+    if as_text:
+        stored = _sheet_columns(session, token, base, tab, header, as_text, unformatted=True)
+        for name, cells in zip(as_text, stored):
+            numbers = [i + 1 for i, v in enumerate(cells) if i > 0 and not isinstance(v, str)]
+            if numbers:
+                raise SheetsNumberCells(name, numbers)
+            by_name[name] = cells
+    cols = [by_name[c] for c in wanted]
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(wanted)
     for i in range(1, max(len(c) for c in cols)):
         writer.writerow([c[i] if i < len(c) else "" for c in cols])
     buf.seek(0)
-    return pd.read_csv(buf)
+    return pd.read_csv(buf, dtype={c: str for c in as_text} or None)
 
 
 FANTRAX_PUBLIC_API = "https://www.fantrax.com/fxea/general"
@@ -1022,6 +1064,20 @@ def _check_batch(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
     return df
 
 
+def without_dropped_columns(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """`df`, a published table as the snapshot holds it, without each column
+    the table's own `drops:` entry names (#686). For a load of the snapshot into
+    the store only: the snapshot is behind the registry until the next export,
+    and `_check_batch` still refuses the column on every pipeline write. Prints
+    one line per column left out (table, column, ticket). Any other column is
+    left for `_check_batch` to judge."""
+    left = [d for d in entry.get("drops") or [] if d["column"] in df.columns]
+    for drop in left:
+        print(f"[drops] {entry['name']}: column {drop['column']} left out of the load "
+              f"(its drops: entry, #{drop['ticket']})")
+    return df.drop(columns=[d["column"] for d in left]) if left else df
+
+
 def _check_write_args(mode: str, keys, partition) -> None:
     if mode not in ("replace", "replace_partition", "upsert"):
         raise StorageError(f"unknown write mode {mode!r}")
@@ -1124,6 +1180,7 @@ def _capture_write(name: str, df: pd.DataFrame, mode: str, keys, partition, entr
         except TableNotFound:
             stored = None
         if stored is not None and len(stored):
+            stored = without_dropped_columns(stored, entry)
             _write_parquet(path, _coerce(stored, entry), "replace", None, None, entry)
     return len(_write_parquet(path, df, mode, keys, partition, entry))
 
@@ -1602,6 +1659,144 @@ def current_gsis(ids: pd.Series, links: pd.DataFrame | None = None) -> pd.Series
         return ids.copy()
     newest = _gsis_link_map(links)
     return ids.where(~ids.isin(list(newest)), ids.map(newest))
+
+
+REKEY_COMPOSITE_TABLE = "fact_dynasty_ranking_metrics"
+REKEY_COMPOSITE = "Composite"
+REKEY_COMPOSITE_PREFIX = REKEY_COMPOSITE + "|"
+
+
+class RekeyRefused(Exception):
+    """A table's remap would break a check; the table is left as it is."""
+
+
+def rekey_frame(name: str, df: pd.DataFrame, links: pd.DataFrame) -> pd.DataFrame:
+    """`df` with each old gsis_id of dim_gsis_link `links` replaced by its newest
+    id (#639). On the Composite rows of fact_dynasty_ranking_metrics,
+    source_player_id and the id after "Composite|" in source_uid move with it,
+    as 04y builds them. Only id columns change."""
+    out = df.copy()
+    out["gsis_id"] = current_gsis(out["gsis_id"], links)
+    if name == REKEY_COMPOSITE_TABLE:
+        comp = out["source_name"] == REKEY_COMPOSITE
+        out.loc[comp, "source_player_id"] = current_gsis(out.loc[comp, "source_player_id"], links)
+        uid = out.loc[comp, "source_uid"]
+        tagged = uid.str.startswith(REKEY_COMPOSITE_PREFIX)
+        moved = REKEY_COMPOSITE_PREFIX + current_gsis(uid.str[len(REKEY_COMPOSITE_PREFIX):], links)
+        out.loc[comp, "source_uid"] = uid.where(~tagged, moved)
+    return out
+
+
+def rekey_id_columns(name: str) -> list[str]:
+    cols = ["gsis_id"]
+    return cols + ["source_player_id", "source_uid"] if name == REKEY_COMPOSITE_TABLE else cols
+
+
+def _changed_cells(before: pd.DataFrame, after: pd.DataFrame, col: str) -> int:
+    same = (before[col] == after[col]) | (before[col].isna() & after[col].isna())
+    return int((~same).sum())
+
+
+def _orphans(df: pd.DataFrame, valid: set) -> int:
+    return int((~df["gsis_id"].dropna().isin(valid)).sum())
+
+
+def _split_rows(df: pd.DataFrame) -> int:
+    comp = df[df["source_name"] == REKEY_COMPOSITE]
+    agree = (comp["source_player_id"] == comp["gsis_id"]) & \
+            (comp["source_uid"] == REKEY_COMPOSITE_PREFIX + comp["gsis_id"].astype(str))
+    return int((~agree).sum())
+
+
+def rekey_check(name: str, before: pd.DataFrame, after: pd.DataFrame, valid: set,
+                links: pd.DataFrame) -> dict:
+    """The checks of a remap, before any write. Raises RekeyRefused when a
+    column other than the id columns changed, the registry key would break
+    (null or shared), a gsis_id would newly miss dim_nfl_players (`valid`), or
+    a Composite row would newly disagree with itself. Returns counts only."""
+    assert list(after.columns) == list(before.columns) and len(after) == len(before)
+    ids = rekey_id_columns(name)
+    rest = [c for c in before.columns if c not in ids]
+    if not after[rest].equals(before[rest]):
+        raise RekeyRefused(f"{name}: a column other than the id columns changed")
+    key = table_grain(_table_entry(name))
+    nulls = int(after[key].isna().any(axis=1).sum())
+    dupes = int(after.duplicated(subset=key, keep=False).sum())
+    if nulls or dupes:
+        raise RekeyRefused(f"{name}: key {tuple(key)} would break -- {nulls} row(s) with a null key, "
+                           f"{dupes} row(s) sharing a key")
+    orphans_before, orphans_after = _orphans(before, valid), _orphans(after, valid)
+    if orphans_after > orphans_before:
+        raise RekeyRefused(f"{name}: gsis_id missing from dim_nfl_players would rise "
+                           f"{orphans_before} -> {orphans_after}")
+    if name == REKEY_COMPOSITE_TABLE:
+        split_before, split_after = _split_rows(before), _split_rows(after)
+        if split_after > split_before:
+            raise RekeyRefused(f"{name}: Composite rows whose three id columns disagree would rise "
+                               f"{split_before} -> {split_after}")
+    return {"orphans": (orphans_before, orphans_after),
+            "still_old": int(after["gsis_id"].isin(set(links["old_gsis_id"])).sum()),
+            "changed": {c: _changed_cells(before, after, c) for c in ids}}
+
+
+def gsis_id_tables() -> list[str]:
+    """The published tables that hold a gsis_id column and data (#639): the
+    tables tests/test_gsis_current.py scans, less dim_nfl_players, which keeps
+    its DROPPED rows by design, and less the private tables, which nothing
+    publishes (their ids reach a published table)."""
+    return sorted(n for n, e in _registry().items()
+                  if n != "dim_nfl_players" and not is_private(e)
+                  and "gsis_id" in [c["name"] for c in e.get("columns", [])]
+                  and table_exists(n))
+
+
+def rekey_gsis_tables(only: Sequence[str] | None = None, dry_run: bool = False,
+                      undo: dict | None = None) -> dict:
+    """Put every old gsis_id of the stored tables on its newest id (#639): the
+    one place the remap is done, for the pipeline after its steps and for
+    scripts/rekey_gsis_history.py. `only` limits it to those of
+    `gsis_id_tables()`. A table is read whole only when its gsis_id column
+    holds an old id, checked with `rekey_check`, and written through the seam
+    only then; a table whose check refuses (a key that would break, or a loop
+    in the links) stays as it is and is listed in "refused". It reads the
+    stored dim_gsis_link and dim_nfl_players: the caller decides whether those
+    publish. `undo`, when given, receives each written table's rows as they
+    were, so a caller can put them back.
+
+    Returns {"changed": [table], "refused": {table: reason}, "stats": {table:
+    counts}}. Counts and names only, never an id."""
+    out: dict = {"changed": [], "refused": {}, "stats": {}}
+    if not table_exists(GSIS_LINK_TABLE):
+        return out
+    links = read_table(GSIS_LINK_TABLE)
+    names = [n for n in gsis_id_tables() if only is None or n in set(only)]
+    if links.empty or not names:
+        return out
+    try:
+        _gsis_link_map(links)
+    except ValueError:
+        out["refused"] = {n: f"{n}: the links in {GSIS_LINK_TABLE} loop" for n in names}
+        return out
+    old = set(links["old_gsis_id"])
+    valid = set(read_table("dim_nfl_players")["gsis_id"].dropna())
+    for name in names:
+        if not old & set(read_table(name, ["gsis_id"])["gsis_id"].dropna()):
+            continue
+        before = read_table(name)
+        try:
+            after = rekey_frame(name, before, links)
+            stats = rekey_check(name, before, after, valid, links)
+        except RekeyRefused as exc:
+            out["refused"][name] = str(exc)
+            continue
+        out["stats"][name] = stats
+        if any(stats["changed"].values()):
+            if not dry_run:
+                if undo is not None:
+                    undo[name] = before
+                write_table(name, after)
+            out["changed"].append(name)
+    return out
 
 
 PRICE_LIST_TABLE = "fact_salary_price_list"

@@ -61,6 +61,14 @@ REGISTRY = {"tables": [
 PKS = {t["name"]: etl.table_grain(t) for t in REGISTRY["tables"]}
 
 
+def published_frame(table):
+    """The published table `table`, as a load of the snapshot takes it (#686):
+    a column its drops: entry names is left out, so a snapshot that lags a
+    column drop needs no hand re-run to be written or loaded here."""
+    return etl.without_dropped_columns(pd.read_parquet(REPO / "data" / f"{table}.parquet"),
+                                       etl._table_entry(table))
+
+
 def pg_state():
     """The fixture registry as supabase/registry_state.json holds a table."""
     return {"tables": {f"{SCRATCH}.{t['name']}": {
@@ -588,7 +596,7 @@ class TestReplacePartitionAgainstTheOldHelpers:
 
     @pytest.mark.parametrize("table,part_cols", PARTITIONED)
     def test_keys_write_the_bytes_load_replace_partition_wrote(self, tmp_path, monkeypatch, table, part_cols):
-        published = pd.read_parquet(REPO / "data" / f"{table}.parquet")
+        published = published_frame(table)
         first = published[part_cols[0]].iloc[0]
         batch = published[published[part_cols[0]] == first]       # rewrite one real slice
         old_dir, new_dir = tmp_path / "old", tmp_path / "new"
@@ -602,7 +610,7 @@ class TestReplacePartitionAgainstTheOldHelpers:
 
     def test_keys_on_source_write_the_bytes_upsert_dynasty_crosswalk_wrote(self, tmp_path, monkeypatch):
         table = "dim_dynasty_crosswalk"
-        published = pd.read_parquet(REPO / "data" / f"{table}.parquet")
+        published = published_frame(table)
         batch = published[published["source"] == published["source"].iloc[0]]
         old_dir, new_dir = tmp_path / "old", tmp_path / "new"
         for d in (old_dir, new_dir):
@@ -615,7 +623,7 @@ class TestReplacePartitionAgainstTheOldHelpers:
         assert (new_dir / f"{table}.parquet").read_bytes() == (old_dir / f"{table}.parquet").read_bytes()
 
     def test_a_repeated_key_is_refused(self, tmp_path, monkeypatch):
-        published = pd.read_parquet(REPO / "data" / "fact_roster_state.parquet")
+        published = published_frame("fact_roster_state")
         monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path))
         with pytest.raises(etl.StorageError, match="repeated key"):
             etl.write_table("fact_roster_state", pd.concat([published.iloc[:5]] * 2),
@@ -637,7 +645,7 @@ def golden_pg():
     the migrations' schema. Emptied again afterwards. The load and compare
     functions are the backfill's (etl_storage_pg)."""
     url = database_url()
-    frames = {t: pd.read_parquet(REPO / "data" / f"{t}.parquet") for t in TABLES}
+    frames = {t: published_frame(t) for t in TABLES}
     pg.clear_published(url, TABLES)
     try:
         report = pg.load_published(url, frames, replace=True).problems
@@ -663,7 +671,7 @@ class TestGolden:
 
     @pytest.mark.parametrize("table", TABLES)
     def test_write_then_read_gives_the_table_back(self, table, tmp_path, monkeypatch):
-        published = pd.read_parquet(REPO / "data" / f"{table}.parquet")
+        published = published_frame(table)
         monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path))
         if table in REFUSED:
             with pytest.raises(etl.StorageError, match="breaks the grain"):

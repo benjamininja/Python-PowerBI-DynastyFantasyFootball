@@ -15,13 +15,16 @@ The rules are not in this file. Read them where they live, in this order:
 1. `C:\Users\benha\.claude\memory\preferences.md`
 2. `docs/PRINCIPLES.md`
 3. `.claude/memory/PLANNER.md`, your own state file: its Current block
-   first
-4. The `session-rules` skill, then `.claude/memory/GOAL-RUN.md` (read
-   only; it is the manager's file)
-5. The resolutions of tickets #164 and #166, and the map you are working
-6. The owner's queue, `.claude/memory/NEEDS-OWNER.md` in the main
+   only
+4. The `session-rules` skill
+5. The owner's queue, `.claude/memory/NEEDS-OWNER.md` in the main
    checkout (read only; the manager writes it). Then run the open issue
    list and the open PR list
+
+Read these only when a step needs them (the start-up read budget in
+`session-rules`): `.claude/memory/GOAL-RUN.md` (read only; it is the
+manager's file), the resolutions of tickets #164 and #166, the map you
+are working, an ADR, and the rest of your state file.
 
 ## What you answer for
 

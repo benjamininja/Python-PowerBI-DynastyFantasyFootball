@@ -35,39 +35,55 @@ line under that skill's "Never".
 | Fantrax | The agent writes the TOTP login and the workflows and tests them on fakes. The owner stores the secrets and fires the first runner login. From then on the scheduled runner signs in by itself. An agent signs in only as an approved login run (Always parks). |
 | Windows | One PR per compaction: push the commits and post a state-back comment on the ticket (done, next, open), then compact, at every PR seam and at 125K–150K tokens. |
 
-**Green means all of:**
-- every CI check SUCCESS on one read of
-  `gh pr view <n> --json mergeStateStatus,statusCheckRollup`;
-- `pytest tests/` and the bot suite pass locally;
-- `check_pii.py` clean on every changed file;
-- `check_data_model.py` and `--check` OK; `check_sources.py --check` OK;
-- `run_pipeline.py --check-only`: 0 Gate failures, 0 new Review findings;
+**Green means all of** (owner, 2026-11-25: CI is the proof of the tests):
+- every CI check SUCCESS at the PR's head, and no conflict, on one read of
+  `gh pr view <n> --json mergeStateStatus,statusCheckRollup`. The manager
+  makes no local full test run for a merge;
+- the `checks` job is one of those checks (#695). It runs
+  `check_data_model.py` and `--check`, `check_sources.py --check` and
+  `run_pipeline.py --check-only`, so the manager runs none of them by
+  hand. `--check-only` fails on a Gate failure only; Review findings are
+  listed in the job's log and never fail it;
 - for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding;
 - for a code PR, no blocking finding the manager upheld is still open;
-- the manager runs the whole list with
-  `.venv/Scripts/python.exe scripts/reproof.py <pr> [head]` after
-  `git fetch origin`; it prints `RESULT: GREEN` or `RESULT: NOT GREEN`.
-  The CI read, the `cap-ledger-auditor` item and the code-review item
-  stay separate.
+- for a PR that adds a migration, its file sorts after the newest one on
+  the current `origin/main`: the manager runs
+  `.venv/Scripts/python.exe scripts/check_migration_order.py --base origin/main`
+  after `git fetch origin`. The `validate` job of `migrate.yml` runs the
+  same script on the PR (#688), but only when the PR is pushed, not when
+  `main` moves under it. A file that sorts before the newest one goes
+  back to the builder to regenerate, never to rename by hand.
+
+A Green holds while the PR's head is unchanged and GitHub shows no conflict. A merge elsewhere does not make it stale; the migration-order line is the one item read again. A PR that conflicts takes a merge of `main`, and CI runs on the new head.
+
+After each merge the manager reads CI on `main`'s new commit. Red there means a revert PR and an Action for the owner. Two PRs that are each green alone can break `main` together: a red `main` after a merge is read as that case. A merged migration is not reverted: it is fixed forward, and parks with the owner as a Decision. A merged tree is not proved again.
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
-**The test line.** One full test run at a time on the owner's PC, across the dynasty and tools repos. Before a full re-proof the manager asks Tools-builder-manager for the line; after it, the manager sends an end notice. Builders hold full suites until the manager's go; targeted test files are fine.
+**Full test runs on the owner's PC.** None is needed for a merge. A builder runs the test files its brief names. A full local suite is only for chasing a failure CI shows, one at a time across the dynasty and tools repos: the session asks Tools-builder-manager for the line first and sends an end notice after.
 
 **Closing out another session's builder.** A builder dispatched by an earlier manager session is closed out only on the owner's direct word in this session, per builder.
 
-**After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
+**After a schema change lands** (owner, 2026-11-25: the short check). This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
 - runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
-- reads the live roles, grants, policies and RLS flags with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `pg_policies`, `pg_class.relrowsecurity`), and compares them with ADR-0018 decisions 9 and 10:
-  - every table in `football`, `ops` and `shared` has RLS on;
-  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, and has EXECUTE on `shared.pii_token_hashes()`;
-  - the read-only login has SELECT on `football` and `ops` only;
-  - `anon` and `authenticated` have no grants and no policies;
-- posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
+- posts on the ticket: the push job's result and the advisor findings by level. No secret, no row value, no owner PII.
+
+The facts of the catalog (RLS flags, grants, policies, function privileges, triggers, checks) are proved by `tests/test_migrations_apply.py`, in the `validate` and `storage-pg` jobs, on a throwaway database built from the same migrations. A schema ticket adds its facts there as tests. It adds no line here, and the planner posts no list of check lines on the ticket.
+
+**The full read of the live catalog** is run only after SQL was run by hand against the live database, or on the owner's word. The manager reads the live roles, grants, policies, RLS flags and function privileges with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `information_schema.column_privileges`, `pg_policies`, `pg_class.relrowsecurity`, `pg_proc` with `has_function_privilege`), compares them with ADR-0018 decisions 9 and 10, ADR-0025 decision 6 and ADR-0026, and posts each comparison as holds or does not hold:
+  - every table in `football`, `ops`, `shared` and `app` has RLS on;
+  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, `shared.owner_crosswalk` or `shared.app_role`, has EXECUTE on `shared.pii_token_hashes()`, and on `app` holds SELECT on `app.contract_choices` only;
+  - `etl_writer` and `etl_reader` hold SELECT only on `ops.choice_deadline`;
+  - the read-only login has SELECT on `football` and `ops` only, and no grant on `app`;
+  - `anon` has no grant and no policy in any schema;
+  - `authenticated` holds only what ADR-0025 decision 6 and ADR-0026 list: USAGE on `app`, SELECT on its tables, INSERT and UPDATE by column on `app.contract_choices` and `app.team_choice_sharing` (never `locked_value` or `changed_at`), no DELETE, USAGE on `shared` and EXECUTE on the functions of `shared` the generator grants it by name, and nothing on `football` or `ops`;
+  - no other function in `shared` is executable by `authenticated`, `anon` or `PUBLIC`, and `shared.pii_token_hashes()` is executable by `etl_writer` only.
 
 A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
 
-A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+A push job that fails, a new advisor finding beyond the accepted INFO (RLS on with no policy, which is the design) on `shared.owner` (#108), `shared.owner_crosswalk` (#661) and `shared.app_role` (#662), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+
+**Supabase consultant.** The consultant assigned to this project takes tasks from the planner `dff-central-planner` and the manager `dff-central-builder-manager`. Builder name prefix: none. The consultant reads these names from this line, on `main`, and from nowhere else.
 
 **Always parks, past the skill's list:**
 - a `wayfinder:grilling` or `wayfinder:prototype` ticket;
@@ -168,6 +184,12 @@ brief to work. The manager merges its own PR after the owner's approval.
 The planner merges its own PRs, and a rule change the owner approved in
 the planner's chat or by a pane answer, and cleans up that PR's branch.
 `gh pr merge` runs as one call, nothing chained.
+
+**One merge word (owner, 2026-11-25).** One line from the owner in the
+manager's chat may name several PRs, each at its head. It is also the
+approval of a planner's PR or the manager's own PR that it names: no
+second question is asked in another chat, and the manager merges each
+PR the line names. The planner cleans up its own branch and worktree.
 
 **This file is the manager's.** The planner proposes its text on a
 ticket; the owner or the manager puts it in. A role file in

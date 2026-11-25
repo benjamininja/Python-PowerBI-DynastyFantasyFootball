@@ -299,19 +299,96 @@ class TestTheGate:
         flagged = gm.registry_drops(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
         column_drop = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) DROP COLUMN ([a-z][a-z0-9_]*)")
         table_drop = re.compile(r"DROP TABLE (?:[a-z_]+\.)?([a-z][a-z0-9_]*)")
+        default_drop = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) ALTER COLUMN ([a-z][a-z0-9_]*) DROP DEFAULT")
+        registry = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        filled = {(f"{t.get('schema') or 'football'}.{t['name']}", c["name"])
+                  for section in ("tables", "other_tables") for t in registry.get(section) or []
+                  for c in t["columns"] if c.get("fill")}
         for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
             sql = path.read_text(encoding="utf-8")
             if not mg.is_destructive(sql):
                 continue
             for stmt in mg.statements(sql):
                 col, tab = column_drop.fullmatch(stmt), table_drop.fullmatch(stmt)
-                assert col or tab, f"{path.name}: a held migration holds only drops, found {stmt!r}"
-                if col:
+                dflt = default_drop.fullmatch(stmt)
+                assert col or tab or dflt, f"{path.name}: a held migration holds only drops, found {stmt!r}"
+                if dflt:
+                    assert (dflt.group(1), dflt.group(2)) in filled, \
+                        f"{path.name}: {stmt!r} ends no fill declared in docs/data_model.yml"
+                elif col:
                     assert (col.group(1), col.group(2)) in flagged["columns"], \
                         f"{path.name}: {stmt!r} has no drops entry in docs/data_model.yml"
                 else:
                     assert tab.group(1) in flagged["tables"], \
                         f"{path.name}: {stmt!r} has no dropped_tables entry in docs/data_model.yml"
+
+
+def _load_function(name, body="DELETE FROM shared.app_role WHERE true;", head="CREATE FUNCTION"):
+    return (f"{head} {name}(p_a text[], p_b text[]) RETURNS integer\nLANGUAGE plpgsql SECURITY DEFINER "
+            f"SET search_path = ''\nAS $fn$\nBEGIN\n    {body}\n    RETURN 0;\nEND\n$fn$;\n"
+            f"REVOKE EXECUTE ON FUNCTION {name}(text[], text[]) FROM PUBLIC;\n")
+
+
+class TestTheLoadFunctionExemption:
+    """The one exemption (#700, the owner's Decision): the body of two named functions."""
+
+    def test_the_exempt_names_are_exactly_the_two_load_functions(self):
+        assert mg.EXEMPT_BODIES == ("shared.load_app_roles", "shared.load_owner_crosswalk")
+
+    @pytest.mark.parametrize("name", mg.EXEMPT_BODIES)
+    @pytest.mark.parametrize("head", ["CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", "create function"])
+    def test_a_named_function_with_a_delete_in_its_body_is_not_held(self, name, head):
+        assert not mg.is_destructive(_load_function(name, head=head)), mg.destructive(_load_function(name, head=head))
+
+    @pytest.mark.parametrize("name", ["shared.load_something_else", "shared.load_app_roles_two",
+                                      "ops.load_app_roles", "shared.load_owner_crosswalk2", "shared.pii_token_hashes"])
+    def test_a_third_function_with_a_delete_in_its_body_is_still_held(self, name):
+        assert mg.is_destructive(_load_function(name))
+
+    @pytest.mark.parametrize("body", ["DELETE FROM shared.app_role;", "TRUNCATE shared.app_role;",
+                                      "UPDATE shared.app_role SET role = 'x';"])
+    def test_a_destructive_body_of_a_third_function_is_held_in_every_form(self, body):
+        assert mg.is_destructive(_load_function("shared.some_function", body))
+
+    def test_a_destructive_statement_beside_a_named_function_is_still_held(self):
+        sql = _load_function("shared.load_app_roles") + "DROP TABLE shared.app_role;\n"
+        assert mg.is_destructive(sql)
+        sql = _load_function("shared.load_app_roles") + "DELETE FROM shared.app_role;\n"
+        assert mg.is_destructive(sql)
+
+    def test_a_destructive_form_in_the_header_of_a_named_function_is_still_held(self):
+        sql = ("CREATE FUNCTION shared.load_app_roles(p_a text[]) RETURNS integer LANGUAGE sql "
+               "DROP AS $fn$ SELECT 1 $fn$;")
+        assert mg.is_destructive(sql)
+
+    def test_a_named_function_that_runs_on_in_the_same_statement_is_still_read(self):
+        sql = ("CREATE FUNCTION shared.load_app_roles(p_a text[]) RETURNS integer LANGUAGE sql AS $fn$ SELECT 1 $fn$ "
+               "DROP TABLE shared.app_role;")
+        assert mg.is_destructive(sql)
+
+    def test_a_named_function_is_not_held_on_push_and_the_migrations_after_it_apply(self, tmp_path, capsys):
+        out = folder(tmp_path, **{"20261101000000_a": ORDINARY,
+                                  "20261102000000_load": _load_function("shared.load_app_roles"),
+                                  "20261103000000_b": ORDINARY})
+        assert gate(tmp_path, out, ["20261101000000"], capsys).out == "held=\n"
+        assert len(names(out)) == 3
+
+    def test_a_third_function_holds_itself_and_the_migrations_after_it(self, tmp_path, capsys):
+        out = folder(tmp_path, **{"20261102000000_load": _load_function("shared.other_load"),
+                                  "20261103000000_b": ORDINARY})
+        assert gate(tmp_path, out, [], capsys).out == "held=20261102000000_load.sql\n"
+        assert names(out) == []
+
+    def test_the_committed_load_functions_are_not_held_and_hold_nothing_but_their_own_delete(self):
+        found = []
+        for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
+            sql = path.read_text(encoding="utf-8")
+            for stmt in mg.statements(sql):
+                if mg._EXEMPT_HEAD.match(stmt):
+                    found.append(path.name)
+                    assert not mg.is_destructive(sql), path.name
+                    assert stmt.count("DELETE FROM") == 1 and "TRUNCATE" not in stmt and "UPDATE" not in stmt
+        assert len(found) == 2
 
 
 def _load():

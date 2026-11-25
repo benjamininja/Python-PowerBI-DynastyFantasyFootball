@@ -11,8 +11,17 @@ Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
 and each registry table carries one). After the steps, notebooks/etl_checks.py runs
 the Gate checks on every table of each Chain that ran. A Chain with a failed
 or skipped step or a failed Gate is held: its tracked parquet is restored
-from git HEAD and never staged; the other Chains still publish. Manual-only
-tables (no Chain) are never staged here — they reach main by PR.
+from git HEAD and never staged; the other Chains still publish. One id-only
+exception (ADR-0008 amendment, #639): the gsis_id re-key belongs to the nflverse
+Chain and is all or nothing. A table holding a gsis_id of a Chain that did not
+run or was held goes back to its published rows, has each old gsis_id of
+dim_gsis_link put on its newest id and publishes with the nflverse Chain's link
+row, or neither does (one table refusing, one Gate failing or a step raising
+puts every remapped table back and holds nflverse). A run never
+stages a manual-only table (no Chain). It reaches main by a PR of its own or,
+on the owner's command only, by `--publish-manual TABLE ...` (#616): an
+allowlisted manual-only table is Gate-checked and exported from the store,
+then lands by the same data PR as a Chain publish.
 
 Phase model (derived from 04a's week label + the season calendar):
   INSEASON   week label != PRE and the NFL season hasn't ended
@@ -34,6 +43,8 @@ write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
       .\\run.ps1 scripts\\run_pipeline.py --check-only   (suite only, no steps)
+      .\\run.ps1 scripts\\run_pipeline.py --publish-manual TABLE [TABLE ...]
+                                                     (the owner only, #616)
 """
 from __future__ import annotations
 
@@ -438,6 +449,49 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     return results
 
 
+ACCESS_STEP = "access_loads"
+ACCESS_PREFIX = "access:"
+ACCESS_TIMEOUT_S = 300
+
+
+def access_lines(text: str | None) -> list[str]:
+    """Only the lines the access step marks as its own (counts, tab names and row
+    numbers, never an id). Whatever else it printed, a traceback included, stays
+    out of the notice and the log."""
+    return [line.strip() for line in (text or "").splitlines() if line.startswith(ACCESS_PREFIX)]
+
+
+def run_access_loads(dry_run: bool, no_commit: bool, only: set[str] | None,
+                     groups: set[str] | None, run=subprocess.run) -> dict | None:
+    """The scheduled run's load of the role table and the owner crosswalk (#700,
+    ADR-0026 decision 2). It is not a step of any Chain, so a failure holds no
+    data Chain: its result stays out of `results` and `plan_publish` and goes to
+    the notice and the exit code on its own. It runs when no subset is named, or
+    when `--steps` names it; never under --dry-run (the plan is printed) or
+    --no-commit. Returns None when it does not run, else {name, status, detail}."""
+    if (only or groups) and not (only and ACCESS_STEP in only):
+        return None
+    cmd = [str(VENV_PY), str(REPO / "scripts" / "load_access_tables.py")]
+    print(f"[step] {ACCESS_STEP} (no Chain): {' '.join(cmd[1:])}")
+    if dry_run:
+        return {"name": ACCESS_STEP, "status": "dry-run", "detail": ""}
+    if no_commit:
+        print(f"[skip] {ACCESS_STEP} (--no-commit)")
+        return None
+    try:
+        proc = run(cmd, cwd=REPO, env={**os.environ, "PYTHONUTF8": "1"},
+                   capture_output=True, text=True, timeout=ACCESS_TIMEOUT_S)
+        ok, lines = proc.returncode == 0, access_lines(proc.stdout)
+        if not ok and not lines:
+            lines = [f"{ACCESS_PREFIX} load stopped before it reported (exit {proc.returncode}); both tables are as they were"]
+    except subprocess.TimeoutExpired:
+        ok, lines = False, [f"{ACCESS_PREFIX} load timed out after {ACCESS_TIMEOUT_S}s; both tables are as they were"]
+    for line in lines:
+        print(line)
+    print(f"[{'ok' if ok else 'FAIL'}] {ACCESS_STEP}")
+    return {"name": ACCESS_STEP, "status": "ok" if ok else "failed", "detail": "\n".join(lines)}
+
+
 def review_counts() -> dict:
     """Row counts (minus header) per review queue. Never raises."""
     counts = {}
@@ -533,8 +587,14 @@ def _pr_view(pr: int, cwd: Path) -> dict:
     return info if isinstance(info, dict) else {}
 
 
-def _pr_body(staged: list[str], run_id: str | None, rows: dict | None) -> str:
-    lines = ["Machine-generated parquet refresh via scripts/run_pipeline.py "
+PR_INTRO = "Machine-generated parquet refresh via scripts/run_pipeline.py"
+MANUAL_INTRO = ("Manual-only table(s) exported from the store on the owner's "
+                "--publish-manual command via scripts/run_pipeline.py (#616)")
+
+
+def _pr_body(staged: list[str], run_id: str | None, rows: dict | None,
+             intro: str = PR_INTRO) -> str:
+    lines = [f"{intro} "
              "(allowlisted data-only commit). Opened and merged by the pipeline "
              "once pii-scan, tests and bot-tests pass.", "",
              f"Run log: {run_id or 'not written'}", "", "Tables:"]
@@ -569,7 +629,8 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
                 restore: list[str], cwd: Path = REPO, run_id: str | None = None,
                 rows: dict | None = None, landed: dict | None = None,
                 checks_timeout_s: float = CHECKS_TIMEOUT_S,
-                poll_s: float = CHECKS_POLL_S) -> str:
+                poll_s: float = CHECKS_POLL_S, title: str | None = None,
+                branch_stem: str | None = None, intro: str = PR_INTRO) -> str:
     """Allowlisted data commit, per Chain, landed by its own data PR (#361).
     Restores the failed Chains' tracked parquet from HEAD, stages exactly the
     passing Chains' tracked parquet (never a glob), verifies every staged
@@ -578,7 +639,9 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     a PR, waits for the required checks (bounded) and rebase-merges it. A
     failed check, a timeout or a refused merge leaves the PR open. `landed`,
     when given, receives {"pr", "sha"} once the PR has merged. Without push
-    the commit stays on local main and nothing is pushed.
+    the commit stays on local main and nothing is pushed. `title`,
+    `branch_stem` and `intro` replace the run's PR title, branch stem and
+    body opening (the manual publish of #616 sets them).
     `publish`/`restore` are table names. Returns a one-line outcome."""
     branch = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd).stdout.strip()
     if branch != "main":
@@ -603,15 +666,16 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
     if bad:
         _git("reset", cwd=cwd)
         return f"ABORTED: non-allowlisted staged path(s): {bad}"
-    title = f"data: pipeline refresh {date.today().isoformat()} ({phase.lower()}, wk {week})"
+    title = title or f"data: pipeline refresh {date.today().isoformat()} ({phase.lower()}, wk {week})"
     msg = (f"{title}\n\n"
-           f"Machine-generated parquet refresh via scripts/run_pipeline.py "
+           f"{intro} "
            f"(allowlisted data-only commit).\n\n"
            f"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>")
     data_branch = None
     if push:
         wk = re.sub(r"[^A-Za-z0-9._-]", "", week)
-        data_branch = _free_branch(f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}", cwd)
+        data_branch = _free_branch(
+            branch_stem or f"data/{date.today().isoformat()}-{phase.lower()}-wk{wk}", cwd)
         s = _git("switch", "-c", data_branch, cwd=cwd)
         if s.returncode != 0:
             _git("reset", cwd=cwd)
@@ -636,7 +700,7 @@ def commit_data(phase: str, week: str, push: bool, publish: list[str],
         _drop_branch(data_branch, cwd)
         return f"ABORTED: push failed: {p.stderr.strip()[:200]}"
     made = _gh("pr", "create", "--base", "main", "--head", data_branch, "--title", title,
-               "--body", _pr_body(staged, run_id, rows), cwd=cwd)
+               "--body", _pr_body(staged, run_id, rows, intro), cwd=cwd)
     found = re.search(r"/pull/(\d+)", made.stdout) if made.returncode == 0 else None
     if not found:
         _drop_branch(data_branch, cwd)
@@ -685,6 +749,7 @@ def _withhold(plan: dict) -> None:
     """Nothing publishes: the passing Chains are listed as not published."""
     plan["publish"] = []
     plan["unpublished"] = list(plan["passed"])
+    plan.pop("riders", None)
 
 
 def _dirty_data(tables: list[str], cwd: Path) -> int:
@@ -768,6 +833,287 @@ def publish_postgres(plan: dict, cwd: Path = REPO, export: bool = True) -> str |
                 return f"ABORTED: export failed ({pg.describe(exc)}); recovery failed ({pg.describe(again)})"
             return f"ABORTED: export failed: {pg.describe(exc)}"
     return None
+
+
+def restore_to_head(tables: list[str], cwd: Path = REPO) -> None:
+    """Put `tables` back to the published snapshot in the store the run writes:
+    the files from git HEAD for parquet, a reload from data/ (which a Postgres
+    run leaves equal to HEAD) for the database. Raises when it cannot."""
+    if not storage_is_postgres():
+        _data_to_head(tables, cwd)
+        return
+    import etl_storage_pg as pg
+    url = os.environ.get(pg.URL_ENV)
+    if not url:
+        raise RuntimeError(f"{pg.URL_ENV} is not set")
+    moved = _dirty_data(tables, cwd)
+    if moved:
+        raise RuntimeError(f"{moved} file(s) under data/ differ from HEAD; the snapshot to reload from is not clean")
+    loaded = pg.reload_snapshot(url, tables, cwd / "data")
+    if loaded.problems:
+        raise RuntimeError(loaded.problems[0])
+
+
+GSIS_CHAIN = "nflverse"
+
+
+def hold_chain(plan: dict, chain: str, reason: str, chains: dict[str, list[str]]) -> None:
+    """Hold a Chain that had passed: it leaves plan["passed"], its tables go to
+    plan["restore"], and so do the riders, which stop publishing with it."""
+    riders = set(plan.pop("riders", ()))
+    plan["passed"] = [c for c in plan["passed"] if c != chain]
+    plan["failed"] = {**plan["failed"], chain: [reason]}
+    out = set(chains.get(chain, ())) | riders
+    plan["publish"] = sorted(set(plan["publish"]) - out)
+    plan["restore"] = sorted(set(plan["restore"]) | out)
+
+
+def rekey_all_or_nothing(plan: dict, chains: dict[str, list[str]], candidates: list[str],
+                         needs: Callable[[list[str]], list[str]],
+                         restore: Callable[[list[str]], None],
+                         rekey: Callable[[list[str], bool], dict],
+                         undo: Callable[[list[str]], None],
+                         gate: Callable[[list[str]], list[str]]) -> list[str]:
+    """The gsis_id re-key belongs to the nflverse Chain (#639, ADR-0008
+    amendment): the link row it publishes and the id change in every published
+    table that holds a gsis_id publish together, or none of it does.
+
+    Does nothing unless nflverse is a passing Chain. The targets are the gsis
+    tables of the passing Chains (this run's vetted rows) and the `candidates`
+    outside them, a Chain that did not run or was held, of which `needs` picks
+    those whose PUBLISHED rows hold an old id; each of those goes back to its
+    published rows first (`restore`), so a store a failed or `--no-commit` run
+    left remapped heals, and no unvetted row rides. `rekey(tables, dry_run)`
+    must return the rekey_gsis_tables dict. The dry run decides first: one
+    refused table holds nflverse and nothing is written. Then the remap is
+    written and `gate` returns the changed tables whose Gate fails; one failure,
+    or any step that raises, puts every remapped table back (`undo`) and holds
+    nflverse (`hold_chain`). A failing `restore` or `undo` is not caught: the
+    run ends as failed. On success the riders move into plan["publish"] and
+    plan["riders"]. Returns the riders."""
+    if GSIS_CHAIN not in plan["passed"]:
+        return []
+    passing = [t for c in plan["passed"] for t in chains.get(c, ())]
+    written: list[str] = []
+    reason = None
+    try:
+        riders = needs(candidates)
+    except Exception as exc:
+        return hold_with(plan, chains, f"gsis re-key held: published rows unreadable ({type(exc).__name__})")
+    if riders:
+        restore(riders)
+    targets = sorted(set(passing) | set(riders))
+    try:
+        dry = rekey(targets, True)
+        if dry["refused"]:
+            reason = "gsis re-key held: " + "; ".join(sorted(dry["refused"].values()))
+        elif dry["changed"]:
+            done = rekey(targets, False)
+            written = list(done["changed"])
+            failing = gate(written)
+            if failing:
+                reason = f"gsis re-key held: Gate failed on {', '.join(failing)} after the id change"
+    except Exception as exc:
+        reason = f"gsis re-key held: a step raised ({type(exc).__name__})"
+        written = written or targets
+    if reason:
+        if written:
+            undo(written)
+        hold_chain(plan, GSIS_CHAIN, reason, chains)
+        return []
+    rode = [t for t in written if t in riders]
+    if rode:
+        plan["publish"] = sorted(set(plan["publish"]) | set(rode))
+        plan["restore"] = sorted(set(plan["restore"]) - set(rode))
+        plan["riders"] = rode
+    return rode
+
+
+def hold_with(plan: dict, chains: dict[str, list[str]], reason: str) -> list[str]:
+    hold_chain(plan, GSIS_CHAIN, reason, chains)
+    return []
+
+
+def rekey_report(result: dict) -> None:
+    """Print what a `rekey_gsis_tables` call changed, names and counts only."""
+    for name in result["changed"]:
+        moved = ", ".join(f"{c} {n}" for c, n in result["stats"][name]["changed"].items())
+        print(f"[gsis] {name}: old gsis_id put on its newest id ({moved})")
+
+
+def rekey_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: list[str],
+                     read_from: dict) -> None:
+    """#639: `rekey_all_or_nothing` over the real store. Not caught here: a
+    restore or an undo that fails ends the run as failed, its notice sent."""
+    if GSIS_CHAIN not in plan["passed"]:
+        print(f"[gsis] {GSIS_CHAIN} did not pass: no gsis_id is re-keyed from this run's links")
+        return
+    chain_of = {t: c for c, ts in chains.items() for t in ts}
+    listed = [t for t in etl_helpers.gsis_id_tables()
+              if chain_of.get(t) and chain_of[t] not in plan["passed"]]
+    tracked = tracked_at_head(listed) if listed else set()
+    candidates = [t for t in listed if f"data/{t}.parquet" in tracked]
+    old = (set(etl_helpers.read_table(etl_helpers.GSIS_LINK_TABLE)["old_gsis_id"])
+           if etl_helpers.table_exists(etl_helpers.GSIS_LINK_TABLE) else set())
+    saved: dict = {}
+
+    def needs(tables):
+        if storage_is_postgres():
+            if _dirty_data(tables, REPO):
+                raise RuntimeError("data/ differs from HEAD; the published rows are not clean")
+        else:
+            _data_to_head(tables, REPO)
+        out = []
+        for t in tables:
+            ids = etl_helpers.read_stored(t, REPO / "data")["gsis_id"].dropna()
+            if old & set(ids):
+                out.append(t)
+        return out
+
+    def rekey(tables, dry_run):
+        done = etl_helpers.rekey_gsis_tables(only=tables, dry_run=dry_run, undo=saved)
+        if not dry_run:
+            rekey_report(done)
+        return done
+
+    def undo(tables):
+        for t in tables:
+            if t in saved:
+                etl_helpers.write_table(t, saved[t])
+
+    def gate(tables):
+        suite = etl_checks.run_suite(tables, accept_shrink, **read_from)
+        return sorted({r.table for r in suite if r.tier == "gate" and not r.ok})
+
+    riders = rekey_all_or_nothing(plan, chains, candidates, needs, restore_to_head, rekey, undo, gate)
+    if riders:
+        print(f"[chain] riders: {', '.join(riders)} publish with the {GSIS_CHAIN} re-key")
+    elif GSIS_CHAIN not in plan["passed"]:
+        print(f"[chain] {GSIS_CHAIN}: HELD — {'; '.join(plan['failed'][GSIS_CHAIN])}")
+
+
+def tracked_at_head(tables: list[str], cwd: Path = REPO) -> set[str]:
+    """The `data/<table>.parquet` paths of `tables` that HEAD holds. Raises
+    when git cannot say, so a git error never reads as tracked."""
+    r = _git("ls-tree", "--name-only", "HEAD", "--", *_parquet_paths(tables), cwd=cwd)
+    if r.returncode != 0:
+        raise RuntimeError("git could not list data/ at HEAD")
+    return set(r.stdout.split())
+
+
+def manual_refusals(names: list[str], registry: dict[str, dict], tracked: set[str]) -> list[str]:
+    """The allowlist of --publish-manual (#616): one line per named table that
+    may not go by it. A table passes only when docs/data_model.yml declares it
+    with no `chain:`, it is published (not private), and HEAD already tracks
+    its snapshot. Pure: reads no store and no file."""
+    out = []
+    for name in names:
+        entry = registry.get(name)
+        if entry is None:
+            out.append(f"{name}: not declared in docs/data_model.yml")
+        elif entry.get("chain"):
+            out.append(f"{name}: in Chain {entry['chain']}, which publishes it")
+        elif etl_helpers.is_private(entry):
+            out.append(f"{name}: private, never published")
+        elif f"data/{name}.parquet" not in tracked:
+            out.append(f"{name}: no snapshot tracked at HEAD (a new table goes by its own PR)")
+    return out
+
+
+def manual_preflight(names: list[str], cwd: Path = REPO) -> list[str]:
+    """The checkout checks of --publish-manual (#616, PR #669 review), made
+    before any read: the checkout is on main, and the index holds no staged
+    path but the named tables' own, since commit_data commits all it finds
+    staged and a staged Chain table would land unchecked. Raises when git
+    cannot say."""
+    out = []
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD", cwd=cwd)
+    if branch.returncode != 0:
+        raise RuntimeError("git could not read the current branch")
+    if branch.stdout.strip() != "main":
+        out.append(f"on branch '{branch.stdout.strip()}', not main")
+    staged = _git("diff", "--cached", "--name-only", cwd=cwd)
+    if staged.returncode != 0:
+        raise RuntimeError("git could not read the index")
+    named = set(_parquet_paths(names))
+    others = sorted(p for p in staged.stdout.splitlines() if p and p not in named)
+    if others:
+        out.append(f"the index holds staged path(s) that are not named tables: {', '.join(others)}")
+    return out
+
+
+def publish_manual(names: list[str], accepted_shrink: list[str], push: bool, dry_run: bool,
+                   cwd: Path = REPO) -> int:
+    """--publish-manual (#616, ADR-0008 decision 3): the owner's command to
+    publish named manual-only tables. Refuses, before any read, a table off
+    the allowlist (`manual_refusals`), a checkout off main or with other
+    staged paths (`manual_preflight`), or a store that is not Postgres. Then,
+    read-only, runs the tables' Gate checks against the store and exports
+    them to data/, and lands them by commit_data, the data PR of a Chain
+    publish. Runs no step and signs in nowhere. Exit 0 published or nothing
+    changed, 1 failed, 2 refused. Prints table names and counts only."""
+    names = list(dict.fromkeys(names))
+    refused = manual_refusals(names, etl_checks.load_registry(), tracked_at_head(names, cwd))
+    refused += manual_preflight(names, cwd)
+    for line in refused:
+        print(f"refused: {line}")
+    if refused:
+        return 2
+    if dry_run:
+        print(f"[dry run] would publish {len(names)} manual-only table(s): {', '.join(names)}")
+        if not storage_is_postgres():
+            print("[dry run] a real run refuses: ETL_STORAGE is not postgres")
+        return 0
+    import etl_storage_pg as pg
+    if not storage_is_postgres():
+        print("refused: ETL_STORAGE is not postgres; the store is the source of a manual publish")
+        return 2
+    if not os.environ.get(pg.URL_ENV):
+        print(f"refused: {pg.URL_ENV} is not set")
+        return 2
+    runlog = etl_run_log.RunLog("manual")
+    runlog.start(etl_run_log.head_sha(cwd))
+    rows, changes, landed = None, {}, {}
+    try:
+        with pg.session_read_only():
+            suite = etl_checks.run_suite(names, accepted_shrink, data_dir=None)
+        for r in suite:
+            if not r.ok:
+                mark = "FAIL" if r.tier == "gate" else "FIND"
+                print(f"[{mark}] {r.tier:6} {r.check:15} {r.table}"
+                      + (f" — {r.detail}" if r.detail else ""))
+        gate_fail = [r for r in suite if r.tier == "gate" and not r.ok]
+        if gate_fail:
+            line = ("ABORTED: Gate failed, nothing exported: "
+                    + "; ".join(f"{g.check} {g.table}" for g in gate_fail))
+        else:
+            try:
+                with pg.session_read_only():
+                    rows = pg.export_published(names, cwd / "data", changes)
+                line = None
+            except Exception as exc:
+                rows = None
+                _data_to_head(names, cwd)
+                line = f"ABORTED: export failed: {pg.describe(exc)}"
+            if line is None:
+                today = date.today().isoformat()
+                line = commit_data("MANUAL", "", push=push, publish=names, restore=[], cwd=cwd,
+                                   run_id=runlog.run_id, rows=rows, landed=landed,
+                                   title=f"data: manual publish {today} ({', '.join(names)})",
+                                   branch_stem=f"data/{today}-manual", intro=MANUAL_INTRO)
+        code = 1 if line.startswith("ABORTED") else 0
+        runlog.finish(
+            etl_run_log.final_status(code, line),
+            snapshot_commit_sha=(landed.get("sha") if etl_run_log.data_merged(line)
+                                 else etl_run_log.head_sha(cwd)
+                                 if etl_run_log.data_committed(line) else None),
+            rows_written=rows, error=line if code else None,
+            column_changes=changes or None)
+    except BaseException as exc:
+        runlog.finish("failed", error=f"{type(exc).__name__} raised before the manual publish finished")
+        raise
+    print(f"[info] {line}")
+    return code
 
 
 def notify(text: str) -> None:
@@ -925,7 +1271,8 @@ def terms_line() -> str:
 
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
-              filed: dict | None = None, cadence: dict | None = None) -> str:
+              filed: dict | None = None, cadence: dict | None = None,
+              access: dict | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
     if cadence:
         lines.append(f"🗓️ {cadence_line(cadence)}")
@@ -934,12 +1281,19 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
+    if access:
+        mark = {"ok": "✅", "dry-run": "▫️"}.get(access["status"], "❌")
+        lines.append(f"{mark} {access['name']} (no Chain: a failure here holds no data Chain)")
+        lines += [("⚠️ " if "CHANGED" in d else "   ") + d for d in access["detail"].splitlines()]
     if plan:
         lines.append("**Chains:**")
         lines += [f"✅ {c}: " + ("passed, not published" if c in plan.get("unpublished", ()) else "published")
                   for c in plan["passed"]]
         lines += [f"🛑 {c}: held at HEAD — {'; '.join(w)[:300]}"
                   for c, w in plan["failed"].items()]
+        if plan.get("riders"):
+            lines.append(f"♻️ gsis ids put on their newest id and published outside their Chain: "
+                         f"{', '.join(plan['riders'])}")
         lines += [f"♻️ {n}" for n in plan.get("notes", [])]
     if filed:
         lines.append(f"🔎 Review findings: {filed['open']} open "
@@ -1018,9 +1372,22 @@ def main() -> int:
                     help="let TABLE shrink past its limit (known rollover); repeatable")
     ap.add_argument("--trigger", choices=etl_run_log.TRIGGERS, default="manual",
                     help="what started the run, for ops.etl_run_log")
+    ap.add_argument("--publish-manual", nargs="+", metavar="TABLE",
+                    help="the owner's command only (#616): export the named manual-only "
+                         "tables from the store and land them by the data PR; no steps")
     args = ap.parse_args()
 
     print(f"storage: {resolve_storage_env()}")
+
+    if args.publish_manual:
+        clash = [flag for flag, on in (("--steps", args.steps), ("--group", args.group),
+                                       ("--profile", args.profile), ("--check-only", args.check_only),
+                                       ("--no-commit", args.no_commit)) if on]
+        if clash:
+            print(f"refused: --publish-manual runs no steps; drop {', '.join(clash)}")
+            return 2
+        return publish_manual(args.publish_manual, args.accept_shrink,
+                              push=not args.no_push, dry_run=args.dry_run)
 
     if args.check_only:
         return check_only(args.accept_shrink)
@@ -1030,6 +1397,7 @@ def main() -> int:
     logins: list[str] = []
     blocked: list[str] = []
     contract_before = contract_after = None
+    access = None
     if not args.dry_run:
         runlog.start(etl_run_log.head_sha(REPO))
     try:
@@ -1049,6 +1417,7 @@ def main() -> int:
         if not args.dry_run and not args.no_commit:
             contract_before = read_contract_list()
         results = run_steps(steps, phase, only, args.dry_run, groups)
+        access = run_access_loads(args.dry_run, args.no_commit, only, groups)
         logins = fantrax_logins(session)
         blocked = fantrax_blocked(session)
         if session:
@@ -1064,16 +1433,26 @@ def main() -> int:
             ran = {s["chain"] for s in steps if s["name"] in {r["name"] for r in results}}
             # data_dir=None: under Postgres the Gates read the database.
             read_from = {"data_dir": None} if storage_is_postgres() else {}
-            suite = etl_checks.run_suite([t for c in ran for t in chains.get(c, [])],
-                                         args.accept_shrink, **read_from)
+            ran_tables = [t for c in ran for t in chains.get(c, [])]
+            suite = etl_checks.run_suite(ran_tables, args.accept_shrink, **read_from)
             plan = plan_publish(steps, results, suite, chains)
             for c in plan["passed"]:
                 print(f"[chain] {c}: pass")
             for c, w in plan["failed"].items():
                 print(f"[chain] {c}: HELD — {'; '.join(w)}")
+            # #639: the gsis_id re-key is the nflverse Chain's and is all or
+            # nothing. Nothing publishes under --no-commit, and a held Chain's
+            # output stays on disk for inspection, so it does not run there.
+            if not args.no_commit:
+                rekey_gsis_links(plan, chains, args.accept_shrink, read_from)
             # File only what publishes: a held Chain's tables revert to HEAD.
+            # A rider's rows are its published rows, whose findings were filed
+            # when they published, and the results here were computed on the
+            # held run's unvetted rows (ADR-0008 amendment, #639).
+            riders = set(plan.get("riders", ()))
             filed = etl_checks.file_review(
-                [r for r in suite if r.table in plan["publish"]], run_id=_run_id())
+                [r for r in suite if r.table in plan["publish"] and r.table not in riders],
+                run_id=_run_id())
 
         reviews = review_counts()
         rows, landed = None, {}
@@ -1096,7 +1475,8 @@ def main() -> int:
         print(f"[info] {commit_line}")
 
         failed = bool(plan and plan["failed"]) or any(
-            r["status"] not in ("ok", "dry-run") for r in results)
+            r["status"] not in ("ok", "dry-run") for r in results) or bool(
+            access and access["status"] == "failed")
         code = 1 if failed or commit_line.startswith("ABORTED") else 0
 
         cadence["done"] = [] if args.no_commit or not cadence["week_key"] else close_steps_done(
@@ -1109,7 +1489,7 @@ def main() -> int:
                                      if etl_run_log.data_committed(commit_line) else None),
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
-                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked)
+                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked, access)
                        if code else None),
                 cadence=cadence,
                 column_changes=(plan or {}).get("column_changes")
@@ -1124,7 +1504,7 @@ def main() -> int:
     finally:
         close_fantrax_session(session)
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access)
     if blocked:
         summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
                    f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")

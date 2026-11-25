@@ -62,8 +62,15 @@ jobs:
           git config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
           git remote set-url --push origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
+      - name: Write the Sheets key
+        continue-on-error: true
+        env:
+          GOOGLE_SHEETS_KEY_JSON: ${{ secrets.GOOGLE_SHEETS_KEY_JSON }}
+        run: python scripts/write_sheets_key.py "${RUNNER_TEMP}/sheets-key.json"
+
       - name: Run the Daily Run
         env:
+          GOOGLE_SHEETS_KEY_FILE: ${{ runner.temp }}/sheets-key.json
           FANTRAX_EMAIL: ${{ secrets.FANTRAX_EMAIL }}
           FANTRAX_PASSWORD: ${{ secrets.FANTRAX_PASSWORD }}
           FANTRAX_TOTP_SECRET: ${{ secrets.FANTRAX_TOTP_SECRET }}

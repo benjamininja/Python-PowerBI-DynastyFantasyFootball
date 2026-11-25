@@ -1,6 +1,6 @@
 """The `roster` command — one team's roster and contracts.
 
-Resolve a team by abbreviation or name (disambiguating on a collision, like
+Resolve a team by name (disambiguating on a collision, like
 `player`), then list its players by cap hit with their contracts. A team that
 hasn't drafted yet (only one division has so far) gets a friendly note with its
 available cap rather than an empty board.
@@ -31,19 +31,12 @@ _PLAYERS_PER_FIELD = 15
 def _resolve_team(teams: pd.DataFrame, query: str) -> pd.Series:
     q = (query or "").strip().lower()
     if not q:
-        raise CommandError("Give me a team, e.g. `/roster BIGL` or `/roster Big L`.")
-    exact_abbr = teams[teams["team_abbr"].fillna("").str.lower() == q]
-    if len(exact_abbr) == 1:
-        return exact_abbr.iloc[0]
-    by_name = teams[teams["team_name"].fillna("").str.lower().str.contains(re.escape(q))]
-    hits = pd.concat([exact_abbr, by_name]).drop_duplicates("team_key")
+        raise CommandError("Give me a team, e.g. `/roster Big L`.")
+    hits = teams[teams["team_name"].fillna("").str.lower().str.contains(re.escape(q))]
     if hits.empty:
         raise CommandError(f"No team matches **{query}**.")
     if len(hits) > 1:
-        listed = ", ".join(
-            f"{r.team_name} (`{abbr}`)" if (abbr := render.safe_str(r.team_abbr).strip()) else str(r.team_name)
-            for r in hits.head(10).itertuples()
-        )
+        listed = ", ".join(str(r.team_name) for r in hits.head(10).itertuples())
         raise CommandError(f"Multiple teams match **{query}**: {listed}. Be more specific.")
     return hits.iloc[0]
 
@@ -108,7 +101,7 @@ class Roster(commands.Cog):
         description="A team's roster and contracts (private unless you share).",
     )
     @discord.app_commands.describe(
-        team="Team abbreviation or name (e.g. BIGL or Big L).",
+        team="Team name, or part of it (e.g. Big L).",
         share="Post the result publicly in the channel (default: private to you).",
     )
     async def roster(
