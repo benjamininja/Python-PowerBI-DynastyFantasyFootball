@@ -64,6 +64,7 @@ class LeagueConfig:
     team_sheet_id: str = "1Fiz_KHH5bexSAHIfL0uVIqgHU6jTgnOmDs86kjR8TZc"
     team_sheet_gid: str = "178660131"
     owner_sheet_gid: str = "1895987887"
+    app_roles_sheet_gid: str = "1489461039"
     # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
     fact_name: str = "fact_fantrax_adp"
     crosswalk_name: str = "dim_fantrax_crosswalk"

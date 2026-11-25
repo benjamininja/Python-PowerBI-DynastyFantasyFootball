@@ -77,6 +77,10 @@
 #   authenticated only: shared.caller_is_commissioner_for(team_key) and
 #   shared.caller_is_site_admin(), and puts the table's ids in
 #   shared.pii_token_hashes().
+#   Each of shared.owner_crosswalk and shared.app_role also brings a load function
+#   (shared.load_owner_crosswalk, shared.load_app_roles; ADR-0026 decision 2 as
+#   amended, #700): SECURITY DEFINER, EXECUTE for etl_writer only, which holds no
+#   grant on either table. The scheduled run calls it with the whole set.
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
@@ -1618,8 +1622,9 @@ other_tables:
 
   # Which Discord users own which team (ADR-0025 decision 5, #548 brief 3). Owner
   # PII: database only, never exported, never committed, no grant to any role.
-  # Only the two definer functions of `shared` read it. Loaded by
-  # scripts/load_owner_crosswalk.py, which writes a SQL file for the owner to run.
+  # Only the definer functions of `shared` read it. Loaded by the scheduled run
+  # (scripts/load_access_tables.py, through shared.load_owner_crosswalk); the
+  # manual fallback is scripts/load_owner_crosswalk.py, which writes a SQL file.
   - name: owner_crosswalk
     schema: shared
     pk: [team_key, discord_user_id]
@@ -1636,8 +1641,9 @@ other_tables:
   # never committed, no grant to any role; only the definer functions of `shared`
   # read it. `league_key` is in the key so the league key #658 decides changes
   # values and one function body, never a key: `main` is the one league until
-  # then, and `*` (every league) is the site admin's. Loaded by
-  # scripts/load_app_roles.py, which writes a SQL file for the owner to run.
+  # then, and `*` (every league) is the site admin's. Loaded by the scheduled run
+  # (scripts/load_access_tables.py, through shared.load_app_roles); the manual
+  # fallback is scripts/load_app_roles.py, which writes a SQL file.
   - name: app_role
     schema: shared
     pk: [discord_user_id, role, league_key]

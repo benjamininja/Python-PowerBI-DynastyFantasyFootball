@@ -144,9 +144,11 @@ def final_status(code: int, commit_line: str) -> str:
 
 
 def failure_summary(results: list[dict], plan: dict | None, commit_line: str,
-                    blocked: list[str] = ()) -> str:
+                    blocked: list[str] = (), access: dict | None = None) -> str:
     parts = [f"step {r['name']} {r['status']}" for r in results
              if r["status"] not in ("ok", "dry-run")]
+    if access and access["status"] == "failed":
+        parts.append(f"step {access['name']} failed (no Chain held)")
     if blocked:
         parts.append(f"Fantrax login cap reached ({len(blocked)} step(s) blocked)")
     for chain, reasons in (plan or {}).get("failed", {}).items():

@@ -150,7 +150,7 @@ class TestTheOwnerCrosswalkAndItsFunctions:
     def test_two_definer_functions_are_written_with_the_search_path_empty(self):
         model = gm.desired_model(crosswalk_registry())
         assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
-                                           "shared.choice_window"}
+                                           "shared.choice_window", "shared.load_owner_crosswalk"}
         for name in ("shared.caller_team_keys", "shared.choice_window"):
             sql = model["functions"][name]
             assert "SECURITY DEFINER SET search_path = ''" in sql
@@ -272,9 +272,11 @@ class TestTheRoleTableAndItsTwoChecks:
         model = gm.desired_model(roles_registry())
         assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
                                            "shared.choice_window", "shared.caller_is_commissioner_for",
-                                           "shared.caller_is_site_admin"}
+                                           "shared.caller_is_site_admin", "shared.load_owner_crosswalk",
+                                           "shared.load_app_roles"}
         assert gm.desired_model(crosswalk_registry())["functions"].keys() == {
-            "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window"}
+            "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window",
+            "shared.load_owner_crosswalk"}
 
     def test_both_are_definers_with_the_search_path_empty_and_execute_for_authenticated_alone(self):
         sql = self.sql()
@@ -319,7 +321,8 @@ class TestTheRoleTableAndItsTwoChecks:
         changes = gm.diff(old, gm.desired_model(roles_registry()))
         assert changes["refusals"] == []
         sql = gm.render(changes)
-        assert sql.count("CREATE FUNCTION") == 2 and sql.count("CREATE OR REPLACE FUNCTION shared.pii_token_hashes") == 1
+        assert sql.count("CREATE FUNCTION") == 3 and sql.count("CREATE OR REPLACE FUNCTION shared.pii_token_hashes") == 1
+        assert sql.count("CREATE FUNCTION shared.load_app_roles") == 1
         assert "GRANT EXECUTE ON FUNCTION shared.pii_token_hashes" not in sql
 
     def test_the_role_table_without_the_crosswalk_is_refused(self):
@@ -478,7 +481,7 @@ class TestTheRealRegistry:
         assert "commissioner" not in "".join(str(p.get("check", "")) + str(p.get("using", ""))
                                              for p in spec["policies"])
 
-    def test_the_rule_for_shared_names_exactly_five_functions(self, model):
+    def test_the_rule_for_shared_names_exactly_seven_functions(self, model):
         assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"])
         assert {n.split(".")[0] for n in model["functions"]} == {"shared"}
         grantees = {n: set(roles) for n, (_, roles) in gm.FUNCTION_ACCESS.items()}
@@ -486,7 +489,9 @@ class TestTheRealRegistry:
                             "shared.caller_team_keys": {"authenticated"},
                             "shared.choice_window": {"authenticated"},
                             "shared.caller_is_commissioner_for": {"authenticated"},
-                            "shared.caller_is_site_admin": {"authenticated"}}
+                            "shared.caller_is_site_admin": {"authenticated"},
+                            "shared.load_owner_crosswalk": {"etl_writer"},
+                            "shared.load_app_roles": {"etl_writer"}}
 
     def test_the_role_table_holds_no_grant_and_no_policy_and_the_league_is_in_its_key(self, model):
         spec = model["tables"]["shared.app_role"]
@@ -504,3 +509,62 @@ class TestTheRealRegistry:
                 assert "caller_is_commissioner_for" not in text and "caller_is_site_admin" not in text, key
         for sql in model["trigger_functions"].values():
             assert "caller_is_" not in sql
+
+
+class TestTheTwoLoadFunctions:
+    """ADR-0026 decision 2 as amended, #700: one locked definer function per table."""
+
+    NAMES = ("shared.load_owner_crosswalk", "shared.load_app_roles")
+
+    @pytest.fixture()
+    def model(self):
+        real = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        return gm.desired_model(real)
+
+    def test_each_is_a_definer_with_the_search_path_empty_and_returns_two_counts(self, model):
+        for name in self.NAMES:
+            sql = model["functions"][name]
+            assert "SECURITY DEFINER SET search_path = ''" in sql
+            assert "RETURNS TABLE (rows_before integer, rows_after integer)" in sql
+
+    def test_execute_is_revoked_from_public_and_granted_to_the_writer_alone(self, model):
+        for name in self.NAMES:
+            assert gm.FUNCTION_ACCESS[name] == ("(text[], text[])", ("etl_writer",))
+        sql = gm.render(gm.diff(gm.EMPTY_MODEL, model))
+        for name in self.NAMES:
+            assert f"REVOKE EXECUTE ON FUNCTION {name}(text[], text[]) FROM PUBLIC;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {name}(text[], text[]) TO etl_writer;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {name}(text[], text[]) TO authenticated" not in sql
+
+    def test_no_table_grant_and_no_policy_comes_with_them(self, model):
+        for key in ("shared.owner_crosswalk", "shared.app_role"):
+            assert not {"grants", "policies", "triggers"} & set(model["tables"][key])
+        sql = gm.render(gm.diff(gm.EMPTY_MODEL, model))
+        assert "ON shared.owner_crosswalk TO" not in sql and "ON shared.app_role TO" not in sql
+
+    def test_every_refusal_names_a_count_and_never_a_value(self, model):
+        import re
+        for name in self.NAMES:
+            sql = model["functions"][name]
+            raises = re.findall(r"RAISE EXCEPTION '([^']*)'(?:, ([^;]*))?;", sql)
+            assert len(raises) >= 5
+            for message, args in raises:
+                for arg in [a.strip() for a in args.split(",") if a.strip()]:
+                    assert arg in {"v_keys", "v_ids", "v_roles", "v_bad", "SQLSTATE"}, (name, message, arg)
+
+    def test_the_write_sits_in_an_inner_block_that_re_raises_with_the_sqlstate_alone(self, model):
+        for name in self.NAMES:
+            sql = model["functions"][name]
+            assert "EXCEPTION WHEN OTHERS THEN" in sql
+            assert sql.index("DELETE FROM") < sql.index("EXCEPTION WHEN OTHERS") < sql.index("RETURN NEXT")
+
+    def test_the_gate_lets_these_two_bodies_through_and_nothing_else_in_the_migration(self, model):
+        import migration_gate as mg
+        sql = gm.render(gm.diff(gm.EMPTY_MODEL, {**gm.EMPTY_MODEL, "functions": {
+            n: model["functions"][n] for n in self.NAMES}, "schemas": [], "roles": []}))
+        assert not mg.is_destructive(sql), mg.destructive(sql)
+        assert mg.is_destructive(sql + "DROP TABLE shared.app_role;")
+
+    def test_the_real_registry_declares_the_table_the_crosswalk_function_reads(self, model):
+        assert "football.dim_fantasy_teams" in model["tables"]
+        assert "football.dim_fantasy_teams" in model["functions"][self.NAMES[0]]
