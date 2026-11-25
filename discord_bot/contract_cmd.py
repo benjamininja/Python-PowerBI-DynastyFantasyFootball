@@ -92,7 +92,7 @@ class ContractMoves(commands.Cog):
     @app_commands.describe(
         list_name="Which list: minor-to-1st, expiring or decision.",
         fmt="xlsx (one tab per conference) or table (in Discord).",
-        team="Only this team: abbreviation or name (e.g. BIGL or Big L).",
+        team="Only this team: its name, or part of it (e.g. Big L).",
         share="Post the result publicly in the channel (default: private to you).",
     )
     @app_commands.rename(list_name="list", fmt="format")

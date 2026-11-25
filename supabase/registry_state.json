@@ -682,11 +682,6 @@
           "sql_type": "text"
         },
         {
-          "name": "team_abbr",
-          "not_null": false,
-          "sql_type": "text"
-        },
-        {
           "name": "fantrax_team_id",
           "not_null": false,
           "sql_type": "text"

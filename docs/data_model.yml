@@ -267,12 +267,13 @@ tables:
     columns:
       - { name: team_key, dtype: str, sql_type: text }
       - { name: team_name, dtype: str, sql_type: text }
-      - { name: team_abbr, dtype: str, sql_type: text }
       - { name: fantrax_team_id, dtype: str, sql_type: text }
       - { name: conference, dtype: str, sql_type: text }
       - { name: division, dtype: str, sql_type: text }
       - { name: original_cap, dtype: int64, sql_type: integer }
       - { name: reinvestment_cap, dtype: int64, sql_type: integer }
+    drops:
+      - { column: team_abbr, ticket: 597 }
     edges:
       - { to: dim_division, via: direct, on: conference }
 
