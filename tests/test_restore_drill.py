@@ -67,6 +67,17 @@ def drilled(url, frames):
     return code, lines
 
 
+@pytest.fixture(scope="module")
+def base_drill(frames):
+    """One drill of the published snapshot as it is, run once for the cases that
+    start from it (#699): its exit code, its lines, and the tables the database
+    still held right after it."""
+    url = database_url()
+    empty_published(url, TABLES)
+    code, lines = drilled(url, frames)
+    return code, lines, held(url)
+
+
 def sums(lines):
     found = {}
     for line in lines:
@@ -93,16 +104,12 @@ def a_loose_text_cell(frames):
 
 
 class TestTheDrillOnTheDatabase:
-    def test_the_published_snapshot_drills_clean_and_prints_a_line_per_table(self, db, frames, capsys):
-        lines = []
-
-        def out(text):
-            lines.append(text)
-            print(text)
-
+    def test_the_published_snapshot_drills_clean_and_prints_a_line_per_table(self, db, base_drill, capsys):
+        code, lines, left = base_drill
         with capsys.disabled():
             print()
-            code = drill.run(db, frames, out=out)
+            for text in lines:
+                print(text)
         assert code == 0
         found = sums(lines)
         assert sorted(found) == TABLES
@@ -110,19 +117,19 @@ class TestTheDrillOnTheDatabase:
             rows = len(pd.read_parquet(REPO / "data" / f"{table}.parquet"))
             assert found[table][0] == rows
         assert lines[-1].startswith("snapshot ") and f"{len(TABLES)} table(s)" in lines[-1]
-        assert held(db) == []
+        assert left == []
 
-    def test_the_checksum_does_not_depend_on_row_order(self, db, frames):
-        first = drilled(db, frames)
+    def test_the_checksum_does_not_depend_on_row_order(self, db, frames, base_drill):
+        first = base_drill[:2]
         shuffled = {name: frame.sample(frac=1, random_state=7).reset_index(drop=True)
                     for name, frame in frames.items()}
         second = drilled(db, shuffled)
         assert first[0] == second[0] == 0
         assert sums(first[1]) == sums(second[1])
 
-    def test_one_changed_cell_changes_that_tables_checksum_and_no_other(self, db, frames):
+    def test_one_changed_cell_changes_that_tables_checksum_and_no_other(self, db, frames, base_drill):
         name, column, label = a_loose_text_cell(frames)
-        base = drilled(db, frames)
+        base = base_drill[:2]
         edited = frames[name].copy()
         edited.loc[label, column] = str(edited.loc[label, column]) + "~"
         after = drilled(db, {**frames, name: edited})
@@ -141,7 +148,6 @@ class TestTheDrillOnTheDatabase:
 
     def test_the_printed_sql_run_on_the_database_gives_the_lines_the_drill_printed(self, db, frames, monkeypatch, capsys):
         import psycopg
-        real = pg.clear_published
         monkeypatch.setattr(pg, "clear_published", lambda url, names: None)
         try:
             code, lines = drilled(db, frames)
@@ -155,7 +161,7 @@ class TestTheDrillOnTheDatabase:
             assert sorted(f"{t} {n} {c}" for t, n, c in rows) == sorted(l for l in lines if LINE.match(l))
         finally:
             monkeypatch.undo()
-            real(db, TABLES)
+            empty_published(db, TABLES)
 
     def test_a_non_empty_table_is_refused_and_nothing_is_written_or_cleared(self, db, frames):
         assert pg.load_published(db, frames, replace=False).problems == []
