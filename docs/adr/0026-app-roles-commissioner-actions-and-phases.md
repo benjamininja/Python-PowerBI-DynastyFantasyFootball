@@ -43,6 +43,16 @@
 2. **Roles are recorded in `shared.app_role`** (question 6).
    - One row per person and role, for `commissioner` and `site_admin`. Owner stays derived from `shared.owner_crosswalk`.
    - It is loaded as the crosswalk is: a tracked script prints SQL to a path the owner names, and the owner runs it in the SQL editor (ADR-0025 decision 7). No agent writes it.
+     - *Amended 2026-11-25 by the owner ([#662](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/662), his Decision and his choice by button in the planner's chat: roles and crosswalk): the scheduled run loads `shared.app_role` from the App roles tab and `shared.owner_crosswalk` from the owner tab of the Restricted team-manifest workbook. The owner no longer runs SQL by hand for either. Not yet built.*
+       - **One locked function per table.** Each is `SECURITY DEFINER` in `shared`, `search_path` pinned empty, EXECUTE revoked from `PUBLIC` and granted to `etl_writer` only. `etl_writer` still holds no grant on either table, so the pipeline login can replace the rows and cannot read them.
+       - **Replace-all, in one transaction.** A call takes the whole set and leaves the table equal to it, or changes nothing.
+       - **What a function refuses.** An empty set, so a failed or empty sheet read cannot wipe access. A Discord id that is not digits only, 17 to 20 long. A role word other than `commissioner` or `site_admin`. A refusal changes nothing.
+       - **Counts only.** A function returns row counts and nothing else. The run's notice says when a count changed, so a change the owner did not make is seen the same day. An id is never printed, logged, written to a file or put in a notice.
+       - **A failed load holds nothing else** *(planner)*. It leaves both tables as they were, is named in the run's notice, and no data Chain is held for it.
+       - **The sheet's editors are the root of trust,** as they already are for the team manifest. The tab is read through `etl_helpers.read_sheet_tab`, as the service account, in the runner's memory only.
+       - **What this gives up.** A stolen pipeline secret could call a function and grant a role or a team; before this it could not. Every choice write is in the history table, and the notice reports each count change.
+       - **What stays by hand.** `scripts/print_choice_deadline.py` (about twice a season; a pipeline login able to set deadlines is new power for little saving) and `scripts/load_contract_choices.py` (a once-a-season seed from a local workbook, which the choices page replaces). The two tracked loaders stay as a manual fallback.
+       - **No agent runs a load against the live database.** The scheduled run does; the Never lines of `GOAL-RUN.md` do not change.
    - It is a third table of Discord ids in `shared`: row-level security on, no grant to any role, never exported, and its ids join `shared.pii_token_hashes()`.
    - A role is never read from the sign-in token or from user metadata.
    - *(planner)* **A policy asks about a team, never about a person alone.** The check is whether the caller may act as commissioner for this team, so that a league scope changes one function body and no policy. A commissioner's row records its league. The form of that column is the foundations brief's to propose, because the league key itself is #658's.
