@@ -56,48 +56,25 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-25, fourteenth save, before a compact at Ben's word; session `4ff97ebc-bfd4-4723-997c-406160d975ba`)
+## CURRENT STATE (2026-11-25, fifteenth save, before a clear at Ben's word; session `4ff97ebc-bfd4-4723-997c-406160d975ba`)
 
-- **Heads.** origin/main and the main checkout at `1fb63c5` (PR #703). The main checkout is clean apart from the untracked `.agents/` and `GEMINI.md`.
-- **The rules changed today** (GOAL-RUN.md, PRs #694 and #703, on Ben's priority: "we are completing work but never completing the endless scans"):
-  - Green is every CI check SUCCESS at the head with no conflict, on one read. The `checks` job (#696) runs the data-model, sources and Gate checks.
-  - No local full run and no test line for a merge. A merged tree is not proved again.
-  - After each merge, read CI on main. Red means a revert PR, or a fix forward for a migration. Two PRs that are each green alone can break main together.
-  - The schema check is the push job plus the advisors. The full live read happens only after hand-run SQL or on Ben's word.
-  - One merge word in the manager's chat may name several PRs.
-  - A PR whose head predates `ab407ed` has no `checks` job: run the three scripts at the head merged with main, or have the builder merge main (planner's ruling, pull/703#issuecomment-7165536667).
-  - Shared rules (tools #273, proposed): one reviewer, no advisory rounds.
-  - Every ask of Ben is an AskUserQuestion pop-up with summary, pros, cons and recommendation.
-- **Merged this session:**
-  - #690 `8e217ed`; #689 `dc3e2fc` (Ben's hand; the late re-proof is GREEN, issues/662#issuecomment-7164344316); #692 `d53b9ab`; #696 `ab407ed`; #693 `907cf3b`; #704 `ccbef36`.
-  - The planner merged #694 `7129864`, #698 `7e4ac53` and #703 `1fb63c5`.
-- **Closed out:** b597, b688, b662, b686, b695, b581, b639.
-- **CI on main:** `ab407ed`, `7e4ac53` and `907cf3b` are SUCCESS. `ccbef36` and `1fb63c5` `tests` were still running at this save. **Read them first.**
+Done items left this block: their records are on GitHub (tools #272 read budget).
+
+- **Heads.** origin/main and the main checkout at `2ad12bd` (PR #714). CI on main green through `428a877`; `2ad12bd` tests was running at this save: **read it first.**
+- **Rules.** Green is every CI check SUCCESS at the head with no conflict, on one read; no local full run, no re-proof of a merged tree; read CI on main after each merge; one reviewer, no advisory rounds. The tools planner reports a shared CI-gate rule merged (tools #187, PR #288): read session-rules and GOAL-RUN.md fresh before the first merge.
+- **GitHub fault.** All afternoon GitHub gave 500/502 and GraphQL errors on some writes. When `gh` fails, `gh api` REST often works (`gh api repos/<o>/<r>/issues/<n>/comments -F body=@file`). The token's merge of a PR that edits a workflow file failed every time (#709, #714); Ben merged both on the web. Pattern sent to the tools planner for tools #204.
 - **Builders running:**
-  - **b700-autoload**: #700, PR #710, session `4c6c146d-928f-42b2-82ae-70ab4e900fd4`.
-    - It builds the automated App roles and owner crosswalk loads through two locked definer functions.
-    - Ben's Decision (issues/700#issuecomment-7165832748): the migration gate exempts only `shared.load_app_roles` and `shared.load_owner_crosswalk` by name. ADR line PR #708; the planner merges it on Ben's word.
-    - Ben's word: "merge #700 when green" (issuecomment-7166200476). It merges after #708, with the supabase-auditor's review (one reviewer) and no upheld blocking finding.
-    - The migration-order check applies. After the merge: the push job, plus advisors; the last proof is the scheduled run's notice showing the two counts.
-  - **b699-pgfast**: #699, PR #709, session `a6adfc56-b0ed-4316-94d5-5bd6b7c22a10`.
-    - storage-pg under 8 minutes with the same pg tests collected.
-    - Ben's word: merge when green (issues/699#issuecomment-7165629265). One reviewer.
-- **The planner's open PRs** (the planner merges, not the manager): #705 (CLAUDE.md Git sentence for the re-key exception) and #708 (the ADR-0018 line).
-- **#662:** Ben's Decision was to automate the load and skip the hand run (issuecomment-7164106424). #700 does it. The App roles gid is `1489461039`. #662 closes once #700 lands.
-- **#691 (data PR):** it waits for a refresh that runs with #693's remap. Its rows stay on the old id until then.
-- **Tickets with no go yet:** #697 (current_gsis gap, medium, after #693), and the planner's sweep of other hand-run loads. Chain from earlier, each on Ben's go: #675, #670, #682, #663, #664, #665. Backlog: #683, #687, #676, #633, #637, #644; #592 held; #620 waits on tools #242; #563 held; #595 last.
-- **Peers:**
-  - dff-central-planner `9bcc0c9c-574c-4ebb-b4f4-18edc03af9aa`
-  - Tools-builder-manager `dabbbcd0-2b97-445e-a2d9-4502691fb617`
-  - Tools-central-planner `2c14b7ab-3b12-4984-ae56-5c6526f96566` (new after its clear)
-- **Notices:**
-  - The machine's GitHub login is the narrowed token (tools #204). A refused call that used to work is a finding for the Tools planner, not a retry.
-  - tools #272 changed session-rules (start-up read budget, after-compact rule); a new session loads it.
+  - **b697-gsishold** (#697, PR #716, session `1e16794b-d836-4076-9300-548fd4f191f9`). Green by its report at `2a7e9a7`. Ben's word: merge when green (issues/697#issuecomment-7167922906). The one review (pr-code-reviewer, medium) was running at this save; if no review record is on PR #716, start it again. Ben may veto one choice in the PR body: a passing Chain whose table cannot be put back is held, never published on the new id.
+  - **b715-validate** (#715, session `aa8bccb1-3928-4ed4-9c83-0494d72f518a`), tier low, from `2ad12bd`. Ben's go confirmed by button. Before merge: the planner reads the PR; the supabase-auditor is the one reviewer. No merge word yet.
+- **Waiting on Ben's word or a record:**
+  - The chain (#670, then #675 before #663, never side by side; #682; then #663, #664, #665; #676 after #675): Ben's go is "dispatch the chain after #697 merges". Before each dispatch, ask the planner to recheck that ticket's body (they lean on unmerged #670, #675, #682).
+  - #662 and #700 close once the scheduled run's notice shows the two load counts (Ben's word, issues/662#issuecomment-7167238773).
+  - #713: note on the ticket the first later PR under pbi/, mouserat_trade-bud/, discord_bot/ or docs/site/ (the skip's first reading).
+  - #699 stays open for the planner: index on 38 foreign-key child columns (a migration and a design decision); advisory F1, no lock_timeout on the fixture TRUNCATE.
+  - Closeout words for b697 and b715 after their merges: ask by pop-up.
+- **Closed out this session:** b597, b688, b662, b686, b695, b581, b639, b700, b699, b713.
+- **Peers:** dff-central-planner `9bcc0c9c-574c-4ebb-b4f4-18edc03af9aa`; Tools-builder-manager `dabbbcd0-2b97-445e-a2d9-4502691fb617`; Tools-central-planner `2c14b7ab-3b12-4984-ae56-5c6526f96566`.
 - **Bot:** bot.py in a terminal tab of this session. Check it after a clear.
-- **Learned:**
-  - `gh pr merge --squash` without `--delete-branch` is fine: GitHub deletes the head branch on merge, and a later `git push --delete` is refused.
-  - At closeout, a diff of a builder's files against main can show lines from a PR merged after the branch was cut. Compare with the squash commit before deciding anything is missing.
-  - `run_pipeline.py --check-only` counts every review finding as new in a fresh checkout. Only Gate failures fail it.
 
 ## Queue entries raised
 
