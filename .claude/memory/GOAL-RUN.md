@@ -39,10 +39,11 @@ line under that skill's "Never".
 - every CI check SUCCESS at the PR's head, and no conflict, on one read of
   `gh pr view <n> --json mergeStateStatus,statusCheckRollup`. The manager
   makes no local full test run for a merge;
-- what CI does not run yet, run by the manager at that head:
-  `check_data_model.py` and `--check`; `check_sources.py --check`;
-  `run_pipeline.py --check-only` (0 Gate failures, 0 new Review findings).
-  Each leaves this list when a CI job runs it (#695);
+- the `checks` job is one of those checks (#695). It runs
+  `check_data_model.py` and `--check`, `check_sources.py --check` and
+  `run_pipeline.py --check-only`, so the manager runs none of them by
+  hand. `--check-only` fails on a Gate failure only; Review findings are
+  listed in the job's log and never fail it;
 - for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding;
 - for a code PR, no blocking finding the manager upheld is still open;
 - for a PR that adds a migration, its file sorts after the newest one on
@@ -55,7 +56,7 @@ line under that skill's "Never".
 
 A Green holds while the PR's head is unchanged and GitHub shows no conflict. A merge elsewhere does not make it stale; the migration-order line is the one item read again. A PR that conflicts takes a merge of `main`, and CI runs on the new head.
 
-After each merge the manager reads CI on `main`'s new commit. Red there means a revert PR and an Action for the owner. A merged migration is not reverted: it is fixed forward, and parks with the owner as a Decision. A merged tree is not proved again.
+After each merge the manager reads CI on `main`'s new commit. Red there means a revert PR and an Action for the owner. Two PRs that are each green alone can break `main` together: a red `main` after a merge is read as that case. A merged migration is not reverted: it is fixed forward, and parks with the owner as a Decision. A merged tree is not proved again.
 
 A finding that needs a design choice parks the ticket with its PR left open.
 
