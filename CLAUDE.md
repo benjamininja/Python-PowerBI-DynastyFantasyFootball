@@ -124,7 +124,11 @@ the parquet alone.
   gated by the required checks, which it merges itself — only the passing
   Chains' tables, and a manual-only table only on the owner's
   `--publish-manual` command, never new ones (allowlist-verified,
-  change-detected, never a push to `main` — CONTRIBUTING.md).
+  change-detected, never a push to `main` — CONTRIBUTING.md). One id-only
+  exception (ADR-0008 amendment, #639): the `gsis_id` re-key belongs to the
+  `nflverse` Chain and is all or nothing; a table of a Chain that did not run
+  or was held, put back to its published rows with only its ids moved,
+  publishes with the `nflverse` link row, or neither does.
 - **Secrets**: never commit `.env`/`*.env`/`.env.*` (template `.env.example`
   is the exception), `data/.pw_profile/`, `data/raw/`, `data/review/`,
   `api_key.txt`. Bot/scraper code does no destructive or write-side calls to
