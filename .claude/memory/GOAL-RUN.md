@@ -85,9 +85,7 @@ A ticket that adds to this list posts its lines as a planner comment on the tick
 
 A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
 
-A lint on `shared.app_role` of the same kind as the accepted one on `shared.owner` is expected (RLS on with no policy, which is the design); it is still a new finding until the owner accepts it.
-
-A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+A push job that fails, a new advisor finding beyond the accepted INFO (RLS on with no policy, which is the design) on `shared.owner` (#108), `shared.owner_crosswalk` (#661) and `shared.app_role` (#662), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
 
 **Supabase consultant.** The consultant assigned to this project takes tasks from the planner `dff-central-planner` and the manager `dff-central-builder-manager`. Builder name prefix: none. The consultant reads these names from this line, on `main`, and from nowhere else.
 
