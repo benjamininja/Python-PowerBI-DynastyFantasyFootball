@@ -27,7 +27,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 7. **PR #653** (supabase-look): ready once tools #249 merges; then the owner's button.
 8. **#658's map:** #673 waits on the owner and the partner signing; then a planner PR adds one sentence to the licence file. #676 after #675; #678 waits on #673; #677 to #681 backlog.
 9. **Waiting, no date:** gap tickets #683 (low) and #687 (low, backlog) on the owner's go to the manager. #592 held (rewrite with #545's move to `ops.choice_deadline`). #620 waits on tools PR #242's lock text. #604 and #590 at the owner's go.
-10. **#711:** the Current block and the reset prompt are slimmed (2026-11-25 15:09 UTC). Still owed: (a) after the next clear, measure the start with the method on tools #258 and post the number on #711; (b) a planner PR on the role file's read list, which still names `GOAL-RUN.md` and the resolutions of #164 and #166 as start-up reads: make them on-demand reads, then the owner's button for its merge.
+10. **#711:** the Current block, the reset prompt and the role file's read list are slimmed (PR #712 merged as `2ba4932`, 2026-11-25 15:17 UTC). Still owed: after the next clear, measure the start with the method on tools #258 and post the number on #711.
 11. **The stored GitHub login is the narrowed token** (tools #204): a refused call that worked before is reported to the Tools planner, not retried.
 
 ### Peers (queue ids)
