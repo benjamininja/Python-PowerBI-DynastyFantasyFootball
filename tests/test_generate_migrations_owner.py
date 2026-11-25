@@ -237,6 +237,115 @@ class TestThePiiHashFunctionGainsTheCrosswalk:
         assert "shared.caller_team_keys: change of function body" in gm.diff(old, new)["refusals"]
 
 
+def roles_registry():
+    reg = crosswalk_registry()
+    reg["tables"].append({"name": "dim_fantasy_teams", "type": "dim", "grain": "team_key", "pk": ["team_key"],
+                          "columns": [col("team_key")]})
+    reg["other_tables"].append(
+        {"name": "app_role", "schema": "shared", "pk": ["discord_user_id", "role", "league_key"],
+         "columns": [col("discord_user_id"), col("role"), col("league_key")]})
+    return reg
+
+
+class TestTheRoleTableAndItsTwoChecks:
+    """shared.app_role (#662, ADR-0026 decisions 1 to 3): no grant, no policy, two
+    definer functions after shared.caller_team_keys, and its ids in the hash list."""
+    def sql(self):
+        return sql_of(roles_registry())
+
+    def test_the_table_has_rls_on_and_no_grant_and_no_policy(self):
+        sql = self.sql()
+        assert "ALTER TABLE shared.app_role ENABLE ROW LEVEL SECURITY;" in sql
+        assert not [s for s in sql.split("\n\n") if "shared.app_role" in s and
+                    (s.startswith("GRANT") or s.startswith("CREATE POLICY"))]
+
+    def test_a_grant_or_a_policy_on_the_role_table_is_refused(self):
+        reg = roles_registry()
+        entry(reg, "app_role")["grants"] = [{"role": "authenticated", "privileges": ["SELECT"]}]
+        refused(reg, "grants are for a table in app")
+        reg = roles_registry()
+        entry(reg, "app_role")["policies"] = [{"name": "any_select", "role": "authenticated",
+                                               "command": "SELECT", "using": "true"}]
+        refused(reg, "policies are for a table in app")
+
+    def test_the_two_functions_are_added_beside_the_three_and_no_others(self):
+        model = gm.desired_model(roles_registry())
+        assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
+                                           "shared.choice_window", "shared.caller_is_commissioner_for",
+                                           "shared.caller_is_site_admin"}
+        assert gm.desired_model(crosswalk_registry())["functions"].keys() == {
+            "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window"}
+
+    def test_both_are_definers_with_the_search_path_empty_and_execute_for_authenticated_alone(self):
+        sql = self.sql()
+        model = gm.desired_model(roles_registry())
+        for name, call in (("shared.caller_is_commissioner_for", "shared.caller_is_commissioner_for(text)"),
+                           ("shared.caller_is_site_admin", "shared.caller_is_site_admin()")):
+            assert "SECURITY DEFINER SET search_path = ''" in model["functions"][name]
+            assert f"REVOKE EXECUTE ON FUNCTION {call} FROM PUBLIC;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {call} TO authenticated;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {call} TO etl_writer;" not in sql
+        assert sql.count("GRANT USAGE ON SCHEMA shared TO authenticated;") == 1
+
+    def test_the_commissioner_check_takes_the_team_and_never_asks_about_the_person_alone(self):
+        sql = gm.desired_model(roles_registry())["functions"][gm.COMMISSIONER_FUNCTION]
+        assert "(p_team_key text) RETURNS boolean" in sql
+        assert "JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key" in sql
+        assert "r.role = 'commissioner'" in sql and f"r.league_key = '{gm.LEAGUE_PLACEHOLDER}'" in sql
+
+    def test_the_site_admin_check_asks_for_the_role_and_every_league(self):
+        sql = gm.desired_model(roles_registry())["functions"][gm.ADMIN_FUNCTION]
+        assert "shared.caller_is_site_admin() RETURNS boolean" in sql
+        assert "r.role = 'site_admin'" in sql and f"r.league_key = '{gm.ALL_LEAGUES}'" in sql
+
+    def test_both_read_the_id_from_auth_identities_for_the_caller_and_never_from_metadata(self):
+        model = gm.desired_model(roles_registry())
+        for name in (gm.COMMISSIONER_FUNCTION, gm.ADMIN_FUNCTION):
+            sql = model["functions"][name]
+            assert "auth.identities" in sql and "i.provider = 'discord'" in sql
+            assert "i.provider_id = r.discord_user_id" in sql and "i.user_id = auth.uid()" in sql
+            assert "metadata" not in sql.lower()
+
+    def test_the_hash_list_also_holds_each_role_id_and_the_body_has_no_backslash(self):
+        sql = gm.desired_model(roles_registry())["functions"][gm.PII_FUNCTION]
+        assert "SELECT r.discord_user_id FROM shared.app_role r" in sql
+        assert "SELECT c.discord_user_id FROM shared.owner_crosswalk c" in sql
+        assert "encode(sha256(convert_to(s.token, 'UTF8')), 'hex')" in sql and "\\" not in sql
+
+    def test_a_state_with_the_crosswalk_only_gets_the_two_functions_and_a_replacement_of_the_hash_list(self):
+        old = gm.desired_model(crosswalk_registry())
+        old["tables"]["football.dim_fantasy_teams"] = gm.desired_model(roles_registry())["tables"][
+            "football.dim_fantasy_teams"]
+        changes = gm.diff(old, gm.desired_model(roles_registry()))
+        assert changes["refusals"] == []
+        sql = gm.render(changes)
+        assert sql.count("CREATE FUNCTION") == 2 and sql.count("CREATE OR REPLACE FUNCTION shared.pii_token_hashes") == 1
+        assert "GRANT EXECUTE ON FUNCTION shared.pii_token_hashes" not in sql
+
+    def test_the_role_table_without_the_crosswalk_is_refused(self):
+        reg = roles_registry()
+        reg["other_tables"] = [t for t in reg["other_tables"] if t["name"] != "owner_crosswalk"]
+        refused(reg, "the owner crosswalk is not declared")
+
+    def test_the_role_table_without_the_teams_table_is_refused(self):
+        reg = roles_registry()
+        reg["tables"] = [t for t in reg["tables"] if t["name"] != "dim_fantasy_teams"]
+        refused(reg, "football.dim_fantasy_teams, which is not declared")
+
+    def test_the_role_table_without_its_three_columns_is_refused(self):
+        reg = roles_registry()
+        entry(reg, "app_role")["columns"][2]["name"] = "other"
+        entry(reg, "app_role")["pk"] = ["discord_user_id", "role", "other"]
+        refused(reg, "unknown column 'league_key'")
+
+    def test_a_changed_body_of_either_check_is_refused(self):
+        old = gm.desired_model(roles_registry())
+        for name in (gm.COMMISSIONER_FUNCTION, gm.ADMIN_FUNCTION):
+            new = copy.deepcopy(old)
+            new["functions"][name] += " "
+            assert f"{name}: change of function body" in gm.diff(old, new)["refusals"]
+
+
 class TestTheWindowFunctionGainsFinal:
     """shared.choice_window() is replaced in place (#661): CREATE OR REPLACE keeps its
     REVOKE and its one GRANT, so the migration writes neither again."""
@@ -369,10 +478,29 @@ class TestTheRealRegistry:
         assert "commissioner" not in "".join(str(p.get("check", "")) + str(p.get("using", ""))
                                              for p in spec["policies"])
 
-    def test_the_rule_for_shared_names_exactly_three_functions(self, model):
+    def test_the_rule_for_shared_names_exactly_five_functions(self, model):
         assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"])
         assert {n.split(".")[0] for n in model["functions"]} == {"shared"}
         grantees = {n: set(roles) for n, (_, roles) in gm.FUNCTION_ACCESS.items()}
         assert grantees == {"shared.pii_token_hashes": {"etl_writer"},
                             "shared.caller_team_keys": {"authenticated"},
-                            "shared.choice_window": {"authenticated"}}
+                            "shared.choice_window": {"authenticated"},
+                            "shared.caller_is_commissioner_for": {"authenticated"},
+                            "shared.caller_is_site_admin": {"authenticated"}}
+
+    def test_the_role_table_holds_no_grant_and_no_policy_and_the_league_is_in_its_key(self, model):
+        spec = model["tables"]["shared.app_role"]
+        assert not {"grants", "policies", "triggers"} & set(spec) and spec["fks"] == []
+        assert spec["pk"] == ["discord_user_id", "role", "league_key"]
+        assert all(c["not_null"] for c in spec["columns"])
+        assert "role IN ('commissioner', 'site_admin')" in spec["checks"]
+        assert ("(role = 'site_admin' AND league_key = '*') OR "
+                "(role = 'commissioner' AND league_key <> '*')") in spec["checks"]
+
+    def test_no_policy_calls_either_role_check_yet(self, model):
+        for key, spec in model["tables"].items():
+            for policy in spec.get("policies", []):
+                text = f"{policy.get('using', '')} {policy.get('check', '')}"
+                assert "caller_is_commissioner_for" not in text and "caller_is_site_admin" not in text, key
+        for sql in model["trigger_functions"].values():
+            assert "caller_is_" not in sql
