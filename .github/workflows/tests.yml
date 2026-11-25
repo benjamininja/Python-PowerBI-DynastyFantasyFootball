@@ -85,6 +85,30 @@ jobs:
           REQUIRE_TEST_DATABASE: '1'
         run: python -m pytest tests/ -m pg -v -rs
 
+  # The data-model, sources and Gate checks the manager used to run by hand at
+  # re-proof (#695). No secret, no network: they read the committed yaml, docs
+  # and published snapshot.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - run: python scripts/check_data_model.py
+
+      - run: python scripts/check_data_model.py --check
+
+      - run: python scripts/check_sources.py --check
+
+      - run: python scripts/run_pipeline.py --check-only
+
   bot-tests:
     runs-on: ubuntu-latest
     steps:
