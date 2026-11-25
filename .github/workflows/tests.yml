@@ -22,10 +22,18 @@ jobs:
   # included (the tests read docs/data_model.yml and docs/sources.yml), makes it
   # true, and so does a push to main. The heavy jobs skip through if:, never a
   # paths filter, so a skipped required check reports as passed.
+  # A second output, pg (#713), gates storage-pg alone. A pg test reads
+  # notebooks/, scripts/, docs/data_model.yml, data/*.parquet and
+  # supabase/migrations/, and none reads pbi/, mouserat_trade-bud/,
+  # discord_bot/ or docs/site/. So pg is false only on a pull request whose every
+  # path makes heavy false or starts with one of those four folders. It is a skip
+  # list: a new folder runs the job until it is added to the second case in the
+  # diff step below.
   scope:
     runs-on: ubuntu-latest
     outputs:
       heavy: ${{ steps.diff.outputs.heavy }}
+      pg: ${{ steps.diff.outputs.pg }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,20 +47,29 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           heavy=true
+          pg=true
           if [ "$EVENT" = "pull_request" ]; then
             files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
             if [ -n "$files" ]; then
               heavy=false
+              pg=false
               while IFS= read -r f; do
                 case "$f" in
                   *.md | .claude/memory/*) ;;
                   *) heavy=true ;;
+                esac
+                case "$f" in
+                  *.md | .claude/memory/*) ;;
+                  pbi/* | mouserat_trade-bud/* | discord_bot/* | docs/site/*) ;;
+                  *) pg=true ;;
                 esac
               done <<< "$files"
             fi
             echo "$files"
           fi
           echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+          echo "pg=$pg" >> "$GITHUB_OUTPUT"
+          echo "heavy=$heavy pg=$pg"
 
   tests:
     needs: scope
@@ -77,7 +94,7 @@ jobs:
   # case fails the job. No secret; nothing here reaches the real project.
   storage-pg:
     needs: scope
-    if: needs.scope.outputs.heavy == 'true'
+    if: needs.scope.outputs.pg == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
