@@ -7,16 +7,33 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture
+def real_access_loads():
+    """Ask for this fixture to keep run_pipeline.run_access_loads real (it starts
+    a subprocess); the test then passes its own `run`, so no process starts."""
+
+
 @pytest.fixture(autouse=True)
-def no_live_database(monkeypatch):
+def no_live_database(monkeypatch, request):
     """No test reaches the real project: the seam falls back to parquet and
     holds no database URL. A case that wants Postgres sets both itself from
-    TEST_DATABASE_URL."""
+    TEST_DATABASE_URL. The scheduled run's access step (#700) starts a process
+    that reads the live sheet and calls the live database, outside every patch
+    here, so a test that runs main() never starts it."""
     monkeypatch.delenv("ETL_STORAGE", raising=False)
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
     notebooks = str(Path(__file__).resolve().parent.parent / "notebooks")
     if notebooks not in sys.path:
         sys.path.insert(0, notebooks)
+    if "real_access_loads" not in request.fixturenames:
+        scripts = str(Path(__file__).resolve().parent.parent / "scripts")
+        if scripts not in sys.path:
+            sys.path.insert(0, scripts)
+        try:
+            import run_pipeline
+            monkeypatch.setattr(run_pipeline, "run_access_loads", lambda *args, **kwargs: None)
+        except ImportError:
+            pass
     import etl_run_log
     monkeypatch.setattr(etl_run_log, "ENV_FILE", Path(__file__).resolve().parent / "no-such.env")
     try:

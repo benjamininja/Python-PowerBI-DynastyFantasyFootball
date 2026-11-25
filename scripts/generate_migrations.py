@@ -25,7 +25,9 @@ FUNCTION_ACCESS, EXECUTE for authenticated only, and the first grant to
 authenticated on `app` revokes what anon could inherit there. The registry's
 `shared.app_role` (#662) brings two more of them, the commissioner check per team
 and the site admin check, and puts its ids in `shared.pii_token_hashes()` (a
-replacement of that function). A column may
+replacement of that function). Each of the two tables also brings a load function
+(#700, LOAD_CROSSWALK_FUNCTION and LOAD_ROLES_FUNCTION), EXECUTE for etl_writer
+only. A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
 (each in `ops`, `search_path` pinned empty, EXECUTE revoked from PUBLIC, and
 SECURITY DEFINER only with `definer: true`, #661). On a table that exists, a
@@ -182,6 +184,93 @@ AS $fn$
         WHERE r.role = 'site_admin' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
     )
 $fn$;"""
+# The two load functions (ADR-0026 decision 2 as amended, #700): the scheduled run
+# replaces each table's rows through one of them, as `etl_writer`, which holds no
+# grant on either table. Each takes the whole set as two parallel arrays, refuses
+# without changing anything (an empty set, a malformed id, an unknown role word, a
+# team the database does not have, a repeated row) and returns row counts only. A
+# refusal message holds a count and never a value, and the write sits in an inner
+# block whose handler re-raises with the SQLSTATE alone, so a constraint's DETAIL
+# (which quotes the row) never leaves the function. The two names are the only
+# function bodies scripts/migration_gate.py lets hold a DELETE FROM.
+LOAD_CROSSWALK_FUNCTION = "shared.load_owner_crosswalk"
+LOAD_ROLES_FUNCTION = "shared.load_app_roles"
+LOAD_ARGS = "(text[], text[])"
+LOAD_CROSSWALK_FUNCTION_SQL = """CREATE FUNCTION shared.load_owner_crosswalk(p_team_keys text[], p_discord_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_keys integer := coalesce(cardinality(p_team_keys), 0);
+    v_ids integer := coalesce(cardinality(p_discord_ids), 0);
+    v_bad integer;
+BEGIN
+    IF v_keys = 0 OR v_keys <> v_ids THEN
+        RAISE EXCEPTION 'owner tab: refused, % team key(s) and % id(s); nothing changed', v_keys, v_ids;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)
+    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)
+    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM football.dim_fantasy_teams d WHERE d.team_key = u.t);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the database does not have; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT (u.t, u.i)) INTO v_bad FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'owner tab: refused, % repeated row(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.owner_crosswalk;
+    BEGIN
+        DELETE FROM shared.owner_crosswalk WHERE true;
+        INSERT INTO shared.owner_crosswalk (team_key, discord_user_id)
+        SELECT u.t, u.i FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'owner tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.owner_crosswalk;
+    RETURN NEXT;
+END
+$fn$;"""
+LOAD_ROLES_FUNCTION_SQL = f"""CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_ids integer := coalesce(cardinality(p_discord_ids), 0);
+    v_roles integer := coalesce(cardinality(p_roles), 0);
+    v_bad integer;
+BEGIN
+    IF v_ids = 0 OR v_ids <> v_roles THEN
+        RAISE EXCEPTION 'App roles tab: refused, % id(s) and % role(s); nothing changed', v_ids, v_roles;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)
+    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_roles) AS u(r)
+    WHERE u.r IS NULL OR u.r NOT IN ('commissioner', 'site_admin');
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % role(s) are neither commissioner nor site_admin; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT (u.i, u.r)) INTO v_bad FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % repeated row(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.app_role;
+    BEGIN
+        DELETE FROM shared.app_role WHERE true;
+        INSERT INTO shared.app_role (discord_user_id, role, league_key)
+        SELECT u.i, u.r, CASE u.r WHEN 'site_admin' THEN '{ALL_LEAGUES}' ELSE '{LEAGUE_PLACEHOLDER}' END
+        FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.app_role;
+    RETURN NEXT;
+END
+$fn$;"""
 # The functions whose body a later registry may change: generator-owned text,
 # written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
 # gained its fourth state, `final`, this way (ADR-0026 decision 6, #661).
@@ -198,6 +287,8 @@ FUNCTION_ACCESS = {
     OPEN_FUNCTION: ("(text, text)", ("authenticated",)),
     COMMISSIONER_FUNCTION: ("(text)", ("authenticated",)),
     ADMIN_FUNCTION: ("()", ("authenticated",)),
+    LOAD_CROSSWALK_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
+    LOAD_ROLES_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
 }
 
 
@@ -529,6 +620,7 @@ def desired_model(registry):
         functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
         functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
         functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
+        functions[LOAD_CROSSWALK_FUNCTION] = LOAD_CROSSWALK_FUNCTION_SQL
     roles = specs.get(ROLE_TABLE)
     if roles is not None:
         if crosswalk is None:
@@ -540,6 +632,7 @@ def desired_model(registry):
         functions[PII_FUNCTION] = PII_FUNCTION_ROLES_SQL
         functions[COMMISSIONER_FUNCTION] = COMMISSIONER_FUNCTION_SQL
         functions[ADMIN_FUNCTION] = ADMIN_FUNCTION_SQL
+        functions[LOAD_ROLES_FUNCTION] = LOAD_ROLES_FUNCTION_SQL
     raw_functions = registry.get("trigger_functions") or []
     if not isinstance(raw_functions, list):
         raise RegistryError("trigger_functions: expected a list")

@@ -449,6 +449,49 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     return results
 
 
+ACCESS_STEP = "access_loads"
+ACCESS_PREFIX = "access:"
+ACCESS_TIMEOUT_S = 300
+
+
+def access_lines(text: str | None) -> list[str]:
+    """Only the lines the access step marks as its own (counts, tab names and row
+    numbers, never an id). Whatever else it printed, a traceback included, stays
+    out of the notice and the log."""
+    return [line.strip() for line in (text or "").splitlines() if line.startswith(ACCESS_PREFIX)]
+
+
+def run_access_loads(dry_run: bool, no_commit: bool, only: set[str] | None,
+                     groups: set[str] | None, run=subprocess.run) -> dict | None:
+    """The scheduled run's load of the role table and the owner crosswalk (#700,
+    ADR-0026 decision 2). It is not a step of any Chain, so a failure holds no
+    data Chain: its result stays out of `results` and `plan_publish` and goes to
+    the notice and the exit code on its own. It runs when no subset is named, or
+    when `--steps` names it; never under --dry-run (the plan is printed) or
+    --no-commit. Returns None when it does not run, else {name, status, detail}."""
+    if (only or groups) and not (only and ACCESS_STEP in only):
+        return None
+    cmd = [str(VENV_PY), str(REPO / "scripts" / "load_access_tables.py")]
+    print(f"[step] {ACCESS_STEP} (no Chain): {' '.join(cmd[1:])}")
+    if dry_run:
+        return {"name": ACCESS_STEP, "status": "dry-run", "detail": ""}
+    if no_commit:
+        print(f"[skip] {ACCESS_STEP} (--no-commit)")
+        return None
+    try:
+        proc = run(cmd, cwd=REPO, env={**os.environ, "PYTHONUTF8": "1"},
+                   capture_output=True, text=True, timeout=ACCESS_TIMEOUT_S)
+        ok, lines = proc.returncode == 0, access_lines(proc.stdout)
+        if not ok and not lines:
+            lines = [f"{ACCESS_PREFIX} load stopped before it reported (exit {proc.returncode}); both tables are as they were"]
+    except subprocess.TimeoutExpired:
+        ok, lines = False, [f"{ACCESS_PREFIX} load timed out after {ACCESS_TIMEOUT_S}s; both tables are as they were"]
+    for line in lines:
+        print(line)
+    print(f"[{'ok' if ok else 'FAIL'}] {ACCESS_STEP}")
+    return {"name": ACCESS_STEP, "status": "ok" if ok else "failed", "detail": "\n".join(lines)}
+
+
 def review_counts() -> dict:
     """Row counts (minus header) per review queue. Never raises."""
     counts = {}
@@ -1228,7 +1271,8 @@ def terms_line() -> str:
 
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
-              filed: dict | None = None, cadence: dict | None = None) -> str:
+              filed: dict | None = None, cadence: dict | None = None,
+              access: dict | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
     if cadence:
         lines.append(f"🗓️ {cadence_line(cadence)}")
@@ -1237,6 +1281,10 @@ def summarize(phase: str, week: str, results: list[dict], reviews: dict,
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
+    if access:
+        mark = {"ok": "✅", "dry-run": "▫️"}.get(access["status"], "❌")
+        lines.append(f"{mark} {access['name']} (no Chain: a failure here holds no data Chain)")
+        lines += [("⚠️ " if "CHANGED" in d else "   ") + d for d in access["detail"].splitlines()]
     if plan:
         lines.append("**Chains:**")
         lines += [f"✅ {c}: " + ("passed, not published" if c in plan.get("unpublished", ()) else "published")
@@ -1349,6 +1397,7 @@ def main() -> int:
     logins: list[str] = []
     blocked: list[str] = []
     contract_before = contract_after = None
+    access = None
     if not args.dry_run:
         runlog.start(etl_run_log.head_sha(REPO))
     try:
@@ -1368,6 +1417,7 @@ def main() -> int:
         if not args.dry_run and not args.no_commit:
             contract_before = read_contract_list()
         results = run_steps(steps, phase, only, args.dry_run, groups)
+        access = run_access_loads(args.dry_run, args.no_commit, only, groups)
         logins = fantrax_logins(session)
         blocked = fantrax_blocked(session)
         if session:
@@ -1425,7 +1475,8 @@ def main() -> int:
         print(f"[info] {commit_line}")
 
         failed = bool(plan and plan["failed"]) or any(
-            r["status"] not in ("ok", "dry-run") for r in results)
+            r["status"] not in ("ok", "dry-run") for r in results) or bool(
+            access and access["status"] == "failed")
         code = 1 if failed or commit_line.startswith("ABORTED") else 0
 
         cadence["done"] = [] if args.no_commit or not cadence["week_key"] else close_steps_done(
@@ -1438,7 +1489,7 @@ def main() -> int:
                                      if etl_run_log.data_committed(commit_line) else None),
                 rows_written=(rows if rows is not None
                               else etl_run_log.row_counts(plan["publish"])),
-                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked)
+                error=(etl_run_log.failure_summary(results, plan, commit_line, blocked, access)
                        if code else None),
                 cadence=cadence,
                 column_changes=(plan or {}).get("column_changes")
@@ -1453,7 +1504,7 @@ def main() -> int:
     finally:
         close_fantrax_session(session)
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access)
     if blocked:
         summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
                    f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")
