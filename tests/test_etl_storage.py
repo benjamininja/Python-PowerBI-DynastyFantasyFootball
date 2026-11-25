@@ -129,8 +129,10 @@ def empty_published(url, names):
     DELETE as etl_writer costs 15 to 18 s on the real snapshot, nearly all of it
     the deferred foreign-key checks at COMMIT scanning child columns that hold no
     index. etl_writer has no TRUNCATE, so where the job gives the admin login of
-    its throwaway server (PGUSER, PGPASSWORD), one TRUNCATE of all the tables
-    runs as that login; without one, pg.clear_published runs as before. Cases
+    its throwaway server (PGUSER, PGPASSWORD), one TRUNCATE of all the tables,
+    and of any table holding a foreign key to them, runs as that login (the
+    DELETE needs those empty too, to commit); without one, pg.clear_published
+    runs as before. Cases
     still read and write as the login in url."""
     allowed = os.environ.get("TEST_DATABASE_URL")
     if not allowed or url != allowed:
@@ -142,8 +144,13 @@ def empty_published(url, names):
     import psycopg
     from psycopg import sql
     from psycopg.conninfo import make_conninfo
-    tables = sql.SQL(", ").join(sql.Identifier(pg.SCHEMA, name) for name in names)
     with psycopg.connect(make_conninfo(url, user=admin, password=secret), autocommit=True) as conn:
+        held = conn.execute(
+            "WITH RECURSIVE r(oid) AS (SELECT c.oid FROM pg_class c WHERE c.relnamespace = %s::regnamespace "
+            "AND c.relname = ANY(%s) UNION SELECT k.conrelid FROM pg_constraint k JOIN r ON k.confrelid = r.oid "
+            "WHERE k.contype = 'f') SELECT n.nspname, c.relname FROM r JOIN pg_class c ON c.oid = r.oid "
+            "JOIN pg_namespace n ON n.oid = c.relnamespace ORDER BY 1, 2", (pg.SCHEMA, list(names))).fetchall()
+        tables = sql.SQL(", ").join(sql.Identifier(schema, name) for schema, name in held)
         conn.execute(sql.SQL("TRUNCATE {}").format(tables))
 
 
