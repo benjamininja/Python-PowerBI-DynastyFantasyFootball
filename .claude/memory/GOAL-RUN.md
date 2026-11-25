@@ -44,6 +44,13 @@ line under that skill's "Never".
 - `run_pipeline.py --check-only`: 0 Gate failures, 0 new Review findings;
 - for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding;
 - for a code PR, no blocking finding the manager upheld is still open;
+- for a PR that adds a migration, its file sorts after the newest one on
+  the current `origin/main`: the manager runs
+  `.venv/Scripts/python.exe scripts/check_migration_order.py --base origin/main`
+  after `git fetch origin`. The `validate` job of `migrate.yml` runs the
+  same script on the PR (#688), but only when the PR is pushed, not when
+  `main` moves under it. A file that sorts before the newest one goes
+  back to the builder to regenerate, never to rename by hand;
 - the manager runs the whole list with
   `.venv/Scripts/python.exe scripts/reproof.py <pr> [head]` after
   `git fetch origin`; it prints `RESULT: GREEN` or `RESULT: NOT GREEN`.
@@ -58,17 +65,27 @@ A finding that needs a design choice parks the ticket with its PR left open.
 
 **After a schema change lands.** This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
 - runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
-- reads the live roles, grants, policies, RLS flags and function privileges with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `information_schema.column_privileges`, `pg_policies`, `pg_class.relrowsecurity`, `pg_proc` with `has_function_privilege`), and compares them with ADR-0018 decisions 9 and 10 and ADR-0025 decision 6:
+- reads the live roles, grants, policies, RLS flags and function privileges with `SELECT` only, through `supabase-dynasty`'s `execute_sql` (`pg_roles`, `information_schema.role_table_grants`, `information_schema.column_privileges`, `pg_policies`, `pg_class.relrowsecurity`, `pg_proc` with `has_function_privilege`), and compares them with ADR-0018 decisions 9 and 10, ADR-0025 decision 6 and ADR-0026 decisions 1, 2, 4, 5, 6 and 7:
   - every table in `football`, `ops`, `shared` and `app` has RLS on;
-  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner` or `shared.owner_crosswalk`, has EXECUTE on `shared.pii_token_hashes()`, and on `app` holds SELECT on `app.contract_choices` only;
+  - `etl_writer` has no BYPASSRLS, has no grant on `shared.owner`, `shared.owner_crosswalk` or `shared.app_role`, has EXECUTE on `shared.pii_token_hashes()`, and on `app` holds SELECT on `app.contract_choices` only;
   - `etl_writer` and `etl_reader` hold SELECT only on `ops.choice_deadline`;
   - the read-only login has SELECT on `football` and `ops` only, and no grant on `app`;
   - `anon` has no grant and no policy in any schema;
-  - `authenticated` holds only what ADR-0025 decision 6 lists: USAGE on `app`, SELECT on its two tables, INSERT and UPDATE by column on them (never `locked_value` or `changed_at`), no DELETE, USAGE on `shared` and EXECUTE on the two owner functions, and nothing on `football` or `ops`;
-  - no function in `shared` other than those two is executable by `authenticated`, `anon` or `PUBLIC`, and `shared.pii_token_hashes()` is executable by `etl_writer` only;
-- posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII.
+  - `authenticated` holds only what ADR-0025 decision 6 lists: USAGE on `app`, SELECT on its three tables, INSERT and UPDATE by column on `app.contract_choices` and `app.team_choice_sharing` (never `locked_value` or `changed_at`), no DELETE, USAGE on `shared` and EXECUTE on four functions of `shared` (`caller_team_keys`, `choice_window`, `caller_is_commissioner_for`, `caller_is_site_admin`), and nothing on `football` or `ops`;
+  - no function in `shared` other than those four is executable by `authenticated`, `anon` or `PUBLIC`; each of the four is a definer function with an empty `search_path`; `shared.pii_token_hashes()` is executable by `etl_writer` only, and its body names `shared.app_role`;
+  - the choice history (#661): `app.contract_choice_history` gives `authenticated` SELECT and no INSERT, UPDATE or DELETE, and gives `etl_writer`, `etl_reader`, the read-only login and `anon` no grant; it has exactly three policies, all for SELECT, all to `authenticated`, with the same names as the three `authenticated` SELECT policies of `app.contract_choices`;
+  - `ops.record_choice_history()` is a definer function with an empty `search_path`, not executable by `authenticated`, `anon`, `PUBLIC`, `etl_writer` or `etl_reader`; the trigger `contract_choices_record_history` on `app.contract_choices` and the guard trigger on `ops.choice_deadline` are enabled;
+  - `ops.choice_deadline.final_at` is NOT NULL, the check `final_at > deadline_at` exists, and no row has `final_at` at or before `deadline_at` (a count; it must be 0). `final_at` has no default once the held migration of #661 is dispatched; until then that line does not hold, which is expected and is not a park;
+  - on `app.contract_choices`: the policy `signed_in_select_after_deadline` names both `passed` and `final`; the two owner write policies hold `origin` to `app` and test the state against `open`; the `origin` check admits `loader`, `app` and `commissioner`, and nothing else;
+  - the role table (#662): `shared.app_role` has no policy, and no role holds a grant on it; its primary key is `(discord_user_id, role, league_key)`, with three checks and no foreign key; its row count is 0 before the owner's first load, and afterwards equals the `rows` the loader last printed;
+  - no policy in any schema names `shared.caller_is_commissioner_for` or `shared.caller_is_site_admin` (a count over `pg_policies`; it must be 0 until #663 lands);
+- posts the counts on the ticket: the advisor findings by level, and each comparison as holds or does not hold. No secret, no row value, no owner PII, no Discord id, no user id, no instant from a deadline row.
+
+A ticket that adds to this list posts its lines as a planner comment on the ticket. Those lines are the manager's list for that merge, and a planner PR then adds them here.
 
 A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
+
+A lint on `shared.app_role` of the same kind as the accepted one on `shared.owner` is expected (RLS on with no policy, which is the design); it is still a new finding until the owner accepts it.
 
 A push job that fails, a new advisor finding beyond the accepted INFO on `shared.owner` (#108), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
 
