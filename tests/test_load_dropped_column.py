@@ -8,7 +8,8 @@ and the restore drill) and where a capture copy is seeded from the stored table.
 dropped column still fails, any other undeclared column still fails the load, and
 `read_stored` still returns the file as it is.
 
-The unit and capture cases need no database. The database cases run on
+The unit and capture cases need no database (the module carries the pg marker, as
+tests/test_pg_marker.py requires of a file that names the test database). The database cases run on
 TEST_DATABASE_URL only (the storage-pg job) against the real registry and the real
 snapshot, with the dropped columns put back into a snapshot copy in a temp folder.
 """
@@ -27,6 +28,8 @@ import backfill_postgres as backfill
 import etl_helpers as etl
 import etl_storage_pg as pg
 from test_etl_storage import TABLES, database_url
+
+pytestmark = pytest.mark.pg
 
 REGISTRY = {"tables": [
     {"name": "dim_kept", "type": "dim", "grain": "key",
@@ -117,7 +120,6 @@ class TestTheCaptureSeed:
         assert "old_note" in pd.read_parquet(store / "dim_kept.parquet").columns
 
 
-@pytest.mark.pg
 class TestTheLoadOfARealSnapshot:
     """Every dropped column put back into a copy of the real snapshot."""
 
