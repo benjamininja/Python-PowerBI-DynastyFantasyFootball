@@ -852,8 +852,12 @@ def ride_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: lis
     the published rows, is printed, and the data PR's own test then reports
     the old id."""
     chain_of = {t: c for c, ts in chains.items() for t in ts}
-    candidates = [t for t in etl_helpers.gsis_id_tables()
-                  if chain_of.get(t) and chain_of[t] not in plan["passed"]]
+    try:
+        candidates = [t for t in etl_helpers.gsis_id_tables()
+                      if chain_of.get(t) and chain_of[t] not in plan["passed"]]
+    except Exception as exc:
+        print(f"[gsis] ride along skipped, the store could not be listed ({type(exc).__name__})")
+        return
     if not candidates:
         return
 

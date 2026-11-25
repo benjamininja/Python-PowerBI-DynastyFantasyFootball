@@ -231,6 +231,16 @@ class TestRideAlong:
         assert restored[-1] == sorted([XW, ADP])
         assert "ride along failed" in capsys.readouterr().out
 
+    def test_an_unreadable_store_skips_the_pipeline_call_and_never_raises(self, store, monkeypatch, capsys):
+        def down():
+            raise RuntimeError("no database")
+
+        monkeypatch.setattr(rp.etl_helpers, "gsis_id_tables", down)
+        plan = self.plan()
+        rp.ride_gsis_links(plan, {"fantrax_core": [XW]}, [], {})
+        assert plan["publish"] == [LINK, NPL, SNAP]
+        assert "ride along skipped" in capsys.readouterr().out
+
     def test_nothing_to_remap_moves_nothing(self, store):
         seed(links=(("ZZZ", "YYY"),))
         plan = self.plan()
