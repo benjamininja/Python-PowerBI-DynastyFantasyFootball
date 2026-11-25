@@ -221,16 +221,13 @@ class TestTheOutputPath:
 
 
 class TestTheDatabaseIsNeverTouched:
-    @pytest.mark.parametrize("value", ["postgres", "supabase", "anything"])
-    def test_it_stops_when_the_shell_selects_the_database_and_reads_nothing(self, place, reader, monkeypatch, value):
+    @pytest.mark.parametrize("value", ["postgres", "supabase", "parquet", "anything"])
+    def test_it_reads_only_the_sheet_so_the_storage_setting_of_the_shell_does_not_matter(
+            self, place, reader, monkeypatch, value):
         monkeypatch.setenv("ETL_STORAGE", value)
         code, lines, out = run(place)
-        assert code == 1 and not out.exists() and reader.calls == []
-        assert any("ETL_STORAGE selects the database" in line for line in lines)
-
-    def test_parquet_or_unset_is_fine(self, place, reader, monkeypatch):
-        monkeypatch.setenv("ETL_STORAGE", "parquet")
-        assert run(place)[0] == 0
+        assert code == 0 and out.exists() and len(reader.calls) == 1
+        assert not any("ETL_STORAGE" in line for line in lines)
 
     def test_the_script_names_no_database_client(self):
         text = (REPO / "scripts" / "load_app_roles.py").read_text(encoding="utf-8")

@@ -150,9 +150,11 @@ PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
 
 # The role table and the two checks policies will call (ADR-0026 decisions 1 to 3,
 # #662). A commissioner row names its league; a site admin row holds ALL_LEAGUES.
-# LEAGUE_PLACEHOLDER is the one league there is until #658 decides the key: that
-# issue changes the values the loader writes and the one literal in
-# COMMISSIONER_FUNCTION_SQL, and no key and no policy.
+# LEAGUE_PLACEHOLDER is the one league there is until #658 decides the key. That
+# issue changes the values the loader writes and the body of COMMISSIONER_FUNCTION_SQL
+# (the literal becomes the team's league), and no key and no policy. The function
+# is not in REPLACEABLE_FUNCTIONS today, so the generator refuses a changed body:
+# #658 adds COMMISSIONER_FUNCTION to that tuple in the same change.
 ROLE_TABLE = "shared.app_role"
 COMMISSIONER_FUNCTION = "shared.caller_is_commissioner_for"
 ADMIN_FUNCTION = "shared.caller_is_site_admin"

@@ -1,4 +1,4 @@
--- registry_state sha256: 4914bccfc24876484c704c2e73fa9b218e35572d6f8c37fbea0869a229296104
+-- registry_state sha256: cc3207058da5d4a9e54435bbae9348861b7d726d8d5c9b891bd67f241da221d8
 
 CREATE TABLE shared.app_role (
     discord_user_id text NOT NULL,

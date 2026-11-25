@@ -263,6 +263,10 @@ class TestTheRoleTableAndItsTwoChecks:
         reg = roles_registry()
         entry(reg, "app_role")["grants"] = [{"role": "authenticated", "privileges": ["SELECT"]}]
         refused(reg, "grants are for a table in app")
+        reg = roles_registry()
+        entry(reg, "app_role")["policies"] = [{"name": "any_select", "role": "authenticated",
+                                               "command": "SELECT", "using": "true"}]
+        refused(reg, "policies are for a table in app")
 
     def test_the_two_functions_are_added_beside_the_three_and_no_others(self):
         model = gm.desired_model(roles_registry())

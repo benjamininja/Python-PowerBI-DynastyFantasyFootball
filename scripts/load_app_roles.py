@@ -16,11 +16,12 @@ failure (the `SheetsAuthError` line, which names no path and no key).
 
 Each commissioner row gets the one league there is until #658 decides the league
 key (generate_migrations.LEAGUE_PLACEHOLDER), and each site admin row gets
-generate_migrations.ALL_LEAGUES. The tab has no league column yet; #658 adds one
-and this loader then reads it.
+generate_migrations.ALL_LEAGUES. The tab has no league column yet; #658 adds one,
+this loader then reads it, and the commissioner check in the database changes with
+it (generate_migrations.py names the steps).
 
-It connects to nothing, and stops when ETL_STORAGE selects the database. It writes
-one new SQL file to PATH, which must not exist and must lie outside every git
+It connects to nothing and reads no table (only the sheet), so ETL_STORAGE does not
+matter to it. It writes one new SQL file to PATH, which must not exist and must lie outside every git
 repository: one transaction that deletes every row of shared.app_role and inserts
 the tab's rows (so a role removed from the tab is gone), and ends in a SELECT of
 the row counts. The owner runs it in the Supabase SQL editor and deletes it. The
@@ -28,7 +29,6 @@ file holds Discord ids. The script prints the path and counts (rows, people,
 commissioners, site admins) and a stop prints row numbers and counts: never an id.
 """
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -107,8 +107,6 @@ def load(out_path: Path, gid: str, *, out=print) -> int:
     """Run the checks, then write the file. Returns 0 on success, 1 on a stop."""
     out_path = Path(out_path)
     stops = []
-    if (os.environ.get("ETL_STORAGE") or "parquet") != "parquet":
-        stops.append("ETL_STORAGE selects the database; the loader reads the sheet only")
     if not str(gid).isascii() or not str(gid).isdigit():
         stops.append("--gid is not the digits of the App roles tab's gid")
     resolved = out_path.resolve()
