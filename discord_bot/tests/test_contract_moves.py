@@ -38,7 +38,6 @@ CFG = Config(
 TEAMS = pd.DataFrame({
     "team_key": ["A01", "A02", "B01"],
     "team_name": ["Alpha", "Apex", "Bravo"],
-    "team_abbr": ["ALP", "APX", "BRV"],
 })
 
 HEADERS = ["Team", "Division", "Player", "Pos", "NFL Team", "List", "Contract now",
@@ -201,9 +200,9 @@ class TestTable:
         assert embed.title == "Contract moves — Decision (4)"
         assert embed.footer.text == "Due now 3 · Due within 7 days 1"
 
-    def test_the_team_filter_resolves_by_abbreviation_or_name(self, monkeypatch):
+    def test_the_team_filter_resolves_by_name(self, monkeypatch):
         _patch(monkeypatch)
-        for query in ("ALP", "alpha"):
+        for query in ("Alpha", "alph"):
             embeds = contract_cmd.build_table_embeds(CFG, "decision", query)
             body = _fields(embeds)
             assert "Zed Zee" in body and "Amy Ant" in body
@@ -212,7 +211,7 @@ class TestTable:
 
     def test_the_team_filter_applies_to_the_xlsx_too(self, monkeypatch):
         _patch(monkeypatch)
-        book = _book(contract_cmd.build_xlsx_reply(CFG, "decision", "BRV"))
+        book = _book(contract_cmd.build_xlsx_reply(CFG, "decision", "bravo"))
         assert [r[2].value for r in book["Conference B"].iter_rows(min_row=2)] == ["Bob Bee"]
         assert book["Conference A"].max_row == 1
 

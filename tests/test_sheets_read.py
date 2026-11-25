@@ -269,7 +269,7 @@ def test_01c_reads_only_the_columns_its_build_cell_maps():
     src = _cell("39c742bb")
     exec(src[: src.index("dim_fantasy_teams = build_dim_fantasy_teams")], build)
     assert seen["columns"] == list(build["_COL_MAP"])
-    assert seen["optional"] == list(build["_OPTIONAL_COL_MAP"])
+    assert not seen["optional"]
     assert list(ns["teams_raw"].columns) == ["Team ID"]
 
 

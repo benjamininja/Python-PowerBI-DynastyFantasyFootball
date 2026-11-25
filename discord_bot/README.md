@@ -38,7 +38,7 @@ Every team's spend and remaining cap, grouped by conference (division names from
 
 ### `/roster <team>` — a team's roster + contracts
 
-Resolve a team by abbreviation or name; players listed by cap hit with contract
+Resolve a team by name (or part of it); players listed by cap hit with contract
 and salary. A team that hasn't drafted yet gets a friendly note with its
 available cap instead of an empty board.
 
