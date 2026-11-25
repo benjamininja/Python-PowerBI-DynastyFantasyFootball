@@ -139,7 +139,12 @@ added and dropped, never a value. A rename shows as one dropped and one added na
 the registry marks no rename. A frame that is not the registry's columns is
 drift: the export raises, the run aborts and the database is reloaded from
 the snapshot at HEAD. Between the merge and the next run the snapshot keeps
-its old columns; a consumer that reads a new column waits for that run.
+its old columns; a consumer that reads a new column waits for that run. A
+load of that snapshot into the store (the reload from the snapshot, the
+backfill, the restore drill, a capture copy) leaves out a column the table's
+own `drops:` entry names and prints one line for it; any other column the
+registry does not declare still refuses the load, and so does every pipeline
+write (#686).
 
 ### The owner's delete and re-export scripts (#459, #589)
 

@@ -1063,6 +1063,20 @@ def _check_batch(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
     return df
 
 
+def without_dropped_columns(df: pd.DataFrame, entry: dict) -> pd.DataFrame:
+    """`df`, a published table as the snapshot holds it, without each column
+    the table's own `drops:` entry names (#686). For a load of the snapshot into
+    the store only: the snapshot is behind the registry until the next export,
+    and `_check_batch` still refuses the column on every pipeline write. Prints
+    one line per column left out (table, column, ticket). Any other column is
+    left for `_check_batch` to judge."""
+    left = [d for d in entry.get("drops") or [] if d["column"] in df.columns]
+    for drop in left:
+        print(f"[drops] {entry['name']}: column {drop['column']} left out of the load "
+              f"(its drops: entry, #{drop['ticket']})")
+    return df.drop(columns=[d["column"] for d in left]) if left else df
+
+
 def _check_write_args(mode: str, keys, partition) -> None:
     if mode not in ("replace", "replace_partition", "upsert"):
         raise StorageError(f"unknown write mode {mode!r}")
@@ -1165,6 +1179,7 @@ def _capture_write(name: str, df: pd.DataFrame, mode: str, keys, partition, entr
         except TableNotFound:
             stored = None
         if stored is not None and len(stored):
+            stored = without_dropped_columns(stored, entry)
             _write_parquet(path, _coerce(stored, entry), "replace", None, None, entry)
     return len(_write_parquet(path, df, mode, keys, partition, entry))
 
