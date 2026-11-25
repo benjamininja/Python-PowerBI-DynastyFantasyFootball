@@ -53,7 +53,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
-import io
 import json
 import os
 import re
@@ -1002,8 +1001,15 @@ def read_published(tables: list[str], cwd: Path = REPO) -> dict[str, pd.DataFram
     store is touched), None for a table HEAD holds no snapshot of. Raises when
     git cannot say."""
     tracked = tracked_at_head(tables, cwd)
-    return {t: (pd.read_parquet(io.BytesIO(_git_bytes("show", f"HEAD:data/{t}.parquet", cwd=cwd)))
-                if f"data/{t}.parquet" in tracked else None) for t in tables}
+    out: dict[str, pd.DataFrame | None] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for t in tables:
+            if f"data/{t}.parquet" not in tracked:
+                out[t] = None
+                continue
+            (Path(tmp) / f"{t}.parquet").write_bytes(_git_bytes("show", f"HEAD:data/{t}.parquet", cwd=cwd))
+            out[t] = etl_helpers.read_stored(t, tmp)
+    return out
 
 
 def put_back_links(plan: dict, chains: dict[str, list[str]], accept_shrink: list[str],

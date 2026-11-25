@@ -570,6 +570,28 @@ class TestNflverseHeldAfterItsLinkRowWasWritten:
         assert rp.put_back_unpublished_ids(plan, CHAINS_WITH_KEYED, never, lambda t: []) == []
 
 
+class TestReadPublished:
+    def git(self, repo, *args):
+        import subprocess
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+                       cwd=repo, check=True, capture_output=True)
+
+    def test_the_rows_head_holds_are_read_whatever_the_working_file_says(self, tmp_path, monkeypatch):
+        registry = tmp_path / "registry.yml"
+        registry.write_text(yaml.safe_dump(REGISTRY), encoding="utf-8")
+        monkeypatch.setattr(etl, "REGISTRY_PATH", registry)
+        (tmp_path / "data").mkdir()
+        monkeypatch.setattr(etl.CFG, "data_dir", str(tmp_path / "data"))
+        put(NPL, [(OLD,), (OTHER,)], ["gsis_id"])
+        self.git(tmp_path, "init", "-q")
+        self.git(tmp_path, "add", "data")
+        self.git(tmp_path, "commit", "-q", "-m", "published")
+        put(NPL, [(NEW,)], ["gsis_id"])
+        got = rp.read_published([NPL, LINK], cwd=tmp_path)
+        assert got[NPL]["gsis_id"].tolist() == [OLD, OTHER] and got[LINK] is None
+        assert ids(NPL) == [NEW]
+
+
 class TestUnpublishedLinks:
     def test_the_rows_the_snapshot_does_not_hold_are_the_unpublished_ones(self):
         stored = pd.DataFrame([("A", "B", "smart_id", "d1"), ("B", "C", "smart_id", "d2")],
