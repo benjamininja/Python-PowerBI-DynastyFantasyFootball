@@ -41,8 +41,10 @@ jobs:
   # One output, run (#715). It is false only on a pull request whose changed
   # paths are all off this list: supabase/*, docs/data_model.yml,
   # scripts/generate_migrations.py, scripts/migration_gate.py,
-  # tests/test_migrations_*.py, tests/sql/* and .github/workflows/migrate.yml
-  # (the list the pull_request paths filter held before). A path nobody listed
+  # tests/test_migrations_*.py, tests/role_phase_action.csv (#722: read by
+  # tests/test_migrations_apply.py), tests/sql/* and .github/workflows/migrate.yml
+  # (the list the pull_request paths filter held before). The diff reads with
+  # renames off, so a moved file counts under its old path too. A path nobody listed
   # is off the list, an empty diff runs validate, and so does a scope job that
   # fails: validate skips only when scope succeeded and said false. validate
   # skips through if:, never a paths filter, so it reports as skipped on a PR
@@ -64,7 +66,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "run=true" >> "$GITHUB_OUTPUT"
-          files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          files=$(git diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")
           echo "$files"
           run=false
           if [ -z "$files" ]; then
@@ -72,7 +74,7 @@ jobs:
           fi
           while IFS= read -r f; do
             case "$f" in
-              supabase/* | docs/data_model.yml | scripts/generate_migrations.py | scripts/migration_gate.py | tests/test_migrations_*.py | tests/sql/* | .github/workflows/migrate.yml) run=true ;;
+              supabase/* | docs/data_model.yml | scripts/generate_migrations.py | scripts/migration_gate.py | tests/test_migrations_*.py | tests/role_phase_action.csv | tests/sql/* | .github/workflows/migrate.yml) run=true ;;
             esac
           done <<< "$files"
           echo "run=$run" >> "$GITHUB_OUTPUT"
