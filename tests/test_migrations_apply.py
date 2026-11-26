@@ -60,7 +60,9 @@ def _refused(conn, role, sql):
 def test_columns_and_types_match_the_registry(conn):
     rows = conn.execute(
         "SELECT table_schema, table_name, column_name, data_type, is_nullable "
-        "FROM information_schema.columns WHERE table_schema IN ('football','shared','ops','app')").fetchall()
+        "FROM information_schema.columns WHERE table_schema IN ('football','shared','ops','app') "
+        "AND (table_schema, table_name) IN (SELECT table_schema, table_name FROM information_schema.tables "
+        "WHERE table_type = 'BASE TABLE')").fetchall()
     found = {(s, t, c): (d, n) for s, t, c, d, n in rows}
     for spec in TABLES.values():
         for col in spec["columns"]:
@@ -697,8 +699,9 @@ def test_the_crosswalk_is_unreadable_and_unwritable_to_every_role_but_its_owner(
 @pytest.mark.parametrize("call", ["SELECT * FROM shared.caller_team_keys()",
                                   "SELECT shared.choice_window('S', 'fa_keep')",
                                   "SELECT shared.caller_is_commissioner_for('T')",
-                                  "SELECT shared.caller_is_site_admin()"])
-def test_the_four_definer_functions_cannot_be_called_by_anon_or_an_etl_role(conn, role, call):
+                                  "SELECT shared.caller_is_site_admin()",
+                                  "SELECT * FROM shared.choice_windows()"])
+def test_the_five_definer_functions_cannot_be_called_by_anon_or_an_etl_role(conn, role, call):
     _world(conn)
     _denied(conn, U1, call, role=role)
 
@@ -843,20 +846,21 @@ def test_the_etl_roles_keep_their_posture_on_app(conn):
                                 "'SELECT,INSERT,UPDATE,DELETE')", (role,)).fetchone()[0]
 
 
-DEFINERS = ("caller_is_commissioner_for", "caller_is_site_admin", "caller_team_keys", "choice_window")
+DEFINERS = ("caller_is_commissioner_for", "caller_is_site_admin", "caller_team_keys", "choice_window",
+            "choice_windows")
 LOAD_FUNCTIONS = ("load_app_roles", "load_owner_crosswalk")
 SHARED_FUNCTIONS_TODAY = 1 + len(LOAD_FUNCTIONS)
 
 
-def test_the_functions_in_shared_are_the_pii_hash_the_two_loaders_and_the_four_definers_and_no_others(conn):
+def test_the_functions_in_shared_are_the_pii_hash_the_two_loaders_and_the_five_definers_and_no_others(conn):
     names = [r[0] for r in conn.execute("SELECT proname FROM pg_proc WHERE pronamespace = 'shared'::regnamespace "
                                         "ORDER BY proname").fetchall()]
     assert names == ["caller_is_commissioner_for", "caller_is_site_admin", "caller_team_keys", "choice_window",
-                     "load_app_roles", "load_owner_crosswalk", "pii_token_hashes"]
-    assert len(names) == SHARED_FUNCTIONS_TODAY + len(DEFINERS)
+                     "choice_windows", "load_app_roles", "load_owner_crosswalk", "pii_token_hashes"]
+    assert len(names) == SHARED_FUNCTIONS_TODAY + len(DEFINERS) == 8
 
 
-def test_no_function_in_shared_but_the_four_definers_is_executable_by_authenticated_anon_or_public(conn):
+def test_no_function_in_shared_but_the_five_definers_is_executable_by_authenticated_anon_or_public(conn):
     rows = conn.execute("SELECT p.proname, p.oid FROM pg_proc p WHERE p.pronamespace = 'shared'::regnamespace").fetchall()
     others = [(name, oid) for name, oid in rows if name not in DEFINERS]
     assert others
@@ -866,7 +870,7 @@ def test_no_function_in_shared_but_the_four_definers_is_executable_by_authentica
                 (name, role)
 
 
-def test_the_four_definers_are_executable_by_authenticated_alone_and_pin_the_search_path(conn):
+def test_the_five_definers_are_executable_by_authenticated_alone_and_pin_the_search_path(conn):
     rows = conn.execute("SELECT p.proname, p.prosecdef, p.proconfig, p.oid FROM pg_proc p "
                         "WHERE p.pronamespace = 'shared'::regnamespace AND p.proname = ANY(%s)",
                         (list(DEFINERS),)).fetchall()
@@ -923,6 +927,112 @@ def test_the_owner_policies_are_the_eleven_named_and_all_for_authenticated(conn)
         ("team_choice_sharing", "owner_update_own_team_while_open", "UPDATE"),
         ("team_choice_sharing", "signed_in_select_all", "SELECT")]
     assert all(r[3] == ["authenticated"] for r in rows)
+
+
+# --- the page's read path: two views in app over shared functions (ADR-0026 decision 10 point 1; #670) ---
+VIEWS = STATE["views"]
+VIEW_WRITES = ("INSERT INTO app.choice_windows (season_id, choice_kind, state) VALUES ('S', 'resign', 'open')",
+               "UPDATE app.choice_windows SET state = 'final'", "DELETE FROM app.choice_windows",
+               "INSERT INTO app.my_teams (team_key) VALUES ('T9')", "UPDATE app.my_teams SET team_key = 'T9'",
+               "DELETE FROM app.my_teams")
+
+
+def _rows_as(conn, uid, sql):
+    _as(conn, uid)
+    try:
+        return conn.execute(sql).fetchall()
+    finally:
+        conn.execute("RESET ROLE")
+
+
+def test_app_holds_the_two_views_every_one_with_security_invoker_on_and_no_function(conn):
+    rows = conn.execute("SELECT c.relname, c.reloptions FROM pg_class c WHERE c.relnamespace = 'app'::regnamespace "
+                        "AND c.relkind IN ('v', 'm') ORDER BY 1").fetchall()
+    assert [r[0] for r in rows] == ["choice_windows", "my_teams"]
+    assert sorted(f"app.{r[0]}" for r in rows) == sorted(VIEWS)
+    for name, options in rows:
+        assert "security_invoker=true" in (options or []), name
+    assert conn.execute("SELECT count(*) FROM pg_proc WHERE pronamespace = 'app'::regnamespace").fetchone()[0] == 0
+
+
+def test_each_view_returns_the_columns_the_registry_names_and_none_a_discord_id_fills(conn):
+    for spec in VIEWS.values():
+        cols = conn.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = %s "
+                            "AND table_name = %s ORDER BY ordinal_position", (spec["schema"], spec["name"])).fetchall()
+        assert [c[0] for c in cols] == spec["columns"], spec["name"]
+        assert not [c for c in spec["columns"] if "discord" in c], spec["name"]
+
+
+def test_authenticated_reads_both_views_and_anon_and_the_etl_roles_are_refused(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    assert _read(conn, U1, "SELECT count(*) FROM app.choice_windows") == 1
+    assert _read(conn, U1, "SELECT count(*) FROM app.my_teams") == 1
+    for role in ("anon", "etl_writer", "etl_reader"):
+        for name in VIEWS:
+            _denied(conn, U1, f"SELECT * FROM {name}", role=role)
+    for name in VIEWS:
+        for privilege in ("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"):
+            for role in ("anon", "etl_writer", "etl_reader", "public", "authenticated"):
+                held = conn.execute("SELECT has_table_privilege(%s, %s, %s)", (role, name, privilege)).fetchone()[0]
+                assert held is (role == "authenticated" and privilege == "SELECT"), (name, role, privilege)
+
+
+def test_the_windows_view_gives_each_state_from_its_row_and_no_row_for_none(conn):
+    _world(conn)
+    sql = "SELECT season_id, choice_kind, state, deadline_at, final_at FROM app.choice_windows ORDER BY choice_kind"
+    assert _rows_as(conn, U4, sql) == []
+    for deadline, final, expected in (("now() + interval '1 day'", "now() + interval '2 days'", "open"),
+                                      ("now() - interval '1 hour'", "now() + interval '2 days'", "passed"),
+                                      (*FINAL_ROW, "final")):
+        conn.execute("SAVEPOINT state_row")
+        _deadline(conn, "fa_keep", deadline, final)
+        (row,) = conn.execute("SELECT season_id, choice_kind, deadline_at, final_at FROM ops.choice_deadline").fetchall()
+        assert _rows_as(conn, U4, sql) == [(row[0], row[1], expected, row[2], row[3])]
+        conn.execute("ROLLBACK TO SAVEPOINT state_row")
+
+
+def test_the_windows_view_gives_one_row_per_window_each_with_choice_windows_answer(conn):
+    _world(conn)
+    _deadline(conn, "resign", FUTURE)
+    _final(conn, "fa_keep")
+    assert _rows_as(conn, U1, "SELECT choice_kind, state FROM app.choice_windows ORDER BY 1") == [
+        ("fa_keep", "final"), ("resign", "open")]
+    for kind in ("resign", "fa_keep"):
+        (state,) = _rows_as(conn, U1, f"SELECT state FROM app.choice_windows WHERE choice_kind = '{kind}'")[0]
+        assert state == _read(conn, U1, f"SELECT shared.choice_window('S', '{kind}')")
+
+
+def test_the_my_teams_view_gives_an_owner_their_teams_a_co_owner_the_shared_team_and_a_stranger_no_row(conn):
+    _world(conn)
+    sql = "SELECT team_key FROM app.my_teams ORDER BY 1"
+    seen = {uid: [r[0] for r in _rows_as(conn, uid, sql)] for uid in (U1, U2, U3, U4, U5, U6)}
+    assert seen == {U1: ["T"], U2: ["T"], U3: ["T2"], U4: [], U5: [], U6: ["T", "T2"]}
+
+
+# A role with USAGE on app reaches the view, and Postgres refuses the write as not updatable (55000)
+# before it checks the role's grants; a role with no USAGE on app is refused at the schema (42501).
+VIEW_WRITE_REFUSAL = {"authenticated": psycopg.errors.ObjectNotInPrerequisiteState,
+                      "etl_writer": psycopg.errors.ObjectNotInPrerequisiteState,
+                      "anon": psycopg.errors.InsufficientPrivilege,
+                      "etl_reader": psycopg.errors.InsufficientPrivilege}
+
+
+def test_neither_view_can_be_written_by_anyone(conn):
+    _world(conn)
+    _deadline(conn, "fa_keep", FUTURE)
+    for role, error in VIEW_WRITE_REFUSAL.items():
+        usage = conn.execute("SELECT has_schema_privilege(%s, 'app', 'USAGE')", (role,)).fetchone()[0]
+        assert usage is (error is psycopg.errors.ObjectNotInPrerequisiteState), role
+    for sql in VIEW_WRITES:
+        for role, error in VIEW_WRITE_REFUSAL.items():
+            conn.execute("SAVEPOINT view_write")
+            _as(conn, U1, role)
+            with pytest.raises(error):
+                conn.execute(sql)
+            conn.execute("ROLLBACK TO SAVEPOINT view_write")
+    for name in VIEWS:
+        assert conn.execute("SELECT pg_relation_is_updatable(%s::regclass, true)", (name,)).fetchone()[0] == 0, name
 
 
 def test_the_new_tables_have_their_key_checks_and_foreign_keys(conn):
@@ -1378,6 +1488,9 @@ ACTIONS = {
     "read_toggle": lambda conn, who: _attempt(conn, who, "SELECT 1 FROM app.team_choice_sharing WHERE team_key = 'T'",
                                               fetch=True),
     "write_toggle": lambda conn, who: _attempt(conn, who, SHARE_INSERT, ("T", True, _who(who))),
+    "read_windows": lambda conn, who: _attempt(conn, who, "SELECT 1 FROM app.choice_windows", fetch=True),
+    "read_my_teams": lambda conn, who: _attempt(conn, who, "SELECT 1 FROM app.my_teams WHERE team_key = 'T'",
+                                                fetch=True),
 }
 
 

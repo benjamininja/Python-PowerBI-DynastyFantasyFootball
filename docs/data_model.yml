@@ -81,6 +81,17 @@
 #   (shared.load_owner_crosswalk, shared.load_app_roles; ADR-0026 decision 2 as
 #   amended, #700): SECURITY DEFINER, EXECUTE for etl_writer only, which holds no
 #   grant on either table. The scheduled run calls it with the whole set.
+#   The crosswalk also brings shared.choice_windows(), for authenticated only: each
+#   row of ops.choice_deadline with its state (#670).
+#   views   : top level, the views the page reads (ADR-0026 decision 10 point 1,
+#             #670), each {name, schema: app, reads, columns, grants}. `reads` is
+#             one shared function of no argument granted to authenticated alone
+#             (and listed in the generator's VIEW_FUNCTION_COLUMNS), or one app
+#             table; `columns` are what it returns, in order; `grants` is exactly
+#             [{role: authenticated, privileges: [SELECT]}]. The generator writes
+#             it WITH (security_invoker = true), after the function or table it
+#             reads, and refuses anything else, a later change (unless its
+#             REPLACEABLE_VIEWS names the view) and a drop.
 #   drops   : on a table, columns removed on purpose, each {column, ticket}
 #             (#534, ADR-0018 decision 3 amendment). The column leaves
 #             `columns:`; the generator writes DROP COLUMN for it. The entry
@@ -1834,6 +1845,25 @@ other_tables:
       # only and is dropped by the migration of its own that follows. That one is
       # held by the destructive gate and applies on the owner's dispatch.
       - { name: final_at, sql_type: timestamptz, fill: "timestamptz '2027-03-01 04:59:59+00'" }
+
+# The page's read path (ADR-0026 decision 10 point 1, #670). Each view runs as the
+# caller over a shared function granted to authenticated by name; no definer
+# function sits in `app`. Neither returns a Discord id.
+views:
+  # Every choice window with its state (none has no row) and its two instants.
+  - name: choice_windows
+    schema: app
+    reads: shared.choice_windows
+    columns: [season_id, choice_kind, state, deadline_at, final_at]
+    grants:
+      - { role: authenticated, privileges: [SELECT] }
+  # The caller's own teams, one row per team; a co-owner sees the shared team.
+  - name: my_teams
+    schema: app
+    reads: shared.caller_team_keys
+    columns: [team_key]
+    grants:
+      - { role: authenticated, privileges: [SELECT] }
 
 # Trigger functions (ADR-0025 decision 10 point 3 and the brief's point 6). The
 # generator renders each as `CREATE FUNCTION ... RETURNS trigger LANGUAGE plpgsql

@@ -623,6 +623,242 @@ class TestATriggerAddedToATableThatExists:
         assert "app.choices: change of triggers" in changes["refusals"]
 
 
+WINDOWS_VIEW = {"name": "windows", "schema": "app", "reads": "shared.choice_windows",
+                "columns": ["season_id", "choice_kind", "state", "deadline_at", "final_at"],
+                "grants": [{"role": "authenticated", "privileges": ["SELECT"]}]}
+TEAMS_VIEW = {"name": "teams", "schema": "app", "reads": "shared.caller_team_keys", "columns": ["team_key"],
+              "grants": [{"role": "authenticated", "privileges": ["SELECT"]}]}
+
+
+def views_registry():
+    """The app fixture with the owner crosswalk (which brings the functions) and two views."""
+    reg = app_registry()
+    reg["other_tables"].append(
+        {"name": "owner_crosswalk", "schema": "shared", "pk": ["team_key", "discord_user_id"],
+         "columns": [col("team_key"), col("discord_user_id")],
+         "fk": [{"columns": ["team_key"], "to": "dim_team", "ref": ["team_key"]}]})
+    reg["views"] = [copy.deepcopy(WINDOWS_VIEW), copy.deepcopy(TEAMS_VIEW)]
+    return reg
+
+
+def view(reg, name):
+    return next(v for v in reg["views"] if v["name"] == name)
+
+
+class TestAView:
+    """`views` (#670, ADR-0026 decision 10 point 1): a view in app that runs as the caller."""
+
+    def sql(self, reg=None):
+        return sql_of(reg or views_registry())
+
+    def test_renders_each_view_with_security_invoker_over_its_function(self):
+        sql = self.sql()
+        assert ("CREATE VIEW app.windows WITH (security_invoker = true) AS\n"
+                "    SELECT r.season_id, r.choice_kind, r.state, r.deadline_at, r.final_at\n"
+                "    FROM shared.choice_windows() AS r(season_id, choice_kind, state, deadline_at, final_at);") in sql
+        assert ("CREATE VIEW app.teams WITH (security_invoker = true) AS\n"
+                "    SELECT r.team_key\n    FROM shared.caller_team_keys() AS r(team_key);") in sql
+
+    def test_every_view_has_security_invoker_on(self):
+        sql = self.sql()
+        views = [s for s in sql.split("\n\n") if s.startswith("CREATE VIEW")]
+        assert len(views) == 2 and all("WITH (security_invoker = true)" in s for s in views)
+
+    def test_each_view_is_granted_select_to_authenticated_alone_after_a_revoke(self):
+        sql = self.sql()
+        for name in ("app.windows", "app.teams"):
+            revoke = f"REVOKE ALL ON {name} FROM PUBLIC, anon, authenticated;"
+            grant = f"GRANT SELECT ON {name} TO authenticated;"
+            assert sql.index(f"CREATE VIEW {name}") < sql.index(revoke) < sql.index(grant)
+            about = [s for s in sql.split("\n\n") if s.startswith("GRANT") and f" {name} " in s]
+            assert about == [grant]
+
+    def test_a_view_follows_every_function_grant_and_policy(self):
+        sql = self.sql()
+        first = sql.index("CREATE VIEW")
+        for text in ("CREATE FUNCTION shared.choice_windows", "CREATE FUNCTION shared.caller_team_keys",
+                     "GRANT EXECUTE ON FUNCTION shared.choice_windows() TO authenticated;",
+                     "CREATE POLICY etl_writer_select_open"):
+            assert sql.index(text) < first, text
+        assert sql.index("CREATE FUNCTION shared.choice_window(") < sql.index("CREATE FUNCTION shared.choice_windows(")
+
+    def test_a_view_over_an_app_table_reads_it_as_the_caller(self):
+        def mutate(r):
+            r["views"] = [{"name": "my_choices", "schema": "app", "reads": "app.choices",
+                           "columns": ["team_key", "choice"], "grants": [{"role": "authenticated",
+                                                                         "privileges": ["SELECT"]}]}]
+        sql = self.sql(broken_views(mutate))
+        assert ("CREATE VIEW app.my_choices WITH (security_invoker = true) AS\n"
+                "    SELECT r.team_key, r.choice\n    FROM app.choices AS r;") in sql
+
+    def test_the_state_holds_each_view_with_its_text_and_no_function_in_app(self):
+        model = gm.desired_model(views_registry())
+        assert list(model["views"]) == ["app.teams", "app.windows"]
+        spec = model["views"]["app.teams"]
+        assert spec["reads"] == "shared.caller_team_keys" and spec["columns"] == ["team_key"]
+        assert spec["grants"] == [{"role": "authenticated", "privileges": ["SELECT"]}]
+        assert spec["sql"].startswith("CREATE VIEW app.teams WITH (security_invoker = true)")
+        assert not [n for n in model["functions"] if n.startswith("app.")]
+        assert json.loads(gm.dump_state(model)) == model
+
+    def test_a_registry_with_no_views_has_an_empty_views_key(self):
+        assert gm.desired_model(app_registry())["views"] == {}
+
+    @pytest.mark.parametrize("reads", ["ops.choice_deadline", "shared.owner_crosswalk", "football.dim_team",
+                                       "app.teams", "app.nope", "shared.nope", "ops.stamp",
+                                       "shared.choice_windows()", None])
+    def test_a_view_that_reads_anything_but_a_granted_function_or_an_app_table_is_refused(self, reads):
+        refused(broken_views(lambda r: view(r, "teams").update(reads=reads)), "nothing else")
+
+    def test_a_view_that_reads_a_function_not_granted_to_authenticated_is_refused(self):
+        for name in ("shared.load_owner_crosswalk", "shared.pii_token_hashes"):
+            refused(broken_views(lambda r: view(r, "teams").update(reads=name)),
+                    "not granted to authenticated by name")
+
+    def test_a_view_that_reads_a_function_that_takes_arguments_is_refused(self):
+        refused(broken_views(lambda r: view(r, "teams").update(reads="shared.choice_window")), "takes arguments")
+
+    def test_a_view_of_a_function_whose_columns_are_not_listed_is_refused(self, monkeypatch):
+        monkeypatch.delitem(gm.VIEW_FUNCTION_COLUMNS, "shared.caller_team_keys")
+        refused(views_registry(), "whose columns the generator does not list")
+
+    @pytest.mark.parametrize("grants,fragment", [
+        (None, "needs its grant"), ([], "needs its grant"),
+        ([{"role": "anon", "privileges": ["SELECT"]}], "anon is never granted anything"),
+        ([{"role": "etl_writer", "privileges": ["SELECT"]}], "granted to authenticated only"),
+        ([{"role": "etl_reader", "privileges": ["SELECT"]}], "granted to authenticated only"),
+        ([{"role": "authenticated", "privileges": ["SELECT", "INSERT"]}], "SELECT only"),
+        ([{"role": "authenticated", "privileges": ["UPDATE"]}], "SELECT only"),
+        ([{"role": "authenticated", "privileges": ["SELECT"]}] * 2, "two grants")])
+    def test_a_view_with_no_grant_or_any_grant_but_select_to_authenticated_is_refused(self, grants, fragment):
+        refused(broken_views(lambda r: view(r, "teams").update(grants=grants)), fragment)
+
+    @pytest.mark.parametrize("columns,fragment", [
+        (["discord_user_id"], "unknown column"), (["team_key", "team_key"], "named twice"),
+        ([], "expected a column name"), (None, "expected a column name")])
+    def test_a_column_the_source_does_not_return_or_a_repeat_is_refused(self, columns, fragment):
+        refused(broken_views(lambda r: view(r, "teams").update(columns=columns)), fragment)
+
+    @pytest.mark.parametrize("schema", ["shared", "ops", "football", None])
+    def test_a_view_outside_app_is_refused(self, schema):
+        refused(broken_views(lambda r: view(r, "teams").update(schema=schema)), "a view lives in app only")
+
+    def test_a_view_named_like_a_table_or_declared_twice_is_refused(self):
+        refused(broken_views(lambda r: view(r, "teams").update(name="choices")), "a table has the same name")
+        refused(broken_views(lambda r: r["views"].append(copy.deepcopy(TEAMS_VIEW))), "declared twice")
+
+    def test_the_checker_reports_a_refused_view(self):
+        import check_data_model as cdm
+        assert cdm.model_errors(views_registry()) == []
+        errs = cdm.model_errors(broken_views(lambda r: view(r, "teams").update(reads="ops.choice_deadline")))
+        assert len(errs) == 1 and errs[0].startswith("[generator]") and "ops.choice_deadline" in errs[0]
+
+
+def broken_views(mutate):
+    reg = views_registry()
+    mutate(reg)
+    return reg
+
+
+class TestALaterChangeToAView:
+    """A changed or dropped view is refused; REPLACEABLE_VIEWS (empty today) may add
+    columns at the end with CREATE OR REPLACE VIEW, keeping its grant."""
+
+    def old(self):
+        return gm.desired_model(views_registry())
+
+    def test_no_view_is_replaceable_today(self):
+        assert gm.REPLACEABLE_VIEWS == ()
+
+    def test_the_same_registry_is_no_change(self):
+        assert not gm.has_changes(gm.diff(self.old(), gm.desired_model(views_registry())))
+
+    def test_a_new_view_beside_the_old_ones_is_an_addition(self):
+        reg = views_registry()
+        reg["views"].append({**copy.deepcopy(TEAMS_VIEW), "name": "teams_too"})
+        changes = gm.diff(self.old(), gm.desired_model(reg))
+        assert changes["refusals"] == [] and [v["name"] for v in changes["views"]] == ["teams_too"]
+        assert gm.render(changes).count("CREATE VIEW") == 1
+
+    @pytest.mark.parametrize("field,value", [("columns", ["season_id", "state"]),
+                                             ("reads", "shared.caller_team_keys")])
+    def test_a_changed_view_is_refused(self, field, value):
+        reg = views_registry()
+        view(reg, "windows").update({field: value, **({"columns": ["team_key"]} if field == "reads" else {})})
+        assert "app.windows: change of view" in gm.diff(self.old(), gm.desired_model(reg))["refusals"]
+
+    def test_a_changed_rendering_is_a_change_of_view(self):
+        new = copy.deepcopy(self.old())
+        new["views"]["app.teams"]["sql"] += " "
+        assert "app.teams: change of view" in gm.diff(self.old(), new)["refusals"]
+
+    def test_a_dropped_view_is_refused(self):
+        reg = views_registry()
+        reg["views"] = [copy.deepcopy(WINDOWS_VIEW)]
+        assert "app.teams: drop of view" in gm.diff(self.old(), gm.desired_model(reg))["refusals"]
+
+    def test_a_replaceable_view_may_add_a_column_at_the_end_and_is_created_or_replaced(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_VIEWS", ("app.windows",))
+        reg = views_registry()
+        view(reg, "windows")["columns"] = ["season_id", "choice_kind"]
+        old = gm.desired_model(reg)
+        changes = gm.diff(old, gm.desired_model(views_registry()))
+        assert changes["refusals"] == [] and [v["name"] for v in changes["view_replacements"]] == ["windows"]
+        sql = gm.render(changes)
+        assert sql.startswith("CREATE OR REPLACE VIEW app.windows WITH (security_invoker = true) AS")
+        assert sql.count("CREATE ") == 1 and "GRANT" not in sql and "REVOKE" not in sql
+
+    def test_a_replaceable_view_may_not_drop_or_reorder_a_column(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_VIEWS", ("app.windows",))
+        for columns in (["season_id", "choice_kind"], ["choice_kind", "season_id", "state", "deadline_at",
+                                                        "final_at"]):
+            reg = views_registry()
+            view(reg, "windows")["columns"] = columns
+            assert "app.windows: change of view" in gm.diff(self.old(), gm.desired_model(reg))["refusals"]
+
+    def test_a_replaceable_view_may_not_change_its_grant(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_VIEWS", ("app.windows",))
+        new = copy.deepcopy(self.old())
+        new["views"]["app.windows"]["grants"] = []
+        assert "app.windows: change of view" in gm.diff(self.old(), new)["refusals"]
+
+    def test_a_replaceable_view_may_not_be_dropped(self, monkeypatch):
+        monkeypatch.setattr(gm, "REPLACEABLE_VIEWS", ("app.windows",))
+        new = copy.deepcopy(self.old())
+        del new["views"]["app.windows"]
+        assert "app.windows: drop of view" in gm.diff(self.old(), new)["refusals"]
+
+    def test_a_state_file_from_before_views_loads_with_none(self, tmp_path):
+        old = gm.desired_model(fixture_registry())
+        for legacy in ({k: v for k, v in old.items() if k != "views"},
+                       {k: v for k, v in old.items() if k not in ("views", "trigger_functions")}):
+            path = tmp_path / gm.STATE_FILE
+            path.write_text(json.dumps(legacy), encoding="utf-8")
+            assert gm.load_state(path) == old
+
+    def test_a_state_file_missing_a_key_that_was_always_there_is_refused(self, tmp_path):
+        path = tmp_path / gm.STATE_FILE
+        path.write_text(json.dumps({k: v for k, v in gm.EMPTY_MODEL.items() if k != "tables"}), encoding="utf-8")
+        with pytest.raises(gm.RegistryError):
+            gm.load_state(path)
+
+    def test_a_run_writes_the_views_once_and_a_second_run_writes_nothing(self, tmp_path):
+        assert run(tmp_path, views_registry(), now=NOW) == 0
+        text = migrations(tmp_path)[0].read_text(encoding="utf-8")
+        assert text.count("CREATE VIEW") == 2
+        before = sorted(p.name for p in (tmp_path / "supabase").rglob("*"))
+        assert run(tmp_path, views_registry(), now=LATER) == 0
+        assert sorted(p.name for p in (tmp_path / "supabase").rglob("*")) == before
+
+    def test_a_later_changed_view_exits_1_and_writes_nothing_new(self, tmp_path):
+        assert run(tmp_path, views_registry(), now=NOW) == 0
+        before = sorted(p.name for p in (tmp_path / "supabase").rglob("*"))
+        reg = views_registry()
+        view(reg, "windows")["columns"] = ["season_id"]
+        assert run(tmp_path, reg, now=LATER) == 1
+        assert sorted(p.name for p in (tmp_path / "supabase").rglob("*")) == before
+
+
 class TestThePolicyThatMayChangeInPlace:
     """REPLACEABLE_POLICIES (#661): one named policy is changed with ALTER POLICY; any
     other change to a policy is refused."""

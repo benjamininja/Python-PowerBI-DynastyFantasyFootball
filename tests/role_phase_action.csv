@@ -9,6 +9,8 @@
 #   signed_out          the anon role
 # Actions: read_choices and write_choices are on T's rows of app.contract_choices; read_toggle and
 # write_toggle are on T's row of app.team_choice_sharing (a write is one new row, saved as the persona).
+# read_windows reads app.choice_windows and read_my_teams reads T's row of app.my_teams (#670); a read
+# is allowed when it returns a row.
 # Phases: none (no deadline row), open, passed, final. An empty share toggle is off.
 # A cell is `allowed` or `refused`. A later brief adds its actions as new rows of this file.
 persona,action,none,open,passed,final
@@ -36,3 +38,15 @@ signed_out,read_choices,refused,refused,refused,refused
 signed_out,write_choices,refused,refused,refused,refused
 signed_out,read_toggle,refused,refused,refused,refused
 signed_out,write_toggle,refused,refused,refused,refused
+stranger,read_windows,refused,allowed,allowed,allowed
+owner_of_team,read_windows,refused,allowed,allowed,allowed
+owner_of_other_team,read_windows,refused,allowed,allowed,allowed
+commissioner,read_windows,refused,allowed,allowed,allowed
+site_admin,read_windows,refused,allowed,allowed,allowed
+signed_out,read_windows,refused,refused,refused,refused
+stranger,read_my_teams,refused,refused,refused,refused
+owner_of_team,read_my_teams,allowed,allowed,allowed,allowed
+owner_of_other_team,read_my_teams,refused,refused,refused,refused
+commissioner,read_my_teams,refused,refused,refused,refused
+site_admin,read_my_teams,refused,refused,refused,refused
+signed_out,read_my_teams,refused,refused,refused,refused

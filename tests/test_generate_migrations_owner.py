@@ -150,8 +150,9 @@ class TestTheOwnerCrosswalkAndItsFunctions:
     def test_two_definer_functions_are_written_with_the_search_path_empty(self):
         model = gm.desired_model(crosswalk_registry())
         assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
-                                           "shared.choice_window", "shared.load_owner_crosswalk"}
-        for name in ("shared.caller_team_keys", "shared.choice_window"):
+                                           "shared.choice_window", "shared.choice_windows",
+                                           "shared.load_owner_crosswalk"}
+        for name in ("shared.caller_team_keys", "shared.choice_window", "shared.choice_windows"):
             sql = model["functions"][name]
             assert "SECURITY DEFINER SET search_path = ''" in sql
 
@@ -271,12 +272,13 @@ class TestTheRoleTableAndItsTwoChecks:
     def test_the_two_functions_are_added_beside_the_three_and_no_others(self):
         model = gm.desired_model(roles_registry())
         assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
-                                           "shared.choice_window", "shared.caller_is_commissioner_for",
+                                           "shared.choice_window", "shared.choice_windows",
+                                           "shared.caller_is_commissioner_for",
                                            "shared.caller_is_site_admin", "shared.load_owner_crosswalk",
                                            "shared.load_app_roles"}
         assert gm.desired_model(crosswalk_registry())["functions"].keys() == {
             "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window",
-            "shared.load_owner_crosswalk"}
+            "shared.choice_windows", "shared.load_owner_crosswalk"}
 
     def test_both_are_definers_with_the_search_path_empty_and_execute_for_authenticated_alone(self):
         sql = self.sql()
@@ -481,13 +483,14 @@ class TestTheRealRegistry:
         assert "commissioner" not in "".join(str(p.get("check", "")) + str(p.get("using", ""))
                                              for p in spec["policies"])
 
-    def test_the_rule_for_shared_names_exactly_seven_functions(self, model):
-        assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"])
+    def test_the_rule_for_shared_names_exactly_eight_functions(self, model):
+        assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"]) and len(model["functions"]) == 8
         assert {n.split(".")[0] for n in model["functions"]} == {"shared"}
         grantees = {n: set(roles) for n, (_, roles) in gm.FUNCTION_ACCESS.items()}
         assert grantees == {"shared.pii_token_hashes": {"etl_writer"},
                             "shared.caller_team_keys": {"authenticated"},
                             "shared.choice_window": {"authenticated"},
+                            "shared.choice_windows": {"authenticated"},
                             "shared.caller_is_commissioner_for": {"authenticated"},
                             "shared.caller_is_site_admin": {"authenticated"},
                             "shared.load_owner_crosswalk": {"etl_writer"},
@@ -568,3 +571,60 @@ class TestTheTwoLoadFunctions:
     def test_the_real_registry_declares_the_table_the_crosswalk_function_reads(self, model):
         assert "football.dim_fantasy_teams" in model["tables"]
         assert "football.dim_fantasy_teams" in model["functions"][self.NAMES[0]]
+
+
+class TestThePagesReadPath:
+    """ADR-0026 decision 10 point 1, #670: shared.choice_windows() and the two views in app."""
+
+    @pytest.fixture()
+    def model(self):
+        real = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        return gm.desired_model(real)
+
+    def test_the_windows_function_is_a_definer_for_authenticated_alone_after_the_pattern_of_choice_window(self, model):
+        sql = model["functions"][gm.WINDOWS_FUNCTION]
+        assert sql.startswith("CREATE FUNCTION shared.choice_windows() RETURNS TABLE (season_id text, choice_kind "
+                              "text, state text, deadline_at timestamptz, final_at timestamptz)")
+        assert "LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''" in sql
+        assert gm.FUNCTION_ACCESS[gm.WINDOWS_FUNCTION] == ("()", ("authenticated",))
+        rendered = gm.render(gm.diff(gm.EMPTY_MODEL, model))
+        assert "REVOKE EXECUTE ON FUNCTION shared.choice_windows() FROM PUBLIC;" in rendered
+        assert [s for s in rendered.split("\n\n") if s.startswith("GRANT EXECUTE ON FUNCTION shared.choice_windows")] \
+            == ["GRANT EXECUTE ON FUNCTION shared.choice_windows() TO authenticated;"]
+
+    def test_the_state_of_each_row_is_choice_windows_answer_so_the_rule_lives_once(self, model):
+        sql = model["functions"][gm.WINDOWS_FUNCTION]
+        assert "shared.choice_window(d.season_id, d.choice_kind)" in sql and "FROM ops.choice_deadline d" in sql
+        assert "clock_timestamp" not in sql and "CASE" not in sql
+        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION)
+
+    def test_app_holds_the_two_views_and_no_function(self, model):
+        assert list(model["views"]) == ["app.choice_windows", "app.my_teams"]
+        assert not [n for n in list(model["functions"]) + list(model["trigger_functions"]) if n.startswith("app.")]
+
+    def test_each_view_reads_its_function_runs_as_the_caller_and_grants_select_to_authenticated_alone(self, model):
+        windows, teams = model["views"]["app.choice_windows"], model["views"]["app.my_teams"]
+        assert windows["reads"] == "shared.choice_windows"
+        assert windows["columns"] == ["season_id", "choice_kind", "state", "deadline_at", "final_at"]
+        assert teams["reads"] == "shared.caller_team_keys" and teams["columns"] == ["team_key"]
+        for spec in (windows, teams):
+            assert "WITH (security_invoker = true)" in spec["sql"]
+            assert spec["grants"] == [{"role": "authenticated", "privileges": ["SELECT"]}]
+
+    def test_no_view_reads_a_role_check_and_the_generator_lists_neither_for_a_view(self, model):
+        for spec in model["views"].values():
+            assert "caller_is_" not in spec["reads"] and "caller_is_" not in spec["sql"]
+        assert set(gm.VIEW_FUNCTION_COLUMNS) == {gm.TEAMS_FUNCTION, gm.WINDOWS_FUNCTION}
+
+    def test_every_function_a_view_may_read_takes_no_argument_and_is_for_authenticated_alone(self):
+        for name in gm.VIEW_FUNCTION_COLUMNS:
+            assert gm.FUNCTION_ACCESS[name] == ("()", ("authenticated",)), name
+
+    def test_no_view_returns_a_column_a_discord_id_fills(self, model):
+        for spec in model["views"].values():
+            assert not [c for c in spec["columns"] if "discord" in c], spec["name"]
+        assert "discord_user_id" not in model["functions"][gm.WINDOWS_FUNCTION]
+
+    def test_the_committed_state_holds_the_two_views(self):
+        state = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
+        assert list(state["views"]) == ["app.choice_windows", "app.my_teams"]

@@ -38,7 +38,12 @@ trigger is touched, then DROP DEFAULT in the migration of its own that holds the
 drops (#534; the gate holds it for the owner's dispatch). The one policy of
 REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and
 `shared.choice_window` is replaced with CREATE OR REPLACE (REPLACEABLE_FUNCTIONS).
-Other later changes to those fields on an existing table are refused. No change
+Other later changes to those fields on an existing table are refused. The
+registry's `views` (#670, ADR-0026 decision 10 point 1) are views in `app` with
+security_invoker on, each over one `shared` function of no argument granted to
+authenticated alone (listed in VIEW_FUNCTION_COLUMNS) or one `app` table, SELECT to
+authenticated only; they render after every function, grant and policy. A changed
+view is refused unless REPLACEABLE_VIEWS names it, and a dropped view is refused. No change
 writes nothing and exits 0. A registry that breaks a rule exits 2.
 
 Writes `<out>/migrations/<14-digit UTC time>_<name>.sql` and the state file.
@@ -142,6 +147,15 @@ AS $fn$
          FROM ops.choice_deadline d
          WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),
         'none')
+$fn$;"""
+# Every window and its state, for the view the page reads (ADR-0026 decision 10
+# point 1, #670). The state is shared.choice_window's answer, so the rule lives once.
+WINDOWS_FUNCTION = "shared.choice_windows"
+WINDOWS_FUNCTION_SQL = """CREATE FUNCTION shared.choice_windows() RETURNS TABLE (season_id text, choice_kind text, state text, deadline_at timestamptz, final_at timestamptz)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
+AS $fn$
+    SELECT d.season_id, d.choice_kind, shared.choice_window(d.season_id, d.choice_kind), d.deadline_at, d.final_at
+    FROM ops.choice_deadline d
 $fn$;"""
 # With the role table declared (ADR-0026 decision 2, #662) the list holds its ids too.
 PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
@@ -285,11 +299,25 @@ FUNCTION_ACCESS = {
     PII_FUNCTION: ("()", ("etl_writer",)),
     TEAMS_FUNCTION: ("()", ("authenticated",)),
     OPEN_FUNCTION: ("(text, text)", ("authenticated",)),
+    WINDOWS_FUNCTION: ("()", ("authenticated",)),
     COMMISSIONER_FUNCTION: ("(text)", ("authenticated",)),
     ADMIN_FUNCTION: ("()", ("authenticated",)),
     LOAD_CROSSWALK_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
     LOAD_ROLES_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
 }
+# Views (ADR-0026 decision 10 point 1, #670): each lives in `app`, runs as the caller
+# (security_invoker), reads one `shared` function of no argument granted to
+# authenticated alone or one `app` table, and is granted SELECT to authenticated only.
+# A function a view may read lists here the columns it returns, in order.
+VIEW_SCHEMAS = ("app",)
+VIEW_GRANT = {"role": "authenticated", "privileges": ["SELECT"]}
+VIEW_FUNCTION_COLUMNS = {
+    TEAMS_FUNCTION: ("team_key",),
+    WINDOWS_FUNCTION: ("season_id", "choice_kind", "state", "deadline_at", "final_at"),
+}
+# The views a later registry may change, written as CREATE OR REPLACE VIEW: the same
+# grant, the old columns first and in order. Any other change or a drop is refused.
+REPLACEABLE_VIEWS = ()
 
 
 class RegistryError(Exception):
@@ -570,6 +598,57 @@ def _trigger_function(entry):
     return name, sql
 
 
+def _view(entry, specs, functions):
+    """One `views` entry as (schema.name, spec). The spec holds the CREATE VIEW text."""
+    if not isinstance(entry, dict):
+        raise RegistryError(f"view entry {entry!r}: expected a mapping")
+    name = _ident(entry.get("name"), "view name")
+    schema = entry.get("schema")
+    if schema not in VIEW_SCHEMAS:
+        raise RegistryError(f"view {name}: schema {schema!r}: a view lives in {', '.join(VIEW_SCHEMAS)} only")
+    where = f"{schema}.{name}"
+    if any(s["name"] == name for s in specs.values()):
+        raise RegistryError(f"{where}: a table has the same name")
+    reads = entry.get("reads")
+    if reads in functions:
+        sig, roles = FUNCTION_ACCESS[reads]
+        if roles != ("authenticated",):
+            raise RegistryError(f"{where}: reads {reads}, which is not granted to authenticated by name")
+        if sig != "()":
+            raise RegistryError(f"{where}: reads {reads}, which takes arguments")
+        if reads not in VIEW_FUNCTION_COLUMNS:
+            raise RegistryError(f"{where}: reads {reads}, whose columns the generator does not list for a view")
+        available = list(VIEW_FUNCTION_COLUMNS[reads])
+        source = f"{reads}() AS r({', '.join(available)})"
+    elif isinstance(reads, str) and reads.split(".")[0] in VIEW_SCHEMAS and reads in specs:
+        available = [c["name"] for c in specs[reads]["columns"]]
+        source = f"{reads} AS r"
+    else:
+        raise RegistryError(f"{where}: reads {reads!r}: a view reads a shared function granted to "
+                            f"authenticated or a table of {', '.join(VIEW_SCHEMAS)}, nothing else")
+    columns = _names(entry.get("columns"), f"{where} columns")
+    _known(available, columns, f"{where} columns")
+    raw = entry.get("grants")
+    if not isinstance(raw, list) or not raw:
+        raise RegistryError(f"{where}: a view needs its grant, SELECT to authenticated")
+    for grant in raw:
+        if not isinstance(grant, dict):
+            raise RegistryError(f"{where}: grant {grant!r}: expected a mapping")
+        role = grant.get("role")
+        if role in NEVER_GRANTED:
+            raise RegistryError(f"{where}: grant to {role}: {role} is never granted anything")
+        if role != VIEW_GRANT["role"]:
+            raise RegistryError(f"{where}: grant to {role!r}: a view is granted to authenticated only")
+    if len(raw) != 1:
+        raise RegistryError(f"{where}: two grants to authenticated")
+    if _names(raw[0].get("privileges"), f"{where} grant to authenticated") != VIEW_GRANT["privileges"]:
+        raise RegistryError(f"{where}: grant to authenticated: a view is granted SELECT only")
+    sql = (f"CREATE VIEW {where} WITH (security_invoker = true) AS\n"
+           f"    SELECT {', '.join(f'r.{c}' for c in columns)}\n    FROM {source};")
+    return where, {"schema": schema, "name": name, "reads": reads, "columns": columns,
+                   "grants": [copy.deepcopy(VIEW_GRANT)], "sql": sql}
+
+
 def desired_model(registry):
     """The registry as the plain dict the state file holds."""
     if not isinstance(registry, dict):
@@ -620,6 +699,7 @@ def desired_model(registry):
         functions[PII_FUNCTION] = PII_FUNCTION_CROSSWALK_SQL
         functions[TEAMS_FUNCTION] = TEAMS_FUNCTION_SQL
         functions[OPEN_FUNCTION] = OPEN_FUNCTION_SQL
+        functions[WINDOWS_FUNCTION] = WINDOWS_FUNCTION_SQL
         functions[LOAD_CROSSWALK_FUNCTION] = LOAD_CROSSWALK_FUNCTION_SQL
     roles = specs.get(ROLE_TABLE)
     if roles is not None:
@@ -647,12 +727,24 @@ def desired_model(registry):
             if trigger["function"] not in trigger_functions:
                 raise RegistryError(f"{spec['schema']}.{spec['name']} trigger {trigger['name']}: "
                                     f"unknown trigger function {trigger['function']!r}")
+    raw_views = registry.get("views") or []
+    if not isinstance(raw_views, list):
+        raise RegistryError("views: expected a list")
+    views = {}
+    for entry in raw_views:
+        key, spec = _view(entry, specs, functions)
+        if key in views:
+            raise RegistryError(f"view {key} is declared twice")
+        views[key] = spec
     return {"schemas": list(SCHEMAS), "roles": list(ROLES),
             "tables": dict(sorted(specs.items())), "functions": functions,
-            "trigger_functions": dict(sorted(trigger_functions.items()))}
+            "trigger_functions": dict(sorted(trigger_functions.items())),
+            "views": dict(sorted(views.items()))}
 
 
-EMPTY_MODEL = {"schemas": [], "roles": [], "tables": {}, "functions": {}, "trigger_functions": {}}
+EMPTY_MODEL = {"schemas": [], "roles": [], "tables": {}, "functions": {}, "trigger_functions": {}, "views": {}}
+# Keys a state file written before them may lack; each loads as empty.
+LATER_STATE_KEYS = ("trigger_functions", "views")
 NO_DROPS = {"columns": {}, "tables": {}}
 
 
@@ -802,7 +894,8 @@ def diff(old, new, drops=NO_DROPS):
     out = {"schemas": [], "roles": [], "tables": [], "columns": [], "check_swaps": [],
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
            "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
-           "triggers": [], "policy_replacements": [], "default_drops": [], "refusals": []}
+           "triggers": [], "policy_replacements": [], "default_drops": [], "views": [],
+           "view_replacements": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -839,6 +932,18 @@ def diff(old, new, drops=NO_DROPS):
         elif old_triggers[name] != sql:
             out["refusals"].append(f"{name}: change of function body")
     out["refusals"] += [f"{n}: drop of function" for n in old_triggers if n not in new_triggers]
+    old_views, new_views = old.get("views", {}), new.get("views", {})
+    for key, spec in new_views.items():
+        before = old_views.get(key)
+        if before is None:
+            out["views"].append(spec)
+        elif before != spec:
+            if (key in REPLACEABLE_VIEWS and before["grants"] == spec["grants"]
+                    and spec["columns"][:len(before["columns"])] == before["columns"]):
+                out["view_replacements"].append(spec)
+            else:
+                out["refusals"].append(f"{key}: change of view")
+    out["refusals"] += [f"{k}: drop of view" for k in old_views if k not in new_views]
     return out
 
 
@@ -907,15 +1012,19 @@ def render(changes):
     out += [sql.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
             for _, sql in changes.get("function_replacements", [])]
 
-    def grant_lines(schema, qualified, grant):
+    def usage_lines(schema, role):
         lines = []
-        if schema not in GRANTED_SCHEMAS and (schema, grant["role"]) not in usage:
-            usage.append((schema, grant["role"]))
-            lines.append(f"GRANT USAGE ON SCHEMA {schema} TO {grant['role']};")
-            if grant["role"] == "authenticated" and schema in OWN_GRANT_SCHEMAS:
+        if schema not in GRANTED_SCHEMAS and (schema, role) not in usage:
+            usage.append((schema, role))
+            lines.append(f"GRANT USAGE ON SCHEMA {schema} TO {role};")
+            if role == "authenticated" and schema in OWN_GRANT_SCHEMAS:
                 lines += [f"REVOKE ALL ON SCHEMA {schema} FROM anon;",
                           f"REVOKE ALL ON ALL TABLES IN SCHEMA {schema} FROM anon;",
                           f"ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} REVOKE ALL ON TABLES FROM anon;"]
+        return lines
+
+    def grant_lines(schema, qualified, grant):
+        lines = usage_lines(schema, grant["role"])
         columns = grant.get("columns", {})
         whole = [p for p in grant["privileges"] if p not in columns]
         if whole:
@@ -941,6 +1050,13 @@ def render(changes):
         clauses = "".join(f" {word} ({policy[field]})" for field, word in (("using", "USING"), ("check", "WITH CHECK"))
                           if field in policy)
         out.append(f"ALTER POLICY {policy['name']} ON {key}{clauses};")
+    for spec in changes.get("views", []):
+        qualified, role = f"{spec['schema']}.{spec['name']}", spec["grants"][0]["role"]
+        out += usage_lines(spec["schema"], role)
+        out += [spec["sql"], f"REVOKE ALL ON {qualified} FROM PUBLIC, anon, authenticated;",
+                f"GRANT SELECT ON {qualified} TO {role};"]
+    out += [spec["sql"].replace("CREATE VIEW", "CREATE OR REPLACE VIEW", 1)
+            for spec in changes.get("view_replacements", [])]
     for name, sql in changes.get("trigger_functions", []):
         out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}() FROM PUBLIC;"]
 
@@ -1022,8 +1138,8 @@ def load_state(path):
         model = json.loads(path.read_text(encoding="utf-8"))
     except ValueError as exc:
         raise RegistryError(f"{path.name}: not valid JSON ({exc})") from exc
-    if isinstance(model, dict) and set(model) == set(EMPTY_MODEL) - {"trigger_functions"}:
-        model = {**model, "trigger_functions": {}}
+    if isinstance(model, dict) and set(EMPTY_MODEL) - set(LATER_STATE_KEYS) <= set(model) <= set(EMPTY_MODEL):
+        model = {**{k: {} for k in LATER_STATE_KEYS}, **model}
     if not isinstance(model, dict) or set(model) != set(EMPTY_MODEL):
         raise RegistryError(f"{path.name}: not a registry state")
     return model
