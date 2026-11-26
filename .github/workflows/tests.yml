@@ -28,7 +28,10 @@ jobs:
   # path ends in .md or starts with .claude/memory/; any other path, every .yml
   # included (the tests read docs/data_model.yml and docs/sources.yml), makes it
   # true, and so does a push to main. The heavy jobs skip through if:, never a
-  # paths filter, so a skipped required check reports as passed.
+  # paths filter, so a skipped required check reports as passed. They skip only
+  # when scope succeeded and said false (#722): a scope job that fails runs
+  # them, and a cancelled run cancels them. The diff reads with renames off, so
+  # a moved file counts under its old path too.
   # A second output, pg (#713), gates storage-pg alone. A pg test reads
   # notebooks/, scripts/, docs/data_model.yml, data/*.parquet and
   # supabase/migrations/, and none reads pbi/, mouserat_trade-bud/,
@@ -53,10 +56,12 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          echo "heavy=true" >> "$GITHUB_OUTPUT"
+          echo "pg=true" >> "$GITHUB_OUTPUT"
           heavy=true
           pg=true
           if [ "$EVENT" = "pull_request" ]; then
-            files=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+            files=$(git diff --no-renames --name-only "$BASE_SHA...$HEAD_SHA")
             if [ -n "$files" ]; then
               heavy=false
               pg=false
@@ -80,7 +85,7 @@ jobs:
 
   tests:
     needs: scope
-    if: needs.scope.outputs.heavy == 'true'
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.heavy == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +106,7 @@ jobs:
   # case fails the job. No secret; nothing here reaches the real project.
   storage-pg:
     needs: scope
-    if: needs.scope.outputs.pg == 'true'
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.pg == 'true') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -177,7 +182,7 @@ jobs:
 
   bot-tests:
     needs: scope
-    if: needs.scope.outputs.heavy == 'true'
+    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.heavy == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
