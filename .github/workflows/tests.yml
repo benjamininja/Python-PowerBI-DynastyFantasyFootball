@@ -16,6 +16,13 @@ on:
 permissions:
   contents: read
 
+# #715: a newer head on a pull request cancels the older run. The group is the
+# PR number; a push to main gets its own group (the run id) and is never
+# cancelled. A second push to a PR stops the first run.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # One output, heavy (#581). False only on a pull request whose every changed
   # path ends in .md or starts with .claude/memory/; any other path, every .yml
