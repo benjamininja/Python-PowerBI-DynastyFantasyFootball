@@ -17,7 +17,10 @@ Chain and is all or nothing. A table holding a gsis_id of a Chain that did not
 run or was held goes back to its published rows, has each old gsis_id of
 dim_gsis_link put on its newest id and publishes with the nflverse Chain's link
 row, or neither does (one table refusing, one Gate failing or a step raising
-puts every remapped table back and holds nflverse). A run never
+puts every remapped table back and holds nflverse). When nflverse is not a
+passing Chain, a passing Chain's table that an in-step writer already put on a
+link row that does not publish is put back on its published ids (#697), or its
+Chain is held. A run never
 stages a manual-only table (no Chain). It reaches main by a PR of its own or,
 on the owner's command only, by `--publish-manual TABLE ...` (#616): an
 allowlisted manual-only table is Gate-checked and exported from the store,
@@ -534,6 +537,13 @@ def _git(*args: str, cwd: Path = REPO) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
 
+def _git_bytes(*args: str, cwd: Path = REPO) -> bytes:
+    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"git {args[0]} failed")
+    return r.stdout
+
+
 def _parquet_paths(tables: list[str]) -> list[str]:
     return [f"data/{t}.parquet" for t in tables]
 
@@ -934,6 +944,102 @@ def hold_with(plan: dict, chains: dict[str, list[str]], reason: str) -> list[str
     return []
 
 
+def put_back_unpublished_ids(plan: dict, chains: dict[str, list[str]],
+                             put_back: Callable[[list[str], bool], dict],
+                             gate: Callable[[list[str]], list[str]]) -> list[str]:
+    """#697, the other half of the ADR-0008 amendment (#639): when nflverse is
+    not a passing Chain, no table publishes an id from a link row that does not
+    publish. An in-step writer (04z, the dynasty crosswalk) has already applied
+    the run's link row from the store, so each passing Chain's gsis tables are
+    put back on the ids the published rows knew (`put_back(tables, dry_run)`
+    must return the put_back_gsis_tables dict).
+
+    Does nothing when nflverse passes: `rekey_all_or_nothing` owns that case.
+    The dry run decides first: a Chain with a table that refuses (a key that
+    would break, a loop) is held, and so is a Chain whose put-back table then
+    fails its Gate (`gate` returns the tables that fail) or any Chain when a
+    step raises; a held Chain's tables go back to the published rows with it
+    (`hold_chain`), and the other Chains publish as before. Returns the tables
+    put back that still publish."""
+    if GSIS_CHAIN in plan["passed"]:
+        return []
+    chain_of = {t: c for c, ts in chains.items() for t in ts}
+
+    def passing() -> list[str]:
+        return [t for c in plan["passed"] for t in chains.get(c, ())]
+
+    def hold(why: dict[str, str]) -> None:
+        for chain in sorted({chain_of[t] for t in why}):
+            if chain in plan["passed"]:
+                reasons = "; ".join(sorted(r for t, r in why.items() if chain_of[t] == chain))
+                hold_chain(plan, chain, f"gsis put-back held: {reasons}", chains)
+
+    targets = passing()
+    try:
+        dry = put_back(targets, True)
+        hold(dry["refused"])
+        targets = passing()
+        if dry["refused"]:
+            dry = put_back(targets, True)
+            hold(dry["refused"])
+            targets = passing()
+        if not dry["changed"]:
+            return []
+        done = put_back(targets, False)
+        hold({t: "Gate failed after the id change" for t in gate(list(done["changed"]))})
+        kept = [t for t in done["changed"] if chain_of[t] in plan["passed"]]
+    except Exception as exc:
+        hold({t: f"a step raised ({type(exc).__name__})" for t in targets})
+        return []
+    for t in kept:
+        print(f"[gsis] {t}: ids of a link row that does not publish put back on the published ids")
+    return kept
+
+
+def read_published(tables: list[str], cwd: Path = REPO) -> dict[str, pd.DataFrame | None]:
+    """The rows HEAD publishes for each of `tables` (git show, so no file of the
+    store is touched), None for a table HEAD holds no snapshot of. Raises when
+    git cannot say."""
+    tracked = tracked_at_head(tables, cwd)
+    out: dict[str, pd.DataFrame | None] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        for t in tables:
+            if f"data/{t}.parquet" not in tracked:
+                out[t] = None
+                continue
+            (Path(tmp) / f"{t}.parquet").write_bytes(_git_bytes("show", f"HEAD:data/{t}.parquet", cwd=cwd))
+            out[t] = etl_helpers.read_stored(t, tmp)
+    return out
+
+
+def put_back_links(plan: dict, chains: dict[str, list[str]], accept_shrink: list[str],
+                   read_from: dict) -> None:
+    """#697: `put_back_unpublished_ids` over the real store. The published rows
+    are read from HEAD (git show), so no file of the store is touched here."""
+    cache: dict = {}
+
+    def load() -> tuple:
+        if not cache:
+            published = read_published([etl_helpers.GSIS_LINK_TABLE, "dim_nfl_players"])
+            stored = (etl_helpers.read_table(etl_helpers.GSIS_LINK_TABLE)
+                      if etl_helpers.table_exists(etl_helpers.GSIS_LINK_TABLE)
+                      else pd.DataFrame(columns=etl_helpers.GSIS_LINK_COLUMNS))
+            players = published["dim_nfl_players"]
+            cache["unpublished"] = etl_helpers.unpublished_gsis_links(stored, published[etl_helpers.GSIS_LINK_TABLE])
+            cache["valid"] = set() if players is None else set(players["gsis_id"].dropna())
+        return cache["unpublished"], cache["valid"]
+
+    def put_back(tables, dry_run):
+        unpublished, valid = load()
+        return etl_helpers.put_back_gsis_tables(unpublished, valid, only=tables, dry_run=dry_run)
+
+    def gate(tables):
+        suite = etl_checks.run_suite(tables, accept_shrink, **read_from)
+        return sorted({r.table for r in suite if r.tier == "gate" and not r.ok})
+
+    put_back_unpublished_ids(plan, chains, put_back, gate)
+
+
 def rekey_report(result: dict) -> None:
     """Print what a `rekey_gsis_tables` call changed, names and counts only."""
     for name in result["changed"]:
@@ -947,6 +1053,7 @@ def rekey_gsis_links(plan: dict, chains: dict[str, list[str]], accept_shrink: li
     restore or an undo that fails ends the run as failed, its notice sent."""
     if GSIS_CHAIN not in plan["passed"]:
         print(f"[gsis] {GSIS_CHAIN} did not pass: no gsis_id is re-keyed from this run's links")
+        put_back_links(plan, chains, accept_shrink, read_from)
         return
     chain_of = {t: c for c, ts in chains.items() for t in ts}
     listed = [t for t in etl_helpers.gsis_id_tables()

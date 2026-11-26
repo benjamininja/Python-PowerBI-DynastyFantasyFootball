@@ -381,6 +381,7 @@ class TestWithoutADatabase:
         monkeypatch.setattr(rp.etl_checks, "file_review",
                             lambda *a, **k: {"open": 0, "opened": 0, "cleared": 0, "repeated": 0})
         monkeypatch.setattr(rp, "publish_postgres", lambda plan, **kw: seen.update(plan=dict(plan)))
+        monkeypatch.setattr(rp, "put_back_links", lambda *a, **k: None)
         monkeypatch.setattr(rp, "commit_data", lambda *a, **k: "no data changes — commit skipped")
         monkeypatch.setattr(rp, "notify", lambda text: None)
         monkeypatch.setattr(rp, "review_counts", lambda: {})
