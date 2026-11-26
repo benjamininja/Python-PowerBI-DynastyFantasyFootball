@@ -123,6 +123,12 @@
 
 10. **Not decided here.**
     1. **How the page learns a window's state and instants, and how view-as reaches the page.** The policies read them through functions the page cannot call. *(planner's lean)* A view in `app` that runs as the caller, over a `shared` function granted by name; no definer function in the exposed schema. Brief 4 and the view-as brief settle it.
+       - *Settled 2026-11-24 by the planner's ruling, which the owner accepted by button ([#548](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/548#issuecomment-7132918295)); built by [#670](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/670). Recorded here 2026-11-26.*
+         - **Each such read is a view in `app`** with `security_invoker` on, SELECT granted to `authenticated` only. A view reads one `shared` function granted to `authenticated` by name, or an `app` table, and never a table of `shared`, `ops` or `football`.
+         - **The function is the gate, and it is a definer:** in `shared`, `search_path` empty, EXECUTE revoked from `PUBLIC`, after the pattern of ADR-0025 decision 6. It returns public facts, the caller's own rows, or nothing unless the caller holds the role the view is for. It never returns a Discord id. No function is created in `app`.
+         - **`shared.choice_windows()` joins the allowed definers.** It returns each row of `ops.choice_deadline` with its state. Every signed-in user may read it, a stranger included: a deadline is a date the whole league is told, and it holds no id, team or choice.
+         - **`app.my_teams`** reads `shared.caller_team_keys()`, which ADR-0025 decision 6 already allows.
+         - A new function of this kind is named in this ADR, or in the one that asks for it, before it is built.
     2. **The `final` instant of the one deadline row that exists** (counted 2026-11-23: one row, already passed). The date is the owner's, as the deadline's was.
     3. **How long an open action accepts items.** The commissioner brief proposes it.
     4. **A commissioner status board** (per team, how many candidates have no choice yet; counts only). Proposed with the commissioner brief.
