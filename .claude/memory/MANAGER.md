@@ -56,25 +56,25 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-25, fifteenth save, before a clear at Ben's word; session `4ff97ebc-bfd4-4723-997c-406160d975ba`)
+## CURRENT STATE (2026-11-26, sixteenth save; session `9d28e196-d848-4cf7-a3d6-f97cbe859143`)
 
 Done items left this block: their records are on GitHub (tools #272 read budget).
 
-- **Heads.** origin/main and the main checkout at `2ad12bd` (PR #714). CI on main green through `428a877`; `2ad12bd` tests was running at this save: **read it first.**
-- **Rules.** Green is every CI check SUCCESS at the head with no conflict, on one read; no local full run, no re-proof of a merged tree; read CI on main after each merge; one reviewer, no advisory rounds. The tools planner reports a shared CI-gate rule merged (tools #187, PR #288): read session-rules and GOAL-RUN.md fresh before the first merge.
-- **GitHub fault.** All afternoon GitHub gave 500/502 and GraphQL errors on some writes. When `gh` fails, `gh api` REST often works (`gh api repos/<o>/<r>/issues/<n>/comments -F body=@file`). The token's merge of a PR that edits a workflow file failed every time (#709, #714); Ben merged both on the web. Pattern sent to the tools planner for tools #204.
+- **Heads.** origin/main and the main checkout at `17f695e` (PR #717). CI on main green at `642176d` (PR #716); `17f695e` was running at this save: **read it first.**
+- **Rules.** Green is every CI check SUCCESS at the head with no conflict, on one read; read CI on main after each merge; one reviewer. The token merged #717 (a workflow PR) without fault this time.
 - **Builders running:**
-  - **b697-gsishold** (#697, PR #716, session `1e16794b-d836-4076-9300-548fd4f191f9`). Green by its report at `2a7e9a7`. Ben's word: merge when green (issues/697#issuecomment-7167922906). The one review is posted, no blocking finding (pull/716#issuecomment-7168622017); advisories F1 to F5 are the planner's to raise. Next: one CI read, merge pinned. Ben may veto one choice in the PR body: a passing Chain whose table cannot be put back is held, never published on the new id.
-  - **b715-validate** (#715, session `aa8bccb1-3928-4ed4-9c83-0494d72f518a`), tier low, from `2ad12bd`. Ben's go confirmed by button. Before merge: the planner reads the PR; the supabase-auditor is the one reviewer. No merge word yet.
+  - **b721-fantraxlogin** (#721 stop 1 only, the Fantrax login; session `64c6ee51-7d68-40f8-a8dd-a4d700fbaf22`), tier medium, profile none, from `17f695e`. Ben's go by button (issues/721#issuecomment-7191883106). Logs and code only. Next: its comment on #721, then a PR or a park.
 - **Waiting on Ben's word or a record:**
-  - The chain (#670, then #675 before #663, never side by side; #682; then #663, #664, #665; #676 after #675): Ben's go is "dispatch the chain after #697 merges". Before each dispatch, ask the planner to recheck that ticket's body (they lean on unmerged #670, #675, #682).
-  - #662 and #700 close once the scheduled run's notice shows the two load counts (Ben's word, issues/662#issuecomment-7167238773).
-  - #713: note on the ticket the first later PR under pbi/, mouserat_trade-bud/, discord_bot/ or docs/site/ (the skip's first reading).
-  - #699 stays open for the planner: index on 38 foreign-key child columns (a migration and a design decision); advisory F1, no lock_timeout on the fixture TRUNCATE.
-  - Closeout words for b697 and b715 after their merges: ask by pop-up.
-- **Closed out this session:** b597, b688, b662, b686, b695, b581, b639, b700, b699, b713.
-- **Peers:** dff-central-planner `9bcc0c9c-574c-4ebb-b4f4-18edc03af9aa`; Tools-builder-manager `dabbbcd0-2b97-445e-a2d9-4502691fb617`; Tools-central-planner `2c14b7ab-3b12-4984-ae56-5c6526f96566`.
-- **Bot:** bot.py in a terminal tab of this session. Check it after a clear.
+  - The chain (#670, then #675 before #663, never side by side; #682; then #663, #664, #665; #676 after #675). #697 has merged. Before any dispatch: confirm Ben's go by pop-up in this chat, and ask the planner to recheck each ticket's body; the league-scope question (map #658) now bears on #675.
+  - #721 stops 2 and 3 (the workbook holds other leagues on purpose, Ben's answer, issues/721#issuecomment-7191750945): the planner's league-scope button to Ben comes first.
+  - #722 (tier low, follow-up to #717: tests.yml heavy jobs when scope fails, --no-renames): lands after #717, before the ruleset question; dispatch on Ben's word.
+  - #719 and #720 (tier medium, #716 advisories): later, after the app chain, at Ben's go.
+  - #662 and #700 close once the scheduled run's notice shows the two load counts; the 11-25 run loaded nothing (#721).
+  - #713: note on the ticket the first later PR under pbi/, mouserat_trade-bud/, discord_bot/ or docs/site/.
+  - #699 stays open for the planner.
+- **Closed out this session:** b697 (PR #716, #697 closed), b715 (PR #717, #715 closed).
+- **Peers:** dff-central-planner `536a467f-4989-475e-bcc0-c7a14917d52a`; Tools-builder-manager `3bac2fdb-b847-4732-b572-e582ae2af312`; Tools-central-planner `a09ca279-6faa-4a61-a313-10328ff9c39d`.
+- **Bot:** bot.py runs in the terminal tab of this session (discord bot). Check it after a clear.
 
 ## Queue entries raised
 
