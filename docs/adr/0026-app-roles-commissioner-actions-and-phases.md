@@ -2,6 +2,7 @@
 
 - Status: accepted. The owner approved it at review and it merged on 2026-11-24 (PR #660); not yet built. The design was settled with the owner on [#654](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/654) on 2026-11-23, by button in the planner's chat; each answer is a comment on that ticket. Nine answers are the owner's words. The points marked *(planner)* are the planner's rulings. Docs only: nothing in this ADR is built by the PR that records it.
 - Date: 2026-11-23
+- Amended: 2026-11-25 (the scheduled run loads the two access tables; decision 2) and 2026-11-26 by the owner ([#721](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/721), by button and in his own words in the planner's chat): the team-manifest workbook holds three leagues on purpose, and the access tables take all three. The fourth standing is named app admin (`app_admin`), `owner` is a stored role, every role row names a league, one team list for every league is in `shared`, and the league key is the project's own. The notes are under the Context, decisions 1, 2, 3 and 10, and the Consequences. Where older text of this ADR says site admin or `site_admin`, read app admin and `app_admin`. Not yet built.
 - Amends:
   - [ADR-0025](0025-owner-write-path-contract-choices.md): decision 3 (a third `origin`, a history of every row version, the commissioner's tables), decision 4 (a second stored instant, `final`), decision 6 (roles, a role table, new functions and grants), decision 9 (the page's address, its session and its content security policy) and decision 10 point 1 (ruled: the published table carries no `locked_value`).
   - [ADR-0018](0018-supabase-schema-and-rls.md): decision 9 (`authenticated` gains the grants named here) and decision 10 (owner PII in `shared` is now in three tables, and the hash list gains the role table's ids).
@@ -32,12 +33,14 @@
 - **The site shares a browser origin.** It is served from the account's GitHub Pages address with no custom domain, and a browser treats every Pages site of one account as one site. A session kept in the browser there can be read by a script on any of them.
 - **The Free plan allows two projects, and pauses an idle one after about seven days** (Supabase billing and pausing guides). ADR-0014 decision 7 keeps the project on Free.
 - **No league key exists** in `docs/data_model.yml`: one league and one sport are assumed. The owner wants one app for several Fantrax leagues and sports, football first and baseball second ([#658](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/658)).
+  - *Amended 2026-11-26: the league key is decided (decision 2, the note of this date). The workbook now holds three leagues: football, baseball and basketball.*
 
 ## Decision
 
 1. **Four standings, and a role switch** (questions 1 and 6).
    - A signed-in person is a **stranger** (no role: reads what is shared or public, writes nothing), an **owner** (a person the crosswalk links to a team, as in ADR-0025), a **commissioner**, or a **site admin**. One person may hold several.
    - The page opens on the lowest role the person holds, in the owner's order: owner, then commissioner, then site admin. Switching is a page setting. It narrows what the page shows and grants nothing.
+   - *Amended 2026-11-26 by the owner ([#721](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/721)): the fourth standing is **app admin**, role word `app_admin`. The order is unchanged: owner, then commissioner, then app admin. An owner is still a person the crosswalk links to a team; the stored `owner` role of decision 2 does not change that yet.*
    - The live app gets the role switch and a read-only view-as. Act-as and phase mimic exist only on fake data (decision 7).
 
 2. **Roles are recorded in `shared.app_role`** (question 6).
@@ -53,14 +56,27 @@
        - **What this gives up.** A stolen pipeline secret could call a function and grant a role or a team; before this it could not. Every choice write is in the history table, and the notice reports each count change.
        - **What stays by hand.** `scripts/print_choice_deadline.py` (about twice a season; a pipeline login able to set deadlines is new power for little saving) and `scripts/load_contract_choices.py` (a once-a-season seed from a local workbook, which the choices page replaces). The two tracked loaders stay as a manual fallback.
        - **No agent runs a load against the live database.** The scheduled run does; the Never lines of `GOAL-RUN.md` do not change.
+     - *Amended 2026-11-26 by the owner ([#721](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/721), three rounds of answers): three role words, a league on every row, and one team list for every league. Not yet built.*
+       - **Three role words:** `owner`, `commissioner` and `app_admin`. A function refuses any other word, `site_admin` included.
+       - **`owner` is stored and grants nothing yet.** It is loaded from the App roles tab like the other two. Who may write a team's choices still comes from `shared.owner_crosswalk` (ADR-0025). What an `owner` row gives is decided after the commissioner's action is built.
+       - **Every row names a league.** An `owner` or `commissioner` row names one league by its key. An `app_admin` row names all leagues, stored as `*`. The table's check refuses any other pairing.
+       - **The league key is the project's own** ([#658](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/658), question 2), with the Fantrax league id kept as a column. It is a short lowercase word that never changes once set. The owner chose sport words: `football`, `baseball` and `basketball`. A second league of one sport gets a different word when it comes. A small league table in `shared` holds the key, the sport and the Fantrax league id. The placeholder value on today's rows becomes `football` in the migration that adds the table.
+       - **One team list in `shared`, for every league:** league key, team key, Fantrax team id, team name and division. A team key stays unique across leagues. The list holds no Discord id, so it is not owner PII, and the confinement of ADR-0015 decision 4 still counts three tables. `shared.owner_crosswalk` and the commissioner check of the planner's point below point at this list, no longer at football's pipeline table. Football's `dim_fantasy_teams` stays the pipeline's table and the published one; a test holds its rows equal to football's rows of the list.
+       - **This widens a ruling of [#658](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/658).** Question 8 there: only people, roles and sign-in are shared across sports. The team list is one table more, because a role row and a crosswalk row must be able to name a team of any league. Each sport's data stays where that map put it.
+       - **How the loaders read the workbook.** The App roles tab names a league by its Fantrax league id, or by one word that means all leagues. The loader turns both into league keys through the League Associations tab, which gains a `League Key` column the owner fills. The team list is read from the team tab. How it is loaded (a locked function like the other two, or a plain write, since it holds no id) is the schema brief's to propose.
+       - **What a function refuses now.** All that the 2026-11-25 note lists, and also: a league id the League Associations tab does not hold; a row whose team or league is not in the lists; an `app_admin` row that names one league; a row of another role that names all leagues.
+       - **A row of the owner tab with no Discord id is skipped and counted.** A team with no owner, or an owner with no id yet, does not stop the load. The count is in the run's notice.
+       - **The pipeline keeps football's rows** ([#724](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/724)). `01c` finds football by its Fantrax league id through the League Associations tab. An unknown division inside football still stops it, and its count is still the league's team count.
    - It is a third table of Discord ids in `shared`: row-level security on, no grant to any role, never exported, and its ids join `shared.pii_token_hashes()`.
    - A role is never read from the sign-in token or from user metadata.
    - *(planner)* **A policy asks about a team, never about a person alone.** The check is whether the caller may act as commissioner for this team, so that a league scope changes one function body and no policy. A commissioner's row records its league. The form of that column is the foundations brief's to propose, because the league key itself is #658's.
+     - *Amended 2026-11-26: settled in the note above. The check is a `commissioner` row whose league is the team's league in the shared team list.*
 
 3. **Live view-as is masked** (question 2).
    - A site admin sees, for a team: how many identities the crosswalk links, how many of those have signed in, each choice window's state, and how many choice rows exist. Never a Discord id, and never another team's choice values before that row's deadline has passed or the team shares.
    - The site admin role carries no write. A site admin writes only through another role they hold.
    - No new read policy on `app.contract_choices` exists for it.
+   - *Amended 2026-11-26: the role is app admin (`app_admin`). Nothing else in this decision changes.*
 
 4. **A commissioner action** (questions 3, 4 and 8).
    - A commissioner may enter or change a team's choices in the app while a window is `open` or `passed`. The owner's word: it must be clear when a commissioner did it, with a reason from a list and a dated note, one reason and note for all changes on that team.
@@ -112,6 +128,7 @@
     4. **A commissioner status board** (per team, how many candidates have no choice yet; counts only). Proposed with the commissioner brief.
     5. **Whether an action's reason is published** with the choice. Today only `origin` is.
     6. **The domain's name,** and the league key (#658).
+       - *Amended 2026-11-26: the league key is decided (decision 2). The domain's name stays open.*
 
 ## Alternatives considered
 
@@ -143,3 +160,5 @@
 - **Moving to a custom domain moves the whole site,** trade-bud's page and the docs included. Links to the old address redirect, and the Supabase and Discord redirect addresses name the new one. The steps are the owner's hands, written with brief 4.
 - **The browser run adds CI time** on page PRs only. Its first brief measures how long the stack takes to start before the run is made a required check.
 - **Multi-league (#658) will add later migrations,** for example a league key on deadlines. The role check per team (decision 2) and the neutral names are what this ADR does now to keep that cheap.
+- **The 2026-11-26 amendment is one schema piece** ([#675](https://github.com/benjamininja/Python-PowerBI-DynastyFantasyFootball/issues/675)): the league table, the team list, the rename, the `owner` role and the loaders' reading of the workbook. The rename reaches the role table's check, the load functions, the admin check function, the registry and their tests, in one migration. It lands before any page reads a role.
+- **The owner fills one column by hand:** `League Key` on the League Associations tab, three rows. Until the app keeps these lists itself, the workbook's editors stay the root of trust for all three leagues' access.
