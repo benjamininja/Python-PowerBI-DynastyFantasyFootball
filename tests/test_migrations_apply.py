@@ -1017,7 +1017,7 @@ def test_neither_view_can_be_written_by_anyone(conn):
         for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
             conn.execute("SAVEPOINT view_write")
             _as(conn, U1, role)
-            with pytest.raises((psycopg.errors.InsufficientPrivilege, psycopg.errors.FeatureNotSupported)):
+            with pytest.raises((psycopg.errors.InsufficientPrivilege, psycopg.errors.ObjectNotInPrerequisiteState)):
                 conn.execute(sql)
             conn.execute("ROLLBACK TO SAVEPOINT view_write")
     for name in VIEWS:
