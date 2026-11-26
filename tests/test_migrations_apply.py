@@ -1010,14 +1010,25 @@ def test_the_my_teams_view_gives_an_owner_their_teams_a_co_owner_the_shared_team
     assert seen == {U1: ["T"], U2: ["T"], U3: ["T2"], U4: [], U5: [], U6: ["T", "T2"]}
 
 
+# A role with USAGE on app reaches the view, and Postgres refuses the write as not updatable (55000)
+# before it checks the role's grants; a role with no USAGE on app is refused at the schema (42501).
+VIEW_WRITE_REFUSAL = {"authenticated": psycopg.errors.ObjectNotInPrerequisiteState,
+                      "etl_writer": psycopg.errors.ObjectNotInPrerequisiteState,
+                      "anon": psycopg.errors.InsufficientPrivilege,
+                      "etl_reader": psycopg.errors.InsufficientPrivilege}
+
+
 def test_neither_view_can_be_written_by_anyone(conn):
     _world(conn)
     _deadline(conn, "fa_keep", FUTURE)
+    for role, error in VIEW_WRITE_REFUSAL.items():
+        usage = conn.execute("SELECT has_schema_privilege(%s, 'app', 'USAGE')", (role,)).fetchone()[0]
+        assert usage is (error is psycopg.errors.ObjectNotInPrerequisiteState), role
     for sql in VIEW_WRITES:
-        for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+        for role, error in VIEW_WRITE_REFUSAL.items():
             conn.execute("SAVEPOINT view_write")
             _as(conn, U1, role)
-            with pytest.raises((psycopg.errors.InsufficientPrivilege, psycopg.errors.ObjectNotInPrerequisiteState)):
+            with pytest.raises(error):
                 conn.execute(sql)
             conn.execute("ROLLBACK TO SAVEPOINT view_write")
     for name in VIEWS:
