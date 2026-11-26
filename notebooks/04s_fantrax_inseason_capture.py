@@ -433,16 +433,8 @@ def capture(periods: list[int]) -> None:
             page.set_default_timeout(CFG.nav_timeout_ms)
 
             def post(method: str, data: dict, ref: str) -> dict:
-                what = f"{method} {data}"
-                raw = scraper._post_json(ctx, payload(method, data, ref), what)
-                if scraper._session_dead(raw):
-                    scraper._login(page)
-                    raw = scraper._post_json(ctx, payload(method, data, ref), what)
-                    if scraper._session_dead(raw):
-                        raise RuntimeError(
-                            "Still WARNING_NOT_LOGGED_IN after login. Check .env creds, or "
-                            "run once with CFG.headless=False to clear a Cloudflare/captcha gate."
-                        )
+                raw = scraper._post_authed(ctx, page, payload(method, data, ref),
+                                           f"{method} {data}")
                 time.sleep(random.uniform(*PULL_DELAY_S))
                 return raw
 
