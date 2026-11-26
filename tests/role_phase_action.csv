@@ -5,7 +5,7 @@
 #   owner_of_team       signed in, owns T
 #   owner_of_other_team signed in, owns another team, not T
 #   commissioner        signed in, holds the commissioner role, owns no team
-#   site_admin          signed in, holds the site admin role, owns no team
+#   app_admin           signed in, holds the app admin role, owns no team (#675)
 #   signed_out          the anon role
 # Actions: read_choices and write_choices are on T's rows of app.contract_choices; read_toggle and
 # write_toggle are on T's row of app.team_choice_sharing (a write is one new row, saved as the persona).
@@ -30,10 +30,10 @@ commissioner,read_choices,refused,refused,allowed,allowed
 commissioner,write_choices,refused,refused,refused,refused
 commissioner,read_toggle,allowed,allowed,allowed,allowed
 commissioner,write_toggle,refused,refused,refused,refused
-site_admin,read_choices,refused,refused,allowed,allowed
-site_admin,write_choices,refused,refused,refused,refused
-site_admin,read_toggle,allowed,allowed,allowed,allowed
-site_admin,write_toggle,refused,refused,refused,refused
+app_admin,read_choices,refused,refused,allowed,allowed
+app_admin,write_choices,refused,refused,refused,refused
+app_admin,read_toggle,allowed,allowed,allowed,allowed
+app_admin,write_toggle,refused,refused,refused,refused
 signed_out,read_choices,refused,refused,refused,refused
 signed_out,write_choices,refused,refused,refused,refused
 signed_out,read_toggle,refused,refused,refused,refused
@@ -42,11 +42,11 @@ stranger,read_windows,refused,allowed,allowed,allowed
 owner_of_team,read_windows,refused,allowed,allowed,allowed
 owner_of_other_team,read_windows,refused,allowed,allowed,allowed
 commissioner,read_windows,refused,allowed,allowed,allowed
-site_admin,read_windows,refused,allowed,allowed,allowed
+app_admin,read_windows,refused,allowed,allowed,allowed
 signed_out,read_windows,refused,refused,refused,refused
 stranger,read_my_teams,refused,refused,refused,refused
 owner_of_team,read_my_teams,allowed,allowed,allowed,allowed
 owner_of_other_team,read_my_teams,refused,refused,refused,refused
 commissioner,read_my_teams,refused,refused,refused,refused
-site_admin,read_my_teams,refused,refused,refused,refused
+app_admin,read_my_teams,refused,refused,refused,refused
 signed_out,read_my_teams,refused,refused,refused,refused

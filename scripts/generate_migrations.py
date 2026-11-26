@@ -24,7 +24,7 @@ registry's `shared.owner_crosswalk` brings the two SECURITY DEFINER functions of
 FUNCTION_ACCESS, EXECUTE for authenticated only, and the first grant to
 authenticated on `app` revokes what anon could inherit there. The registry's
 `shared.app_role` (#662) brings two more of them, the commissioner check per team
-and the site admin check, and puts its ids in `shared.pii_token_hashes()` (a
+and the app admin check, and puts its ids in `shared.pii_token_hashes()` (a
 replacement of that function). Each of the two tables also brings a load function
 (#700, LOAD_CROSSWALK_FUNCTION and LOAD_ROLES_FUNCTION), EXECUTE for etl_writer
 only. A column may
@@ -36,9 +36,16 @@ refused. A required column carries a `fill` (#661) when it is added to a table
 that has rows: ADD COLUMN with the fill as its default, so no UPDATE runs and no
 trigger is touched, then DROP DEFAULT in the migration of its own that holds the
 drops (#534; the gate holds it for the owner's dispatch). The one policy of
-REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and
-`shared.choice_window` is replaced with CREATE OR REPLACE (REPLACEABLE_FUNCTIONS).
-Other later changes to those fields on an existing table are refused. The
+REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and the functions
+of REPLACEABLE_FUNCTIONS are replaced with CREATE OR REPLACE.
+Other later changes to those fields on an existing table are refused. A table's
+`moves` (#675, ADR-0018 decision 3 as amended 2026-11-26) turn one plain word of a
+text column into another, as one UPDATE, once: on that table the checks that leave
+are dropped before the move and the new ones added after it, so a check may narrow
+there and nowhere else. A function of RETIRED_FUNCTIONS is dropped after its
+successor. The gate holds a move and a function drop, so they go in a held file of
+their own (`_held`), with only what cannot apply apart from them (`tied`); every
+other addition goes first in the unheld file and the drops last. The
 registry's `views` (#670, ADR-0026 decision 10 point 1) are views in `app` with
 security_invoker on, each over one `shared` function of no argument granted to
 authenticated alone (listed in VIEW_FUNCTION_COLUMNS) or one `app` table, SELECT to
@@ -165,15 +172,17 @@ PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
     "        SELECT r.discord_user_id FROM shared.app_role r\n")
 
 # The role table and the two checks policies will call (ADR-0026 decisions 1 to 3,
-# #662). A commissioner row names its league; a site admin row holds ALL_LEAGUES.
-# LEAGUE_PLACEHOLDER is the one league there is until #658 decides the key. That
-# issue changes the values the loader writes and the body of COMMISSIONER_FUNCTION_SQL
-# (the literal becomes the team's league), and no key and no policy. The function
-# is not in REPLACEABLE_FUNCTIONS today, so the generator refuses a changed body:
-# #658 adds COMMISSIONER_FUNCTION to that tuple in the same change.
+# #662; the role words as amended 2026-11-26, #675). An owner or commissioner row
+# names its league; an app admin row holds ALL_LEAGUES. An owner row grants nothing
+# yet: no function reads it. LEAGUE_PLACEHOLDER is the one league there is until the
+# second PR of #675 adds the league table; that PR changes the values the loader
+# writes and the body of COMMISSIONER_FUNCTION_SQL (the literal becomes the team's
+# league), and no key and no policy.
 ROLE_TABLE = "shared.app_role"
 COMMISSIONER_FUNCTION = "shared.caller_is_commissioner_for"
-ADMIN_FUNCTION = "shared.caller_is_site_admin"
+ADMIN_FUNCTION = "shared.caller_is_app_admin"
+ADMIN_ROLE = "app_admin"
+ROLE_WORDS = ("owner", "commissioner", ADMIN_ROLE)
 LEAGUE_PLACEHOLDER = "main"
 ALL_LEAGUES = "*"
 TEAMS_TABLE = "football.dim_fantasy_teams"
@@ -188,14 +197,14 @@ AS $fn$
         WHERE r.role = 'commissioner' AND r.league_key = '{LEAGUE_PLACEHOLDER}' AND i.user_id = auth.uid()
     )
 $fn$;"""
-ADMIN_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_site_admin() RETURNS boolean
+ADMIN_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_app_admin() RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $fn$
     SELECT EXISTS (
         SELECT 1
         FROM shared.app_role r
         JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
-        WHERE r.role = 'site_admin' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
+        WHERE r.role = '{ADMIN_ROLE}' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
     )
 $fn$;"""
 # The two load functions (ADR-0026 decision 2 as amended, #700): the scheduled run
@@ -264,9 +273,9 @@ BEGIN
         RAISE EXCEPTION 'App roles tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
     END IF;
     SELECT count(*) INTO v_bad FROM unnest(p_roles) AS u(r)
-    WHERE u.r IS NULL OR u.r NOT IN ('commissioner', 'site_admin');
+    WHERE u.r IS NULL OR u.r NOT IN ('owner', 'commissioner', '{ADMIN_ROLE}');
     IF v_bad > 0 THEN
-        RAISE EXCEPTION 'App roles tab: refused, % role(s) are neither commissioner nor site_admin; nothing changed', v_bad;
+        RAISE EXCEPTION 'App roles tab: refused, % role(s) are not owner, commissioner or {ADMIN_ROLE}; nothing changed', v_bad;
     END IF;
     SELECT count(*) - count(DISTINCT (u.i, u.r)) INTO v_bad FROM unnest(p_discord_ids, p_roles) AS u(i, r);
     IF v_bad > 0 THEN
@@ -276,7 +285,7 @@ BEGIN
     BEGIN
         DELETE FROM shared.app_role WHERE true;
         INSERT INTO shared.app_role (discord_user_id, role, league_key)
-        SELECT u.i, u.r, CASE u.r WHEN 'site_admin' THEN '{ALL_LEAGUES}' ELSE '{LEAGUE_PLACEHOLDER}' END
+        SELECT u.i, u.r, CASE u.r WHEN '{ADMIN_ROLE}' THEN '{ALL_LEAGUES}' ELSE '{LEAGUE_PLACEHOLDER}' END
         FROM unnest(p_discord_ids, p_roles) AS u(i, r);
     EXCEPTION WHEN OTHERS THEN
         RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
@@ -287,8 +296,15 @@ END
 $fn$;"""
 # The functions whose body a later registry may change: generator-owned text,
 # written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
-# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661).
-REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION)
+# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661), and
+# shared.load_app_roles its three role words (#675).
+REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION, LOAD_ROLES_FUNCTION)
+# The functions that may leave (ADR-0018 decision 3 as amended 2026-11-26, #675):
+# name -> (the argument list its DROP names, its successor, the ticket). It is
+# dropped only when the state holds it, the model no longer does, and the successor
+# is in the model; it is written after the successor, in the held file of the move
+# or function change it belongs to. Any other function that leaves is refused.
+RETIRED_FUNCTIONS = {"shared.caller_is_site_admin": ("()", ADMIN_FUNCTION, 675)}
 # The one policy a later registry may change in place (ADR-0026 decision 6, #661):
 # written as ALTER POLICY, which keeps its name, role and command. A change to any
 # other policy, or to this one's role or command, stays refused.
@@ -497,6 +513,42 @@ def _triggers(entry, where):
     return triggers
 
 
+MOVE_WORD = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _moves(entry, where, types):
+    """The table's value moves, `[{column, from, to, ticket}]` (ADR-0018 decision 3
+    as amended 2026-11-26, #675): one plain word of a text column becomes another,
+    in every row. The words are plain lowercase words, so the UPDATE names no id."""
+    raw = entry.get("moves")
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise RegistryError(f"{where}: moves: expected a list")
+    moves = []
+    for move in raw:
+        if not isinstance(move, dict):
+            raise RegistryError(f"{where}: move {move!r}: expected a mapping")
+        column = move.get("column")
+        _known(types, [column], f"{where} move")
+        if types[column] != "text":
+            raise RegistryError(f"{where}: move on {column}: a move is for a text column")
+        words = []
+        for key in ("from", "to"):
+            word = move.get(key)
+            if not isinstance(word, str) or not MOVE_WORD.match(word):
+                raise RegistryError(f"{where}: move on {column}: {key} {word!r} is not a plain lowercase word")
+            words.append(word)
+        if words[0] == words[1]:
+            raise RegistryError(f"{where}: move on {column}: from and to are the same word")
+        spec = {"column": column, "from": words[0], "to": words[1],
+                "ticket": _ticket(move, f"{where} move on {column}")}
+        if spec in moves:
+            raise RegistryError(f"{where}: move on {column} from {words[0]} is declared twice")
+        moves.append(spec)
+    return moves
+
+
 def _table_spec(entry, default_schema):
     if not isinstance(entry, dict):
         raise RegistryError(f"table entry {entry!r}: expected a mapping")
@@ -541,6 +593,7 @@ def _table_spec(entry, default_schema):
         if expr in checks:
             raise RegistryError(f"{where}: check {expr!r} is declared twice")
         checks.append(expr)
+    moves = _moves(entry, where, types)
     fks, fk_names = [], set()
     for fk in entry.get("fk") or []:
         if not isinstance(fk, dict):
@@ -565,6 +618,8 @@ def _table_spec(entry, default_schema):
                         "unique": bool(idx.get("unique")), "where": predicate})
     spec = {"schema": schema, "name": name, "columns": columns, "pk": pk,
             "checks": checks, "fks": fks, "indexes": indexes}
+    if moves:
+        spec["moves"] = moves
     roles = _own_roles(schema, name)
     grants = _grants(entry, where, roles, types)
     for key, items in (("grants", grants), ("policies", _policies(entry, where, roles, grants)),
@@ -864,6 +919,12 @@ def _table_changes(key, old, new, out, flagged):
         refuse.append(f"{key}: change of primary key from {old['pk']} to {new['pk']}")
     gone = [e for e in old["checks"] if e not in new["checks"]]
     fresh = [e for e in new["checks"] if e not in old["checks"]]
+    pending = [m for m in new.get("moves", []) if m not in old.get("moves", [])]
+    if pending:
+        out["check_drops"] += [(key, e) for e in gone]
+        out["moves"] += [(key, m) for m in pending]
+        out["checks"] += [(key, e) for e in fresh]
+        gone, fresh = [], []
     partners = {e: [f for f in fresh if _widens(e, f)] for e in gone}
     swapped = set()
     for expr in gone:
@@ -895,7 +956,7 @@ def diff(old, new, drops=NO_DROPS):
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
            "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
            "triggers": [], "policy_replacements": [], "default_drops": [], "views": [],
-           "view_replacements": [], "refusals": []}
+           "view_replacements": [], "check_drops": [], "moves": [], "function_drops": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -924,7 +985,13 @@ def diff(old, new, drops=NO_DROPS):
                 out["function_replacements"].append((name, sql))
             else:
                 out["refusals"].append(f"{name}: change of function body")
-    out["refusals"] += [f"{n}: drop of function" for n in old["functions"] if n not in new["functions"]]
+    for name in old["functions"]:
+        if name in new["functions"]:
+            continue
+        if name in RETIRED_FUNCTIONS and RETIRED_FUNCTIONS[name][1] in new["functions"]:
+            out["function_drops"].append(name)
+        else:
+            out["refusals"].append(f"{name}: drop of function")
     old_triggers, new_triggers = old.get("trigger_functions", {}), new.get("trigger_functions", {})
     for name, sql in new_triggers.items():
         if name not in old_triggers:
@@ -984,6 +1051,10 @@ def render(changes):
         table_name = key.split(".")[1]
         out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(table_name, old_expr)};")
         out.append(f"ALTER TABLE {key} ADD CONSTRAINT {_check_name(table_name, new_expr)} CHECK ({new_expr});")
+    for key, expr in changes.get("check_drops", []):
+        out.append(f"ALTER TABLE {key} DROP CONSTRAINT {_check_name(key.split('.')[1], expr)};")
+    for key, move in changes.get("moves", []):
+        out.append(f"UPDATE {key} SET {move['column']} = '{move['to']}' WHERE {move['column']} = '{move['from']}';")
     for key, expr in changes["checks"]:
         out.append(f"ALTER TABLE {key} ADD CONSTRAINT {_check_name(key.split('.')[1], expr)} CHECK ({expr});")
     for key, fk in changes["fks"]:
@@ -1011,6 +1082,7 @@ def render(changes):
             out.append(f"GRANT EXECUTE ON FUNCTION {name}{sig} TO {role};")
     out += [sql.replace("CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", 1)
             for _, sql in changes.get("function_replacements", [])]
+    out += [f"DROP FUNCTION {name}{RETIRED_FUNCTIONS[name][0]};" for name in changes.get("function_drops", [])]
 
     def usage_lines(schema, role):
         lines = []
@@ -1098,17 +1170,72 @@ def _with_dropped(old, new, changes):
     return state
 
 
+# A flagged change that is not a drop (ADR-0018 decision 3 as amended 2026-11-26,
+# #675): a value move and a retired function. The gate holds both, so each goes in
+# a held file with only the statements that cannot apply apart from it.
+TIED_KINDS = ("check_drops", "moves", "function_drops")
+
+
+def _names_table(sql, tables):
+    return any(re.search(rf"(?<![a-z0-9_.]){re.escape(t)}(?![a-z0-9_])", sql) for t in tables)
+
+
+def tied(changes):
+    """The part of `changes` that goes in the held file of a flagged change: the
+    moves and every check dropped and added on a moved table, the retired functions,
+    their successors, and every new or replaced function whose body names a moved
+    table (it writes or reads the moved value). Empty when nothing is flagged."""
+    out = {k: [] for k in changes}
+    moved = {key for key, _ in changes.get("moves", [])}
+    successors = {RETIRED_FUNCTIONS[n][1] for n in changes.get("function_drops", [])}
+    if not moved and not successors:
+        return out
+    for kind in TIED_KINDS:
+        out[kind] = list(changes.get(kind, []))
+    out["checks"] = [(k, e) for k, e in changes["checks"] if k in moved]
+    for kind in ("functions", "function_replacements"):
+        out[kind] = [(n, s) for n, s in changes.get(kind, []) if n in successors or _names_table(s, moved)]
+    return out
+
+
+def _without_tied(old, state, held):
+    """`state` with the held file's changes not yet applied: the state after the
+    unheld file and before the held one."""
+    state = copy.deepcopy(state)
+    for key in {k for k, _ in held["moves"]}:
+        spec = state["tables"][key]
+        spec["checks"] = copy.deepcopy(old["tables"][key]["checks"])
+        if old["tables"][key].get("moves"):
+            spec["moves"] = copy.deepcopy(old["tables"][key]["moves"])
+        else:
+            spec.pop("moves", None)
+    for name, _ in held["functions"]:
+        del state["functions"][name]
+    for name, _ in held["function_replacements"]:
+        state["functions"][name] = old["functions"][name]
+    for name in held["function_drops"]:
+        state["functions"][name] = old["functions"][name]
+    return state
+
+
 def split_drops(old, new, changes):
     """[(changes, state it produces)], one per migration file. A drop sits in a
     migration of its own (#534, planner ruling on PR #536): when a run holds
     drops and other changes, the ordinary changes come first and the drops
-    alone follow, so the push gate holds only the drops."""
-    drops = {k: changes[k] for k in DROP_KINDS}
-    ordinary = {**changes, **{k: [] for k in DROP_KINDS}}
-    if not any(drops.values()) or not has_changes(ordinary):
+    alone follow, so the push gate holds only the drops. A flagged move or
+    retired function (ADR-0018 decision 3 as amended 2026-11-26, #675) goes in a
+    held file of its own between them, with only what cannot apply apart from it,
+    so the gate still never holds an addition that could apply alone."""
+    held = tied(changes)
+    drops = {**{k: [] for k in changes}, **{k: changes[k] for k in DROP_KINDS}}
+    ordinary = {k: ([] if k in DROP_KINDS else [i for i in v if i not in held[k]]) for k, v in changes.items()}
+    ordinary["refusals"] = changes.get("refusals", [])
+    if not has_changes(held) and (not has_changes(drops) or not has_changes(ordinary)):
         return [(changes, new)]
-    only_drops = {**{k: [] for k in changes}, **drops}
-    return [(ordinary, _with_dropped(old, new, changes)), (only_drops, new)]
+    held_state = _with_dropped(old, new, changes) if has_changes(drops) else new
+    ordinary_state = _without_tied(old, held_state, held) if has_changes(held) else held_state
+    parts = [(ordinary, ordinary_state), (held, held_state), (drops, new)]
+    return [(part, state) for part, state in parts if has_changes(part)]
 
 
 def newest_stamp(folder):
@@ -1172,13 +1299,18 @@ def main(argv=None, now=None):
         return 0
     start = now or datetime.now(timezone.utc)
     newest = newest_stamp(out / "migrations")
-    files = []
+    files, last = [], None
     for i, (part, state) in enumerate(split_drops(old, new, changes)):
         when = start + timedelta(seconds=i)
-        if any(part[k] for k in DROP_KINDS) and newest is not None and when <= newest:
+        is_drop = any(part[k] for k in DROP_KINDS)
+        is_held = any(part[k] for k in TIED_KINDS)
+        if (is_drop or is_held) and newest is not None and when <= newest:
             when = newest + timedelta(seconds=1)
+        if last is not None and when <= last:
+            when = last + timedelta(seconds=1)
+        last = when
         stamp = when.strftime("%Y%m%d%H%M%S")
-        suffix = "_drops" if i else ""
+        suffix = "" if not i else "_drops" if is_drop else "_held"
         files.append((out / "migrations" / f"{stamp}_{name}{suffix}.sql", part, state))
     try:
         files[0][0].parent.mkdir(parents=True, exist_ok=True)

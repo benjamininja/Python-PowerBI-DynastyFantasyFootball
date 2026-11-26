@@ -21,7 +21,7 @@ psycopg = pytest.importorskip("psycopg")
 
 A, B, C = "11111111111111111", "22222222222222222", "33333333333333333"
 OWNER_ROWS = [("T01", A), ("T01", B), ("T02", C)]
-ROLE_ROWS = [(A, "commissioner", "main"), (C, "site_admin", "*")]
+ROLE_ROWS = [(A, "commissioner", "main"), (C, "app_admin", "*")]
 IDS = (A, B, C)
 
 
@@ -79,7 +79,7 @@ class TestAGoodLoad:
         assert code == 0 and conn.committed is True
         assert [c[0] for c in conn.calls] == [lat.OWNER_CALL, lat.ROLES_CALL]
         assert conn.calls[0][1] == (["T01", "T01", "T02"], [A, B, C])
-        assert conn.calls[1][1] == ([A, C], ["commissioner", "site_admin"])
+        assert conn.calls[1][1] == ([A, C], ["commissioner", "app_admin"])
 
     def test_the_counts_are_printed_and_an_unchanged_count_says_so(self):
         code, printed, _ = run()

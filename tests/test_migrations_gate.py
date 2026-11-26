@@ -235,7 +235,8 @@ class TestTheGate:
 
     def test_the_committed_widening_migration_passes(self):
         widenings = [p for p in (REPO / "supabase" / "migrations").glob("*.sql")
-                     if "DROP CONSTRAINT" in p.read_text(encoding="utf-8")]
+                     if "DROP CONSTRAINT" in p.read_text(encoding="utf-8")
+                     and not any(_MOVE.fullmatch(s) for s in mg.statements(p.read_text(encoding="utf-8")))]
         assert widenings
         assert not any(mg.is_destructive(p.read_text(encoding="utf-8")) for p in widenings)
 
@@ -294,6 +295,29 @@ class TestTheGate:
         changes["column_drops"], changes["table_drops"] = [], ["football.t"]
         assert mg.is_destructive(gm.render(changes))
 
+    def test_a_held_file_of_a_flagged_move_and_retired_function_passes_and_an_extra_addition_does_not(self):
+        moves = {("shared.r", "role", "old_word", "new_word")}
+        retired = {"shared.is_old": ("()", "shared.is_new", 675)}
+        held = mg.statements(
+            "ALTER TABLE shared.r DROP CONSTRAINT r_chk_0123abcd;\n"
+            "UPDATE shared.r SET role = 'new_word' WHERE role = 'old_word';\n"
+            "ALTER TABLE shared.r ADD CONSTRAINT r_chk_89abcdef CHECK (role IN ('new_word'));\n"
+            "CREATE FUNCTION shared.is_new() RETURNS boolean LANGUAGE sql AS $fn$ SELECT true $fn$;\n"
+            "REVOKE EXECUTE ON FUNCTION shared.is_new() FROM PUBLIC;\n"
+            "GRANT USAGE ON SCHEMA shared TO authenticated;\n"
+            "GRANT EXECUTE ON FUNCTION shared.is_new() TO authenticated;\n"
+            "CREATE OR REPLACE FUNCTION shared.load_r(p text[]) RETURNS integer LANGUAGE plpgsql AS "
+            "$fn$ BEGIN INSERT INTO shared.r SELECT 1; RETURN 0; END $fn$;\n"
+            "DROP FUNCTION shared.is_old();\n")
+        flagged = _flagged_change("t.sql", held, moves, retired)
+        assert all(flagged(s) for s in held), [s for s in held if not flagged(s)]
+        for extra in ("ALTER TABLE football.t ADD COLUMN c text",
+                      "ALTER TABLE shared.other ADD CONSTRAINT other_chk_0123abcd CHECK (x > 0)",
+                      "CREATE FUNCTION shared.unrelated() RETURNS boolean LANGUAGE sql AS $fn$ SELECT true $fn$",
+                      "UPDATE shared.r SET role = 'third' WHERE role = 'old_word'",
+                      "DROP FUNCTION shared.not_retired()"):
+            assert not flagged(extra), extra
+
     def test_every_committed_held_migration_is_a_flagged_drop(self):
         import generate_migrations as gm
         flagged = gm.registry_drops(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
@@ -304,14 +328,22 @@ class TestTheGate:
         filled = {(f"{t.get('schema') or 'football'}.{t['name']}", c["name"])
                   for section in ("tables", "other_tables") for t in registry.get(section) or []
                   for c in t["columns"] if c.get("fill")}
+        moves = {(f"{t.get('schema') or 'football'}.{t['name']}", m["column"], m["from"], m["to"])
+                 for section in ("tables", "other_tables") for t in registry.get(section) or []
+                 for m in t.get("moves") or []}
         for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
             sql = path.read_text(encoding="utf-8")
             if not mg.is_destructive(sql):
                 continue
-            for stmt in mg.statements(sql):
+            stmts = mg.statements(sql)
+            is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS)
+            for stmt in stmts:
+                if is_flagged(stmt):
+                    continue
                 col, tab = column_drop.fullmatch(stmt), table_drop.fullmatch(stmt)
                 dflt = default_drop.fullmatch(stmt)
-                assert col or tab or dflt, f"{path.name}: a held migration holds only drops, found {stmt!r}"
+                assert col or tab or dflt, (f"{path.name}: a held migration holds only flagged drops and flagged "
+                                            f"changes with what cannot apply apart from them, found {stmt!r}")
                 if dflt:
                     assert (dflt.group(1), dflt.group(2)) in filled, \
                         f"{path.name}: {stmt!r} ends no fill declared in docs/data_model.yml"
@@ -321,6 +353,57 @@ class TestTheGate:
                 else:
                     assert tab.group(1) in flagged["tables"], \
                         f"{path.name}: {stmt!r} has no dropped_tables entry in docs/data_model.yml"
+
+
+_MOVE = re.compile(r"UPDATE ([a-z_]+\.[a-z0-9_]+) SET ([a-z][a-z0-9_]*) = '([a-z][a-z0-9_]*)' "
+                   r"WHERE ([a-z][a-z0-9_]*) = '([a-z][a-z0-9_]*)'")
+_FN_DROP = re.compile(r"DROP FUNCTION ([a-z_]+\.[a-z0-9_]+)(\(.*\))")
+_CHECK = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) (?:DROP CONSTRAINT [a-z0-9_]+|ADD CONSTRAINT [a-z0-9_]+ CHECK \(.*\))")
+_FN_CREATE = re.compile(r"CREATE (?:OR REPLACE )?FUNCTION ([a-z_]+\.[a-z0-9_]+)\(.*", re.DOTALL)
+_FN_GRANT = re.compile(r"(?:REVOKE|GRANT) EXECUTE ON FUNCTION ([a-z_]+\.[a-z0-9_]+)\(.*\) (?:FROM|TO) [A-Za-z_, ]+")
+_USAGE = re.compile(r"GRANT USAGE ON SCHEMA [a-z_]+ TO [a-z_]+")
+
+
+def _flagged_change(name, stmts, moves, retired):
+    """ADR-0018 decision 3 as amended 2026-11-26 (#675): beside flagged drops, a held
+    file may hold a change the registry or a named constant flags (a value move, a
+    retired function) and what stands on the same table or function: the checks of a
+    moved table, the functions whose body names a moved table, a retired function's
+    successor, their EXECUTE grants, and the schema USAGE their grants need. Returns a
+    test of one statement."""
+    moved, functions = set(), set()
+    for stmt in stmts:
+        move = _MOVE.fullmatch(stmt)
+        if move and move.group(2) == move.group(4) and \
+                (move.group(1), move.group(2), move.group(5), move.group(3)) in moves:
+            moved.add(move.group(1))
+        drop = _FN_DROP.fullmatch(stmt)
+        if drop and drop.group(1) in retired and retired[drop.group(1)][0] == drop.group(2):
+            functions.add(retired[drop.group(1)][1])
+    for stmt in stmts:
+        create = _FN_CREATE.fullmatch(stmt)
+        if create and any(re.search(rf"(?<![a-z0-9_.]){re.escape(t)}(?![a-z0-9_])", stmt) for t in moved):
+            functions.add(create.group(1))
+
+    def flagged(stmt):
+        move, drop = _MOVE.fullmatch(stmt), _FN_DROP.fullmatch(stmt)
+        if move:
+            return move.group(1) in moved and move.group(2) == move.group(4) and \
+                (move.group(1), move.group(2), move.group(5), move.group(3)) in moves
+        if drop:
+            return drop.group(1) in retired and retired[drop.group(1)][0] == drop.group(2) and \
+                retired[drop.group(1)][1] in functions
+        check = _CHECK.fullmatch(stmt)
+        if check:
+            bare = check.group(1).split(".")[1]
+            return check.group(1) in moved and re.search(rf"CONSTRAINT {re.escape(bare)}_chk_[0-9a-f]{{8}}\b", stmt) is not None
+        for pattern in (_FN_CREATE, _FN_GRANT):
+            found = pattern.fullmatch(stmt)
+            if found:
+                return found.group(1) in functions
+        return bool(_USAGE.fullmatch(stmt)) and bool(moved or functions)
+
+    return flagged
 
 
 def _load_function(name, body="DELETE FROM shared.app_role WHERE true;", head="CREATE FUNCTION"):
@@ -380,15 +463,24 @@ class TestTheLoadFunctionExemption:
         assert names(out) == []
 
     def test_the_committed_load_functions_are_not_held_and_hold_nothing_but_their_own_delete(self):
-        found = []
+        import generate_migrations as gm
+        registry = yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8"))
+        moves = {(f"{t.get('schema') or 'football'}.{t['name']}", m["column"], m["from"], m["to"])
+                 for section in ("tables", "other_tables") for t in registry.get(section) or []
+                 for m in t.get("moves") or []}
+        found = set()
         for path in sorted((REPO / "supabase" / "migrations").glob("*.sql")):
             sql = path.read_text(encoding="utf-8")
-            for stmt in mg.statements(sql):
+            stmts = mg.statements(sql)
+            for stmt in stmts:
                 if mg._EXEMPT_HEAD.match(stmt):
-                    found.append(path.name)
-                    assert not mg.is_destructive(sql), path.name
+                    found.add(mg._EXEMPT_HEAD.match(stmt).group(1))
+                    assert not mg._hits(stmt), path.name
                     assert stmt.count("DELETE FROM") == 1 and "TRUNCATE" not in stmt and "UPDATE" not in stmt
-        assert len(found) == 2
+                    is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS)
+                    held = [s for s in mg.destructive(sql) if not is_flagged(s)]
+                    assert not held, f"{path.name}: a load function sits in a file held for {held}"
+        assert found == set(mg.EXEMPT_BODIES)
 
 
 def _load():
