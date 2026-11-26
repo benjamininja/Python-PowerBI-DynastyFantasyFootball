@@ -225,6 +225,10 @@ class TotpCodeRefused(TotpLoginError):
     pass
 
 
+class SessionStillDead(RuntimeError):
+    pass
+
+
 class FantraxScraper:
     """
     Headless-browser scraper for the Fantrax draft-ranking board.
@@ -246,6 +250,17 @@ class FantraxScraper:
     BLOCKED_LEDGER = "blocked"
     LOGIN_CAP_PER_RUN = 2
     SESSION_FILE = "session.json"
+    STILL_DEAD = ("Still WARNING_NOT_LOGGED_IN after login. Check .env creds, or run once "
+                  "with CFG.headless=False to clear a Cloudflare/captcha gate.")
+    # What a login left on /login can show. Reported as yes/no only: the run log
+    # is public, so no page text and no value ever leaves the page.
+    LOGIN_PAGE_SIGNALS = (
+        ("Cloudflare challenge", "iframe[src*='challenges.cloudflare.com']"),
+        ("captcha frame", "iframe[src*='captcha']"),
+        ("error message", "mat-error, [role='alert']"),
+        ("code prompt", CODE_FIELD),
+        ("login form", "input[formcontrolname='password']"),
+    )
 
     def __init__(self, cfg: LeagueConfig = CFG):
         self.cfg = cfg
@@ -356,6 +371,8 @@ class FantraxScraper:
         # code field, not by a navigation. Auth is verified for real by the
         # retry-probe in fetch().
         if not self._await_code_prompt(page):
+            if "/login" in page.url:
+                self._report_unfinished_login(page)
             return
         self._answer_code_prompt(page)
         try:
@@ -363,6 +380,26 @@ class FantraxScraper:
                               timeout=self.cfg.nav_timeout_ms)
         except Exception:
             page.wait_for_timeout(3000)
+
+    def _login_page_signals(self, page) -> dict[str, str]:
+        seen = {}
+        for name, selector in self.LOGIN_PAGE_SIGNALS:
+            try:
+                seen[name] = "yes" if page.locator(selector).first.is_visible() else "no"
+            except Exception:
+                seen[name] = "unknown"
+        try:
+            if (page.title() or "").lower().startswith("just a moment"):
+                seen["Cloudflare challenge"] = "yes"
+        except Exception:
+            pass
+        return seen
+
+    def _report_unfinished_login(self, page) -> None:
+        seen = self._login_page_signals(page)
+        print(f"[warn] Fantrax login did not finish: still on the login page after "
+              f"{self.cfg.nav_timeout_ms // 1000} s. Seen on the page: "
+              + ", ".join(f"{name} {flag}" for name, flag in seen.items()))
 
     def _polls(self, wait_ms: int) -> int:
         return max(1, wait_ms // self.cfg.code_poll_ms)
@@ -482,9 +519,16 @@ class FantraxScraper:
             self._keep_session(ctx)
         return raw
 
-    def _post_draftranks(self, ctx) -> dict:
-        """POST getDraftRanks via the authenticated request context."""
-        return self._post_json(ctx, self._payload(), "getDraftRanks")
+    def _post_authed(self, ctx, page, payload: dict, what: str = "request") -> dict:
+        """POST; on WARNING_NOT_LOGGED_IN log in once and POST again. A reply
+        still not logged in raises SessionStillDead, so no caller parses it."""
+        raw = self._post_json(ctx, payload, what)
+        if self._session_dead(raw):
+            self._login(page)
+            raw = self._post_json(ctx, payload, what)
+            if self._session_dead(raw):
+                raise SessionStillDead(self.STILL_DEAD)
+        return raw
 
     # --- players-grid (getPlayerStats) backfill ------------------------------
     def _player_stats_payload(self, season_code: str, timeframe: str,
@@ -540,10 +584,7 @@ class FantraxScraper:
                 while True:
                     payload = self._player_stats_payload(
                         season_code, timeframe, pos_group, page_no, date_range)
-                    raw = self._post_json(ctx, payload, "getPlayerStats")
-                    if self._session_dead(raw):
-                        self._login(page)
-                        raw = self._post_json(ctx, payload, "getPlayerStats")
+                    raw = self._post_authed(ctx, page, payload, "getPlayerStats")
                     responses.append(raw)
                     prs = raw["responses"][0]["data"].get("paginatedResultSet", {})
                     total_pages = prs.get("totalNumPages", 1)
@@ -577,18 +618,10 @@ class FantraxScraper:
             page = ctx.new_page()
             page.set_default_timeout(self.cfg.nav_timeout_ms)
 
-            raw = self._post_draftranks(ctx)
-            if self._session_dead(raw):
-                self._login(page)
-                raw = self._post_draftranks(ctx)
-                if self._session_dead(raw):
-                    ctx.close()
-                    raise RuntimeError(
-                        "Still WARNING_NOT_LOGGED_IN after login. Check .env "
-                        "creds, or run once with CFG.headless=False to clear a "
-                        "Cloudflare/captcha gate (see data/raw/login_debug.png)."
-                    )
-            ctx.close()
+            try:
+                raw = self._post_authed(ctx, page, self._payload(), "getDraftRanks")
+            finally:
+                ctx.close()
 
         Path(out_path).write_text(json.dumps(raw, indent=2), encoding="utf-8")
         print(f"[ok] season={self.cfg.snapshot_season} week={week} -> {out_path}")
