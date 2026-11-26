@@ -415,8 +415,14 @@ class TestTheWorkflow:
         assert on["workflow_dispatch"] is None
 
     def test_a_change_to_the_gate_runs_the_workflow(self):
-        on = _on(_load())
-        assert "scripts/migration_gate.py" in on["pull_request"]["paths"]
+        wf = _load()
+        on = _on(wf)
+        diff = next(s for s in wf["jobs"]["scope"]["steps"] if s.get("id") == "diff")
+        run_line = next(l.strip() for l in diff["run"].splitlines() if l.strip().endswith(") run=true ;;"))
+        listed = [p.strip() for p in run_line[: -len(") run=true ;;")].split("|")]
+        assert "scripts/migration_gate.py" in listed
+        assert wf["jobs"]["validate"]["needs"] == "scope"
+        assert "needs.scope.outputs.run == 'true'" in wf["jobs"]["validate"]["if"]
         assert "scripts/migration_gate.py" in on["push"]["paths"]
 
     def test_the_push_job_runs_from_main_only(self):
