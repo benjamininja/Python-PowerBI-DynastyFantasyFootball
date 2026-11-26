@@ -19,6 +19,8 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 - **PR #728 (#670), the auditor's finding 1 ruled (a)** on 2026-11-26 (PR #728 issuecomment-7193731662): the definer `shared.choice_windows()` stands, by the #548 ruling of 2026-11-24. PR #730 wrote it into ADR-0026 decision 10 point 1, merged as `d897292` on the owner's word; its worktree is removed. After #728 merges: check #675's body once more, then tell the manager it is ready.
 
+- **Tools PR #184** (one owner queue per project, shared session-rules text) read at head `8539347` on 2026-11-26: approve, no change asked (PR #184 issuecomment-7194028470). Owed: tools PR #249 comes next from the tools manager (it shares four files with #184); read #184 again if it takes main in.
+
 - **Tools reads as lead on CI as a gate (2026-11-26):** tools draft PR #292 (the tools table of checks) read at head `97cadb1`: approve, no change asked (the second read, on PR #292; the first was issuecomment-7193573535). Owed: the tools workflow PR of tools #187 (Windows back as a required check, six shards) when its head comes.
 
 0. **The owner's priority, 2026-11-25:** the checks were overdesigned; keep them simple. No new check-line list on any ticket; a schema ticket carries tests. The rule set is merged (PRs #694, #696, #703): CI is the test proof, the `checks` job runs the three scripts, one merge word. A PR opened before PR #696 has no `checks` job: ruling on PR #703 issuecomment-7165536667. No planner PR is open.
