@@ -56,27 +56,26 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-26, seventeenth save, before a compact at Ben's word; session `9d28e196-d848-4cf7-a3d6-f97cbe859143`)
+## CURRENT STATE (2026-11-26, eighteenth save, before a clear at Ben's word; session `9d28e196-d848-4cf7-a3d6-f97cbe859143`)
 
 Done items left this block: their records are on GitHub (tools #272 read budget).
 
-- **Heads.** origin/main and the main checkout at `405a6af` (PR #723). CI on main green at `405a6af` (tests, pii-scan).
-- **Rules in force.** Session-rules 0.5.2 (tools PR #290, e3a342f; this session still runs the older load): until dynasty's table of checks is written and Ben sets the ruleset, **every PR, a builder's too, needs Ben's merge word** by button. GOAL-RUN.md's Who merges what disagrees; the planner proposes the new text on a ticket (record of the exchange: planner chat, 2026-11-26). Before a merge, read the last finished push run on main. Green is every CI check SUCCESS at the head, no conflict, one read; one reviewer per code PR (pr-code-reviewer, or supabase-auditor on its paths).
-- **BLOCKER: background sign-in expired.** Since about 07:07 every background builder stops with Login expired, please run /login (authentication_failed). Queue Action: Sign Claude Code in again (Ben runs `claude auth login`). After Ben ticks it, SendMessage each builder below to resume (they are listed, so never resume_plain: that starts a copy, as happened once on #670, recorded on issues/670#issuecomment-7192517019).
-- **Builders (all stopped on the sign-in, nothing committed):**
-  - **b670-appviews** (#670, app read-path views; session `b03d5fd3-f725-45cf-ab22-e07ab78f85f3`), tier medium, from `17f695e`. Ben's go by button; planner's ready issues/670#issuecomment-7192060151.
-  - **b644-reproofleak** (#644, reproof.py Temp leak; session `4b5df36a-b92f-4b2a-9fe6-85101a5cc2e8`), tier low, from `405a6af`. Ben's pane Answer (a), issues/644#issuecomment-7192528450. Re-proof extra: count reproof-* folders in Temp before and after the next re-proof and post both counts.
-  - **b724-footballrows** (#724, 01c keeps the football league's rows, piece 1 of 3; session `5b69b66c-8a10-46c4-be32-d66653fc2829`), tier medium, from `405a6af`. Ben's go by button. After merge: read the next scheduled run (01c passes, team_manifest not held).
-- **Waiting on Ben's word or a record:**
-  - App chain HELD by the planner: #675, #663, #664, #665, #676, #682 until the planner restates them for Ben's rounds 1 and 2 (issues/721#issuecomment-7192805266 and -7192965729). Order: #724, then a planner PR amending ADR-0026 (app_admin, owner role, a league on every role row), then restated #675 after #670 and before #663.
-  - #721 stop 1 (Fantrax login): PR #723 merged; Ben's hand login works (issues/721#issuecomment-7192653301). Next: read the next scheduled run's #723 flags and send them to the planner, who shapes the fix. b721 open questions (04t, 04v, 04w retry copies; stop after a first failed login) stay on #721.
-  - #722 (tier low, after #717): dispatch on Ben's word. #719, #720: after the app chain.
-  - #662, #700 close once a scheduled run shows the two load counts.
-  - #713: note on the ticket the first later PR under pbi/, mouserat_trade-bud/, discord_bot/ or docs/site/.
-- **Closed out this session:** b697 (PR #716), b715 (PR #717), b721 (PR #723). #697 and #715 closed. Stale worktree locks (process gone) were removed with git worktree unlock before the closeout script.
-- **Peers:** dff-central-planner `536a467f-4989-475e-bcc0-c7a14917d52a`; Tools-builder-manager `3bac2fdb-b847-4732-b572-e582ae2af312`; Tools-central-planner `a09ca279-6faa-4a61-a313-10328ff9c39d`; personal-assistant `6f53e894`.
-- **Bot:** bot.py runs in this session's terminal tab (discord bot). Check it after a clear.
+- **Heads.** origin/main at `8faefbb` (PR #732). CI on main green through `6b40b82`; the runs for `6a78fe2` (docs) and `8faefbb` were in progress at the save.
+- **Rules in force.** Session-rules as pulled (tools at 3bdba9c). Until dynasty's table of checks (#731) is set by Ben, **every PR, a builder's too, needs Ben's merge word** by pop-up (or his line in chat naming the PR). Before a merge, read the last finished push run on main. Green is every CI check SUCCESS at the head, no conflict, one read. One reviewer per code PR (pr-code-reviewer with mrp-dff-code-review at tier effort, or supabase-auditor on migrations, registry, generator, SUPABASE workflows). Owner-queue Options: write them as (a) text; (b) text, never a semicolon then a parenthesised key inside an option (tools #293: the pane joined both options into one Answer today; the manager re-asked by pop-up).
+- **Builder running:**
+  - **b675-leagueroles** (#675, tier high; session `3fbeb76a-d8f0-4fc6-9be4-b6e705a6fe85`), from `696d808`. Ben's go by pop-up. Two PRs. Ben answered its two Decisions (both option 1, record issues/675#issuecomment-7194660844); planner PR #733 (6a78fe2) amended ADR-0018 decisions 3, 10, 12 and ADR-0026 decision 2; load functions are shared.load_leagues and shared.load_teams. b675 was told to merge main and build PR 1. Reviewer: supabase-auditor. **At PR 1's merge queue an Action:** Ben dispatches migrate.yml for the held statements the plan comment names (two DROP CONSTRAINT, one UPDATE, one DROP FUNCTION). Tell the planner when each PR merges. #675 stays open until the scheduled run after PR 2 shows the access loads pass with counts for all four tables.
+- **In flight at the save: #655 step 5** (background, this session): removing the 23 damaged-record worktrees that passed steps 1 to 3 plus b349-floats (Ben's pop-up answers: Remove all 23; b349-floats Discard and remove), then git worktree prune, then deleting each worktree-<name> branch only when its tip equals the merged PR head or is on main. Log: this session's scratchpad remove24.txt (lost on a clear). After a clear: count folders under .claude/worktrees, check git worktree list for zero-HEAD rows, check which worktree-b3xx/b4xx branches of the list remain (list and tips on issues/655#issuecomment-7194837863), finish what is missing the same way, then post counts on #655.
+- **Waiting on a run or a record:**
+  - #724: stays open until the next scheduled etl-daily run shows 01c_dim_fantasy_teams passing and team_manifest not held. From the same run read #723's Fantrax login flags and send them to the planner (#721 stop 1).
+  - #662, #700 close once a scheduled run's notice shows the two load counts.
+  - #713 (closed): when the first PR changing only pbi/, mouserat_trade-bud/, discord_bot/ or docs/site/ comes, note on #713 that storage-pg skipped.
+  - #731 (dynasty table of checks): the planner puts the ruleset button to Ben; the rules-file text then comes into GOAL-RUN.md by the manager's PR.
+  - App chain after #675: #663, #664, #665, #676, #682 (renamed words only), then #719, #720. Dispatch only on the planner's ready and Ben's go.
+- **Merged and closed out today (records on the PRs):** #725, #726 (#644 closed; Temp count 13 to 14, new folder only pytest.log), #727 (#724 open for run proof), #728 (#670 closed; auditor finding 1 ruled (a) by the planner, ADR line PR #730), #729, #730, #733 (planner), #732 (#722 closed). Builders b644, b724, b670, b722 closed out. Closed on the planner's notes: #695, #688, #581, #713, #699.
+- **#655 backlog:** 83 worktree folders at the start of the day. Backlog run removed 44 (matches the prediction); the 8 with scratch files discarded and removed on Ben's word; counts on #655 (issuecomment-7193866528, -7194700497). Left by rule: metadata-principles (commits after #246), 3 scratchpad worktrees outside .claude/worktrees, state (#634), b556-caphit (#563). Branch claude/jolly-jepsen-6a8774 remains (no commit of its own, harmless).
+- **Peers:** dff-central-planner `536a467f-4989-475e-bcc0-c7a14917d52a`; Tools-builder-manager `3bac2fdb-b847-4732-b572-e582ae2af312`; Tools-central-planner `a09ca279-6faa-4a61-a313-10328ff9c39d`; personal-assistant `6f53e894`. New subagents available: supabase-look (dynasty, #653), supabase-router (tools #249).
+- **Bot:** bot.py in the terminal tab discord bot. Check it after a clear.
 
 ## Queue entries raised
 
-- Action: Sign Claude Code in again so the background builders can run (Session 9d28e196). Raised 2026-11-26.
+- None open (the queue was empty at the save).
