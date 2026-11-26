@@ -11,8 +11,10 @@ Exit 0 only when every step passes.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -130,6 +132,36 @@ def run_steps(steps, out=print) -> int:
     return 1 if failed else 0
 
 
+def remove_tree(path: Path, out=print) -> bool:
+    """Remove a folder on every platform; clear the read-only bit and retry once on a failure."""
+    def retry(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+
+    if not path.exists():
+        return True
+    try:
+        if sys.version_info >= (3, 12):
+            shutil.rmtree(path, onexc=retry)
+        else:
+            shutil.rmtree(path, onerror=retry)
+    except OSError:
+        pass
+    if path.exists():
+        out(f"warning: could not remove {path}")
+        return False
+    return True
+
+
+def finish(tmp: Path, export: Path, out=print) -> None:
+    """Remove the export, then tmp too unless a step left a log file in it."""
+    remove_tree(export, out)
+    if tmp.exists() and any(p.is_file() for p in tmp.rglob("*")):
+        out(f"log kept in {tmp}")
+    else:
+        remove_tree(tmp, out)
+
+
 def export_merged_tree(sha: str, tmp: Path, repo: Path = REPO) -> Path:
     rc, out = sh(["git", "merge-tree", "--write-tree", "origin/main", sha], repo)
     if rc != 0:
@@ -177,15 +209,14 @@ def main(argv: list[str]) -> int:
         except RuntimeError as exc:
             print(f"FAIL export\n    {exc}")
             print("RESULT: NOT GREEN")
-            shutil.rmtree(tmp, ignore_errors=True)
+            remove_tree(tmp)
             return 1
         try:
             return run_steps(build_steps(Ctx(pr, sha, tmp, export)))
         finally:
-            shutil.rmtree(export, ignore_errors=True)
-            print(f"pytest log kept in {tmp}")
+            finish(tmp, export)
     except BaseException:
-        shutil.rmtree(tmp, ignore_errors=True)
+        remove_tree(tmp)
         raise
 
 
