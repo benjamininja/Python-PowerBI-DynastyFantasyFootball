@@ -79,7 +79,7 @@ import etl_helpers as etl
 class LeagueConfig:
     """Central config — Fantrax API, auth, scheduling. Edit here only."""
     # --- Fantrax API (recovered from HAR) ---
-    league_id: str = "v744203wmmvjqzv6"
+    league_id: str = etl.LeagueConfig.fantrax_league_id
     endpoint: str = "https://www.fantrax.com/fxpa/req"
     login_url: str = "https://www.fantrax.com/login"
     # Stat timeframe is phase-aware (see resolve_season_or_projection):
@@ -93,14 +93,14 @@ class LeagueConfig:
     # refUrl for the RETIRED getDraftRanks call (see main_scrape). Kept only so
     # the dead code still reads coherently; nothing live sends it.
     ref_url: str = (
-        "https://www.fantrax.com/fantasy/league/v744203wmmvjqzv6/draft-ranking;"
+        f"https://www.fantrax.com/fantasy/league/{etl.LeagueConfig.fantrax_league_id}/draft-ranking;"
         "seasonOrProjection=SEASON_23l_YEAR_TO_DATE?sortKey=ADP&sortDir=-1"
         "&rookie=false&view=RANKING&groupId=1010&posId="
     )
     # refUrl for the live Players-grid call (getPlayerStats). This is the page
     # the grid is actually rendered from, so it's what the real UI sends.
     players_ref_url: str = (
-        "https://www.fantrax.com/fantasy/league/v744203wmmvjqzv6/players;"
+        f"https://www.fantrax.com/fantasy/league/{etl.LeagueConfig.fantrax_league_id}/players;"
         "statusOrTeamFilter=ALL;miscDisplayType=1;pageNumber=1"
     )
     # --- Playwright / auth ---

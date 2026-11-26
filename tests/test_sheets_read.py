@@ -236,9 +236,13 @@ def _cell(cell_id):
     return cell["source"] if isinstance(cell["source"], str) else "".join(cell["source"])
 
 
+LEAGUES_GID = "294450686"
+
+
 def _run_read_cell(read):
     fake_etl = types.SimpleNamespace(SheetsAuthError=etl.SheetsAuthError, read_sheet_tab=read)
-    cfg = types.SimpleNamespace(team_sheet_id="SID", team_sheet_gid=GID)
+    cfg = types.SimpleNamespace(team_sheet_id="SID", team_sheet_gid=GID,
+                                league_assoc_sheet_gid=LEAGUES_GID)
     ns = {"etl": fake_etl, "CFG": cfg}
     exec(_cell("25f3db4f"), ns)
     return ns
@@ -259,18 +263,26 @@ def test_01c_turns_a_sign_in_failure_into_a_one_line_exit():
 def test_01c_reads_only_the_columns_its_build_cell_maps():
     seen = {}
 
-    def read(sheet_id, gid, columns, optional=()):
-        seen.update(sheet_id=sheet_id, gid=gid, columns=columns, optional=optional)
-        return pd.DataFrame({"Team ID": ["A01"]})
+    def read(sheet_id, gid, columns, optional=(), text=()):
+        seen[gid] = dict(sheet_id=sheet_id, columns=columns, optional=optional, text=list(text))
+        return pd.DataFrame({"Team ID": ["A01"]}) if gid == GID else pd.DataFrame({"League ID": ["x"]})
 
     ns = _run_read_cell(read)
-    assert (seen["sheet_id"], seen["gid"]) == ("SID", GID)
+    assert set(seen) == {GID, LEAGUES_GID}
+    assert {s["sheet_id"] for s in seen.values()} == {"SID"}
     build = {"pd": pd, "LeagueConfig": object}
     src = _cell("39c742bb")
     exec(src[: src.index("dim_fantasy_teams = build_dim_fantasy_teams")], build)
-    assert seen["columns"] == list(build["_COL_MAP"])
-    assert not seen["optional"]
+    assert seen[GID]["columns"] == [*build["_COL_MAP"], "League Name"]
+    assert seen[LEAGUES_GID]["columns"] == ["Sport", "League Name", "League ID"]
+    assert seen[LEAGUES_GID]["text"] == ["League ID"]
+    assert not seen[GID]["optional"] and not seen[LEAGUES_GID]["optional"]
     assert list(ns["teams_raw"].columns) == ["Team ID"]
+    assert list(ns["leagues_raw"].columns) == ["League ID"]
+
+
+def test_01c_reads_the_league_tab_named_in_league_config():
+    assert etl.CFG.league_assoc_sheet_gid == LEAGUES_GID
 
 
 def test_the_anonymous_csv_url_is_gone():

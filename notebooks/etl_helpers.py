@@ -65,6 +65,10 @@ class LeagueConfig:
     team_sheet_gid: str = "178660131"
     owner_sheet_gid: str = "1895987887"
     app_roles_sheet_gid: str = "1489461039"
+    league_assoc_sheet_gid: str = "294450686"
+    # The football league's Fantrax id: the one copy. 04a's LeagueConfig.league_id
+    # and 01c's league filter both read it from here.
+    fantrax_league_id: str = "v744203wmmvjqzv6"
     # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
     fact_name: str = "fact_fantrax_adp"
     crosswalk_name: str = "dim_fantrax_crosswalk"
