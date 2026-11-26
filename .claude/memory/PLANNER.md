@@ -17,7 +17,7 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Next (in order)
 
-- **PR #728 (#670), the auditor's finding 1 ruled (a)** on 2026-11-26 (PR #728 issuecomment-7193731662): the definer `shared.choice_windows()` stands, by the #548 ruling of 2026-11-24. **PR #730** (planner, docs only, branch `docs/adr-0026-read-path`, worktree planner-adr0026c with a throwaway `.venv`) writes it into ADR-0026 decision 10 point 1 and waits on the owner's merge word. After #728 merges: check #675's body once more, then tell the manager it is ready.
+- **PR #728 (#670), the auditor's finding 1 ruled (a)** on 2026-11-26 (PR #728 issuecomment-7193731662): the definer `shared.choice_windows()` stands, by the #548 ruling of 2026-11-24. PR #730 wrote it into ADR-0026 decision 10 point 1, merged as `d897292` on the owner's word; its worktree is removed. After #728 merges: check #675's body once more, then tell the manager it is ready.
 
 - **Tools reads as lead on CI as a gate (2026-11-26):** tools draft PR #292 (the tools table of checks) read at head `3665fe6`: approve with two changes and one question for the owner (PR #292 issuecomment-7193573535). Owed: read its next head, and the tools workflow PR of tools #187 (Windows back as a required check, six shards) when its head comes.
 
