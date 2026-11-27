@@ -1,13 +1,17 @@
-# Schema migrations (#108, ADR-0018). Two jobs. validate (pull request)
-# applies supabase/migrations to a throwaway Postgres and tests the result.
-# push (merge to main) applies them to the real project with the secret
+# Schema migrations (#108, ADR-0018). validate (pull request) applies
+# supabase/migrations to a throwaway Postgres and tests the result. push
+# (merge to main) applies them to the real project with the secret
 # SUPABASE_MIGRATE_DB_URL from the etl environment, which is limited to main.
 #
 # The destructive-migration gate (#534, ADR-0018 decision 12,
 # scripts/migration_gate.py). On a push, the first pending migration with a
-# destructive statement is held, with every pending migration after it. Those
-# apply only when the owner runs this workflow by hand (workflow_dispatch)
-# from main.
+# destructive statement is held, with every pending migration after it; the
+# rest apply and push ends green, naming the held file. The held files apply
+# in apply-held (#744), which waits in the migrate-held environment for the
+# owner's approval as its one required reviewer, then applies the files of
+# this run's commit, only if the gate still names the same file. The owner's
+# hand run of this workflow (workflow_dispatch) from main stays the fallback:
+# it skips the gate and applies everything. No agent approves or starts either.
 # - Held, anywhere in a statement and in any case: DROP (any form), TRUNCATE,
 #   DELETE FROM, MERGE, UPDATE ... SET, RENAME,
 #   ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION,
@@ -158,6 +162,8 @@ jobs:
     concurrency:
       group: migrate-push
       cancel-in-progress: false
+    outputs:
+      held: ${{ steps.gate.outputs.held }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -171,7 +177,7 @@ jobs:
         if: github.event_name == 'push'
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
 
-      - name: Hold a destructive migration for the owner's dispatch
+      - name: Hold a destructive migration for the owner's approval
         id: gate
         if: github.event_name == 'push'
         env:
@@ -185,10 +191,56 @@ jobs:
           SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
         run: supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"
 
-      - name: Stop at the held migration
+      - name: Name the held migration
         if: steps.gate.outputs.held != ''
         env:
           HELD: ${{ steps.gate.outputs.held }}
         run: |
-          echo "::error::$HELD holds a destructive statement and was not applied. It and every later migration apply when the owner runs migrate by workflow_dispatch from main."
-          exit 1
+          echo "::notice::$HELD holds a destructive statement and was not applied. It and every later migration of this commit apply in apply-held once the owner approves this run."
+          echo "Held for the owner's approval: $HELD and every later pending migration of this commit. They apply in apply-held after the owner approves this run (Review deployments, migrate-held). To use the hand run from main instead, reject this run first." >> "$GITHUB_STEP_SUMMARY"
+
+  apply-held:
+    needs: push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.push.outputs.held != ''
+    runs-on: ubuntu-latest
+    environment: migrate-held
+    concurrency:
+      group: migrate-push
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.122.0
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: The gate still names the held migration
+        id: recheck
+        env:
+          SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
+          HELD: ${{ needs.push.outputs.held }}
+        run: |
+          psql "$SUPABASE_MIGRATE_DB_URL" -v ON_ERROR_STOP=1 -At -c "SELECT version FROM supabase_migrations.schema_migrations" > "$RUNNER_TEMP/applied.txt"
+          python3 scripts/migration_gate.py --applied "$RUNNER_TEMP/applied.txt" > "$RUNNER_TEMP/gate.txt"
+          now=$(sed -n 's/^held=//p' "$RUNNER_TEMP/gate.txt")
+          if [ "$now" = "$HELD" ]; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          elif [ -z "$now" ]; then
+            echo "::notice::$HELD is already applied, by a later run or the owner's hand run. Nothing to apply."
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::The gate now names $now, not $HELD. Nothing was applied."
+            exit 1
+          fi
+
+      - name: Apply the held migrations of this run's commit
+        if: steps.recheck.outputs.apply == 'true'
+        env:
+          SUPABASE_MIGRATE_DB_URL: ${{ secrets.SUPABASE_MIGRATE_DB_URL }}
+        run: supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"
