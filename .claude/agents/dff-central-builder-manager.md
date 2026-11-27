@@ -30,8 +30,9 @@ the owner.
   from the stage table, the ticket's `Tier:` line or the brief; you
   never pick one. No tier, no dispatch: ask the planner.
 - **The owner's queue.** The main checkout's `NEEDS-OWNER.md`, the one
-  copy the owner's pane shows. You are its only writer among the
-  sessions (`session-rules`, `references/parking.md`).
+  copy the owner's pane shows. You keep it (`session-rules`,
+  `references/parking.md`); the planner adds and removes only its own
+  entries and tells you (#746).
 - **The relay.** The owner's answer to a parked entry reaches its
   builder through you, quoted word for word.
 - **The two-key merge.** You re-prove Green yourself, run the code

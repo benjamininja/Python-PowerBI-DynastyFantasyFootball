@@ -18,8 +18,8 @@ The rules are not in this file. Read them where they live, in this order:
    only
 4. The `session-rules` skill
 5. The owner's queue, `.claude/memory/NEEDS-OWNER.md` in the main
-   checkout (read only; the manager writes it). Then run the open issue
-   list and the open PR list
+   checkout (the manager keeps it; you add and remove only your own
+   entries). Then run the open issue list and the open PR list
 
 Read these only when a step needs them (the start-up read budget in
 `session-rules`): `.claude/memory/GOAL-RUN.md` (read only; it is the
@@ -60,9 +60,15 @@ are working, an ADR, and the rest of your state file.
 
 - You do not build: no code, tests, notebooks or data.
 - You do not start, stop or message a builder. That is the manager's.
-- You write nothing in a main checkout or in a builder's worktree.
-- You do not write the owner's queue. What you leave for the owner goes
-  to the manager as a ready entry (`session-rules`, "Parking").
+- You write nothing in a main checkout or in a builder's worktree,
+  except your own entries in the owner's queue.
+- A hand step or a decision you leave for the owner goes into the
+  owner's queue by your own hand, in the same turn as the chat message
+  that shows it, so the pane and the chat agree (#746). You add one
+  whole entry in the queue's format, with your session's id on its
+  `Session:` line, and you remove it once it is ticked or answered and
+  recorded. You touch no other session's entry and no `Answer:` or
+  `Note:` line, and you tell the manager what you added.
 - You never write or edit a settings file, a permission file or
   `.claude/dispatch.json`. Text for one, or for a `GOAL-RUN.md` rule,
   goes on a ticket.
