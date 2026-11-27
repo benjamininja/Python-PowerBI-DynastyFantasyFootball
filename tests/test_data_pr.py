@@ -39,8 +39,9 @@ def _rows(**buckets):
     return [{"name": name, "bucket": bucket} for name, bucket in buckets.items()]
 
 
-ALL_PASS = _rows(**{"pii-scan": "pass", "tests": "pass", "bot-tests": "pass"})
-TESTS_FAIL = _rows(**{"pii-scan": "pass", "tests": "fail", "bot-tests": "pass"})
+LATER_THREE_PASS = {"checks": "pass", "storage-pg": "pass", "validate": "pass"}
+ALL_PASS = _rows(**{"pii-scan": "pass", "tests": "pass", "bot-tests": "pass", **LATER_THREE_PASS})
+TESTS_FAIL = _rows(**{"pii-scan": "pass", "tests": "fail", "bot-tests": "pass", **LATER_THREE_PASS})
 NOT_YET = _rows(**{"pii-scan": "pass", "tests": "pending"})
 
 
@@ -191,7 +192,8 @@ class TestChecksFail:
         assert git(world.repo, "status", "--porcelain", "--", "data").stdout == ""
 
     def test_a_cancelled_check_is_a_failure_too(self, world):
-        world.gh(checks=[_rows(**{"pii-scan": "cancel", "tests": "pass", "bot-tests": "pass"})])
+        world.gh(checks=[_rows(**{"pii-scan": "cancel", "tests": "pass", "bot-tests": "pass",
+                                  **LATER_THREE_PASS})])
         assert land(world) == "ABORTED: data PR #42 left open, required check failed (pii-scan)"
 
 
@@ -314,7 +316,7 @@ class TestTimeout:
         gh = world.gh(checks=[NOT_YET])
         line = land(world, checks_timeout_s=0)
         assert line == ("ABORTED: data PR #42 left open, checks not done after 0 min "
-                        "(waiting on tests, bot-tests)")
+                        "(waiting on tests, bot-tests, checks, storage-pg, validate)")
         assert "pr merge" not in gh.verbs()
         assert origin_main_subject(world.origin) == "seed"
         assert branch_now(world.repo) == "main"
@@ -382,11 +384,22 @@ class TestChecksState:
             a, 0, json.dumps(rows), ""))
         return rp._checks_state(1, REPO)
 
-    def test_all_three_pass(self, monkeypatch):
+    def test_all_six_pass(self, monkeypatch):
         assert self.read(monkeypatch, ALL_PASS) == ("passed", [])
 
     def test_a_check_gh_does_not_list_yet_is_pending(self, monkeypatch):
-        assert self.read(monkeypatch, _rows(**{"pii-scan": "pass"})) == ("pending", ["tests", "bot-tests"])
+        assert self.read(monkeypatch, _rows(**{"pii-scan": "pass"})) == (
+            "pending", ["tests", "bot-tests", "checks", "storage-pg", "validate"])
+
+    def test_it_still_waits_on_storage_pg_after_the_first_three_pass(self, monkeypatch):
+        rows = _rows(**{"pii-scan": "pass", "tests": "pass", "bot-tests": "pass",
+                        "checks": "pass", "storage-pg": "pending", "validate": "pass"})
+        assert self.read(monkeypatch, rows) == ("pending", ["storage-pg"])
+
+    def test_a_skipped_validate_counts_as_done(self, monkeypatch):
+        rows = _rows(**{"pii-scan": "pass", "tests": "pass", "bot-tests": "pass",
+                        "checks": "pass", "storage-pg": "pass", "validate": "skipping"})
+        assert self.read(monkeypatch, rows) == ("passed", [])
 
     def test_nothing_listed_is_pending(self, monkeypatch):
         monkeypatch.setattr(rp, "_gh", lambda *a, **k: subprocess.CompletedProcess(
@@ -394,7 +407,7 @@ class TestChecksState:
         assert rp._checks_state(1, REPO) == ("pending", list(rp.REQUIRED_CHECKS))
 
     def test_a_check_that_is_not_required_is_ignored(self, monkeypatch):
-        rows = ALL_PASS + _rows(**{"storage-pg": "fail"})
+        rows = ALL_PASS + _rows(**{"scope": "fail"})
         assert self.read(monkeypatch, rows) == ("passed", [])
 
     def test_a_push_run_and_a_pull_request_run_of_one_check_both_count(self, monkeypatch):
@@ -404,7 +417,7 @@ class TestChecksState:
         assert self.read(monkeypatch, rows) == ("pending", ["tests"])
 
     def test_the_required_names_are_the_rulesets(self):
-        assert rp.REQUIRED_CHECKS == ("pii-scan", "tests", "bot-tests")
+        assert rp.REQUIRED_CHECKS == ("pii-scan", "tests", "bot-tests", "checks", "storage-pg", "validate")
 
 
 class FakeRunLog:
