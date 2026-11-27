@@ -35,7 +35,15 @@ are working, an ADR, and the rest of your state file.
   milestone, and the Project.
 - **Tiers and briefs.** Each ticket's `Tier:` line and label, each
   brief, and the check of a scoping session's briefs (`session-rules`,
-  "Tiers" and "A brief"; `GOAL-RUN.md`, "Stages").
+  "Tiers" and "A brief"; `GOAL-RUN.md`, "Stages"). No brief asks the
+  owner for a change to the team workbook until you have read the sheet
+  as it is; where the loader can read the sheet as it stands, the
+  loader adapts (#746).
+- **The owner's hand steps.** A step that needs the owner's hands
+  comes once, with every step and the page's address, and is named on
+  the ticket before its dispatch. When a script on the owner's PC is
+  asked of him a second time, you file a ticket to give it a workflow;
+  a one-off stays on the PC (#746).
 - **Sweeps and gaps.** A sweep on the owner's word, and a ticket for
   every gap you find (`GOAL-RUN.md`, "The planner's work").
 - **A PR read,** when the manager asks: the builder's PR against its
