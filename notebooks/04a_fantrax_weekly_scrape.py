@@ -265,6 +265,8 @@ class FantraxScraper:
     def __init__(self, cfg: LeagueConfig = CFG):
         self.cfg = cfg
         self.code_sent_by = None
+        self.code_typed = False
+        self.last_login_flags = None
         self._seeded = False
         self._fresh_login = False
         Path(cfg.raw_dir).mkdir(parents=True, exist_ok=True)
@@ -348,6 +350,8 @@ class FantraxScraper:
         fixing if Fantrax changes the form.
         """
         self.code_sent_by = None
+        self.code_typed = False
+        self.last_login_flags = None
         email, pwd = self._creds()
         self._note_login()
         page.goto(self.cfg.login_url, wait_until="domcontentloaded",
@@ -370,16 +374,30 @@ class FantraxScraper:
         # between the two steps: tell the prompt from a finished login by the
         # code field, not by a navigation. Auth is verified for real by the
         # retry-probe in fetch().
-        if not self._await_code_prompt(page):
-            if "/login" in page.url:
-                self._report_unfinished_login(page)
-            return
-        self._answer_code_prompt(page)
-        try:
-            page.wait_for_url(lambda u: "/login" not in u,
-                              timeout=self.cfg.nav_timeout_ms)
-        except Exception:
-            page.wait_for_timeout(3000)
+        prompted = self._await_code_prompt(page)
+        if prompted:
+            self._answer_code_prompt(page)
+            try:
+                page.wait_for_url(lambda u: "/login" not in u,
+                                  timeout=self.cfg.nav_timeout_ms)
+            except Exception:
+                page.wait_for_timeout(3000)
+        on_login = "/login" in page.url
+        seen = self._login_page_signals(page)
+        self.last_login_flags = {
+            "code prompt appeared": "yes" if prompted else "no",
+            "code typed": "yes" if self.code_typed else "no",
+            "still on the login address": "yes" if on_login else "no",
+            **seen,
+        }
+        if not prompted and on_login:
+            self._report_unfinished_login(seen)
+
+    def _still_dead_message(self) -> str:
+        if not self.last_login_flags:
+            return self.STILL_DEAD
+        return (f"{self.STILL_DEAD} Last login: "
+                + ", ".join(f"{name} {flag}" for name, flag in self.last_login_flags.items()))
 
     def _login_page_signals(self, page) -> dict[str, str]:
         seen = {}
@@ -395,8 +413,7 @@ class FantraxScraper:
             pass
         return seen
 
-    def _report_unfinished_login(self, page) -> None:
-        seen = self._login_page_signals(page)
+    def _report_unfinished_login(self, seen: dict[str, str]) -> None:
         print(f"[warn] Fantrax login did not finish: still on the login page after "
               f"{self.cfg.nav_timeout_ms // 1000} s. Seen on the page: "
               + ", ".join(f"{name} {flag}" for name, flag in seen.items()))
@@ -449,6 +466,7 @@ class FantraxScraper:
         try:
             field.click()
             field.press_sequentially(code, delay=self.cfg.code_key_delay_ms)
+            self.code_typed = True
         except Exception:
             raise TotpLoginError(
                 "Could not type the second-factor code into the Fantrax prompt."
@@ -527,7 +545,7 @@ class FantraxScraper:
             self._login(page)
             raw = self._post_json(ctx, payload, what)
             if self._session_dead(raw):
-                raise SessionStillDead(self.STILL_DEAD)
+                raise SessionStillDead(self._still_dead_message())
         return raw
 
     # --- players-grid (getPlayerStats) backfill ------------------------------
