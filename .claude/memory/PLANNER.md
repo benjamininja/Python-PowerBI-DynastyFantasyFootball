@@ -13,11 +13,13 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-26 (see the commit time), session 536a467f-4989-475e-bcc0-c7a14917d52a. State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
+**Saved:** 2026-11-27 (see the commit time), session 823b0d8b-9a43-423c-82fe-429cfcd98aae. State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
 
 ### Next (in order)
 
-- **FIRST: the required-checks question to the owner, and a blocker in front of the ruleset step** (the owner's word, 2026-11-26: "when #722 is merged, send me the ruleset button"). #722 merged as `8faefbb` (PR #732). #731 holds the table, the closed list and the rules-file text; its re-read is done (#731 issuecomment-7194914768): six job names unchanged. **Blocker found:** `REQUIRED_CHECKS` in `scripts/run_pipeline.py` names only `pii-scan`, `tests`, `bot-tests`; if the ruleset gains three checks first, the scheduled run's own data PR is refused at its merge and nothing publishes. **Do, in order:** (1) file a low ticket: that list gains `checks`, `storage-pg`, `validate`, with `tests/test_data_pr.py` and `CONTRIBUTING.md` lines 17 and 31; search open tickets first; tell the manager. (2) One button to the owner, context above it: accept the table (three more required checks), the closed list of what merges on Green, Windows not run; and his go for the ticket of (1). Say plainly the ruleset step waits for that ticket's merge. (3) After it merges: the ruleset steps in full to the owner (ruleset id 24086028, named "main: require pii-scan, tests, bot-tests", on the repository's Settings, Rules, Rulesets page: add the three check names, save). (4) The manager's PR to its rules file from #731's text, and its one read of the ruleset recorded on #731.
+- **FIRST: the ruleset step, waiting on #736's merge.** The owner answered by button, 2026-11-27 (#731 issuecomment-7217186617): the table of six required checks, the closed list (one line corrected in #731's body: every required check the table names for the PR's changed paths ran, not skipped) and Windows not run are accepted, and #736 has his go. #736 (low) is the gap ticket: `REQUIRED_CHECKS` in `scripts/run_pipeline.py` gains `checks`, `storage-pg`, `validate`; its PR merges on the owner's word. The go is relayed to the manager. **Do, in order:** (1) when the manager reports #736 merged: the ruleset steps in full to the owner by button (ruleset id 24086028, named "main: require pii-scan, tests, bot-tests", on the repository's Settings, Rules, Rulesets page: add the three check names, save). (2) The manager's PR to its rules file from #731's text, and its one read of the ruleset recorded on #731.
+
+- **From the manager's report of 2026-11-27** (the scheduled run of 2026-11-26): #724 is closed (01c ok, published). #721 stop 1: both login steps failed with SessionStillDead and the run logged two Fantrax logins where one is expected; the runs of 2026-11-23 to 2026-11-25 are not yet read for cause; shape the next step on #721 (item 13). The old admin word stands in `CONTEXT.md` (two lines) and the supabase-auditor role file (one line): a planner PR, on the owner's button. PR #734 (#675 PR 1) is Green at `b0e4032` on the manager's read; the auditor runs; the merge word is the manager's.
 
 - **Process work, done 2026-11-26:** #695, #688, #581, #713, #699 carry a planner note that nothing is left (closing is the manager's). The owner's buttons relayed: #722's dispatch; discard #655's 8 worktrees. The owner also answered the manager on #655's damaged records (remove the 23 that passed steps 1 to 3; discard and remove b349-floats; the manager's result is #655 issuecomment-7194837863): nothing of the planner's is left on #655 except the lighter setup, which waits on tools #251.
 
@@ -45,11 +47,11 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Peers (queue ids)
 
-Ids as of 2026-11-26; find each by name. After a clear, send the manager and the Tools planner the new id.
+Ids as of 2026-11-27; find each by name. After a clear, send the manager and the Tools planner the new id.
 
-- dff-central-builder-manager: `9d28e196-d848-4cf7-a3d6-f97cbe859143`
-- Tools-central-planner: `a09ca279-6faa-4a61-a313-10328ff9c39d`
-- Tools-builder-manager: `3bac2fdb-b847-4732-b572-e582ae2af312`
+- dff-central-builder-manager: `e5579518-3626-469b-b1d5-3095f10a1c6a`
+- Tools-central-planner: `4e27fb7c-445f-47d9-ad2b-919bca911066`
+- Tools-builder-manager: `fbd93714-8c8b-49c7-b434-7dee4a8488fd`
 - personal-assistant: `6f53e894-fbd7-4d4b-894d-55ffd90c0f71`. It reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
 
 ### Waiting on Ben
