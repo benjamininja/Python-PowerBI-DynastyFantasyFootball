@@ -56,46 +56,51 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-27, nineteenth save, before a compact at Ben's word; session `e5579518-3626-469b-b1d5-3095f10a1c6a`)
+## CURRENT STATE (2026-11-27, twentieth save, before a compact at Ben's word; session `e5579518-3626-469b-b1d5-3095f10a1c6a`)
 
 Done items left this block: their records are on GitHub.
 
-- **Saved:** 2026-11-27 ~12:00 UTC, session `e5579518-3626-469b-b1d5-3095f10a1c6a`. session-dispatch is loaded (Ben typed it this session; a compact keeps it).
-- **Heads.** origin/main at `f94787c` (PR #739). CI on main green at `a5fa34c`. Migrate push on `7130221` stopped at the held file by design. Ben's dispatch run 45992249898 applied it: SUCCESS.
-- **Rules in force.** Until #731's ruleset is set by Ben, **every PR needs Ben's merge word** by pop-up. Green = every CI check SUCCESS at the head, no conflict, one read; plus migration order for a migration PR; one reviewer per code PR (pr-code-reviewer with mrp-dff-code-review at tier effort, or supabase-auditor on migrations, registry, generator or SUPABASE workflows). Before a merge, read the last push run on main. A relayed go from the planner is confirmed by pop-up here.
+- **Saved:** 2026-11-27 ~13:20 UTC, session `e5579518-3626-469b-b1d5-3095f10a1c6a`. session-dispatch is loaded (a compact keeps it).
+- **Heads.** origin/main at `c0d1757` (PR #748). CI on main green through `0d6284c`. #675 PR 2's held file applied by Ben's run 46000465740 (SUCCESS); advisors posted (#675 issuecomment-7218567649).
+- **Rules in force.** The #731 ruleset requires six checks, and GOAL-RUN.md (PR #743) holds the closed list that merges on Green alone (`notebooks/`, `scripts/` except four, `tests/`, `discord_bot/`, and every required check for its paths ran, not skipped); every other PR keeps Ben's word by pop-up. One reviewer per PR. Before each merge read main's last finished run. A migration PR whose base is older than main's newest migration takes a merge of main first. Every dispatch still needs Ben's go (the #746 low/haiku no-go trial waits for its rule text).
 
 ### Next
-1. **PR #738** (#736, b736-sixchecks, session `970e6fa1-fd38-4a66-93f8-96a99f2da9db`): reported green at `b0444c3`; the manager's read at the save: CLEAN, every check SUCCESS or skipped. To do: start pr-code-reviewer (packet, mrp-dff-code-review, low effort), post the re-proof, ask Ben's merge word by pop-up (it changes the data PR's merge script), merge pinned, tell the planner (the #731 ruleset step waits on it), closeout b736. b736 flagged that the Required checks table in CONTRIBUTING.md (from line 46) still lists three checks: that's for the #731 rules-file step, tell the planner.
-2. **#675 PR 2** (b675-leagueroles, session `3fbeb76a-d8f0-4fc6-9be4-b6e705a6fe85`, resumed on Ben's word): building the league table and team list loads (shared.load_leagues, shared.load_teams). At green: supabase-auditor, migration order, Ben's word, merge, a migrate Action if held, post-schema-change check, then closeout b675 (Ben's word given). #675 stays open until a scheduled run shows the access loads pass with counts for all four tables.
-3. **#740** (b740-loginflags, session `52653931-4ec2-4ce7-aab2-911bac344db2`, tier low, dispatched on Ben's go, confirmed by pop-up): the Fantrax login flags go into the SessionStillDead message. At green: reviewer, Ben's word, merge, tell the planner (it reads the next run's flag line).
-4. **Next scheduled etl-daily run** (~20:00 UTC 2026-11-27): read the access load (the App roles tab now says app_admin, per Ben by pop-up, record #675 issuecomment-7217401577). #662 and #700 close once a run's notice shows the two load counts.
-5. **#731**: Ben accepted the table and the closed list (#731 issuecomment-7217186617). After #738 merges, the planner puts the ruleset button to Ben; then the manager's PR puts #731's rules text (with its corrected line) into GOAL-RUN.md, on Ben's word.
-6. App chain after #675: #663, #664, #665, #676, #682, then #719, #720. Dispatch only on the planner's ready and Ben's go.
+1. **PR #745** (#744, b744-approvegate, session `43b9c590-831f-45aa-a77c-f2d5ad1ea309`, medium): head `cbf5019`, CLEAN. Audit round 2 posted, no blocking (PR #745 issuecomment-7219076264). Waiting: the planner's read at cbf5019, and Ben's setup (queue entry). Then Ben's merge word by pop-up, merge pinned, closeout b744. The first held migration after the merge is the real proof: read its run.
+2. **Tonight's etl-daily run** (~20:00 UTC 2026-11-27): first with six required checks (#738) and the Fantrax flag line (#741). Read the access load counts for all four tables (#675, #662, #700 close on them), the SessionStillDead flag line (send to the planner for #740 and #721 stop 1; #740 closes on it), the logins count.
+3. **#746 dispatch trial**: low and haiku dispatch with no go for two weeks, once its rule text merges. The go line is in the session-dispatch skill (Before a dispatch); the planner decides skill or GOAL-RUN override. Keep the count here: no-go dispatches 0; parked or went wrong 0.
+3a. **Planner PR #750** (head `10c2218`, branch docs/planner-role-sweep-lines, the planner's role file, two lines from #746): needs Ben's merge word by pop-up, asked together with #745's. After the merge, tell the planner (its worktree to remove).
+3b. **#749** (medium, find out first: deadline rows and keep choices into the scheduled run or retire the hand load): after #675 closes, dispatch on Ben's go.
+3c. The #746 go-word trial waits for the Tools planner's skill text; then the manager's own GOAL-RUN.md PR adds dynasty's dated line (low and haiku, two weeks from the merge day, count here), on Ben's word.
+3d. **Power BI is backlog** (Ben via the personal-assistant, 2026-11-27): #624, #556, #567, #211, #399, #511, #512 and PR #563 are not dispatched or merged until Ben lifts it.
+4. App chain after #675: #663, #664, #665, #676, #682, then #719, #720. Dispatch only on the planner's ready and Ben's go. #682 waits for a run with all four access counts.
+5. Follow-up named by b744 (for the planner to ticket): comments still say the owner's dispatch in scripts/migration_gate.py, scripts/generate_migrations.py:39, docs/data_model.yml:70.
+6. Housekeeping: the local branch of merged PR #747 (docs/744-goalrun-applyheld) is still there; its delete was refused by the guardrail hook (gh timed out). Retry the plain branch delete, branch named literally.
 
 ### Waiting
-- On Ben: nothing in the queue (empty). Coming: merge words for #738, #675 PR 2 and #740's PR.
-- On builders: b736 (done, waiting for the merge), b675 and b740 building.
+- On Ben: queue entry "One-time setup: the migrate-held approval environment (#744)" (Session e5579518-3626-469b-b1d5-3095f10a1c6a). Coming: merge word for #745.
+- On the planner: one more read of #745 at cbf5019; the #746 trial rule text.
 
 ### In flight
-- b736-sixchecks `970e6fa1` (#736): PR #738 at `b0444c3`, waiting for re-proof.
-- b675-leagueroles `3fbeb76a` (#675 PR 2): building.
-- b740-loginflags `52653931` (#740): building.
-- Open PRs not ours: #691 (old data PR), #634 (state), #595 (b589, parked), #563 (b556, parked).
+- b744-approvegate `43b9c590` (#744): PR #745 at `cbf5019`, idle, waiting.
+- Open PRs not ours: #691 (old data PR), #634 (state), #595 (b589, parked), #563 (b556, parked; both need main merged in for the checks job).
 
 ### Peers
-dff-central-planner `823b0d8b-9a43-423c-82fe-429cfcd98aae`; Tools-builder-manager `fbd93714-8c8b-49c7-b434-7dee4a8488fd`; Tools-central-planner `4e27fb7c-445f-47d9-ad2b-919bca911066`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`. Tools-builder-manager holds the machine test line for tools PR #196's reproof (the dynasty side said clear; wait for its end notice before any local full run).
+dff-central-planner `823b0d8b-9a43-423c-82fe-429cfcd98aae`; Tools-builder-manager `fbd93714-8c8b-49c7-b434-7dee4a8488fd` (running tools reproof.py 197, about 70 min from ~13:10Z; both tools checkouts at 1259c38 with the machine-wide lock); Tools-central-planner `4e27fb7c-445f-47d9-ad2b-919bca911066`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`.
 
 ### Reads and checks due
-- Tonight's etl-daily run: access loads, #723/#740 flag line, Fantrax logins count.
-- Closeout list at this save: merged and still there 2; no commit of its own 0; unknown 0; open PR 2; locked 1; no readable HEAD 0; refused for another reason 2; outside the folder 3.
+- Tonight's etl-daily run (above).
+- After #745 merges: the first held migration's run (apply-held waits, Ben approves, it applies).
+- Closeout list at this save: merged and still there 1; no commit of its own 1; unknown 0; open PR 2; locked 1; no readable HEAD 0; refused for another reason 1; outside the folder 3.
 - Bot: running in the terminal tab discord bot.
 
 ### Decided since the last merged state PR
 - #724 closed on the 11-26 run (issuecomment-7217160100).
-- #734 merged at `7130221` on Ben's word; auditor finding 1 ruled no breach by the planner (PR #734 issuecomment-7217217148); the post-schema-change check is clean (#675 issuecomment-7217393524).
-- #737 (`8944837`) and #739 (`f94787c`) merged on Ben's word.
-- #736 and #740 dispatched on Ben's go; b675 resumed for PR 2 on Ben's word, closeout after PR 2 approved.
+- #734, #737, #739 merged on Ben's word (earlier today).
+- #738 (`d21758e`), #741 (`bcb365e`), #743 (`f834dbb`), #742 (`0d6284c`), #747 (`175dd7c`), #748 (`c0d1757`) merged on Ben's pop-up word; b736, b740, b675 closed out.
+- #731 closed: ruleset at six, rules file on main (#731 comments).
+- #744 dispatched on Ben's go (b744); the planner ruled #745 items 2 and 4 (PR #745 issuecomment-7218881282).
+- #746: Ben chose a two-week trial of low/haiku dispatch without a go; not in force until its rule text merges (#746 issuecomment-7219028189).
 
 ## Queue entries raised
 
-- None open (the migrate Action for #734 was raised and closed today; the queue is empty).
+- "One-time setup: the migrate-held approval environment (#744)", open.
