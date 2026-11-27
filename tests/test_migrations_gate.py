@@ -1,13 +1,18 @@
 """migrate.yml holds a destructive migration on a push (#534, ADR-0018 decision 12).
 
 On a push to main the push job reads the applied versions, then
-`scripts/migration_gate.py` takes the first pending migration holding DROP
-COLUMN or DROP TABLE, and every pending one after it, out of the checkout
-before `supabase db push`, and the job fails naming it. A run by
-`workflow_dispatch` (the owner's Action) skips the gate and applies everything.
-No case connects to a database.
+`scripts/migration_gate.py` takes the first pending destructive migration, and
+every pending one after it, out of the checkout before `supabase db push`; the
+job ends green, naming it. The held files apply in `apply-held` (#744), which
+waits for the owner's approval in the `migrate-held` environment and applies
+this run's commit only if the gate still names the same file. A run by
+`workflow_dispatch` (the owner's fallback) skips the gate and applies
+everything. No case connects to a database.
 """
+import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -547,8 +552,13 @@ def _push_steps():
     return _load()["jobs"]["push"]["steps"]
 
 
-def _step(name):
-    return next(s for s in _push_steps() if s.get("name") == name)
+def _step(name, job="push"):
+    return next(s for s in _load()["jobs"][job]["steps"] if s.get("name") == name)
+
+
+GATE_STEP = "Hold a destructive migration for the owner's approval"
+RECHECK_STEP = "The gate still names the held migration"
+HELD_PUSH_STEP = "Apply the held migrations of this run's commit"
 
 
 class TestTheWorkflow:
@@ -576,11 +586,11 @@ class TestTheWorkflow:
 
     def test_the_gate_runs_on_a_push_only_and_before_the_push(self):
         steps = [s.get("name") for s in _push_steps()]
-        gate_at = steps.index("Hold a destructive migration for the owner's dispatch")
+        gate_at = steps.index(GATE_STEP)
         push_at = steps.index("Push the migrations to the real project")
-        stop_at = steps.index("Stop at the held migration")
-        assert gate_at < push_at < stop_at
-        gate_step = _step("Hold a destructive migration for the owner's dispatch")
+        name_at = steps.index("Name the held migration")
+        assert gate_at < push_at < name_at
+        gate_step = _step(GATE_STEP)
         assert gate_step["if"] == "github.event_name == 'push'"
         assert gate_step["id"] == "gate"
         assert "scripts/migration_gate.py" in gate_step["run"] and "--remove" in gate_step["run"]
@@ -592,11 +602,14 @@ class TestTheWorkflow:
         assert "if" not in push
         assert push["run"] == 'supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"'
 
-    def test_a_held_migration_fails_the_job_by_name(self):
-        stop = _step("Stop at the held migration")
-        assert stop["if"] == "steps.gate.outputs.held != ''"
-        assert stop["env"] == {"HELD": "${{ steps.gate.outputs.held }}"}
-        assert "exit 1" in stop["run"] and "$HELD" in stop["run"]
+    def test_unheld_files_apply_and_a_held_one_ends_the_push_job_green_by_name(self):
+        named = _step("Name the held migration")
+        assert named["if"] == "steps.gate.outputs.held != ''"
+        assert named["env"] == {"HELD": "${{ steps.gate.outputs.held }}"}
+        assert "::notice::$HELD" in named["run"] and "$GITHUB_STEP_SUMMARY" in named["run"]
+        assert "exit 1" not in named["run"] and "::error::" not in named["run"]
+        assert not any("exit 1" in s.get("run", "") for s in _push_steps())
+        assert _load()["jobs"]["push"]["outputs"] == {"held": "${{ steps.gate.outputs.held }}"}
 
     def test_no_expression_is_inside_a_run_line(self):
         for job in _load()["jobs"].values():
@@ -619,3 +632,107 @@ class TestTheWorkflow:
                 uses = step.get("uses")
                 if uses and not uses.startswith("actions/"):
                     assert SHA.match(uses.split(" ")[0]), uses
+
+
+def _run_recheck(tmp_path, applied, held):
+    """Run the re-check step's own script with bash on a copy of the gate and three
+    migrations (a plain file, a held drop, a plain file after it), with a fake psql
+    that prints `applied`. Returns the result and what the step wrote to GITHUB_OUTPUT."""
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is not on PATH")
+    work = tmp_path / "work"
+    (work / "scripts").mkdir(parents=True)
+    shutil.copy(REPO / "scripts" / "migration_gate.py", work / "scripts" / "migration_gate.py")
+    migrations = work / "supabase" / "migrations"
+    migrations.mkdir(parents=True)
+    for name, sql in {"20261101000000_a": ORDINARY, "20261102000000_drop": COLUMN_DROP,
+                      "20261103000000_b": ORDINARY}.items():
+        (migrations / f"{name}.sql").write_text(sql, encoding="utf-8")
+    bin_dir, runner_temp = tmp_path / "bin", tmp_path / "runner"
+    bin_dir.mkdir()
+    runner_temp.mkdir()
+    (tmp_path / "applied.txt").write_text("".join(f"{v}\n" for v in applied), encoding="utf-8")
+    fakes = {"psql": f'#!/bin/sh\ncat "{(tmp_path / "applied.txt").as_posix()}"\n',
+             "python3": f'#!/bin/sh\nexec "{Path(sys.executable).as_posix()}" "$@"\n'}
+    for name, body in fakes.items():
+        (bin_dir / name).write_text(body, encoding="utf-8", newline="\n")
+        (bin_dir / name).chmod(0o755)
+    script = tmp_path / "recheck.sh"
+    script.write_text(_step(RECHECK_STEP, "apply-held")["run"], encoding="utf-8", newline="\n")
+    output = tmp_path / "github_output"
+    output.write_text("", encoding="utf-8")
+    env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}",
+               RUNNER_TEMP=runner_temp.as_posix(), GITHUB_OUTPUT=output.as_posix(),
+               HELD=held, SUPABASE_MIGRATE_DB_URL="postgresql://fake")
+    result = subprocess.run([bash, "-e", script.as_posix()], cwd=work, env=env,
+                            capture_output=True, text=True)
+    return result, output.read_text(encoding="utf-8")
+
+
+class TestTheApproval:
+    """#744: the held files wait for the owner's approval in their own environment."""
+
+    def _job(self):
+        return _load()["jobs"]["apply-held"]
+
+    def test_it_runs_after_push_on_a_push_to_main_with_a_held_file_only(self):
+        job = self._job()
+        assert job["needs"] == "push"
+        assert job["if"] == ("github.event_name == 'push' && github.ref == 'refs/heads/main' "
+                             "&& needs.push.outputs.held != ''")
+
+    def test_a_dispatch_never_reaches_it(self):
+        assert "workflow_dispatch" not in self._job()["if"]
+        assert _step(GATE_STEP)["if"] == "github.event_name == 'push'"
+
+    def test_it_waits_in_its_own_environment_and_shares_the_apply_lock(self):
+        job = self._job()
+        assert job["environment"] == "migrate-held"
+        assert _load()["jobs"]["push"]["environment"] == "etl"
+        assert job["concurrency"] == _load()["jobs"]["push"]["concurrency"] == {
+            "group": "migrate-push", "cancel-in-progress": False}
+
+    def test_it_checks_out_the_commit_of_its_own_run(self):
+        checkout = next(s for s in self._job()["steps"] if s.get("uses", "").startswith("actions/checkout"))
+        assert checkout["with"] == {"ref": "${{ github.sha }}", "persist-credentials": False}
+
+    def test_it_applies_only_when_the_gate_still_names_the_same_file(self):
+        steps = [s.get("name") for s in self._job()["steps"]]
+        assert steps.index(RECHECK_STEP) < steps.index(HELD_PUSH_STEP)
+        recheck = _step(RECHECK_STEP, "apply-held")
+        assert recheck["id"] == "recheck"
+        assert recheck["env"] == {"SUPABASE_MIGRATE_DB_URL": "${{ secrets.SUPABASE_MIGRATE_DB_URL }}",
+                                  "HELD": "${{ needs.push.outputs.held }}"}
+        run = recheck["run"]
+        assert "scripts/migration_gate.py --applied" in run and "--remove" not in run
+        assert "supabase_migrations.schema_migrations" in run and "ON_ERROR_STOP=1" in run
+        assert '"$now" = "$HELD"' in run and 'echo "apply=true"' in run
+        assert '-z "$now"' in run and 'echo "apply=false"' in run and "exit 1" in run
+        assert 'grep -qxF "$v" "$RUNNER_TEMP/applied.txt"' in run
+        push = _step(HELD_PUSH_STEP, "apply-held")
+        assert push["if"] == "steps.recheck.outputs.apply == 'true'"
+        assert push["run"] == 'supabase db push --yes --db-url "$SUPABASE_MIGRATE_DB_URL"'
+        assert sum("supabase db push" in s.get("run", "") for s in self._job()["steps"]) == 1
+
+    @pytest.mark.parametrize("applied, held, expected", [
+        (["20261101000000"], "20261102000000_drop.sql", "apply=true"),
+        (["20261101000000", "20261102000000"], "20261102000000_drop.sql", "apply=true"),
+        (["20261101000000", "20261102000000", "20261103000000"], "20261102000000_drop.sql", "apply=false"),
+        (["20261101000000"], "20261101000000_a.sql", None),
+    ], ids=["the held file still waits", "the held file applied by run A, a plain file of this commit still waits",
+            "everything of this commit applied", "the gate names another file"])
+    def test_the_recheck_step_decides(self, tmp_path, applied, held, expected):
+        result, output = _run_recheck(tmp_path, applied, held)
+        if expected is None:
+            assert result.returncode == 1, result.stdout + result.stderr
+            assert "apply=" not in output
+        else:
+            assert result.returncode == 0, result.stdout + result.stderr
+            assert output == f"{expected}\n"
+
+    def test_the_recheck_reads_the_gate_output_the_gate_writes(self, tmp_path, capsys):
+        out = folder(tmp_path, **{"20261101000000_a": ORDINARY, "20261102000000_drop": COLUMN_DROP})
+        assert gate(tmp_path, out, ["20261101000000"], capsys, remove=False).out == "held=20261102000000_drop.sql\n"
+        assert gate(tmp_path, out, ["20261101000000", "20261102000000"], capsys, remove=False).out == "held=\n"
+        assert names(out) == ["20261101000000_a.sql", "20261102000000_drop.sql"]
