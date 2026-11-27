@@ -120,6 +120,7 @@
       "Bash(git branch -D *)",
       "Bash(gh pr merge*--admin*)",
       "Bash(gh pr merge*--auto*)",
+      "Bash(gh run rerun*)",
       "Edit(.claude/managers.settings.json)",
       "Write(.claude/managers.settings.json)",
       "Edit(.claude/dispatch.json)", "Write(.claude/dispatch.json)",
