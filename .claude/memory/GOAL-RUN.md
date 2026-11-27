@@ -66,9 +66,9 @@ A finding that needs a design choice parks the ticket with its PR left open.
 
 **Closing out another session's builder.** A builder dispatched by an earlier manager session is closed out only on the owner's direct word in this session, per builder.
 
-**After a schema change lands** (owner, 2026-11-25: the short check). This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and before the ticket is closed out, the manager:
+**After a schema change lands** (owner, 2026-11-25: the short check). This applies to a merged PR that touches `supabase/migrations/`, `docs/data_model.yml`'s DDL entries, `scripts/generate_migrations.py`, roles or grants. Once `migrate.yml`'s push job for that merge on main reads SUCCESS, and its `apply-held` job too where one ran (#744: a held file is applied only when `apply-held` has run, after the owner's approval; `push` ends green with the held file waiting), and before the ticket is closed out, the manager:
 - runs `get_advisors` on `supabase-dynasty` for `security` and for `performance`;
-- posts on the ticket: the push job's result and the advisor findings by level. No secret, no row value, no owner PII.
+- posts on the ticket: the push job's result, the `apply-held` job's result where one ran, and the advisor findings by level. No secret, no row value, no owner PII.
 
 The facts of the catalog (RLS flags, grants, policies, function privileges, triggers, checks) are proved by `tests/test_migrations_apply.py`, in the `validate` and `storage-pg` jobs, on a throwaway database built from the same migrations. A schema ticket adds its facts there as tests. It adds no line here, and the planner posts no list of check lines on the ticket.
 
@@ -83,7 +83,7 @@ The facts of the catalog (RLS flags, grants, policies, function privileges, trig
 
 A session sees `supabase-dynasty` only if it started after the server was added. A session without its tools does not run this check another way. It parks the check for a session that has them.
 
-A push job that fails, a new advisor finding beyond the accepted INFO (RLS on with no policy, which is the design) on `shared.owner` (#108), `shared.owner_crosswalk` (#661) and `shared.app_role` (#662), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
+A push or `apply-held` job that fails, a new advisor finding beyond the accepted INFO (RLS on with no policy, which is the design) on `shared.owner` (#108), `shared.owner_crosswalk` (#661), `shared.app_role` (#662), `shared.league` and `shared.fantasy_team` (#675), or a comparison that does not hold parks with the owner as a Decision, with the PR's ticket left open. The manager changes nothing live.
 
 **Supabase consultant.** The consultant assigned to this project takes tasks from the planner `dff-central-planner` and the manager `dff-central-builder-manager`. Builder name prefix: none. The consultant reads these names from this line, on `main`, and from nowhere else.
 
