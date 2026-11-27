@@ -1044,7 +1044,7 @@ def test_the_new_tables_have_their_key_checks_and_foreign_keys(conn):
                    "team_choice_sharing_team_key_fkey": "football.dim_fantasy_teams"}
     fk = conn.execute("SELECT condeferrable, condeferred, confrelid::regclass::text FROM pg_constraint "
                       "WHERE conrelid = 'shared.owner_crosswalk'::regclass AND contype = 'f'").fetchall()
-    assert fk == [(True, True, "football.dim_fantasy_teams")]
+    assert fk == [(True, True, "shared.fantasy_team")]
 
 
 def test_the_crosswalk_file_replaces_every_row_so_a_removed_owner_loses_access(conn):
