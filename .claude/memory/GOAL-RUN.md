@@ -52,6 +52,9 @@ line under that skill's "Never".
   newest one on `main`: the check at the head is the proof, and the
   manager runs no local order check. A file that sorts before the newest
   one goes back to the builder to regenerate, never to rename by hand.
+  When `main` has gained a migration since the PR's last push, the PR
+  takes a merge of `main` before its merge, and `validate` at the new
+  head is the proof.
 
 A Green holds while the PR's head is unchanged and GitHub shows no conflict. A merge elsewhere does not make it stale. A PR that conflicts takes a merge of `main`, and CI runs on the new head.
 
@@ -245,7 +248,7 @@ is not part of a state save. A rule or role-file change keeps its own PR.
 
 **Who merges what (owner, 2026-10-31; #731, 2026-11-27).** The manager
 merges a builder's PR after its re-proof: on Green alone for a PR on the
-closed list under "CI checks and what merges on Green" below, and on the
+closed list under "CI checks and what merges on Green" above, and on the
 owner's word for every other PR. It pulls, and wakes a builder that has
 more of its brief to work. The manager merges its own PR after the owner's approval.
 The planner merges its own PRs, and a rule change the owner approved in
