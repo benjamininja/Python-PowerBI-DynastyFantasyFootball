@@ -1,4 +1,4 @@
-"""Hold a destructive migration for the owner's dispatch (#534, ADR-0018 decision 12).
+"""Hold a destructive migration for the owner's approval (#534, ADR-0018 decision 12).
 
     migration_gate.py --applied FILE [--migrations DIR] [--remove]
 
@@ -6,8 +6,9 @@
 holds the versions the project has applied, one per line (from
 `supabase_migrations.schema_migrations`). The first pending migration with a
 destructive statement is held, with every pending migration after it, so the
-ones before it apply and the rest wait for the owner to run the workflow by
-`workflow_dispatch`. With `--remove` the held files are deleted from DIR,
+ones before it apply and the rest wait for the owner's approval of the
+waiting `apply-held` run (environment `migrate-held`, #744), with a hand run
+of the workflow by `workflow_dispatch` as the fallback. With `--remove` the held files are deleted from DIR,
 which on the runner is a throwaway checkout. Prints `held=<file>`, or `held=`
 when nothing is held, for `$GITHUB_OUTPUT`. Standard library only: the push
 job installs nothing.
@@ -27,7 +28,7 @@ after an identifier character, is held too. GRANT and REVOKE are not held. The o
 `ALTER TABLE t DROP CONSTRAINT t_chk_<8 hex>` statement directly followed by
 an `ALTER TABLE t ADD CONSTRAINT t_chk_<8 hex> CHECK (...)` statement on the
 same table. A key, foreign key or unique constraint dropped is held. A false
-hold costs a dispatch; a false pass loses data.
+hold costs the owner an approval; a false pass loses data.
 """
 import argparse
 import re
@@ -230,7 +231,7 @@ def main(argv=None):
                if line.strip()}
     hold = held(Path(args.migrations).glob("*.sql"), applied)
     for path in hold:
-        print(f"migration_gate: held for the owner's dispatch: {Path(path).name}", file=sys.stderr)
+        print(f"migration_gate: held for the owner's approval: {Path(path).name}", file=sys.stderr)
         if args.remove:
             Path(path).unlink()
     print(f"held={Path(hold[0]).name if hold else ''}")
