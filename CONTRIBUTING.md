@@ -134,8 +134,14 @@ the `validate` job in `.github/workflows/migrate.yml` applies every migration
 to a throwaway Postgres and tests it. When the PR merges to `main`, the `push`
 job runs `supabase db push` against the real project, using the Actions secret
 `SUPABASE_MIGRATE_DB_URL` in the `etl` environment (limited to `main`). A
-failed push run is not re-run: it goes to the planner with the log, because it
-may have applied part of a migration.
+migration with a destructive statement is held: the rest apply, the `push`
+job ends green naming it, and the held files apply in the `apply-held` job
+once the owner approves the waiting run in the `migrate-held` environment
+([ADR-0018](docs/adr/0018-supabase-schema-and-rls.md) decision 12). The
+owner's hand run of the workflow from `main` is the fallback. No agent
+approves or starts either. A failed `push` or `apply-held` run is not re-run:
+it goes to the planner with the log, because it may have applied part of a
+migration.
 
 ### A column change on a published table
 
