@@ -1,7 +1,7 @@
-"""scripts/load_app_roles.py (#662, ADR-0026 decision 2). Every id and tab is
-invented here; the reader is a monkeypatched `etl.read_sheet_tab`, so no workbook
-is read, no sign-in is tried and nothing connects to a database. No real Discord
-id is in this file."""
+"""scripts/load_app_roles.py (#662, #675, ADR-0026 decision 2). Every id, league and
+tab is invented here; the reader is a monkeypatched `etl.read_sheet_tab`, so no
+workbook is read, no sign-in is tried and nothing connects to a database. No real
+Discord id or Fantrax id is in this file."""
 import importlib
 import sys
 from pathlib import Path
@@ -22,8 +22,16 @@ ID_A, ID_B, ID_C = "10000000000000001", "20000000000000002", "300000000000000003
 SECRETS = (ID_A, ID_B, ID_C)
 
 
-def frame(ids, roles):
-    return pd.DataFrame({"Discord": ids, "Role": roles})
+ALL = etl.CFG.app_roles_all_leagues
+LEAGUES = [("baseball", "Baseball", "Made-up B", "LB"), ("football", "Football", "Made-up F", "LF")]
+
+
+def frame(ids, roles, leagues=None):
+    """The App roles tab. With no leagues given, an app admin names every league and
+    any other role the made-up football league."""
+    if leagues is None:
+        leagues = [ALL if r == "app_admin" else "LF" for r in roles]
+    return pd.DataFrame({"Discord": ids, "League ID": leagues, "Role": roles})
 
 
 GOOD = frame([ID_A, ID_B, ID_B, ID_C], ["commissioner", "commissioner", "app_admin", "owner"])
@@ -52,18 +60,40 @@ def place(tmp_path):
     return folder
 
 
-def run(place, name="out.sql", gid=GID):
+def run(place, name="out.sql", gid=GID, leagues=LEAGUES):
     lines = []
     out = place / name
-    code = loader.load(out, gid, out=lines.append)
+    code = loader.load(out, gid, leagues=leagues, out=lines.append)
     return code, lines, out
 
 
 class TestTheReadAndTheFile:
-    def test_it_reads_the_named_tab_of_the_team_workbook_on_the_two_columns_with_the_id_as_text(self, place, reader):
+    def test_it_reads_the_named_tab_on_the_three_columns_with_the_id_and_league_as_text(self, place, reader):
         run(place)
-        assert reader.calls == [(etl.CFG.team_sheet_id, GID, ["Discord", "Role"])]
-        assert reader.kwargs == [{"text": ["Discord"]}]
+        assert reader.calls == [(etl.CFG.team_sheet_id, GID, ["Discord", "League ID", "Role"])]
+        assert reader.kwargs == [{"text": ["Discord", "League ID"]}]
+
+    def test_without_leagues_given_it_reads_the_league_associations_tab_first(self, place, reader, monkeypatch):
+        tabs = {etl.CFG.league_assoc_sheet_gid: pd.DataFrame({"Sport": ["Football ", "Baseball"],
+                                                              "League Name": ["Made-up F", "Made-up B"],
+                                                              "League ID": [etl.CFG.fantrax_league_id, "LB"]}),
+                GID: frame([ID_A], ["commissioner"], [etl.CFG.fantrax_league_id])}
+        calls = []
+
+        def fake(sheet_id, gid, columns, optional=(), **kw):
+            calls.append(gid)
+            return tabs[gid]
+        monkeypatch.setattr(etl, "read_sheet_tab", fake)
+        code, lines, out = run(place, leagues=None)
+        assert code == 0 and calls == [etl.CFG.league_assoc_sheet_gid, GID]
+        assert f"('{ID_A}', 'commissioner', 'football')" in out.read_text(encoding="utf-8")
+
+    def test_a_stop_on_the_league_associations_tab_writes_nothing(self, place, reader, monkeypatch):
+        monkeypatch.setattr(etl, "read_sheet_tab", lambda *a, **k: pd.DataFrame(
+            {"Sport": ["Football", "football"], "League Name": ["A", "B"], "League ID": ["X1", "X2"]}))
+        code, lines, out = run(place, leagues=None)
+        assert code == 1 and not out.exists() and lines[-1] == "nothing was written"
+        assert any(line.startswith("stopped: League Associations tab: 1 row(s) repeating a key") for line in lines)
 
     def test_one_transaction_deletes_every_row_then_inserts_and_ends_in_a_count(self, place, reader):
         code, _, out = run(place)
@@ -78,17 +108,23 @@ class TestTheReadAndTheFile:
     def test_an_owner_or_commissioner_row_holds_the_one_league_and_an_app_admin_row_every_league(self, place, reader):
         _, _, out = run(place)
         sql = out.read_text(encoding="utf-8")
-        assert f"('{ID_A}', 'commissioner', 'main')" in sql
-        assert f"('{ID_B}', 'commissioner', 'main')" in sql
+        assert f"('{ID_A}', 'commissioner', 'football')" in sql
+        assert f"('{ID_B}', 'commissioner', 'football')" in sql
         assert f"('{ID_B}', 'app_admin', '*')" in sql
-        assert f"('{ID_C}', 'owner', 'main')" in sql
+        assert f"('{ID_C}', 'owner', 'football')" in sql
 
-    def test_the_role_words_and_league_values_come_from_the_generators_constants(self):
+    def test_the_role_words_and_the_all_leagues_mark_come_from_the_generators_constants(self):
         assert gm.ROLE_WORDS == ("owner", "commissioner", "app_admin")
-        assert loader.LEAGUE_OF == {"owner": gm.LEAGUE_PLACEHOLDER, "commissioner": gm.LEAGUE_PLACEHOLDER,
-                                    "app_admin": gm.ALL_LEAGUES}
-        assert gm.LEAGUE_PLACEHOLDER in gm.COMMISSIONER_FUNCTION_SQL
-        assert gm.ALL_LEAGUES in gm.ADMIN_FUNCTION_SQL
+        assert gm.ALL_LEAGUES == "*" and gm.ALL_LEAGUES in gm.ADMIN_FUNCTION_SQL
+        assert not hasattr(gm, "LEAGUE_PLACEHOLDER")
+
+    def test_a_league_id_becomes_its_key_and_the_all_leagues_word_becomes_the_mark(self, place, reader):
+        reader.frame = frame([ID_A, ID_A, ID_B], ["commissioner", "commissioner", "app_admin"], ["LF", "LB", ALL])
+        code, lines, out = run(place)
+        sql = out.read_text(encoding="utf-8")
+        assert code == 0 and "rows: 3" in lines and "people: 2" in lines
+        assert f"('{ID_A}', 'commissioner', 'football')" in sql and f"('{ID_A}', 'commissioner', 'baseball')" in sql
+        assert f"('{ID_B}', 'app_admin', '*')" in sql and "LF" not in sql and ALL not in sql
 
     def test_a_person_with_two_roles_is_two_rows_and_one_person(self, place, reader):
         code, lines, _ = run(place)
@@ -113,10 +149,10 @@ class TestTheReadAndTheFile:
         assert not [s for s in SECRETS if s in "\n".join(lines)]
 
     def test_cells_are_trimmed_and_a_blank_row_is_skipped(self, place, reader):
-        reader.frame = frame([f" {ID_A} ", None], [" commissioner ", None])
+        reader.frame = frame([f" {ID_A} ", None], [" commissioner ", None], [" LF ", None])
         code, lines, out = run(place)
         assert code == 0 and "rows: 1" in lines
-        assert f"('{ID_A}', 'commissioner', 'main')" in out.read_text(encoding="utf-8")
+        assert f"('{ID_A}', 'commissioner', 'football')" in out.read_text(encoding="utf-8")
 
     def test_every_row_is_replaced_so_a_removed_role_is_gone(self, place, reader):
         reader.frame = frame([ID_A], ["app_admin"])
@@ -144,27 +180,38 @@ class TestEveryStopWritesNothing:
         reader.frame = frame([ID_A, ID_B], ["commissioner", role])
         self.stops(place, "not owner, commissioner or app_admin (rows 3)")
 
-    def test_a_repeated_id_and_role_pair(self, place, reader):
+    def test_a_repeated_id_role_and_league(self, place, reader):
         reader.frame = frame([ID_A, ID_A], ["commissioner", "commissioner"])
-        self.stops(place, "repeating an id and role pair (rows 3)")
+        self.stops(place, "repeating an id, role and league (rows 3)")
 
-    def test_a_blank_id_or_a_blank_role(self, place, reader):
-        reader.frame = frame([ID_A, None, ID_B], ["commissioner", "commissioner", None])
-        self.stops(place, "blank id or role (rows 3, 4)")
+    def test_a_blank_id_league_or_role(self, place, reader):
+        reader.frame = frame([ID_A, None, ID_B, ID_C], ["commissioner", "commissioner", None, "owner"],
+                             ["LF", "LF", "LF", None])
+        self.stops(place, "blank id, league or role (rows 3, 4, 5)")
+
+    @pytest.mark.parametrize("league", ["LX", "football", "lf", "*", "_all"])
+    def test_a_league_the_league_associations_tab_does_not_hold(self, place, reader, league):
+        reader.frame = frame([ID_A, ID_B], ["commissioner", "owner"], ["LF", league])
+        self.stops(place, "League ID the League Associations tab does not hold (rows 3)")
+
+    @pytest.mark.parametrize("role,league", [("app_admin", "LF"), ("owner", ALL), ("commissioner", ALL)])
+    def test_a_role_and_league_that_do_not_pair(self, place, reader, role, league):
+        reader.frame = frame([ID_A, ID_B], ["commissioner", role], ["LF", league])
+        self.stops(place, "role and league do not pair (app_admin names every league, the others one) (rows 3)")
 
     def test_an_empty_tab_and_a_tab_with_only_blank_rows(self, place, reader):
         reader.frame = frame([], [])
         self.stops(place, "has no rows")
-        reader.frame = frame([None, None], [None, None])
+        reader.frame = frame([None, None], [None, None], [None, None])
         self.stops(place, "has no rows")
 
     def test_a_missing_column(self, place, reader):
         reader.frame = GOOD.drop(columns=["Role"])
         self.stops(place, "lacks the column(s) Role")
-        reader.frame = GOOD.drop(columns=["Discord"])
-        self.stops(place, "lacks the column(s) Discord")
+        reader.frame = GOOD.drop(columns=["League ID"])
+        self.stops(place, "lacks the column(s) League ID")
         reader.frame = pd.DataFrame()
-        self.stops(place, "lacks the column(s) Discord, Role")
+        self.stops(place, "lacks the column(s) Discord, League ID, Role")
 
     @pytest.mark.parametrize("ids", [[123456789012345000, 123456789012346000], [float(ID_A), float(ID_B)]])
     def test_ids_that_arrive_as_numbers_are_refused(self, place, reader, ids):
@@ -240,7 +287,8 @@ class TestTheDatabaseIsNeverTouched:
 
 
 class TestMain:
-    def test_main_writes_the_file_and_returns_zero(self, place, reader, capsys):
+    def test_main_writes_the_file_and_returns_zero(self, place, reader, monkeypatch, capsys):
+        monkeypatch.setattr(loader.league_lists, "resolve_leagues", lambda frame: (LEAGUES, []))
         assert loader.main(["--gid", GID, "--out", str(place / "out.sql")]) == 0
         printed = capsys.readouterr().out
         assert "rows: 4" in printed and not [s for s in SECRETS if s in printed]

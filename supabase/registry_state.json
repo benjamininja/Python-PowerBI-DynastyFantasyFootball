@@ -1,12 +1,14 @@
 {
   "functions": {
     "shared.caller_is_app_admin": "CREATE FUNCTION shared.caller_is_app_admin() RETURNS boolean\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT EXISTS (\n        SELECT 1\n        FROM shared.app_role r\n        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id\n        WHERE r.role = 'app_admin' AND r.league_key = '*' AND i.user_id = auth.uid()\n    )\n$fn$;",
-    "shared.caller_is_commissioner_for": "CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT EXISTS (\n        SELECT 1\n        FROM shared.app_role r\n        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id\n        JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key\n        WHERE r.role = 'commissioner' AND r.league_key = 'main' AND i.user_id = auth.uid()\n    )\n$fn$;",
+    "shared.caller_is_commissioner_for": "CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT EXISTS (\n        SELECT 1\n        FROM shared.app_role r\n        JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id\n        JOIN shared.fantasy_team t ON t.team_key = p_team_key AND t.league_key = r.league_key\n        WHERE r.role = 'commissioner' AND i.user_id = auth.uid()\n    )\n$fn$;",
     "shared.caller_team_keys": "CREATE FUNCTION shared.caller_team_keys() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT c.team_key\n    FROM shared.owner_crosswalk c\n    JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = c.discord_user_id\n    WHERE i.user_id = auth.uid()\n$fn$;",
     "shared.choice_window": "CREATE FUNCTION shared.choice_window(p_season_id text, p_choice_kind text) RETURNS text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT coalesce(\n        (SELECT CASE WHEN d.final_at <= clock_timestamp() THEN 'final'\n                     WHEN d.deadline_at > clock_timestamp() THEN 'open'\n                     ELSE 'passed' END\n         FROM ops.choice_deadline d\n         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind),\n        'none')\n$fn$;",
     "shared.choice_windows": "CREATE FUNCTION shared.choice_windows() RETURNS TABLE (season_id text, choice_kind text, state text, deadline_at timestamptz, final_at timestamptz)\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT d.season_id, d.choice_kind, shared.choice_window(d.season_id, d.choice_kind), d.deadline_at, d.final_at\n    FROM ops.choice_deadline d\n$fn$;",
-    "shared.load_app_roles": "CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_ids integer := coalesce(cardinality(p_discord_ids), 0);\n    v_roles integer := coalesce(cardinality(p_roles), 0);\n    v_bad integer;\nBEGIN\n    IF v_ids = 0 OR v_ids <> v_roles THEN\n        RAISE EXCEPTION 'App roles tab: refused, % id(s) and % role(s); nothing changed', v_ids, v_roles;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)\n    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_roles) AS u(r)\n    WHERE u.r IS NULL OR u.r NOT IN ('owner', 'commissioner', 'app_admin');\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % role(s) are not owner, commissioner or app_admin; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) - count(DISTINCT (u.i, u.r)) INTO v_bad FROM unnest(p_discord_ids, p_roles) AS u(i, r);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % repeated row(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.app_role;\n    BEGIN\n        DELETE FROM shared.app_role WHERE true;\n        INSERT INTO shared.app_role (discord_user_id, role, league_key)\n        SELECT u.i, u.r, CASE u.r WHEN 'app_admin' THEN '*' ELSE 'main' END\n        FROM unnest(p_discord_ids, p_roles) AS u(i, r);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.app_role;\n    RETURN NEXT;\nEND\n$fn$;",
-    "shared.load_owner_crosswalk": "CREATE FUNCTION shared.load_owner_crosswalk(p_team_keys text[], p_discord_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_keys integer := coalesce(cardinality(p_team_keys), 0);\n    v_ids integer := coalesce(cardinality(p_discord_ids), 0);\n    v_bad integer;\nBEGIN\n    IF v_keys = 0 OR v_keys <> v_ids THEN\n        RAISE EXCEPTION 'owner tab: refused, % team key(s) and % id(s); nothing changed', v_keys, v_ids;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)\n    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)\n    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM football.dim_fantasy_teams d WHERE d.team_key = u.t);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the database does not have; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) - count(DISTINCT (u.t, u.i)) INTO v_bad FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % repeated row(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.owner_crosswalk;\n    BEGIN\n        DELETE FROM shared.owner_crosswalk WHERE true;\n        INSERT INTO shared.owner_crosswalk (team_key, discord_user_id)\n        SELECT u.t, u.i FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'owner tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.owner_crosswalk;\n    RETURN NEXT;\nEND\n$fn$;",
+    "shared.load_app_roles": "CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[], p_league_keys text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_ids integer := coalesce(cardinality(p_discord_ids), 0);\n    v_roles integer := coalesce(cardinality(p_roles), 0);\n    v_leagues integer := coalesce(cardinality(p_league_keys), 0);\n    v_bad integer;\nBEGIN\n    IF v_ids = 0 OR v_ids <> v_roles OR v_ids <> v_leagues THEN\n        RAISE EXCEPTION 'App roles tab: refused, % id(s), % role(s) and % league(s); nothing changed', v_ids, v_roles, v_leagues;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)\n    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_roles) AS u(r)\n    WHERE u.r IS NULL OR u.r NOT IN ('owner', 'commissioner', 'app_admin');\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % role(s) are not owner, commissioner or app_admin; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_roles, p_league_keys) AS u(r, k)\n    WHERE u.k IS NULL OR (u.r = 'app_admin') <> (u.k = '*');\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % row(s) pair a role and a league wrongly (app_admin holds every league, the others one); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)\n    WHERE u.k <> '*' AND NOT EXISTS (SELECT 1 FROM shared.league l WHERE l.league_key = u.k);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % row(s) name a league the league table does not have; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) - count(DISTINCT (u.i, u.r, u.k)) INTO v_bad FROM unnest(p_discord_ids, p_roles, p_league_keys) AS u(i, r, k);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'App roles tab: refused, % repeated row(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.app_role;\n    BEGIN\n        DELETE FROM shared.app_role WHERE true;\n        INSERT INTO shared.app_role (discord_user_id, role, league_key)\n        SELECT u.i, u.r, u.k\n        FROM unnest(p_discord_ids, p_roles, p_league_keys) AS u(i, r, k);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.app_role;\n    RETURN NEXT;\nEND\n$fn$;",
+    "shared.load_leagues": "CREATE FUNCTION shared.load_leagues(p_league_keys text[], p_sports text[], p_league_names text[], p_fantrax_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_keys integer := coalesce(cardinality(p_league_keys), 0);\n    v_bad integer;\nBEGIN\n    IF v_keys = 0 OR v_keys <> coalesce(cardinality(p_sports), 0) OR v_keys <> coalesce(cardinality(p_league_names), 0)\n            OR v_keys <> coalesce(cardinality(p_fantrax_ids), 0) THEN\n        RAISE EXCEPTION 'League Associations tab: refused, % key(s) and arrays of unequal length or none; nothing changed', v_keys;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)\n    WHERE u.k IS NULL OR u.k !~ '^[a-z][a-z0-9_]*$';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'League Associations tab: refused, % key(s) are not a plain lowercase word; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_fantrax_ids) AS u(f)\n    WHERE u.f IS NULL OR btrim(u.f) = '';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'League Associations tab: refused, % row(s) have no Fantrax league id; nothing changed', v_bad;\n    END IF;\n    SELECT (count(*) - count(DISTINCT u.k)) + (count(*) - count(DISTINCT u.f)) INTO v_bad\n    FROM unnest(p_league_keys, p_fantrax_ids) AS u(k, f);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'League Associations tab: refused, % repeated key(s) or Fantrax id(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.league;\n    BEGIN\n        DELETE FROM shared.league WHERE true;\n        INSERT INTO shared.league (league_key, sport, league_name, fantrax_league_id)\n        SELECT u.k, u.s, u.n, u.f FROM unnest(p_league_keys, p_sports, p_league_names, p_fantrax_ids) AS u(k, s, n, f);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'League Associations tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.league;\n    RETURN NEXT;\nEND\n$fn$;",
+    "shared.load_owner_crosswalk": "CREATE FUNCTION shared.load_owner_crosswalk(p_team_keys text[], p_discord_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_keys integer := coalesce(cardinality(p_team_keys), 0);\n    v_ids integer := coalesce(cardinality(p_discord_ids), 0);\n    v_bad integer;\nBEGIN\n    IF v_keys = 0 OR v_keys <> v_ids THEN\n        RAISE EXCEPTION 'owner tab: refused, % team key(s) and % id(s); nothing changed', v_keys, v_ids;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)\n    WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)\n    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM shared.fantasy_team d WHERE d.team_key = u.t);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the team list does not have; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) - count(DISTINCT (u.t, u.i)) INTO v_bad FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'owner tab: refused, % repeated row(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.owner_crosswalk;\n    BEGIN\n        DELETE FROM shared.owner_crosswalk WHERE true;\n        INSERT INTO shared.owner_crosswalk (team_key, discord_user_id)\n        SELECT u.t, u.i FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'owner tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.owner_crosswalk;\n    RETURN NEXT;\nEND\n$fn$;",
+    "shared.load_teams": "CREATE FUNCTION shared.load_teams(p_team_keys text[], p_league_keys text[], p_fantrax_team_ids text[], p_team_names text[], p_divisions text[]) RETURNS TABLE (rows_before integer, rows_after integer)\nLANGUAGE plpgsql SECURITY DEFINER SET search_path = ''\nAS $fn$\nDECLARE\n    v_keys integer := coalesce(cardinality(p_team_keys), 0);\n    v_bad integer;\nBEGIN\n    IF v_keys = 0 OR v_keys <> coalesce(cardinality(p_league_keys), 0)\n            OR v_keys <> coalesce(cardinality(p_fantrax_team_ids), 0)\n            OR v_keys <> coalesce(cardinality(p_team_names), 0) OR v_keys <> coalesce(cardinality(p_divisions), 0) THEN\n        RAISE EXCEPTION 'team tab: refused, % team key(s) and arrays of unequal length or none; nothing changed', v_keys;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)\n    WHERE u.t IS NULL OR btrim(u.t) = '';\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'team tab: refused, % row(s) have no team key; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)\n    WHERE u.k IS NULL OR NOT EXISTS (SELECT 1 FROM shared.league l WHERE l.league_key = u.k);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'team tab: refused, % row(s) name a league the league table does not have; nothing changed', v_bad;\n    END IF;\n    SELECT count(*) - count(DISTINCT u.t) INTO v_bad FROM unnest(p_team_keys) AS u(t);\n    IF v_bad > 0 THEN\n        RAISE EXCEPTION 'team tab: refused, % repeated team key(s); nothing changed', v_bad;\n    END IF;\n    SELECT count(*) INTO rows_before FROM shared.fantasy_team;\n    BEGIN\n        DELETE FROM shared.fantasy_team WHERE true;\n        INSERT INTO shared.fantasy_team (team_key, league_key, fantrax_team_id, team_name, division)\n        SELECT u.t, u.k, u.f, u.n, u.d\n        FROM unnest(p_team_keys, p_league_keys, p_fantrax_team_ids, p_team_names, p_divisions) AS u(t, k, f, n, d);\n    EXCEPTION WHEN OTHERS THEN\n        RAISE EXCEPTION 'team tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;\n    END;\n    SELECT count(*) INTO rows_after FROM shared.fantasy_team;\n    RETURN NEXT;\nEND\n$fn$;",
     "shared.pii_token_hashes": "CREATE FUNCTION shared.pii_token_hashes() RETURNS SETOF text\nLANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''\nAS $fn$\n    SELECT encode(sha256(convert_to(s.token, 'UTF8')), 'hex')\n    FROM (\n        SELECT regexp_split_to_table(lower(o.human_name), '[[:space:]]+') AS token FROM shared.owner o\n        UNION\n        SELECT lower(o.fantrax_username) FROM shared.owner o\n        UNION\n        SELECT c.discord_user_id FROM shared.owner_crosswalk c\n        UNION\n        SELECT r.discord_user_id FROM shared.app_role r\n    ) s\n    WHERE s.token IS NOT NULL AND s.token <> ''\n$fn$;"
   },
   "roles": [
@@ -4375,12 +4377,107 @@
           "from": "site_admin",
           "ticket": 675,
           "to": "app_admin"
+        },
+        {
+          "column": "league_key",
+          "from": "main",
+          "ticket": 675,
+          "to": "football"
         }
       ],
       "name": "app_role",
       "pk": [
         "discord_user_id",
         "role",
+        "league_key"
+      ],
+      "schema": "shared"
+    },
+    "shared.fantasy_team": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "team_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "league_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantrax_team_id",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "team_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "division",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [
+        {
+          "columns": [
+            "league_key"
+          ],
+          "name": "fantasy_team_league_key_fkey",
+          "ref": [
+            "league_key"
+          ],
+          "to": "shared.league"
+        }
+      ],
+      "indexes": [],
+      "name": "fantasy_team",
+      "pk": [
+        "team_key"
+      ],
+      "schema": "shared"
+    },
+    "shared.league": {
+      "checks": [],
+      "columns": [
+        {
+          "name": "league_key",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "sport",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "league_name",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantrax_league_id",
+          "not_null": true,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [
+        {
+          "columns": [
+            "fantrax_league_id"
+          ],
+          "name": "league_fantrax_league_id_key",
+          "unique": true,
+          "where": null
+        }
+      ],
+      "name": "league",
+      "pk": [
         "league_key"
       ],
       "schema": "shared"
@@ -4447,7 +4544,7 @@
           "ref": [
             "team_key"
           ],
-          "to": "football.dim_fantasy_teams"
+          "to": "shared.fantasy_team"
         }
       ],
       "indexes": [],

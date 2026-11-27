@@ -84,10 +84,14 @@
 #             the move and the new ones added after. The gate holds it, so it goes
 #             in a held file with only what cannot apply apart from it. The entry
 #             stays as history.
-#   Each of shared.owner_crosswalk and shared.app_role also brings a load function
-#   (shared.load_owner_crosswalk, shared.load_app_roles; ADR-0026 decision 2 as
-#   amended, #700): SECURITY DEFINER, EXECUTE for etl_writer only, which holds no
-#   grant on either table. The scheduled run calls it with the whole set.
+#   Each of shared.owner_crosswalk, shared.app_role, shared.league and
+#   shared.fantasy_team also brings a load function (shared.load_owner_crosswalk,
+#   shared.load_app_roles, shared.load_leagues, shared.load_teams; ADR-0026 decision
+#   2 as amended, #700 and #675): SECURITY DEFINER, EXECUTE for etl_writer only,
+#   which holds no grant on any of the four tables. The scheduled run calls all four
+#   in one transaction with the whole set of each. Declaring shared.app_role needs
+#   shared.league and shared.fantasy_team declared: the commissioner check reads
+#   the team's league from the team list.
 #   The crosswalk also brings shared.choice_windows(), for authenticated only: each
 #   row of ops.choice_deadline with its state (#670).
 #   views   : top level, the views the page reads (ADR-0026 decision 10 point 1,
@@ -1638,18 +1642,56 @@ other_tables:
       - { name: email, sql_type: text }
       - { name: fantrax_username, sql_type: text }
 
+  # The leagues (ADR-0026 decision 2 as amended 2026-11-26, #675): one row per row
+  # of the League Associations tab. `league_key` is the project's own key, the tab's
+  # Sport trimmed and lowercased, and never changes once set. Holds no Discord id,
+  # so it is not owner PII; RLS on, no grant, no policy. Loaded by the scheduled run
+  # through shared.load_leagues, which etl_writer alone may call.
+  - name: league
+    schema: shared
+    pk: [league_key]
+    required_keys: [fantrax_league_id]
+    indexes:
+      - { columns: [fantrax_league_id], unique: true, name: league_fantrax_league_id_key }
+    columns:
+      - { name: league_key, sql_type: text }
+      - { name: sport, sql_type: text }
+      - { name: league_name, sql_type: text }
+      - { name: fantrax_league_id, sql_type: text }
+
+  # One team list for every league (ADR-0026 decision 2 as amended 2026-11-26,
+  # #675), from the team tab. `team_key` is unique across leagues. Holds no Discord
+  # id; RLS on, no grant, no policy. The crosswalk and the commissioner check point
+  # here; football's dim_fantasy_teams stays the pipeline's table, and the scheduled
+  # run reports whether football's rows of the two agree. Loaded through
+  # shared.load_teams, which etl_writer alone may call.
+  - name: fantasy_team
+    schema: shared
+    pk: [team_key]
+    required_keys: [league_key]
+    fk:
+      - { columns: [league_key], to: league, ref: [league_key] }
+    columns:
+      - { name: team_key, sql_type: text }
+      - { name: league_key, sql_type: text }
+      - { name: fantrax_team_id, sql_type: text }
+      - { name: team_name, sql_type: text }
+      - { name: division, sql_type: text }
+
   # Which Discord users own which team (ADR-0025 decision 5, #548 brief 3). Owner
   # PII: database only, never exported, never committed, no grant to any role.
   # Only the definer functions of `shared` read it. Loaded by the scheduled run
   # (scripts/load_access_tables.py, through shared.load_owner_crosswalk); the
   # manual fallback is scripts/load_owner_crosswalk.py, which writes a SQL file.
+  # Its team is a team of any league in shared.fantasy_team (#675; the key was
+  # retargeted from dim_fantasy_teams, generator RETARGETED_FKS).
   - name: owner_crosswalk
     schema: shared
     pk: [team_key, discord_user_id]
     checks:
       - "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
     fk:
-      - { columns: [team_key], to: dim_fantasy_teams, ref: [team_key] }
+      - { columns: [team_key], to: fantasy_team, ref: [team_key] }
     columns:
       - { name: team_key, sql_type: text }
       - { name: discord_user_id, sql_type: text }
@@ -1658,11 +1700,13 @@ other_tables:
   # #675): one row per person, role and league. Owner PII, like the crosswalk:
   # database only, never exported, never committed, no grant to any role; only the
   # definer functions of `shared` read it. An `owner` or `commissioner` row names
-  # one league (`main`, the one league until #675's league table); an `app_admin`
-  # row holds `*`, every league. An `owner` row grants nothing yet. Loaded by the
-  # scheduled run (scripts/load_access_tables.py, through shared.load_app_roles);
-  # the manual fallback is scripts/load_app_roles.py, which writes a SQL file.
-  # `moves`: the admin's old word became `app_admin` in the rows already there.
+  # one league by its key in shared.league; an `app_admin` row holds `*`, every
+  # league, which is no league. An `owner` row grants nothing yet. Loaded by the
+  # scheduled run (scripts/load_access_tables.py, through shared.load_app_roles,
+  # which refuses a league shared.league does not hold); the manual fallback is
+  # scripts/load_app_roles.py, which writes a SQL file. `moves`: the admin's old
+  # word became `app_admin`, and the placeholder league `main` became `football`, in
+  # the rows already there.
   - name: app_role
     schema: shared
     pk: [discord_user_id, role, league_key]
@@ -1672,6 +1716,7 @@ other_tables:
       - "(role = 'app_admin' AND league_key = '*') OR (role IN ('owner', 'commissioner') AND league_key <> '*')"
     moves:
       - { column: role, from: site_admin, to: app_admin, ticket: 675 }
+      - { column: league_key, from: main, to: football, ticket: 675 }
     columns:
       - { name: discord_user_id, sql_type: text }
       - { name: role, sql_type: text }

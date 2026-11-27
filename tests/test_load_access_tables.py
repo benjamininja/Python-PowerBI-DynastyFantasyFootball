@@ -1,11 +1,12 @@
-"""The scheduled run's load of the role table and the owner crosswalk (#700, ADR-0026
-decision 2 as amended). No database and no sheet: the readers and the connection are
-fakes. The database side is proved in test_migrations_apply.py. Every id below is made
-up; no printed line may hold one."""
+"""The scheduled run's load of the four access tables (#700, #675, ADR-0026 decision 2
+as amended). No database and no sheet: the readers and the connection are fakes. The
+database side is proved in test_migrations_apply.py. Every id, team and league below
+is made up; no printed line may hold an id."""
 import subprocess
 import sys
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
@@ -20,9 +21,15 @@ from test_run_log import pipe  # noqa: E402,F401
 psycopg = pytest.importorskip("psycopg")
 
 A, B, C = "11111111111111111", "22222222222222222", "33333333333333333"
+LEAGUE_ROWS = [("baseball", "Baseball", "Made-up B", "LB"), ("football", "Football", "Made-up F", "LF")]
+TEAM_ROWS = [("B01", "baseball", "fb1", "Made-up team B", "DB"), ("T01", "football", "f1", "Made-up team 1", "D1"),
+             ("T02", "football", None, None, None)]
 OWNER_ROWS = [("T01", A), ("T01", B), ("T02", C)]
-ROLE_ROWS = [(A, "commissioner", "main"), (C, "app_admin", "*")]
+ROLE_ROWS = [(A, "commissioner", "football"), (C, "app_admin", "*")]
+PUBLISHED = pd.DataFrame({"team_key": ["T01", "T02"]})
 IDS = (A, B, C)
+CALLS = [lat.LEAGUES_CALL, lat.TEAMS_CALL, lat.OWNER_CALL, lat.ROLES_CALL]
+GOOD_COUNTS = ((3, 3), (84, 84), (3, 3), (2, 2))
 
 
 class Cursor:
@@ -34,9 +41,9 @@ class Cursor:
 
 
 class Conn:
-    """A connection that records its two calls and whether it committed."""
+    """A connection that records its calls and whether it committed."""
 
-    def __init__(self, counts=((3, 3), (2, 2)), fail_on=None, error=None):
+    def __init__(self, counts=GOOD_COUNTS, fail_on=None, error=None):
         self.counts, self.fail_on, self.error = list(counts), fail_on, error
         self.calls, self.committed = [], None
 
@@ -54,17 +61,21 @@ class Conn:
         return Cursor(self.counts[len(self.calls) - 1])
 
 
-def run(conn=None, owner=(OWNER_ROWS, []), roles=(ROLE_ROWS, []), connect_to=None):
-    printed = []
+def run(conn=None, leagues=(LEAGUE_ROWS, []), teams=(TEAM_ROWS, []), owner=(OWNER_ROWS, [], 2),
+        roles=(ROLE_ROWS, []), football=PUBLISHED, connect_to=None):
+    printed, seen = [], {}
     conn = conn or Conn()
 
-    def read(value):
-        def reader():
+    def read(name, value):
+        def reader(*args):
+            seen[name] = args
             if isinstance(value, BaseException):
                 raise value
             return value
         return reader
-    code = lat.run(read(owner), read(roles), connect_to or (lambda: conn), out=printed.append)
+    code = lat.run(read("leagues", leagues), read("teams", teams), read("owner", owner), read("roles", roles),
+                   read("football", football), connect_to or (lambda: conn), out=printed.append)
+    run.seen = seen
     return code, printed, conn
 
 
@@ -73,35 +84,71 @@ def no_id(lines):
     assert not any(i in text for i in IDS), text
 
 
+GOOD_LINES = ["leagues: 3 rows before, 3 after, unchanged",
+              "team list: 84 rows before, 84 after, unchanged",
+              "owner crosswalk: 3 rows before, 3 after, unchanged",
+              "app roles: 2 rows before, 2 after, unchanged",
+              "owner tab: 2 row(s) with no id, skipped",
+              "football teams: the team list and dim_fantasy_teams agree"]
+
+
 class TestAGoodLoad:
-    def test_both_functions_are_called_with_the_whole_set_in_one_transaction(self):
+    def test_the_four_functions_are_called_in_order_with_the_whole_sets_in_one_transaction(self):
         code, printed, conn = run()
         assert code == 0 and conn.committed is True
-        assert [c[0] for c in conn.calls] == [lat.OWNER_CALL, lat.ROLES_CALL]
-        assert conn.calls[0][1] == (["T01", "T01", "T02"], [A, B, C])
-        assert conn.calls[1][1] == ([A, C], ["commissioner", "app_admin"])
+        assert [c[0] for c in conn.calls] == CALLS
+        assert conn.calls[0][1] == (["baseball", "football"], ["Baseball", "Football"], ["Made-up B", "Made-up F"],
+                                    ["LB", "LF"])
+        assert conn.calls[1][1] == (["B01", "T01", "T02"], ["baseball", "football", "football"], ["fb1", "f1", None],
+                                    ["Made-up team B", "Made-up team 1", None], ["DB", "D1", None])
+        assert conn.calls[2][1] == (["T01", "T01", "T02"], [A, B, C])
+        assert conn.calls[3][1] == ([A, C], ["commissioner", "app_admin"], ["football", "*"])
 
-    def test_the_counts_are_printed_and_an_unchanged_count_says_so(self):
+    def test_the_owner_tab_is_checked_against_this_runs_team_list_and_the_roles_against_its_leagues(self):
+        run()
+        assert run.seen["teams"] == (LEAGUE_ROWS,) and run.seen["roles"] == (LEAGUE_ROWS,)
+        assert run.seen["owner"] == (TEAM_ROWS,)
+
+    def test_the_counts_the_skipped_rows_and_the_football_agreement_are_printed(self):
         code, printed, _ = run()
-        assert printed == ["owner crosswalk: 3 rows before, 3 after, unchanged",
-                           "app roles: 2 rows before, 2 after, unchanged"]
+        assert printed == GOOD_LINES
         no_id(printed)
 
     def test_a_changed_count_is_marked_changed(self):
-        _, printed, _ = run(Conn(counts=((3, 4), (0, 2))))
-        assert printed == ["owner crosswalk: 3 rows before, 4 after, CHANGED",
-                           "app roles: 0 rows before, 2 after, CHANGED"]
+        _, printed, _ = run(Conn(counts=((0, 3), (84, 84), (3, 4), (0, 2))))
+        assert printed[:4] == ["leagues: 0 rows before, 3 after, CHANGED",
+                               "team list: 84 rows before, 84 after, unchanged",
+                               "owner crosswalk: 3 rows before, 4 after, CHANGED",
+                               "app roles: 0 rows before, 2 after, CHANGED"]
+
+    def test_a_football_disagreement_is_a_notice_line_and_never_a_stop(self):
+        code, printed, conn = run(football=pd.DataFrame({"team_key": ["T01", "T09"]}))
+        assert code == 0 and conn.committed is True
+        assert printed[-1] == "football teams: 2 team key(s) differ between the team list and dim_fantasy_teams"
+
+    def test_a_failed_read_of_the_published_teams_is_a_notice_line_and_never_a_stop(self):
+        code, printed, conn = run(football=RuntimeError(f"no snapshot {A}"))
+        assert code == 0 and printed[-1] == "football teams: not compared (RuntimeError)"
+        no_id(printed)
 
 
 class TestAFailedSheetRead:
-    @pytest.mark.parametrize("which", ["owner", "roles"])
-    def test_calls_nothing_and_leaves_both_tables_as_they_were(self, which):
+    @pytest.mark.parametrize("which", ["leagues", "teams", "owner", "roles"])
+    def test_calls_nothing_and_leaves_the_four_tables_as_they_were(self, which):
         error = RuntimeError(f"the sheet said {A}")
         code, printed, conn = run(**{which: error})
         assert code == 1 and conn.calls == [] and conn.committed is None
-        assert printed[-1] == "load failed, nothing was loaded and both tables are as they were"
+        assert printed[-1] == "load failed, nothing was loaded and the four tables are as they were"
         assert any("not read (RuntimeError)" in line for line in printed)
         no_id(printed)
+
+    def test_a_league_tab_that_stops_leaves_the_tabs_that_name_its_leagues_unchecked(self):
+        code, printed, conn = run(leagues=([], ["1 row(s) repeating a key or a League ID (rows 3)"]))
+        assert code == 1 and conn.calls == [] and "teams" not in run.seen and "owner" not in run.seen
+        assert printed == ["League Associations tab: stopped, 1 row(s) repeating a key or a League ID (rows 3)",
+                           "team tab and App roles tab: not checked, they name leagues the League Associations tab gives",
+                           "owner tab: not checked, it names teams the team tab gives",
+                           "load failed, nothing was loaded and the four tables are as they were"]
 
     def test_the_sheets_sign_in_error_is_mapped_without_a_value(self):
         with pytest.raises(lat.Stop) as stop:
@@ -115,52 +162,54 @@ class TestAFailedSheetRead:
 
 
 class TestACheckThatFails:
-    def test_a_bad_row_in_either_tab_loads_nothing_and_prints_row_numbers_only(self):
-        code, printed, conn = run(owner=([], ["2 row(s) whose id is not 17 to 20 digits (rows 3, 5)"]))
+    def test_a_bad_row_in_any_tab_loads_nothing_and_prints_row_numbers_only(self):
+        code, printed, conn = run(owner=([], ["2 row(s) whose id is not 17 to 20 digits (rows 3, 5)"], 0))
         assert code == 1 and conn.calls == [] and conn.committed is None
         assert "owner tab: stopped, 2 row(s) whose id is not 17 to 20 digits (rows 3, 5)" in printed
         no_id(printed)
 
-    def test_both_tabs_are_reported_when_both_fail(self):
-        code, printed, conn = run(owner=([], ["the owner tab has no rows"]),
+    def test_every_tab_that_stops_is_reported(self):
+        code, printed, conn = run(teams=([], ["the team tab has no rows"]),
                                   roles=([], ["the App roles tab has no rows"]))
         assert code == 1 and conn.calls == []
         assert [line for line in printed if "stopped" in line] == [
-            "owner tab: stopped, the owner tab has no rows",
+            "team tab: stopped, the team tab has no rows",
             "App roles tab: stopped, the App roles tab has no rows"]
+        assert "owner tab: not checked, it names teams the team tab gives" in printed
 
 
 class TestAFunctionThatRefusesOrFails:
-    def test_a_refusal_by_the_first_function_leaves_both_tables_as_they_were(self):
-        refusal = psycopg.errors.RaiseException("owner tab: refused, 2 id(s) are not 17 to 20 digits; nothing changed")
+    def test_a_refusal_by_the_first_function_leaves_the_four_tables_as_they_were(self):
+        refusal = psycopg.errors.RaiseException("League Associations tab: refused, 1 repeated key(s) or Fantrax id(s); "
+                                                "nothing changed")
         code, printed, conn = run(Conn(fail_on=1, error=refusal))
         assert code == 1 and conn.committed is False and len(conn.calls) == 1
-        assert printed == ["load failed, both tables are as they were "
-                           "(owner tab: refused, 2 id(s) are not 17 to 20 digits; nothing changed)"]
+        assert printed == ["load failed, the four tables are as they were "
+                           "(League Associations tab: refused, 1 repeated key(s) or Fantrax id(s); nothing changed)"]
 
-    def test_a_refusal_by_the_second_function_rolls_back_the_first(self):
+    def test_a_refusal_by_the_last_function_rolls_back_the_first_three(self):
         refusal = psycopg.errors.RaiseException("App roles tab: refused, 1 repeated row(s); nothing changed")
-        code, printed, conn = run(Conn(fail_on=2, error=refusal))
-        assert code == 1 and conn.committed is False and len(conn.calls) == 2
+        code, printed, conn = run(Conn(fail_on=4, error=refusal))
+        assert code == 1 and conn.committed is False and len(conn.calls) == 4
         assert not any("rows before" in line for line in printed)
         assert "App roles tab: refused, 1 repeated row(s); nothing changed" in printed[0]
 
     def test_any_other_database_error_is_its_class_and_state_never_its_message(self):
         error = psycopg.errors.UniqueViolation(f"duplicate key value violates (discord_user_id)=({A})")
-        code, printed, conn = run(Conn(fail_on=1, error=error))
+        code, printed, conn = run(Conn(fail_on=3, error=error))
         assert code == 1 and conn.committed is False
-        assert printed == ["load failed, both tables are as they were (UniqueViolation SQLSTATE 23505)"]
+        assert printed == ["load failed, the four tables are as they were (UniqueViolation SQLSTATE 23505)"]
         no_id(printed)
 
     def test_an_unexpected_error_is_its_class_alone(self):
         code, printed, _ = run(Conn(fail_on=1, error=ValueError(f"bad value {A}")))
-        assert code == 1 and printed == ["load failed, both tables are as they were (ValueError)"]
+        assert code == 1 and printed == ["load failed, the four tables are as they were (ValueError)"]
 
     def test_a_missing_database_url_stops_before_any_call(self, monkeypatch):
         monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
         code, printed, _ = run(connect_to=lat.connect)
         assert code == 1
-        assert printed == ["load failed, both tables are as they were (SUPABASE_DB_URL is not set)"]
+        assert printed == ["load failed, the four tables are as they were (SUPABASE_DB_URL is not set)"]
 
 
 class TestThePrintedLines:
@@ -168,7 +217,7 @@ class TestThePrintedLines:
         monkeypatch.setattr(lat, "run", lambda: (_ for _ in ()).throw(KeyError(A)))
         assert lat.main() == 1
         out = capsys.readouterr().out
-        assert out == "access: load failed, both tables are as they were (KeyError)\n"
+        assert out == "access: load failed, the four tables are as they were (KeyError)\n"
 
     def test_every_line_the_step_prints_starts_with_the_marker(self, capsys):
         code, printed, _ = run()
@@ -177,10 +226,42 @@ class TestThePrintedLines:
         assert code == 0
         assert all(line.startswith(lat.PREFIX) for line in capsys.readouterr().out.splitlines())
 
-    def test_the_two_calls_pass_ids_as_bound_parameters_never_in_the_statement(self):
-        assert "%s" in lat.OWNER_CALL and "%s" in lat.ROLES_CALL
+    def test_the_four_calls_pass_every_value_as_a_bound_parameter_never_in_the_statement(self):
+        assert all("%s" in call for call in CALLS)
         _, _, conn = run()
-        assert not any(i in sql for sql, _ in conn.calls for i in IDS)
+        assert not any(i in sql for sql, _ in conn.calls for i in IDS + ("T01", "LF", "football"))
+
+
+class TestTheDefaultReaders:
+    """The readers the scheduled run uses, on a faked sheet reader: each reads its tab and
+    hands it to the shared checks."""
+
+    def test_each_tab_is_read_on_its_own_gid_with_the_ids_as_text(self, monkeypatch):
+        calls = []
+        tabs = {
+            etl.CFG.league_assoc_sheet_gid: pd.DataFrame({"Sport": ["Football"], "League Name": ["F"],
+                                                          "League ID": [etl.CFG.fantrax_league_id]}),
+            etl.CFG.team_sheet_gid: pd.DataFrame({"League Name": ["F"], "Division": ["D"], "Team Name": ["n"],
+                                                  "Team ID": ["T01"], "Fantrax-TeamId": ["f"]}),
+            etl.CFG.owner_sheet_gid: pd.DataFrame({"Team ID": ["T01", "T01"], "Discord": [A, ""]}),
+            etl.CFG.app_roles_sheet_gid: pd.DataFrame({"Discord": [A], "League ID": [etl.CFG.fantrax_league_id],
+                                                       "Role": ["commissioner"]})}
+
+        def fake(sheet_id, gid, columns, optional=(), **kw):
+            calls.append((gid, kw.get("text")))
+            return tabs[gid]
+        monkeypatch.setattr(etl, "read_sheet_tab", fake)
+        leagues, problems = lat.read_league_rows()
+        assert problems == [] and [r[0] for r in leagues] == ["football"]
+        teams, problems = lat.read_team_rows(leagues)
+        assert problems == [] and teams == [("T01", "football", "f", "n", "D")]
+        pairs, problems, skipped = lat.read_owner_pairs(teams)
+        assert problems == [] and pairs == [("T01", A)] and skipped == 1
+        rows, problems = lat.read_role_rows(leagues)
+        assert problems == [] and rows == [(A, "commissioner", "football")]
+        assert calls == [(etl.CFG.league_assoc_sheet_gid, ["League ID"]), (etl.CFG.team_sheet_gid, None),
+                         (etl.CFG.owner_sheet_gid, ["Discord"]),
+                         (etl.CFG.app_roles_sheet_gid, ["Discord", "League ID"])]
 
 
 class TestTheRunStep:

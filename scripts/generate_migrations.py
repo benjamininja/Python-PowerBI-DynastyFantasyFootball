@@ -27,7 +27,8 @@ authenticated on `app` revokes what anon could inherit there. The registry's
 and the app admin check, and puts its ids in `shared.pii_token_hashes()` (a
 replacement of that function). Each of the two tables also brings a load function
 (#700, LOAD_CROSSWALK_FUNCTION and LOAD_ROLES_FUNCTION), EXECUTE for etl_writer
-only. A column may
+only, and so do `shared.league` and `shared.fantasy_team` (#675, LOAD_LEAGUES_FUNCTION
+and LOAD_TEAMS_FUNCTION). A column may
 carry a `default`, a table `triggers`, and the registry `trigger_functions`
 (each in `ops`, `search_path` pinned empty, EXECUTE revoked from PUBLIC, and
 SECURITY DEFINER only with `definer: true`, #661). On a table that exists, a
@@ -43,9 +44,12 @@ Other later changes to those fields on an existing table are refused. A table's
 text column into another, as one UPDATE, once: on that table the checks that leave
 are dropped before the move and the new ones added after it, so a check may narrow
 there and nowhere else. A function of RETIRED_FUNCTIONS is dropped after its
-successor. The gate holds a move and a function drop, so they go in a held file of
-their own (`_held`), with only what cannot apply apart from them (`tied`); every
-other addition goes first in the unheld file and the drops last. The
+successor; one of RECREATED_FUNCTIONS whose argument list changed is dropped by its
+old list and created again; a foreign key of RETARGETED_FKS is dropped and added
+with its new target, its table emptied between when the entry says so. The gate
+holds each of these, so they go in a held file of their own (`_held`), with only
+what cannot apply apart from them (`tied`); every other addition goes first in the
+unheld file and the drops last. The
 registry's `views` (#670, ADR-0026 decision 10 point 1) are views in `app` with
 security_invoker on, each over one `shared` function of no argument granted to
 authenticated alone (listed in VIEW_FUNCTION_COLUMNS) or one `app` table, SELECT to
@@ -172,29 +176,31 @@ PII_FUNCTION_ROLES_SQL = PII_FUNCTION_CROSSWALK_SQL.replace(
     "        SELECT r.discord_user_id FROM shared.app_role r\n")
 
 # The role table and the two checks policies will call (ADR-0026 decisions 1 to 3,
-# #662; the role words as amended 2026-11-26, #675). An owner or commissioner row
-# names its league; an app admin row holds ALL_LEAGUES. An owner row grants nothing
-# yet: no function reads it. LEAGUE_PLACEHOLDER is the one league there is until the
-# second PR of #675 adds the league table; that PR changes the values the loader
-# writes and the body of COMMISSIONER_FUNCTION_SQL (the literal becomes the team's
-# league), and no key and no policy.
+# #662; as amended 2026-11-26, #675). An owner or commissioner row names one league
+# by its key in LEAGUE_TABLE; an app admin row holds ALL_LEAGUES, which is no league.
+# An owner row grants nothing yet: no function reads it. The commissioner check asks
+# about a team: the caller's commissioner row must name that team's league in
+# TEAM_LIST, so a row whose league no team has gives no power.
 ROLE_TABLE = "shared.app_role"
 COMMISSIONER_FUNCTION = "shared.caller_is_commissioner_for"
 ADMIN_FUNCTION = "shared.caller_is_app_admin"
 ADMIN_ROLE = "app_admin"
 ROLE_WORDS = ("owner", "commissioner", ADMIN_ROLE)
-LEAGUE_PLACEHOLDER = "main"
 ALL_LEAGUES = "*"
-TEAMS_TABLE = "football.dim_fantasy_teams"
-COMMISSIONER_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean
+# The league table and the one team list for every league (ADR-0026 decision 2 as
+# amended 2026-11-26, #675). Neither holds a Discord id. The crosswalk and the
+# commissioner check point at the team list.
+LEAGUE_TABLE = "shared.league"
+TEAM_LIST = "shared.fantasy_team"
+COMMISSIONER_FUNCTION_SQL = """CREATE FUNCTION shared.caller_is_commissioner_for(p_team_key text) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''
 AS $fn$
     SELECT EXISTS (
         SELECT 1
         FROM shared.app_role r
         JOIN auth.identities i ON i.provider = 'discord' AND i.provider_id = r.discord_user_id
-        JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key
-        WHERE r.role = 'commissioner' AND r.league_key = '{LEAGUE_PLACEHOLDER}' AND i.user_id = auth.uid()
+        JOIN shared.fantasy_team t ON t.team_key = p_team_key AND t.league_key = r.league_key
+        WHERE r.role = 'commissioner' AND i.user_id = auth.uid()
     )
 $fn$;"""
 ADMIN_FUNCTION_SQL = f"""CREATE FUNCTION shared.caller_is_app_admin() RETURNS boolean
@@ -207,18 +213,102 @@ AS $fn$
         WHERE r.role = '{ADMIN_ROLE}' AND r.league_key = '{ALL_LEAGUES}' AND i.user_id = auth.uid()
     )
 $fn$;"""
-# The two load functions (ADR-0026 decision 2 as amended, #700): the scheduled run
-# replaces each table's rows through one of them, as `etl_writer`, which holds no
-# grant on either table. Each takes the whole set as two parallel arrays, refuses
-# without changing anything (an empty set, a malformed id, an unknown role word, a
-# team the database does not have, a repeated row) and returns row counts only. A
-# refusal message holds a count and never a value, and the write sits in an inner
-# block whose handler re-raises with the SQLSTATE alone, so a constraint's DETAIL
-# (which quotes the row) never leaves the function. The two names are the only
-# function bodies scripts/migration_gate.py lets hold a DELETE FROM.
+# The four load functions (ADR-0026 decision 2 as amended, #700 and #675): the
+# scheduled run replaces each table's rows through one of them, as `etl_writer`,
+# which holds no grant on any of the four tables, in one transaction: the leagues,
+# the teams, the crosswalk, the roles. Each takes the whole set as parallel arrays,
+# refuses without changing anything (an empty set, unequal arrays, a malformed id or
+# key, an unknown role word, a team or league the lists do not have, a repeated
+# row) and returns row counts only. A refusal message holds a count and never a
+# value, and the write sits in an inner block whose handler re-raises with the
+# SQLSTATE alone, so a constraint's DETAIL (which quotes the row) never leaves the
+# function. The four names are the only function bodies scripts/migration_gate.py
+# lets hold a DELETE FROM (ADR-0018 decision 12 as amended).
 LOAD_CROSSWALK_FUNCTION = "shared.load_owner_crosswalk"
 LOAD_ROLES_FUNCTION = "shared.load_app_roles"
+LOAD_LEAGUES_FUNCTION = "shared.load_leagues"
+LOAD_TEAMS_FUNCTION = "shared.load_teams"
 LOAD_ARGS = "(text[], text[])"
+LOAD_ROLES_ARGS = "(text[], text[], text[])"
+LOAD_LEAGUES_ARGS = "(text[], text[], text[], text[])"
+LOAD_TEAMS_ARGS = "(text[], text[], text[], text[], text[])"
+LOAD_LEAGUES_FUNCTION_SQL = """CREATE FUNCTION shared.load_leagues(p_league_keys text[], p_sports text[], p_league_names text[], p_fantrax_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_keys integer := coalesce(cardinality(p_league_keys), 0);
+    v_bad integer;
+BEGIN
+    IF v_keys = 0 OR v_keys <> coalesce(cardinality(p_sports), 0) OR v_keys <> coalesce(cardinality(p_league_names), 0)
+            OR v_keys <> coalesce(cardinality(p_fantrax_ids), 0) THEN
+        RAISE EXCEPTION 'League Associations tab: refused, % key(s) and arrays of unequal length or none; nothing changed', v_keys;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)
+    WHERE u.k IS NULL OR u.k !~ '^[a-z][a-z0-9_]*$';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'League Associations tab: refused, % key(s) are not a plain lowercase word; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_fantrax_ids) AS u(f)
+    WHERE u.f IS NULL OR btrim(u.f) = '';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'League Associations tab: refused, % row(s) have no Fantrax league id; nothing changed', v_bad;
+    END IF;
+    SELECT (count(*) - count(DISTINCT u.k)) + (count(*) - count(DISTINCT u.f)) INTO v_bad
+    FROM unnest(p_league_keys, p_fantrax_ids) AS u(k, f);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'League Associations tab: refused, % repeated key(s) or Fantrax id(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.league;
+    BEGIN
+        DELETE FROM shared.league WHERE true;
+        INSERT INTO shared.league (league_key, sport, league_name, fantrax_league_id)
+        SELECT u.k, u.s, u.n, u.f FROM unnest(p_league_keys, p_sports, p_league_names, p_fantrax_ids) AS u(k, s, n, f);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'League Associations tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.league;
+    RETURN NEXT;
+END
+$fn$;"""
+LOAD_TEAMS_FUNCTION_SQL = """CREATE FUNCTION shared.load_teams(p_team_keys text[], p_league_keys text[], p_fantrax_team_ids text[], p_team_names text[], p_divisions text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $fn$
+DECLARE
+    v_keys integer := coalesce(cardinality(p_team_keys), 0);
+    v_bad integer;
+BEGIN
+    IF v_keys = 0 OR v_keys <> coalesce(cardinality(p_league_keys), 0)
+            OR v_keys <> coalesce(cardinality(p_fantrax_team_ids), 0)
+            OR v_keys <> coalesce(cardinality(p_team_names), 0) OR v_keys <> coalesce(cardinality(p_divisions), 0) THEN
+        RAISE EXCEPTION 'team tab: refused, % team key(s) and arrays of unequal length or none; nothing changed', v_keys;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)
+    WHERE u.t IS NULL OR btrim(u.t) = '';
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'team tab: refused, % row(s) have no team key; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)
+    WHERE u.k IS NULL OR NOT EXISTS (SELECT 1 FROM shared.league l WHERE l.league_key = u.k);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'team tab: refused, % row(s) name a league the league table does not have; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT u.t) INTO v_bad FROM unnest(p_team_keys) AS u(t);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'team tab: refused, % repeated team key(s); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO rows_before FROM shared.fantasy_team;
+    BEGIN
+        DELETE FROM shared.fantasy_team WHERE true;
+        INSERT INTO shared.fantasy_team (team_key, league_key, fantrax_team_id, team_name, division)
+        SELECT u.t, u.k, u.f, u.n, u.d
+        FROM unnest(p_team_keys, p_league_keys, p_fantrax_team_ids, p_team_names, p_divisions) AS u(t, k, f, n, d);
+    EXCEPTION WHEN OTHERS THEN
+        RAISE EXCEPTION 'team tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
+    END;
+    SELECT count(*) INTO rows_after FROM shared.fantasy_team;
+    RETURN NEXT;
+END
+$fn$;"""
 LOAD_CROSSWALK_FUNCTION_SQL = """CREATE FUNCTION shared.load_owner_crosswalk(p_team_keys text[], p_discord_ids text[]) RETURNS TABLE (rows_before integer, rows_after integer)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $fn$
@@ -236,9 +326,9 @@ BEGIN
         RAISE EXCEPTION 'owner tab: refused, % id(s) are not 17 to 20 digits; nothing changed', v_bad;
     END IF;
     SELECT count(*) INTO v_bad FROM unnest(p_team_keys) AS u(t)
-    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM football.dim_fantasy_teams d WHERE d.team_key = u.t);
+    WHERE u.t IS NULL OR NOT EXISTS (SELECT 1 FROM shared.fantasy_team d WHERE d.team_key = u.t);
     IF v_bad > 0 THEN
-        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the database does not have; nothing changed', v_bad;
+        RAISE EXCEPTION 'owner tab: refused, % row(s) name a team the team list does not have; nothing changed', v_bad;
     END IF;
     SELECT count(*) - count(DISTINCT (u.t, u.i)) INTO v_bad FROM unnest(p_team_keys, p_discord_ids) AS u(t, i);
     IF v_bad > 0 THEN
@@ -256,16 +346,17 @@ BEGIN
     RETURN NEXT;
 END
 $fn$;"""
-LOAD_ROLES_FUNCTION_SQL = f"""CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[]) RETURNS TABLE (rows_before integer, rows_after integer)
+LOAD_ROLES_FUNCTION_SQL = f"""CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[], p_league_keys text[]) RETURNS TABLE (rows_before integer, rows_after integer)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
 AS $fn$
 DECLARE
     v_ids integer := coalesce(cardinality(p_discord_ids), 0);
     v_roles integer := coalesce(cardinality(p_roles), 0);
+    v_leagues integer := coalesce(cardinality(p_league_keys), 0);
     v_bad integer;
 BEGIN
-    IF v_ids = 0 OR v_ids <> v_roles THEN
-        RAISE EXCEPTION 'App roles tab: refused, % id(s) and % role(s); nothing changed', v_ids, v_roles;
+    IF v_ids = 0 OR v_ids <> v_roles OR v_ids <> v_leagues THEN
+        RAISE EXCEPTION 'App roles tab: refused, % id(s), % role(s) and % league(s); nothing changed', v_ids, v_roles, v_leagues;
     END IF;
     SELECT count(*) INTO v_bad FROM unnest(p_discord_ids) AS u(i)
     WHERE u.i IS NULL OR length(u.i) NOT BETWEEN 17 AND 20 OR u.i ~ '[^0-9]';
@@ -277,7 +368,17 @@ BEGIN
     IF v_bad > 0 THEN
         RAISE EXCEPTION 'App roles tab: refused, % role(s) are not owner, commissioner or {ADMIN_ROLE}; nothing changed', v_bad;
     END IF;
-    SELECT count(*) - count(DISTINCT (u.i, u.r)) INTO v_bad FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+    SELECT count(*) INTO v_bad FROM unnest(p_roles, p_league_keys) AS u(r, k)
+    WHERE u.k IS NULL OR (u.r = '{ADMIN_ROLE}') <> (u.k = '{ALL_LEAGUES}');
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % row(s) pair a role and a league wrongly ({ADMIN_ROLE} holds every league, the others one); nothing changed', v_bad;
+    END IF;
+    SELECT count(*) INTO v_bad FROM unnest(p_league_keys) AS u(k)
+    WHERE u.k <> '{ALL_LEAGUES}' AND NOT EXISTS (SELECT 1 FROM shared.league l WHERE l.league_key = u.k);
+    IF v_bad > 0 THEN
+        RAISE EXCEPTION 'App roles tab: refused, % row(s) name a league the league table does not have; nothing changed', v_bad;
+    END IF;
+    SELECT count(*) - count(DISTINCT (u.i, u.r, u.k)) INTO v_bad FROM unnest(p_discord_ids, p_roles, p_league_keys) AS u(i, r, k);
     IF v_bad > 0 THEN
         RAISE EXCEPTION 'App roles tab: refused, % repeated row(s); nothing changed', v_bad;
     END IF;
@@ -285,8 +386,8 @@ BEGIN
     BEGIN
         DELETE FROM shared.app_role WHERE true;
         INSERT INTO shared.app_role (discord_user_id, role, league_key)
-        SELECT u.i, u.r, CASE u.r WHEN '{ADMIN_ROLE}' THEN '{ALL_LEAGUES}' ELSE '{LEAGUE_PLACEHOLDER}' END
-        FROM unnest(p_discord_ids, p_roles) AS u(i, r);
+        SELECT u.i, u.r, u.k
+        FROM unnest(p_discord_ids, p_roles, p_league_keys) AS u(i, r, k);
     EXCEPTION WHEN OTHERS THEN
         RAISE EXCEPTION 'App roles tab: the load failed (SQLSTATE %); nothing changed', SQLSTATE;
     END;
@@ -296,9 +397,22 @@ END
 $fn$;"""
 # The functions whose body a later registry may change: generator-owned text,
 # written as CREATE OR REPLACE, which keeps the grants. shared.choice_window()
-# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661), and
-# shared.load_app_roles its three role words (#675).
-REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION, LOAD_ROLES_FUNCTION)
+# gained its fourth state, `final`, this way (ADR-0026 decision 6, #661),
+# shared.load_app_roles its three role words, and the crosswalk loader and the
+# commissioner check the team list (#675).
+REPLACEABLE_FUNCTIONS = (PII_FUNCTION, OPEN_FUNCTION, LOAD_ROLES_FUNCTION, LOAD_CROSSWALK_FUNCTION,
+                         COMMISSIONER_FUNCTION)
+# The functions whose argument list may change (ADR-0018 decision 3 as amended
+# 2026-11-26, #675): name -> (the old argument list, the ticket). When the state holds
+# the function under that old list, it is dropped by it and created again with its
+# revoke and grant, in the held file. Any other change of an argument list is refused.
+RECREATED_FUNCTIONS = {LOAD_ROLES_FUNCTION: (LOAD_ARGS, 675)}
+# The foreign keys that may change their target (ADR-0018 decision 3 as amended
+# 2026-11-26, #675): (table, key name) -> (empties, the ticket). The key is dropped and
+# added again with its new target, in the held file; with `empties` the table's rows
+# are deleted between, because the new target has none yet and the next load fills
+# both. Any other change of a foreign key is refused.
+RETARGETED_FKS = {("shared.owner_crosswalk", "owner_crosswalk_team_key_fkey"): (True, 675)}
 # The functions that may leave (ADR-0018 decision 3 as amended 2026-11-26, #675):
 # name -> (the argument list its DROP names, its successor, the ticket). It is
 # dropped only when the state holds it, the model no longer does, and the successor
@@ -319,7 +433,9 @@ FUNCTION_ACCESS = {
     COMMISSIONER_FUNCTION: ("(text)", ("authenticated",)),
     ADMIN_FUNCTION: ("()", ("authenticated",)),
     LOAD_CROSSWALK_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
-    LOAD_ROLES_FUNCTION: (LOAD_ARGS, ("etl_writer",)),
+    LOAD_ROLES_FUNCTION: (LOAD_ROLES_ARGS, ("etl_writer",)),
+    LOAD_LEAGUES_FUNCTION: (LOAD_LEAGUES_ARGS, ("etl_writer",)),
+    LOAD_TEAMS_FUNCTION: (LOAD_TEAMS_ARGS, ("etl_writer",)),
 }
 # Views (ADR-0026 decision 10 point 1, #670): each lives in `app`, runs as the caller
 # (security_invoker), reads one `shared` function of no argument granted to
@@ -761,13 +877,25 @@ def desired_model(registry):
         if crosswalk is None:
             raise RegistryError(f"{ROLE_TABLE}: the owner crosswalk is not declared")
         _known({c["name"] for c in roles["columns"]}, ["discord_user_id", "role", "league_key"], ROLE_TABLE)
-        if TEAMS_TABLE not in specs:
-            raise RegistryError(f"{ROLE_TABLE}: the commissioner check reads {TEAMS_TABLE}, which is not declared")
-        _known({c["name"] for c in specs[TEAMS_TABLE]["columns"]}, ["team_key"], TEAMS_TABLE)
+        for table in (LEAGUE_TABLE, TEAM_LIST):
+            if table not in specs:
+                raise RegistryError(f"{ROLE_TABLE}: the role functions read {table}, which is not declared")
         functions[PII_FUNCTION] = PII_FUNCTION_ROLES_SQL
         functions[COMMISSIONER_FUNCTION] = COMMISSIONER_FUNCTION_SQL
         functions[ADMIN_FUNCTION] = ADMIN_FUNCTION_SQL
         functions[LOAD_ROLES_FUNCTION] = LOAD_ROLES_FUNCTION_SQL
+    leagues = specs.get(LEAGUE_TABLE)
+    if leagues is not None:
+        _known({c["name"] for c in leagues["columns"]},
+               ["league_key", "sport", "league_name", "fantrax_league_id"], LEAGUE_TABLE)
+        functions[LOAD_LEAGUES_FUNCTION] = LOAD_LEAGUES_FUNCTION_SQL
+    teams = specs.get(TEAM_LIST)
+    if teams is not None:
+        if leagues is None:
+            raise RegistryError(f"{TEAM_LIST}: the team load reads {LEAGUE_TABLE}, which is not declared")
+        _known({c["name"] for c in teams["columns"]},
+               ["team_key", "league_key", "fantrax_team_id", "team_name", "division"], TEAM_LIST)
+        functions[LOAD_TEAMS_FUNCTION] = LOAD_TEAMS_FUNCTION_SQL
     raw_functions = registry.get("trigger_functions") or []
     if not isinstance(raw_functions, list):
         raise RegistryError("trigger_functions: expected a list")
@@ -943,10 +1071,26 @@ def _table_changes(key, old, new, out, flagged):
             if name not in after:
                 refuse.append(f"{key}: drop of {label} {name}")
             elif after[name] != item:
-                refuse.append(f"{key}: change of {label} {name}")
+                if kind == "fks" and (key, name) in RETARGETED_FKS and after[name]["columns"] == item["columns"]:
+                    out["fk_retargets"].append((key, after[name]))
+                else:
+                    refuse.append(f"{key}: change of {label} {name}")
         for name, item in after.items():
             if name not in before:
                 out[kind].append((key, item))
+
+
+_ARGS = re.compile(r"CREATE (?:OR REPLACE )?FUNCTION [a-z_]+\.[a-z0-9_]+\(([^)]*)\)")
+
+
+def _arg_types(sql):
+    """The argument list of a generator function's CREATE line, as its types:
+    `(text[], text[])`, or `()`."""
+    found = _ARGS.match(sql)
+    if found is None:
+        return None
+    args = [a.strip() for a in found.group(1).split(",") if a.strip()]
+    return "(" + ", ".join(a.split()[-1] for a in args) + ")"
 
 
 def diff(old, new, drops=NO_DROPS):
@@ -956,7 +1100,8 @@ def diff(old, new, drops=NO_DROPS):
            "checks": [], "fks": [], "indexes": [], "functions": [], "trigger_functions": [],
            "column_drops": [], "table_drops": [], "grants": [], "policies": [], "function_replacements": [],
            "triggers": [], "policy_replacements": [], "default_drops": [], "views": [],
-           "view_replacements": [], "check_drops": [], "moves": [], "function_drops": [], "refusals": []}
+           "view_replacements": [], "check_drops": [], "moves": [], "function_drops": [], "fk_retargets": [],
+           "function_recreations": [], "refusals": []}
     for kind in ("schemas", "roles"):
         out[kind] = [n for n in new[kind] if n not in old[kind]]
         out["refusals"] += [f"drop of {kind[:-1]} {n}" for n in old[kind] if n not in new[kind]]
@@ -981,7 +1126,12 @@ def diff(old, new, drops=NO_DROPS):
         if name not in old["functions"]:
             out["functions"].append((name, sql))
         elif old["functions"][name] != sql:
-            if name in REPLACEABLE_FUNCTIONS:
+            before, after = _arg_types(old["functions"][name]), _arg_types(sql)
+            if before != after and name in RECREATED_FUNCTIONS and RECREATED_FUNCTIONS[name][0] == before:
+                out["function_recreations"].append((name, sql))
+            elif before != after:
+                out["refusals"].append(f"{name}: change of argument list from {before} to {after}")
+            elif name in REPLACEABLE_FUNCTIONS:
                 out["function_replacements"].append((name, sql))
             else:
                 out["refusals"].append(f"{name}: change of function body")
@@ -1057,9 +1207,16 @@ def render(changes):
         out.append(f"UPDATE {key} SET {move['column']} = '{move['to']}' WHERE {move['column']} = '{move['from']}';")
     for key, expr in changes["checks"]:
         out.append(f"ALTER TABLE {key} ADD CONSTRAINT {_check_name(key.split('.')[1], expr)} CHECK ({expr});")
-    for key, fk in changes["fks"]:
-        out.append(f"ALTER TABLE {key} ADD CONSTRAINT {fk['name']} FOREIGN KEY ({', '.join(fk['columns'])}) "
-                   f"REFERENCES {fk['to']} ({', '.join(fk['ref'])}) DEFERRABLE INITIALLY DEFERRED;")
+    def fk_line(key, fk):
+        return (f"ALTER TABLE {key} ADD CONSTRAINT {fk['name']} FOREIGN KEY ({', '.join(fk['columns'])}) "
+                f"REFERENCES {fk['to']} ({', '.join(fk['ref'])}) DEFERRABLE INITIALLY DEFERRED;")
+
+    out += [fk_line(key, fk) for key, fk in changes["fks"]]
+    for key, fk in changes.get("fk_retargets", []):
+        out.append(f"ALTER TABLE {key} DROP CONSTRAINT {fk['name']};")
+        if RETARGETED_FKS[(key, fk["name"])][0]:
+            out.append(f"DELETE FROM {key} WHERE true;")
+        out.append(fk_line(key, fk))
     out += [f"ALTER TABLE {s['schema']}.{s['name']} ENABLE ROW LEVEL SECURITY;" for s in changes["tables"]]
     out += [f"GRANT USAGE ON SCHEMA {s} TO etl_writer, etl_reader;" for s in changes["schemas"] if s in GRANTED_SCHEMAS]
     for spec in changes["tables"]:
@@ -1071,9 +1228,12 @@ def render(changes):
                 f"CREATE POLICY etl_writer_all ON {qualified} FOR ALL TO etl_writer USING (true) WITH CHECK (true);",
                 f"CREATE POLICY etl_reader_select ON {qualified} FOR SELECT TO etl_reader USING (true);"]
     usage = []
-    for name, sql in changes["functions"]:
+    recreated = [(name, sql, True) for name, sql in changes.get("function_recreations", [])]
+    for name, sql, drop_first in recreated + [(n, s, False) for n, s in changes["functions"]]:
         sig, roles = FUNCTION_ACCESS[name]
         schema = name.split(".")[0]
+        if drop_first:
+            out.append(f"DROP FUNCTION {name}{RECREATED_FUNCTIONS[name][0]};")
         out += [sql, f"REVOKE EXECUTE ON FUNCTION {name}{sig} FROM PUBLIC;"]
         for role in roles:
             if (schema, role) not in usage:
@@ -1173,7 +1333,7 @@ def _with_dropped(old, new, changes):
 # A flagged change that is not a drop (ADR-0018 decision 3 as amended 2026-11-26,
 # #675): a value move and a retired function. The gate holds both, so each goes in
 # a held file with only the statements that cannot apply apart from it.
-TIED_KINDS = ("check_drops", "moves", "function_drops")
+TIED_KINDS = ("check_drops", "moves", "function_drops", "fk_retargets", "function_recreations")
 
 
 def _names_table(sql, tables):
@@ -1182,13 +1342,15 @@ def _names_table(sql, tables):
 
 def tied(changes):
     """The part of `changes` that goes in the held file of a flagged change: the
-    moves and every check dropped and added on a moved table, the retired functions,
-    their successors, and every new or replaced function whose body names a moved
-    table (it writes or reads the moved value). Empty when nothing is flagged."""
+    moves and every check dropped and added on a moved table, the retargeted foreign
+    keys, the recreated functions, the retired functions, their successors, and every
+    new or replaced function whose body names a moved table or one whose foreign key
+    is retargeted (it writes or reads what the flagged change moves). Empty when
+    nothing is flagged."""
     out = {k: [] for k in changes}
-    moved = {key for key, _ in changes.get("moves", [])}
+    moved = {key for key, _ in changes.get("moves", [])} | {key for key, _ in changes.get("fk_retargets", [])}
     successors = {RETIRED_FUNCTIONS[n][1] for n in changes.get("function_drops", [])}
-    if not moved and not successors:
+    if not moved and not successors and not changes.get("function_recreations"):
         return out
     for kind in TIED_KINDS:
         out[kind] = list(changes.get(kind, []))
@@ -1211,10 +1373,15 @@ def _without_tied(old, state, held):
             spec.pop("moves", None)
     for name, _ in held["functions"]:
         del state["functions"][name]
-    for name, _ in held["function_replacements"]:
-        state["functions"][name] = old["functions"][name]
+    for kind in ("function_replacements", "function_recreations"):
+        for name, _ in held[kind]:
+            state["functions"][name] = old["functions"][name]
     for name in held["function_drops"]:
         state["functions"][name] = old["functions"][name]
+    for key, fk in held["fk_retargets"]:
+        before = _by_name(old["tables"][key]["fks"])[fk["name"]]
+        state["tables"][key]["fks"] = [copy.deepcopy(before) if f["name"] == fk["name"] else f
+                                       for f in state["tables"][key]["fks"]]
     return state
 
 

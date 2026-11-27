@@ -86,7 +86,7 @@ class TestTheReadAndTheFile:
         reader.frame = frame(["No Such Key", "T2"], [ID_A, ID_B], ["Test Team One", "Test Team Two"])
         code, lines, out = run(place)
         assert code == 1 and not out.exists()
-        assert any("Team ID is not a team_key (rows 2)" in line for line in lines)
+        assert any("Team ID is not in the team list (rows 2)" in line for line in lines)
 
     def test_the_owner_tab_has_its_own_gid_beside_the_team_tab(self):
         assert etl.CFG.owner_sheet_gid == "1895987887" and etl.CFG.owner_sheet_gid != etl.CFG.team_sheet_gid
@@ -138,12 +138,35 @@ class TestTheReadAndTheFile:
         code, lines, _ = run(place)
         assert code == 0 and "rows: 1" in lines
 
-    def test_the_default_team_source_is_the_published_dim_through_the_seam(self, place, reader, monkeypatch):
+    def test_the_default_team_source_is_the_team_list_of_the_two_list_tabs(self, place, reader, monkeypatch):
         asked = []
-        monkeypatch.setattr(etl, "read_table", lambda name, columns=None: asked.append((name, list(columns))) or TEAMS)
+        monkeypatch.setattr(loader, "team_list", lambda: asked.append(True) or (TEAMS, []))
         lines = []
-        assert loader.load(place / "out.sql", out=lines.append) == 0
-        assert asked == [("dim_fantasy_teams", ["team_key"])]
+        assert loader.load(place / "out.sql", out=lines.append) == 0 and asked == [True]
+
+    def test_the_team_list_holds_every_leagues_teams_from_the_league_and_team_tabs(self, monkeypatch):
+        import league_lists
+        monkeypatch.setattr(league_lists, "read_leagues", lambda: pd.DataFrame(
+            {"Sport": ["Football", "Baseball"], "League Name": ["LF", "LB"],
+             "League ID": [etl.CFG.fantrax_league_id, "made-up"]}))
+        monkeypatch.setattr(league_lists, "read_teams", lambda: pd.DataFrame(
+            {"League Name": ["LF", "LB"], "Division": ["D1", "D2"], "Team Name": ["n1", "n2"],
+             "Team ID": ["T1", "B1"], "Fantrax-TeamId": ["f1", "f2"]}))
+        teams, problems = loader.team_list()
+        assert problems == [] and sorted(teams["team_key"]) == ["B1", "T1"]
+
+    def test_a_stop_on_a_list_tab_writes_nothing_and_names_the_tab(self, place, reader, monkeypatch):
+        monkeypatch.setattr(loader, "team_list", lambda: (None, ["team tab: 1 row(s) repeating a Team ID (rows 3)"]))
+        lines = []
+        assert loader.load(place / "out.sql", out=lines.append) == 1 and not (place / "out.sql").exists()
+        assert lines == ["stopped: team tab: 1 row(s) repeating a Team ID (rows 3)", "nothing was written"]
+
+    def test_a_row_with_no_id_is_skipped_and_counted(self, place, reader):
+        reader.frame = frame(["T1", "T2", "T3"], [ID_A, None, "unowned for now"])
+        code, lines, out = run(place)
+        assert code == 0 and "rows: 1" in lines and "rows with no id, skipped: 2" in lines
+        sql = out.read_text(encoding="utf-8")
+        assert f"('T1', '{ID_A}')" in sql and "T2" not in sql and "unowned" not in sql
 
 
 class TestEveryStopWritesNothing:
@@ -156,12 +179,12 @@ class TestEveryStopWritesNothing:
 
     def test_a_team_id_that_is_not_in_the_dim(self, place, reader):
         reader.frame = frame(["T1", "T9"], [ID_A, ID_B])
-        lines = self.stops(place, reader, "Team ID is not a team_key (rows 3)")
+        lines = self.stops(place, reader, "Team ID is not in the team list (rows 3)")
         assert lines[0].startswith("stopped: 1 row(s)")
 
     def test_a_team_id_matches_exactly_not_by_case(self, place, reader):
         reader.frame = frame(["t1"], [ID_A])
-        self.stops(place, reader, "Team ID is not a team_key (rows 2)")
+        self.stops(place, reader, "Team ID is not in the team list (rows 2)")
 
     @pytest.mark.parametrize("bad", ["1" * 16, "1" * 21, "1" * 16 + "a", "12 34567890123456", "１" * 17, "-" + "1" * 17])
     def test_an_id_that_is_not_seventeen_to_twenty_digits(self, place, reader, bad):
@@ -172,9 +195,14 @@ class TestEveryStopWritesNothing:
         reader.frame = frame(["T1", "T1", "T2"], [ID_A, ID_A, ID_A])
         self.stops(place, reader, "repeating a team and id pair (rows 3)")
 
-    def test_a_blank_team_or_a_blank_id(self, place, reader):
+    def test_an_id_with_a_blank_team(self, place, reader):
         reader.frame = frame(["T1", None, "T2"], [ID_A, ID_B, None])
-        self.stops(place, reader, "blank team or id (rows 3, 4)")
+        self.stops(place, reader, "with an id and a blank team (rows 3)")
+
+    @pytest.mark.parametrize("bad", ["call 555 0100", "id 12345", "1"])
+    def test_a_cell_with_digits_that_is_not_an_id_is_malformed_not_skipped(self, place, reader, bad):
+        reader.frame = frame(["T1", "T2"], [ID_A, bad])
+        self.stops(place, reader, "not 17 to 20 digits (rows 3)")
 
     def test_an_empty_tab(self, place, reader):
         reader.frame = frame([], [])
@@ -215,9 +243,9 @@ class TestEveryStopWritesNothing:
         lines = self.stops(place, reader, "stored as numbers")
         assert len([line for line in lines if line.startswith("stopped:")]) == 1
 
-    def test_an_id_column_with_no_value_at_all_reports_blank_cells(self, place, reader):
+    def test_an_id_column_with_no_value_at_all_stops_as_no_row_with_an_id(self, place, reader):
         reader.frame = frame(["T1", "T2"], [None, None])
-        self.stops(place, reader, "blank team or id (rows 2, 3)")
+        self.stops(place, reader, "the owner tab has no row with an id")
 
     def test_every_problem_is_listed_in_one_stop(self, place, reader):
         reader.frame = frame(["T1", "No Such Key", "T2"], [ID_A, ID_B, "12"])
@@ -259,7 +287,7 @@ class TestThroughTheRealReader:
         def make(rows):
             session = Session(rows, header=HEADERS, gid=etl.CFG.owner_sheet_gid)
             monkeypatch.setattr(etl, "_make_session", lambda *a, **k: session)
-            monkeypatch.setattr(etl, "read_table", lambda name, columns=None: TEAMS)
+            monkeypatch.setattr(loader, "team_list", lambda: (TEAMS, []))
             return session
         return make
 
@@ -288,12 +316,12 @@ class TestThroughTheRealReader:
         assert loader.load(out, out=lines.append) == 1 and not out.exists()
         assert lines[0] == "stopped: " + loader.AS_NUMBERS
 
-    def test_a_blank_id_cell_stops_as_a_blank_cell(self, place, sheet):
+    def test_a_blank_id_cell_is_skipped_and_counted(self, place, sheet):
         sheet([["Test Team One", "T1", "f1", "r", ID_A], ["Test Team Two", "T2", "f2", "r", ""]])
         lines = []
         out = place / "out.sql"
-        assert loader.load(out, out=lines.append) == 1 and not out.exists()
-        assert any("blank team or id (rows 3)" in line for line in lines)
+        assert loader.load(out, out=lines.append) == 0
+        assert "rows: 1" in lines and "rows with no id, skipped: 1" in lines
 
 
 class TestTheOutputPath:
@@ -321,16 +349,13 @@ class TestTheOutputPath:
 
 
 class TestTheDatabaseIsNeverTouched:
-    @pytest.mark.parametrize("value", ["postgres", "supabase", "anything"])
-    def test_it_stops_when_the_shell_selects_the_database_and_reads_nothing(self, place, reader, monkeypatch, value):
+    @pytest.mark.parametrize("value", ["postgres", "supabase", "parquet", "anything"])
+    def test_it_reads_only_the_sheet_so_the_storage_setting_of_the_shell_does_not_matter(
+            self, place, reader, monkeypatch, value):
         monkeypatch.setenv("ETL_STORAGE", value)
         code, lines, out = run(place)
-        assert code == 1 and not out.exists() and reader.calls == []
-        assert any("ETL_STORAGE selects the database" in line for line in lines)
-
-    def test_parquet_or_unset_is_fine(self, place, reader, monkeypatch):
-        monkeypatch.setenv("ETL_STORAGE", "parquet")
-        assert run(place)[0] == 0
+        assert code == 0 and out.exists() and len(reader.calls) == 1
+        assert not any("ETL_STORAGE" in line for line in lines)
 
     def test_the_script_names_no_database_client(self):
         text = (REPO / "scripts" / "load_owner_crosswalk.py").read_text(encoding="utf-8")
@@ -340,15 +365,15 @@ class TestTheDatabaseIsNeverTouched:
 
 class TestMain:
     def test_main_writes_the_file_and_returns_zero(self, place, reader, monkeypatch, capsys):
-        monkeypatch.setattr(etl, "read_table", lambda name, columns=None: TEAMS)
+        monkeypatch.setattr(loader, "team_list", lambda: (TEAMS, []))
         assert loader.main(["--out", str(place / "out.sql")]) == 0
         printed = capsys.readouterr().out
         assert "rows: 4" in printed and not [s for s in SECRETS if s in printed]
 
     def test_an_unexpected_error_prints_its_type_and_no_detail(self, place, reader, monkeypatch, capsys):
-        def boom(name, columns=None):
+        def boom():
             raise ValueError(f"row holds {ID_A}")
-        monkeypatch.setattr(etl, "read_table", boom)
+        monkeypatch.setattr(loader, "team_list", boom)
         assert loader.main(["--out", str(place / "out.sql")]) == 1
         printed = capsys.readouterr().out
         assert "ValueError" in printed and ID_A not in printed and not (place / "out.sql").exists()

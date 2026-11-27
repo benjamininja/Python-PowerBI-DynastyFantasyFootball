@@ -17,8 +17,9 @@ PR #536). Comments are stripped and the file is split into statements on `;`,
 both outside quotes. A statement is destructive when it holds, anywhere and
 in any case: DROP (any form), TRUNCATE, DELETE FROM, MERGE, UPDATE ... SET,
 RENAME, ALTER [COLUMN] ... [SET DATA] TYPE, ALTER TYPE, DETACH PARTITION or
-SET SCHEMA. One exemption, by name (#700): the dollar-quoted body of
-`shared.load_app_roles` and `shared.load_owner_crosswalk`, whose replace-all
+SET SCHEMA. One exemption, by name (#700, #675): the dollar-quoted body of
+`shared.load_app_roles`, `shared.load_owner_crosswalk`, `shared.load_leagues` and
+`shared.load_teams`, whose replace-all
 needs a DELETE FROM that runs on a call, not on apply; the rest of that
 statement and every other statement is read as before. A file with a single-quoted string holding a backslash, or a `$`
 that is not a closed ASCII dollar tag or a positional `$n`, or a `$` directly
@@ -161,14 +162,15 @@ def _scan(sql):
     return [s for s in (" ".join(part.split()) for part in out) if s], ambiguous
 
 
-# The two load functions of the scheduled run (ADR-0026 decision 2 as amended,
-# #700, the owner's Decision on #700). Replacing a table's rows takes a DELETE FROM,
-# which runs when the function is called, not when the migration applies. The gate
-# skips the dollar-quoted body of a CREATE FUNCTION or a CREATE OR REPLACE FUNCTION
-# statement of exactly one of these two names (no pattern); the rest of that
-# statement is still checked, and so is every other statement in the file and
-# every other function. A later load function needs its own amendment.
-EXEMPT_BODIES = ("shared.load_app_roles", "shared.load_owner_crosswalk")
+# The four load functions of the scheduled run (ADR-0026 decision 2 as amended,
+# #700 and #675; ADR-0018 decision 12 as amended 2026-11-25 and 2026-11-26).
+# Replacing a table's rows takes a DELETE FROM, which runs when the function is
+# called, not when the migration applies. The gate skips the dollar-quoted body of a
+# CREATE FUNCTION or a CREATE OR REPLACE FUNCTION statement of exactly one of these
+# four names (no pattern); the rest of that statement is still checked, and so is
+# every other statement in the file and every other function. A later load function
+# needs its own amendment.
+EXEMPT_BODIES = ("shared.load_app_roles", "shared.load_owner_crosswalk", "shared.load_leagues", "shared.load_teams")
 _EXEMPT_HEAD = re.compile(
     r"^CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(" + "|".join(re.escape(n) for n in EXEMPT_BODIES) + r")\s*\(",
     re.IGNORECASE)

@@ -69,6 +69,12 @@ class LeagueConfig:
     # The football league's Fantrax id: the one copy. 04a's LeagueConfig.league_id
     # and 01c's league filter both read it from here.
     fantrax_league_id: str = "v744203wmmvjqzv6"
+    # The football league's key in shared.league (ADR-0026 decision 2 as amended
+    # 2026-11-26, #675): the League Associations tab's Sport, lowercased, for the row
+    # of fantrax_league_id. The access load stops when the tab and this disagree.
+    football_league_key: str = "football"
+    # The App roles tab's word for every league; the access tables store it as `*`.
+    app_roles_all_leagues: str = "_ALL"
     # Table-name handles (crosswalk / alias notebooks reference CFG.<name>):
     fact_name: str = "fact_fantrax_adp"
     crosswalk_name: str = "dim_fantrax_crosswalk"

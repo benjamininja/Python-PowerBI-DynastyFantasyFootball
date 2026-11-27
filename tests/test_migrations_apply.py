@@ -848,16 +848,17 @@ def test_the_etl_roles_keep_their_posture_on_app(conn):
 
 DEFINERS = ("caller_is_app_admin", "caller_is_commissioner_for", "caller_team_keys", "choice_window",
             "choice_windows")
-LOAD_FUNCTIONS = ("load_app_roles", "load_owner_crosswalk")
+LOAD_FUNCTIONS = ("load_app_roles", "load_leagues", "load_owner_crosswalk", "load_teams")
 SHARED_FUNCTIONS_TODAY = 1 + len(LOAD_FUNCTIONS)
 
 
-def test_the_functions_in_shared_are_the_pii_hash_the_two_loaders_and_the_five_definers_and_no_others(conn):
+def test_the_functions_in_shared_are_the_pii_hash_the_four_loaders_and_the_five_definers_and_no_others(conn):
     names = [r[0] for r in conn.execute("SELECT proname FROM pg_proc WHERE pronamespace = 'shared'::regnamespace "
                                         "ORDER BY proname").fetchall()]
     assert names == ["caller_is_app_admin", "caller_is_commissioner_for", "caller_team_keys", "choice_window",
-                     "choice_windows", "load_app_roles", "load_owner_crosswalk", "pii_token_hashes"]
-    assert len(names) == SHARED_FUNCTIONS_TODAY + len(DEFINERS) == 8
+                     "choice_windows", "load_app_roles", "load_leagues", "load_owner_crosswalk", "load_teams",
+                     "pii_token_hashes"]
+    assert len(names) == SHARED_FUNCTIONS_TODAY + len(DEFINERS) == 10
 
 
 def test_no_function_in_shared_but_the_five_definers_is_executable_by_authenticated_anon_or_public(conn):
@@ -1296,7 +1297,18 @@ PERSONAS = {"stranger": ("00000000-0000-0000-0000-0000000000a1", "71111111111111
             "owner_of_other_team": ("00000000-0000-0000-0000-0000000000a3", "73333333333333333"),
             "commissioner": ("00000000-0000-0000-0000-0000000000a4", "74444444444444444"),
             "app_admin": ("00000000-0000-0000-0000-0000000000a5", "75555555555555555")}
-ROLES_OF = {"commissioner": ("commissioner", gm.LEAGUE_PLACEHOLDER), "app_admin": ("app_admin", gm.ALL_LEAGUES)}
+FOOTBALL, BASEBALL = "football", "baseball"
+ROLES_OF = {"commissioner": ("commissioner", FOOTBALL), "app_admin": ("app_admin", gm.ALL_LEAGUES)}
+LEAGUE_INSERT = "INSERT INTO shared.league (league_key, sport, league_name, fantrax_league_id) VALUES (%s, %s, %s, %s)"
+TEAM_INSERT = "INSERT INTO shared.fantasy_team (team_key, league_key) VALUES (%s, %s)"
+
+
+def _lists(conn):
+    """Two made-up leagues; T and T2 are football's teams, B1 baseball's (#675)."""
+    conn.execute(LEAGUE_INSERT, (FOOTBALL, "Football", "made-up F", "made-up-f"))
+    conn.execute(LEAGUE_INSERT, (BASEBALL, "Baseball", "made-up B", "made-up-b"))
+    for team, league in (("T", FOOTBALL), ("T2", FOOTBALL), ("B1", BASEBALL)):
+        conn.execute(TEAM_INSERT, (team, league))
 OWNS = {"owner_of_team": "T", "owner_of_other_team": "T2"}
 ROLE_INSERT = "INSERT INTO shared.app_role (discord_user_id, role, league_key) VALUES (%s, %s, %s)"
 TABLE_FILE = REPO / "tests" / "role_phase_action.csv"
@@ -1304,9 +1316,10 @@ PHASES = ("none", "open", "passed", "final")
 
 
 def _roles_world(conn):
-    """Teams T and T2, each persona's Discord identity, the crosswalk rows and the two role rows."""
+    """Teams T and T2, the two lists, each persona's Discord identity, the crosswalk rows and the role rows."""
     for team in ("T", "T2"):
         conn.execute("INSERT INTO football.dim_fantasy_teams (team_key) VALUES (%s)", (team,))
+    _lists(conn)
     for name, (uid, discord_id) in PERSONAS.items():
         conn.execute("INSERT INTO auth.identities (user_id, provider, provider_id) VALUES (%s, 'discord', %s)",
                      (uid, discord_id))
@@ -1390,10 +1403,30 @@ def test_the_two_checks_tell_the_truth_for_each_kind_of_caller(conn):
     assert _read(conn, PERSONAS["commissioner"][0], commissioner_of, ("NO_SUCH_TEAM",)) is False
 
 
-def test_a_person_holding_both_roles_passes_both_checks(conn):
+def test_the_commissioner_check_asks_for_the_teams_league_in_the_team_list(conn):
+    _roles_world(conn)
+    uid = PERSONAS["commissioner"][0]
+    commissioner_of = "SELECT shared.caller_is_commissioner_for(%s)"
+    assert _read(conn, uid, commissioner_of, ("T",)) is True
+    assert _read(conn, uid, commissioner_of, ("B1",)) is False
+    baseball_uid, baseball_id = PERSONAS["stranger"]
+    conn.execute(ROLE_INSERT, (baseball_id, "commissioner", BASEBALL))
+    assert _read(conn, baseball_uid, commissioner_of, ("B1",)) is True
+    assert _read(conn, baseball_uid, commissioner_of, ("T",)) is False
+
+
+def test_a_commissioner_row_whose_league_no_team_has_gives_no_power(conn):
     _roles_world(conn)
     uid, discord_id = PERSONAS["stranger"]
     conn.execute(ROLE_INSERT, (discord_id, "commissioner", "main"))
+    for team in ("T", "T2", "B1"):
+        assert _read(conn, uid, "SELECT shared.caller_is_commissioner_for(%s)", (team,)) is False
+
+
+def test_a_person_holding_both_roles_passes_both_checks(conn):
+    _roles_world(conn)
+    uid, discord_id = PERSONAS["stranger"]
+    conn.execute(ROLE_INSERT, (discord_id, "commissioner", FOOTBALL))
     conn.execute(ROLE_INSERT, (discord_id, "app_admin", "*"))
     assert _read(conn, uid, "SELECT shared.caller_is_commissioner_for('T')") is True
     assert _read(conn, uid, "SELECT shared.caller_is_app_admin()") is True
@@ -1421,7 +1454,7 @@ def test_the_role_file_replaces_every_row_so_a_removed_role_is_gone(conn):
     _roles_world(conn)
     admin_uid = PERSONAS["app_admin"][0]
     assert _read(conn, admin_uid, "SELECT shared.caller_is_app_admin()") is True
-    rows = [(PERSONAS["commissioner"][1], "commissioner", "main"), (PERSONAS["stranger"][1], "app_admin", "*")]
+    rows = [(PERSONAS["commissioner"][1], "commissioner", FOOTBALL), (PERSONAS["stranger"][1], "app_admin", "*")]
     body = loader.sql_file(rows).replace("BEGIN;\n", "").replace("COMMIT;\n", "")
     with conn.cursor() as cur:
         for statement in (s for s in body.split(";\n") if s.strip()):
@@ -1539,14 +1572,14 @@ OWNER_ROLE_ONLY = ("00000000-0000-0000-0000-0000000000a6", "76666666666666666")
 @pytest.mark.parametrize("action", list(ACTIONS))
 def test_a_person_with_only_an_owner_role_row_holds_exactly_a_strangers_powers(conn, monkeypatch, action, phase):
     monkeypatch.setitem(PERSONAS, "owner_role_only", OWNER_ROLE_ONLY)
-    monkeypatch.setitem(ROLES_OF, "owner_role_only", ("owner", gm.LEAGUE_PLACEHOLDER))
-    stranger = {(r["persona"], r["action"]): r for r in _table_rows()}[("stranger", action)][phase]
+    monkeypatch.setitem(ROLES_OF, "owner_role_only", ("owner", FOOTBALL))
+    stranger ={(r["persona"], r["action"]): r for r in _table_rows()}[("stranger", action)][phase]
     assert _outcome(conn, "owner_role_only", action, phase) == stranger
 
 
 def test_an_owner_role_row_passes_neither_check(conn, monkeypatch):
     monkeypatch.setitem(PERSONAS, "owner_role_only", OWNER_ROLE_ONLY)
-    monkeypatch.setitem(ROLES_OF, "owner_role_only", ("owner", gm.LEAGUE_PLACEHOLDER))
+    monkeypatch.setitem(ROLES_OF, "owner_role_only", ("owner", FOOTBALL))
     _roles_world(conn)
     uid = OWNER_ROLE_ONLY[0]
     assert conn.execute("SELECT count(*) FROM shared.app_role WHERE role = 'owner'").fetchone()[0] == 1
@@ -1595,6 +1628,77 @@ def test_the_role_words_migration_moves_the_old_rows_in_place_and_the_old_functi
             admin.execute(f"DROP DATABASE IF EXISTS {name}")
 
 
+LISTS_MIGRATION = "_league_and_team_lists.sql"
+LISTS_HELD = "_league_and_team_lists_held.sql"
+
+
+def test_the_lists_migrations_move_the_placeholder_empty_the_crosswalk_and_recreate_the_role_loader():
+    """A throwaway database made here (never the one under test): every migration before the
+    league and team lists applies, rows of the old shape are put in, then the unheld file and
+    the held one apply (#675)."""
+    from psycopg import conninfo
+    files = sorted((REPO / "supabase" / "migrations").glob("*.sql"))
+    (unheld,) = [f for f in files if f.name.endswith(LISTS_MIGRATION)]
+    (held,) = [f for f in files if f.name.endswith(LISTS_HELD)]
+    assert files.index(held) == files.index(unheld) + 1
+    name = "migration_before_lists"
+    owner_id, commissioner_id, admin_id = "71111111111111110", "72222222222222220", "73333333333333330"
+    commissioner_uid = "00000000-0000-0000-0000-0000000000e1"
+    with psycopg.connect(URL, autocommit=True) as admin:
+        admin.execute(f"DROP DATABASE IF EXISTS {name}")
+        admin.execute(f"CREATE DATABASE {name}")
+    try:
+        with psycopg.connect(conninfo.make_conninfo(URL, dbname=name), autocommit=True) as c:
+            c.execute(AUTH_STUB.read_text(encoding="utf-8"))
+            for path in files[:files.index(unheld)]:
+                c.execute(path.read_text(encoding="utf-8"))
+            c.execute("INSERT INTO football.dim_fantasy_teams (team_key) VALUES ('T')")
+            c.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES ('T', %s)", (owner_id,))
+            for row in ((owner_id, "owner", "main"), (commissioner_id, "commissioner", "main"), (admin_id, "app_admin", "*")):
+                c.execute(ROLE_INSERT, row)
+            c.execute("INSERT INTO auth.identities (user_id, provider, provider_id) VALUES (%s, 'discord', %s)",
+                      (commissioner_uid, commissioner_id))
+            c.execute(unheld.read_text(encoding="utf-8"))
+            assert c.execute("SELECT count(*) FROM shared.owner_crosswalk").fetchone()[0] == 1
+            c.execute(held.read_text(encoding="utf-8"))
+            assert sorted(c.execute("SELECT discord_user_id, role, league_key FROM shared.app_role").fetchall()) == [
+                (owner_id, "owner", FOOTBALL), (commissioner_id, "commissioner", FOOTBALL), (admin_id, "app_admin", "*")]
+            assert c.execute("SELECT count(*) FROM shared.owner_crosswalk").fetchone()[0] == 0
+            assert not c.execute("SELECT to_regprocedure('shared.load_app_roles(text[], text[])')").fetchone()[0]
+            assert c.execute("SELECT to_regprocedure('shared.load_app_roles(text[], text[], text[])')").fetchone()[0]
+            assert c.execute("SELECT confrelid::regclass::text FROM pg_constraint "
+                             "WHERE conname = 'owner_crosswalk_team_key_fkey'").fetchone() == ("shared.fantasy_team",)
+            with pytest.raises(psycopg.errors.ForeignKeyViolation):
+                c.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES ('T', %s)", (owner_id,))
+            _lists(c)
+            c.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES ('B1', %s)", (owner_id,))
+            with c.transaction():
+                c.execute("SET LOCAL ROLE authenticated")
+                c.execute("SELECT set_config('request.jwt.claim.sub', %s, true)", (commissioner_uid,))
+                assert c.execute("SELECT shared.caller_is_commissioner_for('T')").fetchone()[0] is True
+                assert c.execute("SELECT shared.caller_is_commissioner_for('B1')").fetchone()[0] is False
+    finally:
+        with psycopg.connect(URL, autocommit=True) as admin:
+            admin.execute(f"DROP DATABASE IF EXISTS {name}")
+
+
+def test_the_league_table_and_the_team_list_are_unreadable_and_unwritable_to_every_role_but_their_owner(conn):
+    _roles_world(conn)
+    uid = PERSONAS["commissioner"][0]
+    for table, insert in (("shared.league", LEAGUE_INSERT % ("'x'", "'x'", "'x'", "'x'")),
+                          ("shared.fantasy_team", TEAM_INSERT % ("'X1'", f"'{FOOTBALL}'"))):
+        for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+            _denied(conn, uid, f"SELECT * FROM {table}", role=role)
+            _denied(conn, uid, insert, role=role)
+            _denied(conn, uid, f"DELETE FROM {table}", role=role)
+        bare = table.split(".")[1]
+        assert conn.execute("SELECT relrowsecurity FROM pg_class WHERE oid = %s::regclass", (table,)).fetchone()[0]
+        assert not conn.execute("SELECT count(*) FROM pg_policies WHERE tablename = %s", (bare,)).fetchone()[0]
+        for role in ("authenticated", "anon", "etl_writer", "etl_reader"):
+            assert not conn.execute("SELECT has_table_privilege(%s, %s, 'SELECT,INSERT,UPDATE,DELETE')",
+                                    (role, table)).fetchone()[0], (table, role)
+
+
 @pytest.mark.parametrize("phase", PHASES)
 @pytest.mark.parametrize("persona,action", [(r["persona"], r["action"]) for r in _table_rows()])
 def test_every_cell_of_the_role_phase_and_action_table_is_proved_by_the_policies(conn, persona, action, phase):
@@ -1602,31 +1706,38 @@ def test_every_cell_of_the_role_phase_and_action_table_is_proved_by_the_policies
     assert _outcome(conn, persona, action, phase) == expected
 
 
-# The two load functions of the scheduled run (ADR-0026 decision 2 as amended, #700).
+# The four load functions of the scheduled run (ADR-0026 decision 2 as amended, #700 and #675).
 L1, L2, L3, L4 = "41111111111111111", "42222222222222222", "43333333333333333", "44444444444444444"
 LOAD_IDS = (L1, L2, L3, L4)
 LOAD_CROSSWALK = "SELECT rows_before, rows_after FROM shared.load_owner_crosswalk(%s::text[], %s::text[])"
-LOAD_ROLES = "SELECT rows_before, rows_after FROM shared.load_app_roles(%s::text[], %s::text[])"
+LOAD_ROLES = "SELECT rows_before, rows_after FROM shared.load_app_roles(%s::text[], %s::text[], %s::text[])"
+LOAD_LEAGUES = ("SELECT rows_before, rows_after FROM shared.load_leagues("
+                "%s::text[], %s::text[], %s::text[], %s::text[])")
+LOAD_TEAMS = ("SELECT rows_before, rows_after FROM shared.load_teams("
+              "%s::text[], %s::text[], %s::text[], %s::text[], %s::text[])")
 LOAD_TABLES = {"shared.load_owner_crosswalk": ("shared.owner_crosswalk", "team_key, discord_user_id"),
-               "shared.load_app_roles": ("shared.app_role", "discord_user_id, role, league_key")}
+               "shared.load_app_roles": ("shared.app_role", "discord_user_id, role, league_key"),
+               "shared.load_leagues": ("shared.league", "league_key, sport, league_name, fantrax_league_id"),
+               "shared.load_teams": ("shared.fantasy_team", "team_key, league_key, fantrax_team_id, team_name, division")}
 
 
 def _load_world(conn):
     for team in ("T", "T2"):
         conn.execute("INSERT INTO football.dim_fantasy_teams (team_key) VALUES (%s)", (team,))
+    _lists(conn)
     conn.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES ('T', %s), ('T2', %s)",
                  (L1, L2))
-    conn.execute("INSERT INTO shared.app_role (discord_user_id, role, league_key) VALUES (%s, 'commissioner', 'main')",
-                 (L1,))
+    conn.execute("INSERT INTO shared.app_role (discord_user_id, role, league_key) VALUES (%s, 'commissioner', %s)",
+                 (L1, FOOTBALL))
 
 
-def _load(conn, call, first, second):
+def _load(conn, call, *arrays):
     """(counts, None) or (None, the error), called as etl_writer inside a savepoint."""
     conn.execute("SELECT 1")
     try:
         with conn.transaction():
             conn.execute("SET LOCAL ROLE etl_writer")
-            return conn.execute(call, (first, second)).fetchone(), None
+            return conn.execute(call, arrays).fetchone(), None
     except psycopg.errors.Error as exc:
         return None, exc
     finally:
@@ -1653,8 +1764,8 @@ def test_the_writer_alone_executes_each_load_function_and_it_is_a_definer_with_t
         assert conn.execute("SELECT has_function_privilege(%s, %s, 'EXECUTE')", (role, oid)).fetchone()[0] is expected, role
 
 
-def test_the_writer_holds_no_grant_on_either_table_and_is_refused_every_statement_on_them(conn):
-    for table in ("shared.owner_crosswalk", "shared.app_role"):
+def test_the_writer_holds_no_grant_on_any_of_the_four_tables_and_is_refused_every_statement_on_them(conn):
+    for table in ("shared.owner_crosswalk", "shared.app_role", "shared.league", "shared.fantasy_team"):
         assert not conn.execute("SELECT has_table_privilege('etl_writer', %s, 'SELECT,INSERT,UPDATE,DELETE')",
                                 (table,)).fetchone()[0]
         assert not conn.execute("SELECT count(*) FROM information_schema.column_privileges WHERE grantee = 'etl_writer' "
@@ -1671,27 +1782,54 @@ def test_a_good_set_replaces_the_crosswalk_rows_and_returns_the_two_counts(conn)
     assert _rows(conn, "shared.owner_crosswalk", "team_key, discord_user_id") == [("T", L1), ("T", L3), ("T2", L3)]
 
 
-def test_a_good_set_replaces_the_role_rows_gives_each_its_league_and_returns_the_two_counts(conn):
+def test_a_good_set_replaces_the_role_rows_with_their_leagues_and_returns_the_two_counts(conn):
     _load_world(conn)
-    counts, error = _load(conn, LOAD_ROLES, [L2, L3, L3], ["commissioner", "app_admin", "commissioner"])
-    assert error is None and counts == (1, 3)
+    counts, error = _load(conn, LOAD_ROLES, [L2, L3, L3, L3], ["commissioner", "app_admin", "commissioner", "commissioner"],
+                          [FOOTBALL, gm.ALL_LEAGUES, FOOTBALL, BASEBALL])
+    assert error is None and counts == (1, 4)
     assert _rows(conn, "shared.app_role", "discord_user_id, role, league_key") == sorted([
-        (L2, "commissioner", gm.LEAGUE_PLACEHOLDER), (L3, "app_admin", gm.ALL_LEAGUES),
-        (L3, "commissioner", gm.LEAGUE_PLACEHOLDER)])
+        (L2, "commissioner", FOOTBALL), (L3, "app_admin", gm.ALL_LEAGUES),
+        (L3, "commissioner", FOOTBALL), (L3, "commissioner", BASEBALL)])
 
 
-def test_an_owner_row_loads_with_the_one_league_like_a_commissioner_row(conn):
+def test_an_owner_row_loads_with_its_league_like_a_commissioner_row(conn):
     _load_world(conn)
-    counts, error = _load(conn, LOAD_ROLES, [L2, L2], ["owner", "commissioner"])
+    counts, error = _load(conn, LOAD_ROLES, [L2, L2], ["owner", "commissioner"], [BASEBALL, FOOTBALL])
     assert error is None and counts == (1, 2)
     assert _rows(conn, "shared.app_role", "discord_user_id, role, league_key") == sorted([
-        (L2, "commissioner", gm.LEAGUE_PLACEHOLDER), (L2, "owner", gm.LEAGUE_PLACEHOLDER)])
+        (L2, "commissioner", FOOTBALL), (L2, "owner", BASEBALL)])
+
+
+def test_a_good_set_replaces_the_leagues_and_the_teams_and_the_crosswalk_takes_any_leagues_team(conn):
+    _load_world(conn)
+    counts, error = _load(conn, LOAD_LEAGUES, [FOOTBALL, BASEBALL, "basketball"], ["Football", "Baseball", "Basketball"],
+                          ["F", "B", "K"], ["made-up-f", "made-up-b", "made-up-k"])
+    assert error is None and counts == (2, 3)
+    counts, error = _load(conn, LOAD_TEAMS, ["T", "T2", "B1", "K1"], [FOOTBALL, FOOTBALL, BASEBALL, "basketball"],
+                          ["f1", None, "f3", "f4"], ["n1", None, "n3", "n4"], ["D1", None, "D3", "D4"])
+    assert error is None and counts == (3, 4)
+    assert _rows(conn, "shared.fantasy_team", "team_key, league_key") == [
+        ("B1", BASEBALL), ("K1", "basketball"), ("T", FOOTBALL), ("T2", FOOTBALL)]
+    assert _load(conn, LOAD_CROSSWALK, ["T", "K1"], [L1, L3])[0] == (2, 2)
+    conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+
+
+def test_a_crosswalk_or_team_row_whose_parent_is_not_in_the_lists_is_refused_at_commit(conn):
+    _load_world(conn)
+    conn.execute("INSERT INTO shared.owner_crosswalk (team_key, discord_user_id) VALUES ('NOT_LISTED', %s)", (L3,))
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
+    conn.rollback()
+    _load_world(conn)
+    conn.execute(TEAM_INSERT, ("X1", "no_such_league"))
+    with pytest.raises(psycopg.errors.ForeignKeyViolation):
+        conn.execute("SET CONSTRAINTS ALL IMMEDIATE")
 
 
 def test_a_set_that_drops_a_row_removes_it_so_a_removed_owner_or_role_is_gone(conn):
     _load_world(conn)
     assert _load(conn, LOAD_CROSSWALK, ["T"], [L1])[0] == (2, 1)
-    assert _load(conn, LOAD_ROLES, [L2], ["app_admin"])[0] == (1, 1)
+    assert _load(conn, LOAD_ROLES, [L2], ["app_admin"], [gm.ALL_LEAGUES])[0] == (1, 1)
     assert _rows(conn, "shared.owner_crosswalk", "team_key, discord_user_id") == [("T", L1)]
     assert _rows(conn, "shared.app_role", "discord_user_id, role, league_key") == [(L2, "app_admin", "*")]
 
@@ -1704,14 +1842,52 @@ REFUSED_CROSSWALK = {
     "one bad row among good": (["T", "T2"], [L3, "4" * 16]),
 }
 REFUSED_ROLES = {
-    "empty": ([], []), "null arrays": (None, None), "unequal": ([L3, L4], ["app_admin"]),
-    "short id": (["4" * 16], ["app_admin"]), "long id": (["4" * 21], ["app_admin"]),
-    "letter in id": (["4" * 16 + "x"], ["app_admin"]), "null id": ([None], ["app_admin"]),
-    "the old admin word": ([L3], ["site_admin"]), "a fourth word": ([L3], ["root"]),
-    "wrong case": ([L3], ["Commissioner"]), "null role": ([L3], [None]),
-    "repeated pair": ([L3, L3], ["app_admin", "app_admin"]),
-    "one bad row among good": ([L3, L4], ["app_admin", "root"]),
+    "empty": ([], [], []), "null arrays": (None, None, None), "unequal": ([L3, L4], ["app_admin"], ["*"]),
+    "no leagues": ([L3], ["app_admin"], []),
+    "short id": (["4" * 16], ["app_admin"], ["*"]), "long id": (["4" * 21], ["app_admin"], ["*"]),
+    "letter in id": (["4" * 16 + "x"], ["app_admin"], ["*"]), "null id": ([None], ["app_admin"], ["*"]),
+    "the old admin word": ([L3], ["site_admin"], ["*"]), "a fourth word": ([L3], ["root"], [FOOTBALL]),
+    "wrong case": ([L3], ["Commissioner"], [FOOTBALL]), "null role": ([L3], [None], [FOOTBALL]),
+    "an app admin of one league": ([L3], ["app_admin"], [FOOTBALL]),
+    "an owner of every league": ([L3], ["owner"], ["*"]),
+    "a commissioner of every league": ([L3], ["commissioner"], ["*"]),
+    "a league the table does not have": ([L3], ["commissioner"], ["main"]),
+    "a null league": ([L3], ["commissioner"], [None]),
+    "repeated row": ([L3, L3], ["app_admin", "app_admin"], ["*", "*"]),
+    "one bad row among good": ([L3, L4], ["app_admin", "root"], ["*", FOOTBALL]),
 }
+REFUSED_LEAGUES = {
+    "empty": ([], [], [], []), "null arrays": (None, None, None, None),
+    "unequal": ([FOOTBALL, BASEBALL], ["F"], ["F", "B"], ["f", "b"]),
+    "the all leagues mark": (["*"], ["x"], ["x"], ["x"]), "a capital": (["Football"], ["F"], ["F"], ["f"]),
+    "a space": (["ice hockey"], ["I"], ["I"], ["i"]), "null key": ([None], ["F"], ["F"], ["f"]),
+    "no fantrax id": ([FOOTBALL], ["F"], ["F"], [" "]), "repeated key": ([FOOTBALL, FOOTBALL], ["F", "F"], ["F", "G"], ["f", "g"]),
+    "repeated fantrax id": ([FOOTBALL, BASEBALL], ["F", "B"], ["F", "B"], ["f", "f"]),
+}
+REFUSED_TEAMS = {
+    "empty": ([], [], [], [], []), "null arrays": (None, None, None, None, None),
+    "unequal": (["T", "T2"], [FOOTBALL], [None, None], [None, None], [None, None]),
+    "no team key": ([" "], [FOOTBALL], [None], [None], [None]),
+    "a league the table does not have": (["T"], ["main"], [None], [None], [None]),
+    "null league": (["T"], [None], [None], [None], [None]),
+    "repeated team key across leagues": (["T", "T"], [FOOTBALL, BASEBALL], [None, None], [None, None], [None, None]),
+}
+
+
+@pytest.mark.parametrize("call,table,columns,cases", [
+    (LOAD_LEAGUES, "shared.league", "league_key, fantrax_league_id", REFUSED_LEAGUES),
+    (LOAD_TEAMS, "shared.fantasy_team", "team_key, league_key", REFUSED_TEAMS)])
+def test_the_league_and_team_functions_refuse_a_bad_set_change_nothing_and_name_no_value(conn, call, table, columns,
+                                                                                       cases):
+    for case, arrays in cases.items():
+        _load_world(conn)
+        before = _rows(conn, table, columns)
+        counts, error = _load(conn, call, *arrays)
+        assert counts is None and isinstance(error, psycopg.errors.RaiseException), case
+        assert "nothing changed" in error.diag.message_primary, case
+        assert not any(v in _words(error) for v in ("made-up", "T2", "football")), (case, _words(error))
+        assert _rows(conn, table, columns) == before, case
+        conn.rollback()
 
 
 @pytest.mark.parametrize("case", REFUSED_CROSSWALK)
@@ -1736,11 +1912,12 @@ def test_the_role_function_refuses_a_bad_set_changes_nothing_and_names_no_value(
     assert _rows(conn, "shared.app_role", "discord_user_id, role, league_key") == before
 
 
-@pytest.mark.parametrize("name,call,first,second", [
-    ("shared.load_owner_crosswalk", LOAD_CROSSWALK, ["T", "T2", "T"], [L2, L3, L4]),
-    ("shared.load_app_roles", LOAD_ROLES, [L2, L3, L4], ["app_admin", "commissioner", "commissioner"])])
+@pytest.mark.parametrize("name,call,arrays", [
+    ("shared.load_owner_crosswalk", LOAD_CROSSWALK, (["T", "T2", "T"], [L2, L3, L4])),
+    ("shared.load_app_roles", LOAD_ROLES, ([L2, L3, L4], ["app_admin", "commissioner", "commissioner"],
+                                           ["*", FOOTBALL, BASEBALL]))])
 def test_a_set_that_fails_part_way_leaves_the_table_unchanged_and_the_message_names_no_id(
-        conn, name, call, first, second):
+        conn, name, call, arrays):
     table, columns = LOAD_TABLES[name]
     _load_world(conn)
     conn.execute("CREATE FUNCTION public.boom_on_the_third() RETURNS trigger LANGUAGE plpgsql AS $b$ "
@@ -1748,17 +1925,19 @@ def test_a_set_that_fails_part_way_leaves_the_table_unchanged_and_the_message_na
                  "RAISE EXCEPTION 'the row holding % broke', NEW.discord_user_id; END IF; RETURN NEW; END $b$")
     conn.execute(f"CREATE TRIGGER boom BEFORE INSERT ON {table} FOR EACH ROW EXECUTE FUNCTION public.boom_on_the_third()")
     before = _rows(conn, table, columns)
-    counts, error = _load(conn, call, first, second)
+    counts, error = _load(conn, call, *arrays)
     assert counts is None and isinstance(error, psycopg.errors.RaiseException)
     assert error.diag.message_primary.endswith("(SQLSTATE P0001); nothing changed")
     assert not any(i in _words(error) for i in LOAD_IDS), _words(error)
     assert _rows(conn, table, columns) == before
 
 
-def test_the_returned_value_of_both_functions_is_two_integers_and_nothing_else(conn):
+def test_the_returned_value_of_each_function_is_two_integers_and_nothing_else(conn):
     _load_world(conn)
-    for call, first, second in ((LOAD_CROSSWALK, ["T"], [L3]), (LOAD_ROLES, [L3], ["app_admin"])):
-        counts, error = _load(conn, call, first, second)
+    for call, arrays in ((LOAD_LEAGUES, ([FOOTBALL, BASEBALL], ["F", "B"], ["F", "B"], ["f", "b"])),
+                         (LOAD_TEAMS, (["T", "T2"], [FOOTBALL, FOOTBALL], [None, None], [None, None], [None, None])),
+                         (LOAD_CROSSWALK, (["T"], [L3])), (LOAD_ROLES, ([L3], ["app_admin"], ["*"]))):
+        counts, error = _load(conn, call, *arrays)
         assert error is None and len(counts) == 2 and all(type(c) is int for c in counts)
         assert not any(i in str(counts) for i in LOAD_IDS)
     columns = conn.execute("SELECT p.proname, pg_get_function_result(p.oid) FROM pg_proc p "
@@ -1770,7 +1949,7 @@ def test_the_returned_value_of_both_functions_is_two_integers_and_nothing_else(c
 def test_a_role_holder_loaded_through_the_function_reaches_the_pii_hash_list_and_the_two_checks(conn):
     import hashlib
     _load_world(conn)
-    assert _load(conn, LOAD_ROLES, [L3], ["app_admin"])[0] == (1, 1)
+    assert _load(conn, LOAD_ROLES, [L3], ["app_admin"], ["*"])[0] == (1, 1)
     conn.execute("INSERT INTO auth.identities (user_id, provider, provider_id) VALUES (%s, 'discord', %s)",
                  ("00000000-0000-0000-0000-0000000000c3", L3))
     with conn.cursor() as cur:
