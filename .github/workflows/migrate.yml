@@ -232,8 +232,21 @@ jobs:
           if [ "$now" = "$HELD" ]; then
             echo "apply=true" >> "$GITHUB_OUTPUT"
           elif [ -z "$now" ]; then
-            echo "::notice::$HELD is already applied, by a later run or the owner's hand run. Nothing to apply."
-            echo "apply=false" >> "$GITHUB_OUTPUT"
+            pending=""
+            for f in supabase/migrations/*.sql; do
+              v=$(basename "$f")
+              v=${v%%_*}
+              if ! grep -qxF "$v" "$RUNNER_TEMP/applied.txt"; then
+                pending="$pending $(basename "$f")"
+              fi
+            done
+            if [ -n "$pending" ]; then
+              echo "::notice::$HELD is already applied. This commit still has pending migrations, none held:$pending. Applying them."
+              echo "apply=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "::notice::$HELD and every migration of this commit are already applied. Nothing to apply."
+              echo "apply=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "::error::The gate now names $now, not $HELD. Nothing was applied."
             exit 1
