@@ -45,13 +45,20 @@ becomes a problem.
 
 ## Required checks
 
-A ruleset on `main` blocks the merge until all three pass:
+A ruleset on `main` blocks the merge until all six pass (a job that skips
+for a PR's paths counts as passed):
 
 | Check | Workflow | What it guards |
 |---|---|---|
 | `pii-scan` | `.github/workflows/pii-scan.yml` | No owner personal data in a public repo (`scripts/check_pii.py`) |
 | `tests` | `.github/workflows/tests.yml` | The regression suite in `tests/` ([ADR-0008](docs/adr/0008-regression-testing-standard.md)) |
 | `bot-tests` | `.github/workflows/tests.yml` | The Discord bot's tests |
+| `checks` | `.github/workflows/tests.yml` | The data model file, the sources file and the Gates on the published tables |
+| `storage-pg` | `.github/workflows/tests.yml` | The storage seam and every migration, on a throwaway database |
+| `validate` | `.github/workflows/migrate.yml` | A new migration's order, and the role, grant and policy tests |
+
+Which PRs then merge without the owner's word is in
+`.claude/memory/GOAL-RUN.md`, "CI checks and what merges on Green".
 
 ## Session workflow
 
@@ -65,7 +72,7 @@ git add <files>
 git commit -m "docs: #<ticket> short summary"
 git push -u origin docs/short-slug
 gh pr create --base main --title "docs: #<ticket> short summary" --body "..."
-gh pr merge <n> --squash --delete-branch   # once the three checks pass
+gh pr merge <n> --squash --delete-branch   # once the six checks pass
 ```
 
 Agent sessions that run side by side each work in their own git worktree,
