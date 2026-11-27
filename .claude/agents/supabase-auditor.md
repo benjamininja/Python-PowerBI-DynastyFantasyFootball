@@ -52,7 +52,7 @@ checks; do not start a database.
 - **The choices tables (ADR-0026):** no role is granted INSERT, UPDATE or
   DELETE on `app.contract_choice_history` (decision 5). No policy gives a
   commissioner SELECT, INSERT or UPDATE on another team's rows of
-  `app.contract_choices`, and none gives a site admin a read or a write on
+  `app.contract_choices`, and none gives an app admin a read or a write on
   it (decisions 3 and 4). A grant or policy for either role that the
   ADR does not name is blocking.
 - **`shared.owner`:** `etl_writer` has no grant on `shared.owner`,
