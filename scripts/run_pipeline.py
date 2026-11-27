@@ -3,7 +3,8 @@
 Runs the scheduled slice of the pipeline in dependency order, gates each
 Chain, surfaces review-queue counts, commits the passing Chains' refreshed
 data (allowlisted `data/*.parquet` ONLY) by its own data PR, which it merges
-itself once pii-scan, tests and bot-tests pass (#361; see CONTRIBUTING.md),
+itself once pii-scan, tests, bot-tests, checks, storage-pg and validate pass
+(#361, #736; see CONTRIBUTING.md),
 and notifies a private Discord channel via webhook.
 
 Publish gate (ADR-0008 amendment, #115): the publish unit is a Chain
@@ -83,7 +84,7 @@ VENV_PY = _find_python(REPO)
 NB = REPO / "notebooks"
 OUT_DIR = REPO / "data" / "outputs"
 STEP_TIMEOUT_S = 1800
-REQUIRED_CHECKS = ("pii-scan", "tests", "bot-tests")
+REQUIRED_CHECKS = ("pii-scan", "tests", "bot-tests", "checks", "storage-pg", "validate")
 CHECKS_TIMEOUT_S = 1800
 CHECKS_POLL_S = 30
 
@@ -606,7 +607,8 @@ def _pr_body(staged: list[str], run_id: str | None, rows: dict | None,
              intro: str = PR_INTRO) -> str:
     lines = [f"{intro} "
              "(allowlisted data-only commit). Opened and merged by the pipeline "
-             "once pii-scan, tests and bot-tests pass.", "",
+             "once pii-scan, tests, bot-tests, checks, storage-pg and validate "
+             "pass.", "",
              f"Run log: {run_id or 'not written'}", "", "Tables:"]
     for path in staged:
         table = Path(path).stem
