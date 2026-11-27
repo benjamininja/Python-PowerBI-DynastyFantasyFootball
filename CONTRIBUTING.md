@@ -14,7 +14,7 @@ per pull request. Merge by squash and delete the branch
 **Allowlisted data-PR exception (2026-07-13, changed by #361):** the scheduled
 pipeline (`scripts/run_pipeline.py`, via `run_weekly.ps1`) lands its
 **machine-generated `data/*.parquet` refreshes by its own data PR**, gated by
-the three required checks below, and merges that PR itself. Nothing is pushed to
+the six checks it waits for (named below), and merges that PR itself. Nothing is pushed to
 `main`, no ruleset or repository setting is changed and nothing is bypassed.
 This is deliberate and narrowly scoped: the orchestrator stages only the
 tracked parquet of the Chains that passed their steps and Gate checks (ADR-0008
@@ -28,7 +28,8 @@ the `nflverse` Chain's link row, or neither is. It then commits to a new branch
 `data/<date>-<phase>-wk<NN>` (with a `-2`, `-3` suffix when an earlier run's
 branch still exists), rebases it on `origin/main`, pushes the branch and
 opens a PR titled `data: pipeline refresh <date> (<phase>, wk <NN>)`. It polls
-the PR for `pii-scan`, `tests` and `bot-tests` for up to 30 minutes, then merges
+the PR for `pii-scan`, `tests`, `bot-tests`, `checks`, `storage-pg` and
+`validate` for up to 30 minutes (a skipped check counts as done), then merges
 with `gh pr merge --rebase --delete-branch`. The run log reads `published` only
 once the PR has merged, and its `snapshot_commit_sha` is the commit as it
 landed on `main`. A failed check, a timeout or a refused merge leaves the PR
