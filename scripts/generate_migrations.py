@@ -36,7 +36,7 @@ trigger of a new name is added too; a change to or a drop of an existing one is
 refused. A required column carries a `fill` (#661) when it is added to a table
 that has rows: ADD COLUMN with the fill as its default, so no UPDATE runs and no
 trigger is touched, then DROP DEFAULT in the migration of its own that holds the
-drops (#534; the gate holds it for the owner's dispatch). The one policy of
+drops (#534; the gate holds it for the owner's approval). The one policy of
 REPLACEABLE_POLICIES is changed in place with ALTER POLICY, and the functions
 of REPLACEABLE_FUNCTIONS are replaced with CREATE OR REPLACE.
 Other later changes to those fields on an existing table are refused. A table's

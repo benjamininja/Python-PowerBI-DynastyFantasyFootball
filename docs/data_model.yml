@@ -67,7 +67,7 @@
 #   `fill` on a required column: the value the rows that exist take when the
 #   column is added to a table that has rows (ADD COLUMN ... DEFAULT <fill>, no
 #   UPDATE; then DROP DEFAULT in the migration of its own that holds the drops,
-#   which the destructive gate holds for the owner's dispatch).
+#   which the destructive gate holds for the owner's approval).
 #   check_data_model.py reports the generator's refusal.
 #   Declaring shared.owner_crosswalk also makes the generator write the two
 #   SECURITY DEFINER functions of `shared` that policies call (ADR-0025
@@ -1898,7 +1898,7 @@ other_tables:
       # that exists when this column is added takes (the season's last day, the
       # end of 2027-02-28 in America/New_York); it is a default for that ADD COLUMN
       # only and is dropped by the migration of its own that follows. That one is
-      # held by the destructive gate and applies on the owner's dispatch.
+      # held by the destructive gate and applies on the owner's approval.
       - { name: final_at, sql_type: timestamptz, fill: "timestamptz '2027-03-01 04:59:59+00'" }
 
 # The page's read path (ADR-0026 decision 10 point 1, #670). Each view runs as the
