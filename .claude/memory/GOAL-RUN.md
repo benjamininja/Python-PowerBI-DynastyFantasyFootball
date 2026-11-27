@@ -45,16 +45,18 @@ line under that skill's "Never".
   hand. `--check-only` fails on a Gate failure only; Review findings are
   listed in the job's log and never fail it;
 - for a cap or ledger change, `cap-ledger-auditor` has no unresolved finding;
-- for a code PR, no blocking finding the manager upheld is still open;
-- for a PR that adds a migration, its file sorts after the newest one on
-  the current `origin/main`: the manager runs
-  `.venv/Scripts/python.exe scripts/check_migration_order.py --base origin/main`
-  after `git fetch origin`. The `validate` job of `migrate.yml` runs the
-  same script on the PR (#688), but only when the PR is pushed, not when
-  `main` moves under it. A file that sorts before the newest one goes
-  back to the builder to regenerate, never to rename by hand.
+- for a code PR, no blocking finding the manager upheld is still open.
+  One reviewer reads a code PR, never two;
+- for a PR that adds a migration, the required `validate` job of
+  `migrate.yml` (#688, #731) is the proof that its file sorts after the
+  newest one on `main`: the check at the head is the proof, and the
+  manager runs no local order check. A file that sorts before the newest
+  one goes back to the builder to regenerate, never to rename by hand.
+  When `main` has gained a migration since the PR's last push, the PR
+  takes a merge of `main` before its merge, and `validate` at the new
+  head is the proof.
 
-A Green holds while the PR's head is unchanged and GitHub shows no conflict. A merge elsewhere does not make it stale; the migration-order line is the one item read again. A PR that conflicts takes a merge of `main`, and CI runs on the new head.
+A Green holds while the PR's head is unchanged and GitHub shows no conflict. A merge elsewhere does not make it stale. A PR that conflicts takes a merge of `main`, and CI runs on the new head.
 
 After each merge the manager reads CI on `main`'s new commit. Red there means a revert PR and an Action for the owner. Two PRs that are each green alone can break `main` together: a red `main` after a merge is read as that case. A merged migration is not reverted: it is fixed forward, and parks with the owner as a Decision. A merged tree is not proved again.
 
@@ -148,6 +150,72 @@ contents: the state of each ticket in hand, the open PRs,
 `git status --short --branch`, and the last line of the test run if code
 changed.
 
+## CI checks and what merges on Green
+
+Owner's answer on #731, 2026-11-27: the six checks below are required on
+`main`, the closed list merges on Green alone, and Windows is not run.
+Times are whole-job times at the heads of PR #727 and PR #728, read
+2026-11-26.
+
+| Check | What it protects | Which PRs run it | Time | Required |
+|---|---|---|---|---|
+| `pii-scan` | no owner's personal data in a tracked file. Once published it cannot be taken back | every PR, each push to `main` | 0.2 min | yes |
+| `tests` | the whole test suite outside the database marks: the helpers, the pipeline, the cap math, trade-bud, the Power BI reference tests | every PR except one whose changed paths all end in `.md` or sit under `.claude/memory/`; each push to `main` | 2.4 min | yes |
+| `bot-tests` | the Discord bot's own tests | the same PRs as `tests` | 0.4 min | yes |
+| `checks` | the data model file agrees with the generator and the registry, the sources file is valid, and no Gate fails on the published tables | every PR, each push to `main` | 0.6 min | yes |
+| `storage-pg` | the storage seam and every migration, applied on a throwaway database with the real roles. It stops a migration that cannot apply, and a merged migration is applied, not reverted | every PR except one whose changed paths all make `tests` skip or sit under `pbi/`, `mouserat_trade-bud/`, `discord_bot/` or `docs/site/`; each push to `main` | 6.3 min | yes |
+| `validate` | a new migration sorts after the newest one on `main`, and the role, grant and policy tests pass on a throwaway database (`tests/test_migrations_apply.py`, which no other job runs) | a PR that changes a migration path (the list in `migrate.yml`); it also runs when its scope job fails | 1.2 min | yes |
+| `docs-build` | the docs site and the trade-bud export still build | a PR that changes the site, trade-bud, or the two files the site reads | not measured | no: a broken site build is undone by a revert |
+| Windows | nothing runs on Windows in CI | none | none | not run. Every job that publishes, applies or schedules runs on `ubuntu-latest`: the scheduled run, the migrations, the site. Windows is only the owner's machine, where the manager's local scripts run; a fault there publishes nothing and a fix undoes it |
+
+- **`validate` runs from a list of paths, not a skip list.** `storage-pg`
+  applies every migration too, and skips only by a skip list, so a
+  migration that cannot apply is caught either way. What only `validate`
+  holds is the order check and the role, grant and policy tests;
+  `tests/role_phase_action.csv` is on its list (#722).
+- **The three harms, here.** A merge that adds a migration applies it.
+  The scheduled run publishes data by its own PR, which waits for the
+  same six checks (`REQUIRED_CHECKS` in `scripts/run_pipeline.py`).
+  `pii-scan` reads every tracked file for personal data; nothing scans
+  for a secret.
+- **Changing the required column** is the owner's button, in either
+  direction. A PR that changes a workflow file is read by the planner
+  before its merge.
+
+**What merges on Green alone.** A closed list. A builder's PR merges on
+Green with no owner's word when every changed path is under one of:
+
+- `notebooks/`
+- `scripts/`, except `scripts/generate_migrations.py`,
+  `scripts/migration_gate.py`, `scripts/run_pipeline.py` and
+  `scripts/check_pii.py`
+- `tests/`
+- `discord_bot/`
+
+and every required check the table names for its changed paths ran, not
+skipped, at its head.
+
+**The owner's word stays for** everything else, and by name for:
+
+- a PR that adds or changes a migration, `docs/data_model.yml` or
+  `supabase/registry_state.json`: the merge applies it to the live
+  database;
+- a PR that changes a file under `data/`: that is published data. The
+  scheduled run's own data PR keeps its own rule;
+- a PR that changes `.github/`, `.claude/`, `CLAUDE.md`,
+  `CONTRIBUTING.md` or a file under `docs/adr/`: a gate or a recorded
+  decision;
+- a PR that changes `pbi/` or `mouserat_trade-bud/`: no required check
+  proves a report or the published site;
+- the four scripts left out above: the generator and the gate write
+  migrations, the pipeline script publishes, the scan is the
+  personal-data guard;
+- anything the shared rule already keeps: a parked item, a planner's or
+  a manager's own PR.
+
+**Before each merge** the manager reads `main`'s last finished run. Red
+there stops every merge but the fix or the revert.
+
 ## Stages
 
 | Stage | Tier | Tickets, in order | Waits on the owner for |
@@ -178,9 +246,11 @@ merges the batch after the owner's approval, pinned to its head with
 every check passing, and before any worktree cleanup. `NEEDS-OWNER.md`
 is not part of a state save. A rule or role-file change keeps its own PR.
 
-**Who merges what (owner, 2026-10-31).** The manager merges a builder's
-PR after its re-proof, pulls, and wakes a builder that has more of its
-brief to work. The manager merges its own PR after the owner's approval.
+**Who merges what (owner, 2026-10-31; #731, 2026-11-27).** The manager
+merges a builder's PR after its re-proof: on Green alone for a PR on the
+closed list under "CI checks and what merges on Green" above, and on the
+owner's word for every other PR. It pulls, and wakes a builder that has
+more of its brief to work. The manager merges its own PR after the owner's approval.
 The planner merges its own PRs, and a rule change the owner approved in
 the planner's chat or by a pane answer, and cleans up that PR's branch.
 `gh pr merge` runs as one call, nothing chained.
