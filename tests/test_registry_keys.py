@@ -184,8 +184,8 @@ class TestTheRegistry:
             ("ops", "change_poll_state"),
             ("ops", "choice_deadline"), ("ops", "etl_run_log"), ("ops", "review_check"),
             ("ops", "review_dynasty_crosswalk"), ("ops", "review_fantrax_crosswalk"),
-            ("ops", "review_fuzzy_matches"), ("shared", "app_role"), ("shared", "owner"),
-            ("shared", "owner_crosswalk")]
+            ("ops", "review_fuzzy_matches"), ("shared", "app_role"), ("shared", "fantasy_team"),
+            ("shared", "league"), ("shared", "owner"), ("shared", "owner_crosswalk")]
 
     def test_no_table_is_declared_twice(self):
         names = [t["name"] for t in TABLES + OTHERS]

@@ -318,6 +318,33 @@ class TestTheGate:
                       "DROP FUNCTION shared.not_retired()"):
             assert not flagged(extra), extra
 
+    def test_a_held_file_of_a_retargeted_key_and_a_recreated_function_passes_and_others_do_not(self):
+        recreated = {"shared.load_r": ("(text[])", 675)}
+        retargeted = {("shared.c", "c_team_key_fkey"): (True, 675)}
+        held = mg.statements(
+            "ALTER TABLE shared.c DROP CONSTRAINT c_team_key_fkey;\n"
+            "DELETE FROM shared.c WHERE true;\n"
+            "ALTER TABLE shared.c ADD CONSTRAINT c_team_key_fkey FOREIGN KEY (team_key) REFERENCES shared.t (team_key) "
+            "DEFERRABLE INITIALLY DEFERRED;\n"
+            "DROP FUNCTION shared.load_r(text[]);\n"
+            "CREATE FUNCTION shared.load_r(p text[], q text[]) RETURNS integer LANGUAGE plpgsql AS "
+            "$fn$ BEGIN RETURN 0; END $fn$;\n"
+            "REVOKE EXECUTE ON FUNCTION shared.load_r(text[], text[]) FROM PUBLIC;\n"
+            "GRANT USAGE ON SCHEMA shared TO etl_writer;\n"
+            "GRANT EXECUTE ON FUNCTION shared.load_r(text[], text[]) TO etl_writer;\n"
+            "CREATE OR REPLACE FUNCTION shared.load_c(p text[]) RETURNS integer LANGUAGE plpgsql AS "
+            "$fn$ BEGIN INSERT INTO shared.c SELECT 1; RETURN 0; END $fn$;\n")
+        flagged = _flagged_change("t.sql", held, set(), {}, recreated, retargeted)
+        assert all(flagged(s) for s in held), [s for s in held if not flagged(s)]
+        for extra in ("DELETE FROM shared.other WHERE true",
+                      "ALTER TABLE shared.other DROP CONSTRAINT other_team_key_fkey",
+                      "DROP FUNCTION shared.load_r(text[], text[])",
+                      "DROP FUNCTION shared.load_other(text[])",
+                      "CREATE FUNCTION shared.unrelated() RETURNS boolean LANGUAGE sql AS $fn$ SELECT true $fn$"):
+            assert not flagged(extra), extra
+        kept = {("shared.c", "c_team_key_fkey"): (False, 675)}
+        assert not _flagged_change("t.sql", held, set(), {}, recreated, kept)("DELETE FROM shared.c WHERE true")
+
     def test_every_committed_held_migration_is_a_flagged_drop(self):
         import generate_migrations as gm
         flagged = gm.registry_drops(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
@@ -336,7 +363,8 @@ class TestTheGate:
             if not mg.is_destructive(sql):
                 continue
             stmts = mg.statements(sql)
-            is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS)
+            is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS,
+                                         gm.RECREATED_FUNCTIONS, gm.RETARGETED_FKS)
             for stmt in stmts:
                 if is_flagged(stmt):
                     continue
@@ -362,16 +390,24 @@ _CHECK = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) (?:DROP CONSTRAINT [a-z0
 _FN_CREATE = re.compile(r"CREATE (?:OR REPLACE )?FUNCTION ([a-z_]+\.[a-z0-9_]+)\(.*", re.DOTALL)
 _FN_GRANT = re.compile(r"(?:REVOKE|GRANT) EXECUTE ON FUNCTION ([a-z_]+\.[a-z0-9_]+)\(.*\) (?:FROM|TO) [A-Za-z_, ]+")
 _USAGE = re.compile(r"GRANT USAGE ON SCHEMA [a-z_]+ TO [a-z_]+")
+_FK_DROP = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) DROP CONSTRAINT ([a-z0-9_]+_fkey)")
+_FK_ADD = re.compile(r"ALTER TABLE ([a-z_]+\.[a-z0-9_]+) ADD CONSTRAINT ([a-z0-9_]+_fkey) FOREIGN KEY \([a-z0-9_, ]+\) "
+                     r"REFERENCES [a-z_]+\.[a-z0-9_]+ \([a-z0-9_, ]+\) DEFERRABLE INITIALLY DEFERRED")
+_EMPTY = re.compile(r"DELETE FROM ([a-z_]+\.[a-z0-9_]+) WHERE true")
 
 
-def _flagged_change(name, stmts, moves, retired):
+def _flagged_change(name, stmts, moves, retired, recreated=None, retargeted=None):
     """ADR-0018 decision 3 as amended 2026-11-26 (#675): beside flagged drops, a held
     file may hold a change the registry or a named constant flags (a value move, a
     retired function) and what stands on the same table or function: the checks of a
     moved table, the functions whose body names a moved table, a retired function's
-    successor, their EXECUTE grants, and the schema USAGE their grants need. Returns a
-    test of one statement."""
-    moved, functions = set(), set()
+    successor, their EXECUTE grants, and the schema USAGE their grants need. Also a
+    foreign key a constant retargets (its drop, the emptying of its table when the entry
+    says so, and its add) and a function a constant recreates (its drop by the old
+    argument list, its create and grants). Returns a test of one statement."""
+    recreated = recreated or {}
+    retargeted = retargeted or {}
+    moved, functions, retargets = set(), set(), set()
     for stmt in stmts:
         move = _MOVE.fullmatch(stmt)
         if move and move.group(2) == move.group(4) and \
@@ -380,6 +416,12 @@ def _flagged_change(name, stmts, moves, retired):
         drop = _FN_DROP.fullmatch(stmt)
         if drop and drop.group(1) in retired and retired[drop.group(1)][0] == drop.group(2):
             functions.add(retired[drop.group(1)][1])
+        if drop and drop.group(1) in recreated and recreated[drop.group(1)][0] == drop.group(2):
+            functions.add(drop.group(1))
+        fk_drop = _FK_DROP.fullmatch(stmt)
+        if fk_drop and (fk_drop.group(1), fk_drop.group(2)) in retargeted:
+            retargets.add((fk_drop.group(1), fk_drop.group(2)))
+            moved.add(fk_drop.group(1))
     for stmt in stmts:
         create = _FN_CREATE.fullmatch(stmt)
         if create and any(re.search(rf"(?<![a-z0-9_.]){re.escape(t)}(?![a-z0-9_])", stmt) for t in moved):
@@ -391,8 +433,16 @@ def _flagged_change(name, stmts, moves, retired):
             return move.group(1) in moved and move.group(2) == move.group(4) and \
                 (move.group(1), move.group(2), move.group(5), move.group(3)) in moves
         if drop:
-            return drop.group(1) in retired and retired[drop.group(1)][0] == drop.group(2) and \
-                retired[drop.group(1)][1] in functions
+            name, args = drop.group(1), drop.group(2)
+            if name in recreated:
+                return recreated[name][0] == args and name in functions
+            return name in retired and retired[name][0] == args and retired[name][1] in functions
+        fk_drop, fk_add, empty = _FK_DROP.fullmatch(stmt), _FK_ADD.fullmatch(stmt), _EMPTY.fullmatch(stmt)
+        if fk_drop or fk_add:
+            found = fk_drop or fk_add
+            return (found.group(1), found.group(2)) in retargets
+        if empty:
+            return any(t == empty.group(1) and retargeted[(t, n)][0] for t, n in retargets)
         check = _CHECK.fullmatch(stmt)
         if check:
             bare = check.group(1).split(".")[1]
@@ -415,8 +465,9 @@ def _load_function(name, body="DELETE FROM shared.app_role WHERE true;", head="C
 class TestTheLoadFunctionExemption:
     """The one exemption (#700, the owner's Decision): the body of two named functions."""
 
-    def test_the_exempt_names_are_exactly_the_two_load_functions(self):
-        assert mg.EXEMPT_BODIES == ("shared.load_app_roles", "shared.load_owner_crosswalk")
+    def test_the_exempt_names_are_exactly_the_four_load_functions(self):
+        assert mg.EXEMPT_BODIES == ("shared.load_app_roles", "shared.load_owner_crosswalk", "shared.load_leagues",
+                                    "shared.load_teams")
 
     @pytest.mark.parametrize("name", mg.EXEMPT_BODIES)
     @pytest.mark.parametrize("head", ["CREATE FUNCTION", "CREATE OR REPLACE FUNCTION", "create function"])
@@ -477,7 +528,8 @@ class TestTheLoadFunctionExemption:
                     found.add(mg._EXEMPT_HEAD.match(stmt).group(1))
                     assert not mg._hits(stmt), path.name
                     assert stmt.count("DELETE FROM") == 1 and "TRUNCATE" not in stmt and "UPDATE" not in stmt
-                    is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS)
+                    is_flagged = _flagged_change(path.name, stmts, moves, gm.RETIRED_FUNCTIONS,
+                                                 gm.RECREATED_FUNCTIONS, gm.RETARGETED_FKS)
                     held = [s for s in mg.destructive(sql) if not is_flagged(s)]
                     assert not held, f"{path.name}: a load function sits in a file held for {held}"
         assert found == set(mg.EXEMPT_BODIES)

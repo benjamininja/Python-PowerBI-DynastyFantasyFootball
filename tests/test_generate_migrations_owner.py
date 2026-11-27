@@ -238,10 +238,21 @@ class TestThePiiHashFunctionGainsTheCrosswalk:
         assert "shared.caller_team_keys: change of function body" in gm.diff(old, new)["refusals"]
 
 
-def roles_registry():
+def lists_registry():
+    """The crosswalk registry with the league table and the team list (#675)."""
     reg = crosswalk_registry()
-    reg["tables"].append({"name": "dim_fantasy_teams", "type": "dim", "grain": "team_key", "pk": ["team_key"],
-                          "columns": [col("team_key")]})
+    reg["other_tables"] += [
+        {"name": "league", "schema": "shared", "pk": ["league_key"], "required_keys": ["fantrax_league_id"],
+         "columns": [col("league_key"), col("sport"), col("league_name"), col("fantrax_league_id")]},
+        {"name": "fantasy_team", "schema": "shared", "pk": ["team_key"], "required_keys": ["league_key"],
+         "fk": [{"columns": ["league_key"], "to": "league", "ref": ["league_key"]}],
+         "columns": [col("team_key"), col("league_key"), col("fantrax_team_id"), col("team_name"),
+                     col("division")]}]
+    return reg
+
+
+def roles_registry():
+    reg = lists_registry()
     reg["other_tables"].append(
         {"name": "app_role", "schema": "shared", "pk": ["discord_user_id", "role", "league_key"],
          "columns": [col("discord_user_id"), col("role"), col("league_key")]})
@@ -275,7 +286,7 @@ class TestTheRoleTableAndItsTwoChecks:
                                            "shared.choice_window", "shared.choice_windows",
                                            "shared.caller_is_commissioner_for",
                                            "shared.caller_is_app_admin", "shared.load_owner_crosswalk",
-                                           "shared.load_app_roles"}
+                                           "shared.load_app_roles", "shared.load_leagues", "shared.load_teams"}
         assert gm.desired_model(crosswalk_registry())["functions"].keys() == {
             "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window",
             "shared.choice_windows", "shared.load_owner_crosswalk"}
@@ -294,8 +305,8 @@ class TestTheRoleTableAndItsTwoChecks:
     def test_the_commissioner_check_takes_the_team_and_never_asks_about_the_person_alone(self):
         sql = gm.desired_model(roles_registry())["functions"][gm.COMMISSIONER_FUNCTION]
         assert "(p_team_key text) RETURNS boolean" in sql
-        assert "JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key" in sql
-        assert "r.role = 'commissioner'" in sql and f"r.league_key = '{gm.LEAGUE_PLACEHOLDER}'" in sql
+        assert "JOIN shared.fantasy_team t ON t.team_key = p_team_key AND t.league_key = r.league_key" in sql
+        assert "r.role = 'commissioner'" in sql and "football" not in sql and "'main'" not in sql
 
     def test_the_app_admin_check_asks_for_the_role_and_every_league(self):
         sql = gm.desired_model(roles_registry())["functions"][gm.ADMIN_FUNCTION]
@@ -310,11 +321,13 @@ class TestTheRoleTableAndItsTwoChecks:
         assert sorted(readers) == sorted([gm.COMMISSIONER_FUNCTION, gm.ADMIN_FUNCTION])
         assert all("'owner'" not in model["functions"][n] for n in readers)
 
-    def test_the_load_function_takes_the_three_words_and_refuses_the_old_one(self):
+    def test_the_load_function_takes_the_three_words_and_a_league_each_and_refuses_the_old_word(self):
         sql = gm.desired_model(roles_registry())["functions"][gm.LOAD_ROLES_FUNCTION]
+        assert "shared.load_app_roles(p_discord_ids text[], p_roles text[], p_league_keys text[])" in sql
         assert "u.r NOT IN ('owner', 'commissioner', 'app_admin')" in sql
-        assert f"CASE u.r WHEN 'app_admin' THEN '{gm.ALL_LEAGUES}' ELSE '{gm.LEAGUE_PLACEHOLDER}' END" in sql
-        assert "site_admin" not in sql
+        assert f"(u.r = 'app_admin') <> (u.k = '{gm.ALL_LEAGUES}')" in sql
+        assert "NOT EXISTS (SELECT 1 FROM shared.league l WHERE l.league_key = u.k)" in sql
+        assert "SELECT u.i, u.r, u.k" in sql and "site_admin" not in sql and "'main'" not in sql
 
     def test_both_read_the_id_from_auth_identities_for_the_caller_and_never_from_metadata(self):
         model = gm.desired_model(roles_registry())
@@ -331,9 +344,7 @@ class TestTheRoleTableAndItsTwoChecks:
         assert "encode(sha256(convert_to(s.token, 'UTF8')), 'hex')" in sql and "\\" not in sql
 
     def test_a_state_with_the_crosswalk_only_gets_the_two_functions_and_a_replacement_of_the_hash_list(self):
-        old = gm.desired_model(crosswalk_registry())
-        old["tables"]["football.dim_fantasy_teams"] = gm.desired_model(roles_registry())["tables"][
-            "football.dim_fantasy_teams"]
+        old = gm.desired_model(lists_registry())
         changes = gm.diff(old, gm.desired_model(roles_registry()))
         assert changes["refusals"] == []
         sql = gm.render(changes)
@@ -346,10 +357,17 @@ class TestTheRoleTableAndItsTwoChecks:
         reg["other_tables"] = [t for t in reg["other_tables"] if t["name"] != "owner_crosswalk"]
         refused(reg, "the owner crosswalk is not declared")
 
-    def test_the_role_table_without_the_teams_table_is_refused(self):
+    @pytest.mark.parametrize("gone,named", [(("league", "fantasy_team"), "shared.league"),
+                                            (("fantasy_team",), "shared.fantasy_team")])
+    def test_the_role_table_without_the_league_table_or_the_team_list_is_refused(self, gone, named):
         reg = roles_registry()
-        reg["tables"] = [t for t in reg["tables"] if t["name"] != "dim_fantasy_teams"]
-        refused(reg, "football.dim_fantasy_teams, which is not declared")
+        reg["other_tables"] = [t for t in reg["other_tables"] if t["name"] not in gone]
+        refused(reg, f"the role functions read {named}, which is not declared")
+
+    def test_the_team_list_without_the_league_table_is_refused(self):
+        reg = lists_registry()
+        reg["other_tables"] = [t for t in reg["other_tables"] if t["name"] != "league"]
+        refused(reg, "unknown table 'league'|shared.league, which is not declared")
 
     def test_the_role_table_without_its_three_columns_is_refused(self):
         reg = roles_registry()
@@ -357,12 +375,15 @@ class TestTheRoleTableAndItsTwoChecks:
         entry(reg, "app_role")["pk"] = ["discord_user_id", "role", "other"]
         refused(reg, "unknown column 'league_key'")
 
-    def test_a_changed_body_of_either_check_is_refused(self):
+    def test_a_changed_body_of_the_admin_check_is_refused_and_the_commissioner_check_is_replaced(self):
         old = gm.desired_model(roles_registry())
-        for name in (gm.COMMISSIONER_FUNCTION, gm.ADMIN_FUNCTION):
-            new = copy.deepcopy(old)
-            new["functions"][name] += " "
-            assert f"{name}: change of function body" in gm.diff(old, new)["refusals"]
+        new = copy.deepcopy(old)
+        new["functions"][gm.ADMIN_FUNCTION] += " "
+        assert f"{gm.ADMIN_FUNCTION}: change of function body" in gm.diff(old, new)["refusals"]
+        new = copy.deepcopy(old)
+        new["functions"][gm.COMMISSIONER_FUNCTION] += " "
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == [] and [n for n, _ in changes["function_replacements"]] == [gm.COMMISSIONER_FUNCTION]
 
 
 class TestTheWindowFunctionGainsFinal:
@@ -374,8 +395,9 @@ class TestTheWindowFunctionGainsFinal:
                 "         FROM ops.choice_deadline d\n"
                 "         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind), 'none')\n$fn$;")
 
-    def test_the_function_is_on_the_replaceable_list_beside_the_pii_hash_and_the_role_loader(self):
-        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION, gm.LOAD_ROLES_FUNCTION)
+    def test_the_function_is_on_the_replaceable_list_beside_the_pii_hash_the_two_loaders_and_the_commissioner(self):
+        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION, gm.LOAD_ROLES_FUNCTION,
+                                            gm.LOAD_CROSSWALK_FUNCTION, gm.COMMISSIONER_FUNCTION)
 
     def test_a_state_with_the_old_body_gets_create_or_replace_and_nothing_else(self):
         old = gm.desired_model(crosswalk_registry())
@@ -408,7 +430,18 @@ class TestTheRealRegistry:
         spec = model["tables"]["shared.owner_crosswalk"]
         assert not {"grants", "policies", "triggers"} & set(spec)
         assert spec["pk"] == ["team_key", "discord_user_id"]
-        assert [f["to"] for f in spec["fks"]] == ["football.dim_fantasy_teams"]
+        assert [f["to"] for f in spec["fks"]] == ["shared.fantasy_team"]
+
+    def test_the_league_table_and_the_team_list_hold_no_grant_no_policy_and_no_discord_id(self, model):
+        for key, pk in (("shared.league", ["league_key"]), ("shared.fantasy_team", ["team_key"])):
+            spec = model["tables"][key]
+            assert not {"grants", "policies", "triggers"} & set(spec) and spec["pk"] == pk
+            assert "discord_user_id" not in {c["name"] for c in spec["columns"]}
+        assert [f["to"] for f in model["tables"]["shared.fantasy_team"]["fks"]] == ["shared.league"]
+        assert [i["columns"] for i in model["tables"]["shared.league"]["indexes"] if i["unique"]] == \
+            [["fantrax_league_id"]]
+        names = [n for n in model["tables"] if n.startswith("shared.")]
+        assert not [n for n in names if any(w in n for w in ("football", "baseball", "basketball"))]
 
     def test_both_app_tables_grant_authenticated_by_column_and_never_locked_value_or_changed_at(self, model):
         for key in ("app.contract_choices", "app.team_choice_sharing"):
@@ -497,8 +530,8 @@ class TestTheRealRegistry:
         assert "commissioner" not in "".join(str(p.get("check", "")) + str(p.get("using", ""))
                                              for p in spec["policies"])
 
-    def test_the_rule_for_shared_names_exactly_eight_functions(self, model):
-        assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"]) and len(model["functions"]) == 8
+    def test_the_rule_for_shared_names_exactly_ten_functions(self, model):
+        assert sorted(gm.FUNCTION_ACCESS) == sorted(model["functions"]) and len(model["functions"]) == 10
         assert {n.split(".")[0] for n in model["functions"]} == {"shared"}
         grantees = {n: set(roles) for n, (_, roles) in gm.FUNCTION_ACCESS.items()}
         assert grantees == {"shared.pii_token_hashes": {"etl_writer"},
@@ -508,7 +541,9 @@ class TestTheRealRegistry:
                             "shared.caller_is_commissioner_for": {"authenticated"},
                             "shared.caller_is_app_admin": {"authenticated"},
                             "shared.load_owner_crosswalk": {"etl_writer"},
-                            "shared.load_app_roles": {"etl_writer"}}
+                            "shared.load_app_roles": {"etl_writer"},
+                            "shared.load_leagues": {"etl_writer"},
+                            "shared.load_teams": {"etl_writer"}}
 
     def test_the_role_table_holds_no_grant_and_no_policy_and_the_league_is_in_its_key(self, model):
         spec = model["tables"]["shared.app_role"]
@@ -518,8 +553,14 @@ class TestTheRealRegistry:
         assert "role IN ('owner', 'commissioner', 'app_admin')" in spec["checks"]
         assert ("(role = 'app_admin' AND league_key = '*') OR "
                 "(role IN ('owner', 'commissioner') AND league_key <> '*')") in spec["checks"]
-        assert spec["moves"] == [{"column": "role", "from": "site_admin", "to": "app_admin", "ticket": 675}]
+        assert spec["moves"] == [{"column": "role", "from": "site_admin", "to": "app_admin", "ticket": 675},
+                                 {"column": "league_key", "from": "main", "to": "football", "ticket": 675}]
         assert not [e for e in spec["checks"] if "site_admin" in e]
+
+    def test_the_football_key_the_move_writes_is_the_one_league_config_holds(self, model):
+        import etl_helpers as etl
+        (move,) = [m for m in model["tables"]["shared.app_role"]["moves"] if m["column"] == "league_key"]
+        assert move["to"] == etl.CFG.football_league_key
 
     def test_no_policy_calls_either_role_check_yet(self, model):
         for key, spec in model["tables"].items():
@@ -530,10 +571,13 @@ class TestTheRealRegistry:
             assert "caller_is_" not in sql
 
 
-class TestTheTwoLoadFunctions:
-    """ADR-0026 decision 2 as amended, #700: one locked definer function per table."""
+class TestTheFourLoadFunctions:
+    """ADR-0026 decision 2 as amended, #700 and #675: one locked definer function per table."""
 
-    NAMES = ("shared.load_owner_crosswalk", "shared.load_app_roles")
+    NAMES = ("shared.load_owner_crosswalk", "shared.load_app_roles", "shared.load_leagues", "shared.load_teams")
+    ARGS = {"shared.load_owner_crosswalk": "(text[], text[])", "shared.load_app_roles": "(text[], text[], text[])",
+            "shared.load_leagues": "(text[], text[], text[], text[])",
+            "shared.load_teams": "(text[], text[], text[], text[], text[])"}
 
     @pytest.fixture()
     def model(self):
@@ -548,18 +592,21 @@ class TestTheTwoLoadFunctions:
 
     def test_execute_is_revoked_from_public_and_granted_to_the_writer_alone(self, model):
         for name in self.NAMES:
-            assert gm.FUNCTION_ACCESS[name] == ("(text[], text[])", ("etl_writer",))
+            assert gm.FUNCTION_ACCESS[name] == (self.ARGS[name], ("etl_writer",))
+            assert gm._arg_types(model["functions"][name]) == self.ARGS[name]
         sql = gm.render(gm.diff(gm.EMPTY_MODEL, model))
         for name in self.NAMES:
-            assert f"REVOKE EXECUTE ON FUNCTION {name}(text[], text[]) FROM PUBLIC;" in sql
-            assert f"GRANT EXECUTE ON FUNCTION {name}(text[], text[]) TO etl_writer;" in sql
-            assert f"GRANT EXECUTE ON FUNCTION {name}(text[], text[]) TO authenticated" not in sql
+            args = self.ARGS[name]
+            assert f"REVOKE EXECUTE ON FUNCTION {name}{args} FROM PUBLIC;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {name}{args} TO etl_writer;" in sql
+            assert f"GRANT EXECUTE ON FUNCTION {name}{args} TO authenticated" not in sql
 
     def test_no_table_grant_and_no_policy_comes_with_them(self, model):
-        for key in ("shared.owner_crosswalk", "shared.app_role"):
+        tables = ("shared.owner_crosswalk", "shared.app_role", "shared.league", "shared.fantasy_team")
+        for key in tables:
             assert not {"grants", "policies", "triggers"} & set(model["tables"][key])
         sql = gm.render(gm.diff(gm.EMPTY_MODEL, model))
-        assert "ON shared.owner_crosswalk TO" not in sql and "ON shared.app_role TO" not in sql
+        assert not [t for t in tables if f"ON {t} TO" in sql]
 
     def test_every_refusal_names_a_count_and_never_a_value(self, model):
         import re
@@ -569,7 +616,7 @@ class TestTheTwoLoadFunctions:
             assert len(raises) >= 5
             for message, args in raises:
                 for arg in [a.strip() for a in args.split(",") if a.strip()]:
-                    assert arg in {"v_keys", "v_ids", "v_roles", "v_bad", "SQLSTATE"}, (name, message, arg)
+                    assert arg in {"v_keys", "v_ids", "v_roles", "v_leagues", "v_bad", "SQLSTATE"}, (name, message, arg)
 
     def test_the_write_sits_in_an_inner_block_that_re_raises_with_the_sqlstate_alone(self, model):
         for name in self.NAMES:
@@ -577,16 +624,24 @@ class TestTheTwoLoadFunctions:
             assert "EXCEPTION WHEN OTHERS THEN" in sql
             assert sql.index("DELETE FROM") < sql.index("EXCEPTION WHEN OTHERS") < sql.index("RETURN NEXT")
 
-    def test_the_gate_lets_these_two_bodies_through_and_nothing_else_in_the_migration(self, model):
+    def test_the_gate_lets_these_four_bodies_through_and_nothing_else_in_the_migration(self, model):
         import migration_gate as mg
         sql = gm.render(gm.diff(gm.EMPTY_MODEL, {**gm.EMPTY_MODEL, "functions": {
             n: model["functions"][n] for n in self.NAMES}, "schemas": [], "roles": []}))
         assert not mg.is_destructive(sql), mg.destructive(sql)
         assert mg.is_destructive(sql + "DROP TABLE shared.app_role;")
 
-    def test_the_real_registry_declares_the_table_the_crosswalk_function_reads(self, model):
-        assert "football.dim_fantasy_teams" in model["tables"]
-        assert "football.dim_fantasy_teams" in model["functions"][self.NAMES[0]]
+    def test_the_real_registry_declares_the_tables_the_functions_read(self, model):
+        assert {"shared.fantasy_team", "shared.league"} <= set(model["tables"])
+        assert "FROM shared.fantasy_team d" in model["functions"]["shared.load_owner_crosswalk"]
+        assert "football.dim_fantasy_teams" not in model["functions"]["shared.load_owner_crosswalk"]
+        assert "FROM shared.league l" in model["functions"]["shared.load_teams"]
+        assert "FROM shared.league l" in model["functions"]["shared.load_app_roles"]
+
+    def test_the_league_function_refuses_a_key_that_is_not_a_plain_word_so_never_the_all_leagues_mark(self, model):
+        sql = model["functions"]["shared.load_leagues"]
+        assert "u.k !~ '^[a-z][a-z0-9_]*$'" in sql
+        assert "count(DISTINCT u.k)" in sql and "count(DISTINCT u.f)" in sql
 
 
 class TestThePagesReadPath:
@@ -758,3 +813,88 @@ class TestAValueMoveAndARetiredFunction:
         real = gm.desired_model(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
         assert gm.RETIRED_FUNCTIONS == {"shared.caller_is_site_admin": ("()", gm.ADMIN_FUNCTION, 675)}
         assert gm.ADMIN_FUNCTION in real["functions"] and "shared.caller_is_site_admin" not in real["functions"]
+
+
+def pointed_registry():
+    """The lists registry with the crosswalk's team key pointed at the team list (#675)."""
+    reg = lists_registry()
+    entry(reg, "owner_crosswalk")["fk"] = [{"columns": ["team_key"], "to": "fantasy_team", "ref": ["team_key"]}]
+    return reg
+
+
+OLD_ROLES_LOAD_SQL = gm.LOAD_ROLES_FUNCTION_SQL.replace(", p_league_keys text[]", "")
+
+
+class TestARetargetedKeyAndARecreatedFunction:
+    """ADR-0018 decision 3 as amended 2026-11-26 (#675): a foreign key RETARGETED_FKS
+    names, and a function RECREATED_FUNCTIONS names, in the held file."""
+
+    def test_the_named_key_is_dropped_its_table_emptied_and_the_key_added_with_its_new_target(self):
+        old, new = gm.desired_model(lists_registry()), gm.desired_model(pointed_registry())
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == [] and [k for k, _ in changes["fk_retargets"]] == ["shared.owner_crosswalk"]
+        sql = gm.render(changes)
+        order = ["ALTER TABLE shared.owner_crosswalk DROP CONSTRAINT owner_crosswalk_team_key_fkey;",
+                 "DELETE FROM shared.owner_crosswalk WHERE true;",
+                 "ALTER TABLE shared.owner_crosswalk ADD CONSTRAINT owner_crosswalk_team_key_fkey FOREIGN KEY "
+                 "(team_key) REFERENCES shared.fantasy_team (team_key) DEFERRABLE INITIALLY DEFERRED;"]
+        assert [sql.index(s) for s in order] == sorted(sql.index(s) for s in order)
+
+    def test_a_key_the_constant_does_not_name_still_may_not_change(self):
+        reg = pointed_registry()
+        entry(reg, "fantasy_team")["fk"] = [{"columns": ["league_key"], "to": "dim_team", "ref": ["team_key"]}]
+        changes = gm.diff(gm.desired_model(pointed_registry()), gm.desired_model(reg))
+        assert "shared.fantasy_team: change of foreign key fantasy_team_league_key_fkey" in changes["refusals"]
+
+    def test_the_named_function_is_dropped_by_its_old_arguments_and_created_again_with_its_grant(self):
+        new = gm.desired_model(roles_registry())
+        old = copy.deepcopy(new)
+        old["functions"][gm.LOAD_ROLES_FUNCTION] = OLD_ROLES_LOAD_SQL
+        changes = gm.diff(old, new)
+        assert changes["refusals"] == [] and [n for n, _ in changes["function_recreations"]] == [gm.LOAD_ROLES_FUNCTION]
+        sql = gm.render(changes)
+        order = ["DROP FUNCTION shared.load_app_roles(text[], text[]);",
+                 "CREATE FUNCTION shared.load_app_roles(p_discord_ids text[], p_roles text[], p_league_keys text[])",
+                 "REVOKE EXECUTE ON FUNCTION shared.load_app_roles(text[], text[], text[]) FROM PUBLIC;",
+                 "GRANT EXECUTE ON FUNCTION shared.load_app_roles(text[], text[], text[]) TO etl_writer;"]
+        assert [sql.index(s) for s in order] == sorted(sql.index(s) for s in order)
+        assert "CREATE OR REPLACE FUNCTION shared.load_app_roles" not in sql
+
+    def test_an_argument_list_no_constant_names_is_refused_even_for_a_replaceable_function(self):
+        new = gm.desired_model(roles_registry())
+        old = copy.deepcopy(new)
+        old["functions"][gm.OPEN_FUNCTION] = gm.OPEN_FUNCTION_SQL.replace(", p_choice_kind text", "")
+        assert any(r.startswith(f"{gm.OPEN_FUNCTION}: change of argument list") for r in gm.diff(old, new)["refusals"])
+        old = copy.deepcopy(new)
+        old["functions"][gm.LOAD_ROLES_FUNCTION] = OLD_ROLES_LOAD_SQL.replace("p_roles text[]", "p_roles text")
+        assert any(r.startswith(f"{gm.LOAD_ROLES_FUNCTION}: change of argument list")
+                   for r in gm.diff(old, new)["refusals"])
+
+    def test_the_held_file_holds_the_flagged_changes_and_what_names_their_tables_and_the_rest_goes_first(self):
+        import migration_gate as mg
+        old = gm.desired_model(lists_registry())
+        old_roles = gm.desired_model(roles_registry())
+        old["tables"]["shared.app_role"] = old_roles["tables"]["shared.app_role"]
+        old["functions"] = {**old_roles["functions"], gm.LOAD_ROLES_FUNCTION: OLD_ROLES_LOAD_SQL,
+                            gm.LOAD_CROSSWALK_FUNCTION: gm.LOAD_CROSSWALK_FUNCTION_SQL.replace(
+                                "shared.fantasy_team d", "football.dim_team d")}
+        reg = pointed_registry()
+        reg["other_tables"].append(copy.deepcopy(entry(roles_registry(), "app_role")))
+        entry(reg, "choices")["columns"].append(col("note"))
+        new = gm.desired_model(reg)
+        parts = gm.split_drops(old, new, gm.diff(old, new))
+        assert len(parts) == 2
+        (first, first_state), (held, held_state) = parts
+        unheld_sql, held_sql = gm.render(first), gm.render(held)
+        assert "ADD COLUMN note" in unheld_sql and not mg.is_destructive(unheld_sql)
+        assert held_state == new and mg.is_destructive(held_sql)
+        for statement in ("DROP CONSTRAINT owner_crosswalk_team_key_fkey", "DELETE FROM shared.owner_crosswalk",
+                          "DROP FUNCTION shared.load_app_roles(text[], text[])",
+                          "CREATE OR REPLACE FUNCTION shared.load_owner_crosswalk"):
+            assert statement in held_sql and statement not in unheld_sql
+        rest = gm.diff(first_state, new)
+        assert rest["refusals"] == [] and not rest["columns"] and rest["fk_retargets"] and rest["function_recreations"]
+
+    def test_the_real_constants_name_the_crosswalk_key_and_the_role_loader_only(self):
+        assert gm.RETARGETED_FKS == {("shared.owner_crosswalk", "owner_crosswalk_team_key_fkey"): (True, 675)}
+        assert gm.RECREATED_FUNCTIONS == {gm.LOAD_ROLES_FUNCTION: ("(text[], text[])", 675)}

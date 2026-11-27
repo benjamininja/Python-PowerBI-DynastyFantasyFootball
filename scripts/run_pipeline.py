@@ -487,9 +487,10 @@ def run_access_loads(dry_run: bool, no_commit: bool, only: set[str] | None,
                    capture_output=True, text=True, timeout=ACCESS_TIMEOUT_S)
         ok, lines = proc.returncode == 0, access_lines(proc.stdout)
         if not ok and not lines:
-            lines = [f"{ACCESS_PREFIX} load stopped before it reported (exit {proc.returncode}); both tables are as they were"]
+            lines = [f"{ACCESS_PREFIX} load stopped before it reported (exit {proc.returncode}); "
+                     "the four tables are as they were"]
     except subprocess.TimeoutExpired:
-        ok, lines = False, [f"{ACCESS_PREFIX} load timed out after {ACCESS_TIMEOUT_S}s; both tables are as they were"]
+        ok, lines = False, [f"{ACCESS_PREFIX} load timed out after {ACCESS_TIMEOUT_S}s; the four tables are as they were"]
     for line in lines:
         print(line)
     print(f"[{'ok' if ok else 'FAIL'}] {ACCESS_STEP}")
