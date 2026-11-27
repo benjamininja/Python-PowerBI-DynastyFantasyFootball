@@ -84,6 +84,19 @@ class FakeLocator:
             raise RuntimeError("locator failed")
         return self.selector in self.page.visible
 
+    def click(self, timeout=None):
+        if self.selector == fx.FantraxScraper.CODE_BUTTON:
+            self.page.visible.discard(fx.FantraxScraper.CODE_FIELD)
+
+    def press_sequentially(self, text, delay=None):
+        self.page.typed.append(text)
+
+    def count(self):
+        return 1
+
+    def is_enabled(self):
+        return True
+
 
 class FakePage:
     """A login page that keeps the browser on /login unless the context goes live."""
@@ -95,6 +108,7 @@ class FakePage:
         self.broken = set(broken)
         self._title = title
         self.waits = 0
+        self.typed = []
 
     def goto(self, url, **kwargs):
         pass
@@ -219,3 +233,62 @@ def test_no_credential_reaches_the_output_or_the_error(scraper, capsys):
     seen = shown.out + shown.err + str(caught.value)
     assert FAKE_EMAIL not in seen
     assert FAKE_PASSWORD not in seen
+
+
+CODE_FIELD = fx.FantraxScraper.CODE_FIELD
+FAKE_TOTP_SECRET = "FAKE-TOTP-SECRET-74001"
+FAKE_CODE = "740123"
+
+
+def _still_dead(scraper, page):
+    with pytest.raises(fx.SessionStillDead) as caught:
+        scraper._post_authed(page.ctx, page, {}, "fake call")
+    return str(caught.value)
+
+
+def test_a_login_with_no_code_prompt_names_its_flags_in_the_error(scraper):
+    ctx = FakeContext()
+    message = _still_dead(scraper, FakePage(ctx, visible={PASSWORD, ERROR}))
+    assert message.startswith(fx.FantraxScraper.STILL_DEAD + " Last login: ")
+    for flag in ("code prompt appeared no", "code typed no",
+                 "still on the login address yes", "Cloudflare challenge no",
+                 "captcha frame no", "error message yes", "code prompt no",
+                 "login form yes"):
+        assert flag in message
+    assert "\n" not in message
+
+
+@pytest.fixture
+def prompted(scraper, monkeypatch):
+    monkeypatch.setenv(fx.FantraxScraper.TOTP_ENV, FAKE_TOTP_SECRET)
+    monkeypatch.setattr(fx.FantraxScraper, "_totp_code", lambda self, secret, page: FAKE_CODE)
+    ctx = FakeContext()
+    return FakePage(ctx, visible={CODE_FIELD})
+
+
+def test_a_login_whose_code_was_typed_but_session_is_dead_names_its_flags(scraper, prompted):
+    message = _still_dead(scraper, prompted)
+    assert prompted.typed == [FAKE_CODE]
+    assert scraper.code_sent_by == fx.FantraxScraper.SENT_VERIFY_CLICK
+    for flag in ("code prompt appeared yes", "code typed yes",
+                 "still on the login address yes", "code prompt no"):
+        assert flag in message
+    assert "\n" not in message
+
+
+def test_a_login_that_left_the_login_address_still_names_its_flags(scraper, prompted,
+                                                                     monkeypatch):
+    def leave(self, timeout=None):
+        prompted.visible.discard(CODE_FIELD)
+        prompted.url = HOME_URL
+    monkeypatch.setattr(FakeLocator, "click", leave)
+    message = _still_dead(scraper, prompted)
+    assert "still on the login address no" in message
+    assert "code typed yes" in message
+
+
+def test_the_error_holds_no_credential_code_or_address(scraper, prompted):
+    message = _still_dead(scraper, prompted)
+    for value in (FAKE_EMAIL, FAKE_PASSWORD, FAKE_TOTP_SECRET, FAKE_CODE,
+                  LOGIN_URL, HOME_URL, "fantrax.invalid", "?"):
+        assert value not in message
