@@ -274,7 +274,7 @@ class TestTheRoleTableAndItsTwoChecks:
         assert set(model["functions"]) == {"shared.pii_token_hashes", "shared.caller_team_keys",
                                            "shared.choice_window", "shared.choice_windows",
                                            "shared.caller_is_commissioner_for",
-                                           "shared.caller_is_site_admin", "shared.load_owner_crosswalk",
+                                           "shared.caller_is_app_admin", "shared.load_owner_crosswalk",
                                            "shared.load_app_roles"}
         assert gm.desired_model(crosswalk_registry())["functions"].keys() == {
             "shared.pii_token_hashes", "shared.caller_team_keys", "shared.choice_window",
@@ -284,7 +284,7 @@ class TestTheRoleTableAndItsTwoChecks:
         sql = self.sql()
         model = gm.desired_model(roles_registry())
         for name, call in (("shared.caller_is_commissioner_for", "shared.caller_is_commissioner_for(text)"),
-                           ("shared.caller_is_site_admin", "shared.caller_is_site_admin()")):
+                           ("shared.caller_is_app_admin", "shared.caller_is_app_admin()")):
             assert "SECURITY DEFINER SET search_path = ''" in model["functions"][name]
             assert f"REVOKE EXECUTE ON FUNCTION {call} FROM PUBLIC;" in sql
             assert f"GRANT EXECUTE ON FUNCTION {call} TO authenticated;" in sql
@@ -297,10 +297,24 @@ class TestTheRoleTableAndItsTwoChecks:
         assert "JOIN football.dim_fantasy_teams t ON t.team_key = p_team_key" in sql
         assert "r.role = 'commissioner'" in sql and f"r.league_key = '{gm.LEAGUE_PLACEHOLDER}'" in sql
 
-    def test_the_site_admin_check_asks_for_the_role_and_every_league(self):
+    def test_the_app_admin_check_asks_for_the_role_and_every_league(self):
         sql = gm.desired_model(roles_registry())["functions"][gm.ADMIN_FUNCTION]
-        assert "shared.caller_is_site_admin() RETURNS boolean" in sql
-        assert "r.role = 'site_admin'" in sql and f"r.league_key = '{gm.ALL_LEAGUES}'" in sql
+        assert "shared.caller_is_app_admin() RETURNS boolean" in sql
+        assert "r.role = 'app_admin'" in sql and f"r.league_key = '{gm.ALL_LEAGUES}'" in sql
+        assert "site_admin" not in sql
+
+    def test_no_function_reads_an_owner_row_so_it_grants_nothing(self):
+        model = gm.desired_model(roles_registry())
+        readers = [n for n, sql in model["functions"].items()
+                   if "shared.app_role" in sql and n not in (gm.PII_FUNCTION, gm.LOAD_ROLES_FUNCTION)]
+        assert sorted(readers) == sorted([gm.COMMISSIONER_FUNCTION, gm.ADMIN_FUNCTION])
+        assert all("'owner'" not in model["functions"][n] for n in readers)
+
+    def test_the_load_function_takes_the_three_words_and_refuses_the_old_one(self):
+        sql = gm.desired_model(roles_registry())["functions"][gm.LOAD_ROLES_FUNCTION]
+        assert "u.r NOT IN ('owner', 'commissioner', 'app_admin')" in sql
+        assert f"CASE u.r WHEN 'app_admin' THEN '{gm.ALL_LEAGUES}' ELSE '{gm.LEAGUE_PLACEHOLDER}' END" in sql
+        assert "site_admin" not in sql
 
     def test_both_read_the_id_from_auth_identities_for_the_caller_and_never_from_metadata(self):
         model = gm.desired_model(roles_registry())
@@ -360,8 +374,8 @@ class TestTheWindowFunctionGainsFinal:
                 "         FROM ops.choice_deadline d\n"
                 "         WHERE d.season_id = p_season_id AND d.choice_kind = p_choice_kind), 'none')\n$fn$;")
 
-    def test_the_function_is_on_the_replaceable_list_beside_the_pii_hash(self):
-        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION)
+    def test_the_function_is_on_the_replaceable_list_beside_the_pii_hash_and_the_role_loader(self):
+        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION, gm.LOAD_ROLES_FUNCTION)
 
     def test_a_state_with_the_old_body_gets_create_or_replace_and_nothing_else(self):
         old = gm.desired_model(crosswalk_registry())
@@ -492,7 +506,7 @@ class TestTheRealRegistry:
                             "shared.choice_window": {"authenticated"},
                             "shared.choice_windows": {"authenticated"},
                             "shared.caller_is_commissioner_for": {"authenticated"},
-                            "shared.caller_is_site_admin": {"authenticated"},
+                            "shared.caller_is_app_admin": {"authenticated"},
                             "shared.load_owner_crosswalk": {"etl_writer"},
                             "shared.load_app_roles": {"etl_writer"}}
 
@@ -501,15 +515,17 @@ class TestTheRealRegistry:
         assert not {"grants", "policies", "triggers"} & set(spec) and spec["fks"] == []
         assert spec["pk"] == ["discord_user_id", "role", "league_key"]
         assert all(c["not_null"] for c in spec["columns"])
-        assert "role IN ('commissioner', 'site_admin')" in spec["checks"]
-        assert ("(role = 'site_admin' AND league_key = '*') OR "
-                "(role = 'commissioner' AND league_key <> '*')") in spec["checks"]
+        assert "role IN ('owner', 'commissioner', 'app_admin')" in spec["checks"]
+        assert ("(role = 'app_admin' AND league_key = '*') OR "
+                "(role IN ('owner', 'commissioner') AND league_key <> '*')") in spec["checks"]
+        assert spec["moves"] == [{"column": "role", "from": "site_admin", "to": "app_admin", "ticket": 675}]
+        assert not [e for e in spec["checks"] if "site_admin" in e]
 
     def test_no_policy_calls_either_role_check_yet(self, model):
         for key, spec in model["tables"].items():
             for policy in spec.get("policies", []):
                 text = f"{policy.get('using', '')} {policy.get('check', '')}"
-                assert "caller_is_commissioner_for" not in text and "caller_is_site_admin" not in text, key
+                assert "caller_is_commissioner_for" not in text and "caller_is_app_admin" not in text, key
         for sql in model["trigger_functions"].values():
             assert "caller_is_" not in sql
 
@@ -596,7 +612,7 @@ class TestThePagesReadPath:
         sql = model["functions"][gm.WINDOWS_FUNCTION]
         assert "shared.choice_window(d.season_id, d.choice_kind)" in sql and "FROM ops.choice_deadline d" in sql
         assert "clock_timestamp" not in sql and "CASE" not in sql
-        assert gm.REPLACEABLE_FUNCTIONS == (gm.PII_FUNCTION, gm.OPEN_FUNCTION)
+        assert gm.WINDOWS_FUNCTION not in gm.REPLACEABLE_FUNCTIONS
 
     def test_app_holds_the_two_views_and_no_function(self, model):
         assert list(model["views"]) == ["app.choice_windows", "app.my_teams"]
@@ -628,3 +644,117 @@ class TestThePagesReadPath:
     def test_the_committed_state_holds_the_two_views(self):
         state = gm.load_state(REPO / "supabase" / gm.STATE_FILE)
         assert list(state["views"]) == ["app.choice_windows", "app.my_teams"]
+
+
+OLD_ROLE = "role IN ('commissioner', 'site_admin')"
+NEW_ROLE = "role IN ('owner', 'commissioner', 'app_admin')"
+MOVE = {"column": "role", "from": "site_admin", "to": "app_admin", "ticket": 675}
+OLD_ADMIN_SQL = gm.ADMIN_FUNCTION_SQL.replace("caller_is_app_admin", "caller_is_site_admin").replace(
+    "'app_admin'", "'site_admin'")
+OLD_LOAD_SQL = gm.LOAD_ROLES_FUNCTION_SQL.replace("app_admin", "site_admin")
+
+
+def moved_registry(checks=(NEW_ROLE,), moves=(MOVE,)):
+    reg = roles_registry()
+    entry(reg, "app_role")["checks"] = list(checks)
+    if moves:
+        entry(reg, "app_role")["moves"] = [dict(m) for m in moves]
+    return reg
+
+
+def old_roles_state():
+    """The role table as #662 built it: the old word in its check, its admin function
+    and its load function."""
+    old = gm.desired_model(moved_registry(checks=(OLD_ROLE,), moves=()))
+    del old["functions"][gm.ADMIN_FUNCTION]
+    old["functions"]["shared.caller_is_site_admin"] = OLD_ADMIN_SQL
+    old["functions"][gm.LOAD_ROLES_FUNCTION] = OLD_LOAD_SQL
+    return old
+
+
+class TestAValueMoveAndARetiredFunction:
+    """ADR-0018 decision 3 as amended 2026-11-26 (#675): a flagged move and a flagged
+    retired function, in a held file with only what cannot apply apart from them."""
+
+    def test_the_move_drops_the_old_check_moves_the_rows_then_adds_the_new_check(self):
+        changes = gm.diff(old_roles_state(), gm.desired_model(moved_registry()))
+        assert changes["refusals"] == []
+        sql = gm.render(changes)
+        update = "UPDATE shared.app_role SET role = 'app_admin' WHERE role = 'site_admin';"
+        order = [f"ALTER TABLE shared.app_role DROP CONSTRAINT {gm._check_name('app_role', OLD_ROLE)};", update,
+                 f"ALTER TABLE shared.app_role ADD CONSTRAINT {gm._check_name('app_role', NEW_ROLE)} CHECK ({NEW_ROLE});",
+                 "CREATE FUNCTION shared.caller_is_app_admin()", "CREATE OR REPLACE FUNCTION shared.load_app_roles(",
+                 "DROP FUNCTION shared.caller_is_site_admin();"]
+        assert [sql.index(s) for s in order] == sorted(sql.index(s) for s in order)
+        assert sql.count("UPDATE ") == 1 and sql.count("DROP FUNCTION") == 1
+
+    def test_without_the_move_the_narrowing_is_still_refused(self):
+        changes = gm.diff(old_roles_state(), gm.desired_model(moved_registry(moves=())))
+        assert f"shared.app_role: drop of check {OLD_ROLE}" in changes["refusals"]
+
+    def test_a_move_the_state_already_holds_writes_nothing(self):
+        new = gm.desired_model(moved_registry())
+        assert not gm.has_changes(gm.diff(new, gm.desired_model(moved_registry())))
+
+    def test_a_move_on_a_new_table_writes_no_update(self):
+        sql = gm.render(gm.diff(gm.EMPTY_MODEL, gm.desired_model(moved_registry())))
+        assert "UPDATE shared.app_role" not in sql and "CREATE TABLE shared.app_role" in sql
+
+    @pytest.mark.parametrize("move,fragment", [
+        ({"column": "nope", "from": "a", "to": "b", "ticket": 1}, "unknown column"),
+        ({"column": "role", "from": "a'b", "to": "b", "ticket": 1}, "not a plain lowercase word"),
+        ({"column": "role", "from": "a", "to": "B", "ticket": 1}, "not a plain lowercase word"),
+        ({"column": "role", "from": "a", "to": "", "ticket": 1}, "not a plain lowercase word"),
+        ({"column": "role", "from": "a", "to": "a", "ticket": 1}, "the same word"),
+        ({"column": "role", "from": "a", "to": "b"}, "needs a ticket number")])
+    def test_a_move_that_breaks_a_rule_is_refused(self, move, fragment):
+        refused(moved_registry(moves=(move,)), fragment)
+
+    def test_a_move_on_a_column_that_is_not_text_is_refused(self):
+        reg = moved_registry(moves=({"column": "role", "from": "a", "to": "b", "ticket": 1},))
+        entry(reg, "app_role")["columns"][1]["sql_type"] = "integer"
+        refused(reg, "a move is for a text column")
+
+    def test_a_function_that_leaves_without_a_constant_or_a_successor_is_refused(self):
+        old, new = old_roles_state(), gm.desired_model(moved_registry())
+        old["functions"]["shared.something_else"] = "CREATE FUNCTION shared.something_else() RETURNS int"
+        assert "shared.something_else: drop of function" in gm.diff(old, new)["refusals"]
+        old, orphan = old_roles_state(), copy.deepcopy(new)
+        del orphan["functions"][gm.ADMIN_FUNCTION]
+        assert "shared.caller_is_site_admin: drop of function" in gm.diff(old, orphan)["refusals"]
+
+    def test_the_whole_change_is_one_held_file_and_an_unrelated_addition_goes_first_unheld(self):
+        import migration_gate as mg
+        old = old_roles_state()
+        reg = moved_registry()
+        entry(reg, "choices")["columns"].append(col("note"))
+        new = gm.desired_model(reg)
+        parts = gm.split_drops(old, new, gm.diff(old, new))
+        assert len(parts) == 2
+        (first, first_state), (held, held_state) = parts
+        assert "ADD COLUMN note" in gm.render(first) and not mg.is_destructive(gm.render(first))
+        assert held_state == new and mg.is_destructive(gm.render(held))
+        assert "ADD COLUMN" not in gm.render(held) and "UPDATE shared.app_role" in gm.render(held)
+        assert not gm.diff(old, first_state)["moves"] and gm.diff(old, first_state)["columns"]
+        rest = gm.diff(first_state, new)
+        assert rest["refusals"] == [] and not rest["columns"] and rest["moves"]
+
+    def test_main_writes_the_unheld_file_then_the_held_one(self, tmp_path):
+        from datetime import datetime, timezone
+        import json
+        old = old_roles_state()
+        reg = moved_registry()
+        entry(reg, "choices")["columns"].append(col("note"))
+        (tmp_path / gm.STATE_FILE).write_text(json.dumps(old), encoding="utf-8")
+        registry = tmp_path / "registry.yml"
+        registry.write_text(yaml.safe_dump(reg), encoding="utf-8")
+        now = datetime(2030, 1, 1, tzinfo=timezone.utc)
+        assert gm.main(["--registry", str(registry), "--out", str(tmp_path), "--name", "words"], now=now) == 0
+        names = sorted(p.name for p in (tmp_path / "migrations").glob("*.sql"))
+        assert names == ["20300101000000_words.sql", "20300101000001_words_held.sql"]
+        assert json.loads((tmp_path / gm.STATE_FILE).read_text(encoding="utf-8")) == gm.desired_model(reg)
+
+    def test_the_real_registry_retires_only_the_old_admin_check_and_its_successor_exists(self):
+        real = gm.desired_model(yaml.safe_load((REPO / "docs" / "data_model.yml").read_text(encoding="utf-8")))
+        assert gm.RETIRED_FUNCTIONS == {"shared.caller_is_site_admin": ("()", gm.ADMIN_FUNCTION, 675)}
+        assert gm.ADMIN_FUNCTION in real["functions"] and "shared.caller_is_site_admin" not in real["functions"]

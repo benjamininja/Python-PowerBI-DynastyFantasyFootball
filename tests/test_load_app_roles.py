@@ -26,7 +26,7 @@ def frame(ids, roles):
     return pd.DataFrame({"Discord": ids, "Role": roles})
 
 
-GOOD = frame([ID_A, ID_B, ID_B], ["commissioner", "commissioner", "site_admin"])
+GOOD = frame([ID_A, ID_B, ID_B, ID_C], ["commissioner", "commissioner", "app_admin", "owner"])
 
 
 @pytest.fixture
@@ -75,23 +75,26 @@ class TestTheReadAndTheFile:
                             "FROM shared.app_role;\nCOMMIT;\n")
         assert sql.count("BEGIN;") == 1 and sql.count("COMMIT;") == 1
 
-    def test_a_commissioner_row_holds_the_one_league_and_a_site_admin_row_holds_every_league(self, place, reader):
+    def test_an_owner_or_commissioner_row_holds_the_one_league_and_an_app_admin_row_every_league(self, place, reader):
         _, _, out = run(place)
         sql = out.read_text(encoding="utf-8")
         assert f"('{ID_A}', 'commissioner', 'main')" in sql
         assert f"('{ID_B}', 'commissioner', 'main')" in sql
-        assert f"('{ID_B}', 'site_admin', '*')" in sql
+        assert f"('{ID_B}', 'app_admin', '*')" in sql
+        assert f"('{ID_C}', 'owner', 'main')" in sql
 
-    def test_the_league_values_come_from_the_generators_constants(self):
-        assert loader.LEAGUE_OF == {"commissioner": gm.LEAGUE_PLACEHOLDER, "site_admin": gm.ALL_LEAGUES}
+    def test_the_role_words_and_league_values_come_from_the_generators_constants(self):
+        assert gm.ROLE_WORDS == ("owner", "commissioner", "app_admin")
+        assert loader.LEAGUE_OF == {"owner": gm.LEAGUE_PLACEHOLDER, "commissioner": gm.LEAGUE_PLACEHOLDER,
+                                    "app_admin": gm.ALL_LEAGUES}
         assert gm.LEAGUE_PLACEHOLDER in gm.COMMISSIONER_FUNCTION_SQL
         assert gm.ALL_LEAGUES in gm.ADMIN_FUNCTION_SQL
 
-    def test_a_person_with_both_roles_is_two_rows_and_one_person(self, place, reader):
+    def test_a_person_with_two_roles_is_two_rows_and_one_person(self, place, reader):
         code, lines, _ = run(place)
         assert code == 0
-        assert "rows: 3" in lines and "people: 2" in lines
-        assert "commissioners: 2" in lines and "site admins: 1" in lines
+        assert "rows: 4" in lines and "people: 3" in lines
+        assert "owners: 1" in lines and "commissioners: 2" in lines and "app admins: 1" in lines
 
     def test_a_second_run_with_the_same_tab_writes_the_same_file(self, place, reader):
         _, _, one = run(place, "one.sql")
@@ -116,7 +119,7 @@ class TestTheReadAndTheFile:
         assert f"('{ID_A}', 'commissioner', 'main')" in out.read_text(encoding="utf-8")
 
     def test_every_row_is_replaced_so_a_removed_role_is_gone(self, place, reader):
-        reader.frame = frame([ID_A], ["site_admin"])
+        reader.frame = frame([ID_A], ["app_admin"])
         _, _, out = run(place)
         sql = out.read_text(encoding="utf-8")
         assert sql.count("DELETE FROM shared.app_role;") == 1 and ID_B not in sql
@@ -135,10 +138,11 @@ class TestEveryStopWritesNothing:
         reader.frame = frame([ID_A, bad], ["commissioner", "commissioner"])
         self.stops(place, "not 17 to 20 digits (rows 3)")
 
-    @pytest.mark.parametrize("role", ["Commissioner", "admin", "owner", "site admin", "commissioner,site_admin"])
-    def test_a_role_that_is_neither_word_exactly(self, place, reader, role):
+    @pytest.mark.parametrize("role", ["Commissioner", "admin", "Owner", "site_admin", "app admin",
+                                      "commissioner,app_admin"])
+    def test_a_role_that_is_not_one_of_the_three_words_exactly(self, place, reader, role):
         reader.frame = frame([ID_A, ID_B], ["commissioner", role])
-        self.stops(place, "neither commissioner nor site_admin (rows 3)")
+        self.stops(place, "not owner, commissioner or app_admin (rows 3)")
 
     def test_a_repeated_id_and_role_pair(self, place, reader):
         reader.frame = frame([ID_A, ID_A], ["commissioner", "commissioner"])
@@ -164,12 +168,12 @@ class TestEveryStopWritesNothing:
 
     @pytest.mark.parametrize("ids", [[123456789012345000, 123456789012346000], [float(ID_A), float(ID_B)]])
     def test_ids_that_arrive_as_numbers_are_refused(self, place, reader, ids):
-        reader.frame = frame(ids, ["commissioner", "site_admin"])
+        reader.frame = frame(ids, ["commissioner", "app_admin"])
         lines = self.stops(place, "stored as numbers")
         assert lines[0] == "stopped: " + loader.AS_NUMBERS
 
     def test_every_problem_is_listed_in_one_stop(self, place, reader):
-        reader.frame = frame([ID_A, "12", ID_B], ["commissioner", "commissioner", "owner"])
+        reader.frame = frame([ID_A, "12", ID_B], ["commissioner", "commissioner", "site_admin"])
         code, lines, out = run(place)
         assert code == 1 and not out.exists()
         assert len([line for line in lines if line.startswith("stopped:")]) == 2
@@ -239,7 +243,7 @@ class TestMain:
     def test_main_writes_the_file_and_returns_zero(self, place, reader, capsys):
         assert loader.main(["--gid", GID, "--out", str(place / "out.sql")]) == 0
         printed = capsys.readouterr().out
-        assert "rows: 3" in printed and not [s for s in SECRETS if s in printed]
+        assert "rows: 4" in printed and not [s for s in SECRETS if s in printed]
 
     def test_an_unexpected_error_prints_its_type_and_no_detail(self, place, reader, monkeypatch, capsys):
         def boom(*args, **kw):

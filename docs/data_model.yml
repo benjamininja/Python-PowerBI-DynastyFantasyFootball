@@ -75,8 +75,15 @@
 #   kind), the latter returning none, open, passed or final (ADR-0026 decision 6).
 #   Declaring shared.app_role (ADR-0026 decisions 1 to 3) adds two more, for
 #   authenticated only: shared.caller_is_commissioner_for(team_key) and
-#   shared.caller_is_site_admin(), and puts the table's ids in
+#   shared.caller_is_app_admin(), and puts the table's ids in
 #   shared.pii_token_hashes().
+#   moves   : on a table, `[{column, from, to, ticket}]` (#675, ADR-0018 decision 3
+#             as amended 2026-11-26): one plain word of a text column becomes
+#             another in every row, as one UPDATE written once (the state file
+#             keeps it). On that table the checks that leave are dropped before
+#             the move and the new ones added after. The gate holds it, so it goes
+#             in a held file with only what cannot apply apart from it. The entry
+#             stays as history.
 #   Each of shared.owner_crosswalk and shared.app_role also brings a load function
 #   (shared.load_owner_crosswalk, shared.load_app_roles; ADR-0026 decision 2 as
 #   amended, #700): SECURITY DEFINER, EXECUTE for etl_writer only, which holds no
@@ -1647,21 +1654,24 @@ other_tables:
       - { name: team_key, sql_type: text }
       - { name: discord_user_id, sql_type: text }
 
-  # Who holds an app role (ADR-0026 decisions 1 and 2, #662): one row per person
-  # and role. Owner PII, like the crosswalk: database only, never exported,
-  # never committed, no grant to any role; only the definer functions of `shared`
-  # read it. `league_key` is in the key so the league key #658 decides changes
-  # values and one function body, never a key: `main` is the one league until
-  # then, and `*` (every league) is the site admin's. Loaded by the scheduled run
-  # (scripts/load_access_tables.py, through shared.load_app_roles); the manual
-  # fallback is scripts/load_app_roles.py, which writes a SQL file.
+  # Who holds an app role (ADR-0026 decisions 1 and 2, #662; three role words,
+  # #675): one row per person, role and league. Owner PII, like the crosswalk:
+  # database only, never exported, never committed, no grant to any role; only the
+  # definer functions of `shared` read it. An `owner` or `commissioner` row names
+  # one league (`main`, the one league until #675's league table); an `app_admin`
+  # row holds `*`, every league. An `owner` row grants nothing yet. Loaded by the
+  # scheduled run (scripts/load_access_tables.py, through shared.load_app_roles);
+  # the manual fallback is scripts/load_app_roles.py, which writes a SQL file.
+  # `moves`: the admin's old word became `app_admin` in the rows already there.
   - name: app_role
     schema: shared
     pk: [discord_user_id, role, league_key]
     checks:
       - "length(discord_user_id) BETWEEN 17 AND 20 AND discord_user_id !~ '[^0-9]'"
-      - "role IN ('commissioner', 'site_admin')"
-      - "(role = 'site_admin' AND league_key = '*') OR (role = 'commissioner' AND league_key <> '*')"
+      - "role IN ('owner', 'commissioner', 'app_admin')"
+      - "(role = 'app_admin' AND league_key = '*') OR (role IN ('owner', 'commissioner') AND league_key <> '*')"
+    moves:
+      - { column: role, from: site_admin, to: app_admin, ticket: 675 }
     columns:
       - { name: discord_user_id, sql_type: text }
       - { name: role, sql_type: text }

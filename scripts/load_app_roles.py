@@ -5,20 +5,20 @@
 Reads the `App roles` tab of the team-manifest workbook live, as the Sheets
 service account (`etl.read_sheet_tab`, the reader the crosswalk loader uses), on
 the tab's two columns `Discord` and `Role`: one row per person and role. `Discord`
-is digits only, 17 to 20 long, plain text; `Role` is `commissioner` or
-`site_admin`, exactly. The tab's gid exists only once the owner has made the tab,
+is digits only, 17 to 20 long, plain text; `Role` is `owner`, `commissioner` or
+`app_admin`, exactly (generate_migrations.ROLE_WORDS; ADR-0026 decision 2 as
+amended 2026-11-26). The tab's gid exists only once the owner has made the tab,
 so it is an argument. It checks everything first and writes nothing unless every
 check passes: a blank cell, an id that is not 17 to 20 digits, a role that is
-neither word, a repeated (id, role) pair, an id that arrives as a number (a
+none of the three words, a repeated (id, role) pair, an id that arrives as a number (a
 spreadsheet keeps 15 significant digits of a number, so the id is already wrong:
 the column must be plain text) or an empty tab stops it, and so does a sign-in
 failure (the `SheetsAuthError` line, which names no path and no key).
 
-Each commissioner row gets the one league there is until #658 decides the league
-key (generate_migrations.LEAGUE_PLACEHOLDER), and each site admin row gets
-generate_migrations.ALL_LEAGUES. The tab has no league column yet; #658 adds one,
-this loader then reads it, and the commissioner check in the database changes with
-it (generate_migrations.py names the steps).
+Each owner and commissioner row gets the one league there is until the second PR
+of #675 adds the league table (generate_migrations.LEAGUE_PLACEHOLDER), and each
+app admin row gets generate_migrations.ALL_LEAGUES. That PR reads the tab's league
+column and turns it into a league key.
 
 It connects to nothing and reads no table (only the sheet), so ETL_STORAGE does not
 matter to it. It writes one new SQL file to PATH, which must not exist and must lie outside every git
@@ -26,7 +26,7 @@ repository: one transaction that deletes every row of shared.app_role and insert
 the tab's rows (so a role removed from the tab is gone), and ends in a SELECT of
 the row counts. The owner runs it in the Supabase SQL editor and deletes it. The
 file holds Discord ids. The script prints the path and counts (rows, people,
-commissioners, site admins) and a stop prints row numbers and counts: never an id.
+owners, commissioners, app admins) and a stop prints row numbers and counts: never an id.
 """
 import argparse
 import sys
@@ -39,7 +39,7 @@ sys.path.insert(0, str(REPO / "notebooks"))
 sys.path.insert(0, str(REPO / "scripts"))
 import etl_helpers as etl  # noqa: E402
 from etl_helpers import CFG  # noqa: E402
-from generate_migrations import ALL_LEAGUES, LEAGUE_PLACEHOLDER  # noqa: E402
+from generate_migrations import ADMIN_ROLE, ALL_LEAGUES, LEAGUE_PLACEHOLDER, ROLE_WORDS  # noqa: E402
 from load_contract_choices import inside_git_repo, literal  # noqa: E402
 from load_owner_crosswalk import AS_NUMBERS, id_text, is_id  # noqa: E402
 
@@ -47,7 +47,7 @@ TARGET = "shared.app_role"
 ID_COLUMN = "Discord"
 ROLE_COLUMN = "Role"
 COLUMNS = [ID_COLUMN, ROLE_COLUMN]
-LEAGUE_OF = {"commissioner": LEAGUE_PLACEHOLDER, "site_admin": ALL_LEAGUES}
+LEAGUE_OF = {role: ALL_LEAGUES if role == ADMIN_ROLE else LEAGUE_PLACEHOLDER for role in ROLE_WORDS}
 
 
 def resolve(frame: pd.DataFrame) -> tuple[list[tuple[str, str, str]], list[str]]:
@@ -64,7 +64,7 @@ def resolve(frame: pd.DataFrame) -> tuple[list[tuple[str, str, str]], list[str]]
         return [], [AS_NUMBERS]
     labels = {"blank": "row(s) with a blank id or role",
               "id": "row(s) whose id is not 17 to 20 digits",
-              "role": "row(s) whose role is neither commissioner nor site_admin",
+              "role": "row(s) whose role is not owner, commissioner or app_admin",
               "twice": "row(s) repeating an id and role pair"}
     where = {k: [] for k in labels}
     rows, seen = [], set()
@@ -90,8 +90,9 @@ def resolve(frame: pd.DataFrame) -> tuple[list[tuple[str, str, str]], list[str]]
 
 def counts(rows: list[tuple[str, str, str]]) -> dict:
     return {"rows": len(rows), "people": len({person for person, _, _ in rows}),
+            "owners": sum(1 for _, role, _ in rows if role == "owner"),
             "commissioners": sum(1 for _, role, _ in rows if role == "commissioner"),
-            "site_admins": sum(1 for _, role, _ in rows if role == "site_admin")}
+            "app_admins": sum(1 for _, role, _ in rows if role == ADMIN_ROLE)}
 
 
 def sql_file(rows: list[tuple[str, str, str]]) -> str:
@@ -143,8 +144,9 @@ def load(out_path: Path, gid: str, *, out=print) -> int:
     out(f"wrote: {out_path}")
     out(f"rows: {found['rows']}")
     out(f"people: {found['people']}")
+    out(f"owners: {found['owners']}")
     out(f"commissioners: {found['commissioners']}")
-    out(f"site admins: {found['site_admins']}")
+    out(f"app admins: {found['app_admins']}")
     out("when run, the file replaces every row of the role table and returns rows_loaded and people")
     return 0
 
