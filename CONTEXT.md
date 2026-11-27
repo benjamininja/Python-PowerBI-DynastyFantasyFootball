@@ -400,7 +400,7 @@ _Avoid_: deadline status, season phase (say which window)
 
 **App Role**:
 What a signed-in person may do: **owner** (a person linked to a team),
-**commissioner** or **site admin**. A signed-in person with none is a
+**commissioner** or **app admin**. A signed-in person with none is a
 **stranger**. One person may hold several. Here an owner is a person; in
 Original Owner and Current Owner it is a team.
 _Avoid_: user type, permission level
@@ -411,7 +411,7 @@ page shows and gives no power.
 _Avoid_: impersonation
 
 **View-As**:
-A site admin seeing the page as another role or team sees it, read-only and
+An app admin seeing the page as another role or team sees it, read-only and
 masked: who has access and what exists, never another team's private Contract
 Choices.
 _Avoid_: impersonation, act-as (acting as another person exists only on made-up
