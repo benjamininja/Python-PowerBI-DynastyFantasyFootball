@@ -1487,35 +1487,221 @@ def resolve_legs(legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src):
 
 # %%
 # ---- Run -------------------------------------------------------------------
-def main():
-    picks = parse_draft_results(load_draft())
-    print(f"[info] {len(picks)} pick slots across {picks['divisionId'].nunique()} division(s); "
-          f"{picks['scorerId'].notna().sum()} made")
+class Lookups(NamedTuple):
+    """The stored tables a ledger build reads, keyed for the parsers."""
+    team_lut: dict    # fantrax_team_id -> team_key
+    conf_lut: dict    # team_key -> conference
+    name_lut: dict    # lower-cased team name -> team_key
+    gsis_lut: dict    # scorer_id -> gsis_id
+    pkey_lut: dict    # scorer_id -> player_key
+    contracts: pd.DataFrame
+    spans: list
+    fa: dict
+    src: ContractSource
 
-    # ---- Identity + value lookups ------------------------------------------
+
+def load_lookups() -> Lookups:
+    """Read the identity, contract and Roster State tables a build needs."""
     teams_dim = etl.read_table("dim_fantasy_teams")
     team_lut = dict(zip(teams_dim["fantrax_team_id"], teams_dim["team_key"]))
     conf_lut = dict(zip(teams_dim["team_key"], teams_dim["conference"]))
     name_lut = ({n.strip().lower(): k for n, k in zip(teams_dim["team_name"], teams_dim["team_key"])
                  if isinstance(n, str)} if "team_name" in teams_dim.columns else {})
-
     px = etl.read_table("dim_fantrax_crosswalk")
-    gsis_lut = dict(zip(px["scorer_id"], px["gsis_id"]))
-    pkey_lut = dict(zip(px["scorer_id"], px["player_key"]))
-
-    draft_salaries = index_draft_salaries(etl.read_table("fact_fantrax_adp"),
-                                          CFG.draft_year)
-
     contracts = etl.read_table("dim_contract")
-    spans = season_spans(etl.read_table("dim_season"))
-    fa = fa_terms(contracts)
-
-    # ---- Contract source: Roster State (04r), the preseason capture, and
-    #      minors eligibility (04v) ------------------------------------------
     state, preseason, eligibility = (
         etl.read_table(name) if etl.table_exists(name) else None
         for name in ("fact_roster_state", "fact_preseason_salary", "fact_minor_eligibility"))
-    src = contract_source(state, preseason, eligibility, contracts)
+    return Lookups(team_lut, conf_lut, name_lut,
+                   dict(zip(px["scorer_id"], px["gsis_id"])),
+                   dict(zip(px["scorer_id"], px["player_key"])),
+                   contracts, season_spans(etl.read_table("dim_season")), fa_terms(contracts),
+                   contract_source(state, preseason, eligibility, contracts))
+
+
+def pick_assets() -> tuple:
+    """(fact_draft_pick, fact_draft_pick_future, pick_ref -> asset_id), minting
+    a `pick` asset for every pick the bridge lacks."""
+    slotted = etl.read_table("fact_draft_pick")
+    future = (etl.read_table("fact_draft_pick_future") if etl.table_exists("fact_draft_pick_future")
+              else pd.DataFrame(columns=["pick_ref", "draft_season", "round",
+                                         "original_owner", "current_owner"]))
+    if not len(future):
+        print("[warn] no fact_draft_pick_future (run 04u) -- a traded future pick "
+              "cannot be resolved and goes to review")
+    dim_roster_asset, ref2aid = mint_pick_assets(_read_assets(), all_pick_refs(slotted, future),
+                                                 slot_history(slotted))
+    write_table("dim_roster_asset", dim_roster_asset)
+    print(f"[ok] dim_roster_asset: {len(ref2aid)} pick asset(s) "
+          f"({len(slotted)} slotted, {len(future)} future)")
+    return slotted, future, ref2aid
+
+
+def check_periods(legs: list, lk: Lookups, quiet: bool = False) -> None:
+    """Stop on a leg of the Roster State season with no readable period.
+    `quiet` names the count only, no scorer and no time."""
+    unplaced = legs_without_period(legs, lk.spans, lk.src.season)
+    if unplaced:
+        l = unplaced[0]
+        first = "" if quiet else f"First: {l['kind']} of {l['scorer_id']} at {l['event_dt']}. "
+        raise RuntimeError(
+            f"{len(unplaced)} transaction leg(s) of {lk.src.season} carry no readable Scoring "
+            f"Period (the `week` cell) -- has the transaction history changed shape? "
+            f"{first}The ledger is not rebuilt.")
+
+
+def _some(items: list, quiet: bool) -> str:
+    """Up to five of `items` for a log line, or nothing when `quiet`."""
+    if quiet:
+        return ""
+    return f": {items[:5]}{'...' if len(items) > 5 else ''}"
+
+
+def post_moves(raw_txn_rows, trade_log, legs, stats, lk: Lookups, slotted, future,
+               ref2aid, startup_fact, quiet: bool = False, review_dir=None):
+    """Write the parsed transaction history: fact_trade_log, and the ledger's
+    trade / claim / drop rows, rebuilt in full beside its other rows.
+    `startup_fact` is the ledger's startup_draft rows. `quiet` prints counts
+    only, no scorer, team or pick; `review_dir` puts the two pick-review files
+    there instead of data/review. Returns the `tally_sourcing` of the legs'
+    contracts, or None when no leg was posted."""
+    gsis_lut, pkey_lut, fa, src, contracts = lk.gsis_lut, lk.pkey_lut, lk.fa, lk.src, lk.contracts
+    pick_review_path, owner_review_path = (
+        (PICK_REVIEW_PATH, PICK_OWNER_REVIEW_PATH) if review_dir is None
+        else (Path(review_dir) / PICK_REVIEW_PATH.name, Path(review_dir) / PICK_OWNER_REVIEW_PATH.name))
+    txn_sourcing = None
+    if raw_txn_rows:
+        print(f"[info] captured txn rows: {stats['trade_rows']} trade leg(s), "
+              f"{stats['claim_drop_rows']} claim/drop row(s)")
+
+    if trade_log is not None:
+        n_unmapped = int((trade_log["team_key_from"].isna() | trade_log["team_key_to"].isna()).sum())
+        if n_unmapped:
+            print(f"[warn] {n_unmapped} trade_log row(s) have an unmapped team "
+                  f"(fantrax_team_id missing from dim_fantasy_teams) -- left NA")
+        # Every traded player needs an asset, a leg with an unmapped team included.
+        traded = sorted(trade_log.loc[trade_log["asset_kind"] == "player", "scorer_id"].unique())
+        dim_roster_asset, sid2aid = mint_assets(traded, _read_assets(), gsis_lut, pkey_lut)
+        write_table("dim_roster_asset", dim_roster_asset)
+
+        pick_ref, reasons, holders = resolve_pick_legs(trade_log, slotted, future, lk.name_lut)
+        trade_log, pick_review = finish_trade_log(trade_log, pick_ref, reasons, sid2aid, ref2aid)
+        write_table("fact_trade_log", trade_log)
+        n_picks = int((trade_log["asset_kind"] == "pick").sum())
+        print(f"[ok] fact_trade_log: {len(trade_log)} asset row(s) across "
+              f"{trade_log['transaction_id'].nunique()} trade(s), {n_picks} pick leg(s) "
+              f"resolved to a pick -> {TRADE_LOG_PATH.name}")
+        # The review file is rebuilt on every run, like the crosswalk's.
+        if len(pick_review):
+            pick_review_path.parent.mkdir(parents=True, exist_ok=True)
+            pick_review.to_csv(pick_review_path, index=False)
+            print(f"[warn] {len(pick_review)} trade leg(s) cannot be keyed "
+                  f"({pick_review['reason'].value_counts().to_dict()}) -- left out of "
+                  f"fact_trade_log, listed in {pick_review_path.name}")
+        elif pick_review_path.exists():
+            pick_review_path.unlink()
+        gaps = ownership_gaps(slotted, future, holders, trade_log)
+        if gaps:
+            owner_review_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(gaps, columns=PICK_OWNER_REVIEW_COLS).to_csv(owner_review_path, index=False)
+            print(f"[warn] {len(gaps)} pick(s) end the trade replay with an owner Fantrax "
+                  f"does not report (rerun 04u, or a trade is missing) -- listed in "
+                  f"{owner_review_path.name}{_some(gaps, quiet)}")
+        elif owner_review_path.exists():
+            owner_review_path.unlink()
+
+    for line in skipped_code_lines(raw_txn_rows):
+        print(line)
+
+    if stats["no_player"] or stats["no_team"]:
+        print(f"[warn] skipped {stats['no_player']} claim/drop row(s) with no scorer and "
+              f"{stats['no_team']} with an unmapped team")
+
+    if legs:
+        dim_roster_asset, sid2aid = mint_assets(sorted({l["scorer_id"] for l in legs}),
+                                                _read_assets(), gsis_lut, pkey_lut)
+        write_table("dim_roster_asset", dim_roster_asset)
+
+        base = claim_dtypes(etl.read_table("fact_roster_transactions").reindex(columns=LEDGER_COLS))
+        base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]
+        txn_fact_rows, missing_source, fa_fallback, txn_sourcing, roster_priced = resolve_legs(
+            legs, base, sid2aid, lk.conf_lut, gsis_lut, lk.spans, fa, src)
+
+        if missing_source:
+            print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
+                  f"their 'from' team -- priced off Roster State where it shows them, "
+                  f"else contract fields left NA{_some(missing_source, quiet)}")
+        if roster_priced:
+            print(f"[info] {len(roster_priced)} claim(s) priced off a roster "
+                  f"(the preseason capture or Roster State)")
+        if fa_fallback:
+            print(f"[info] {len(fa_fallback)} claim(s) had no in-season contract history and "
+                  f"are on no roster -- priced at the league minimum "
+                  f"(${fa['contract_value']:,.0f})")
+
+        txn_fact = claim_dtypes(pd.DataFrame(txn_fact_rows)[LEDGER_COLS])
+        txn_fact["event_date"] = pd.to_datetime(txn_fact["event_date"])
+        txn_fact["period"] = txn_fact["period"].astype("Int64")
+        assert txn_fact["season_id"].notna().all(), "event_date outside every dim_season span"
+        assert not txn_fact.duplicated(LEDGER_KEY).any(), "duplicate transaction-event ledger key"
+
+        # Replace by EVENT_TYPE, not (season_id, event_type): these types are rebuilt
+        # in full from the 04t capture on every run, so a corrected season_id would
+        # otherwise strand the previous run's partition behind as orphan rows.
+        # LEDGER_COLS only: a column a later schema dropped does not ride along
+        # on the rows that were kept.
+        _led    = etl.read_table("fact_roster_transactions")
+        _stale  = int(_led["event_type"].isin(TXN_EVENT_TYPES).sum())
+        out     = claim_dtypes(
+            pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],
+                      ignore_index=True)[LEDGER_COLS])
+        assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
+        assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
+        write_table("fact_roster_transactions", out)
+        by_type = txn_fact["event_type"].value_counts().to_dict()
+        print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
+              f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")
+        print(f"[info] transaction contracts: "
+              f"{txn_fact['contract_id'].value_counts(dropna=False).to_dict()} "
+              f"({txn_sourcing['observed']} leg(s) read off Roster State, "
+              f"{txn_sourcing['preseason']} off the preseason capture)")
+        claims = txn_fact[txn_fact["event_type"] == CLAIM_EVENT]
+        print(f"[info] claim_method: "
+              f"{claims['claim_method'].value_counts(dropna=False).to_dict()} on claims, "
+              f"{txn_fact.loc[txn_fact['event_type'] == DROP_EVENT, 'claim_method'].value_counts(dropna=False).to_dict()} "
+              f"on drops")
+        print(f"[info] contract_source, all rows: "
+              f"{out['contract_source'].value_counts(dropna=False).to_dict()}")
+        stintless = txn_fact[txn_fact["contract_source"] == NO_STINT]
+        if len(stintless):
+            print(f"[warn] {len(stintless)} drop(s) end no stint on the ledger "
+                  f"(contract_source = {NO_STINT}; no Dead Money)"
+                  f"{_some(list(zip(stintless['team_key'], stintless['scorer_id'])), quiet)}")
+        unknown = unknown_contracts(pd.concat([startup_fact, txn_fact]), contracts)
+        if unknown:
+            print(f"[warn] contract(s) observed on Roster State but absent from dim_contract "
+                  f"(written as observed; add a row in 01b): {unknown}")
+    elif raw_txn_rows:
+        print("[info] no player-asset transaction legs to add (pick-only trades, or all unmapped)")
+    else:
+        print("[info] no captured transaction history -- skipping transaction events entirely")
+    return txn_sourcing
+
+
+def main():
+    picks = parse_draft_results(load_draft())
+    print(f"[info] {len(picks)} pick slots across {picks['divisionId'].nunique()} division(s); "
+          f"{picks['scorerId'].notna().sum()} made")
+
+    # ---- Identity + value lookups, and the contract source: Roster State
+    #      (04r), the preseason capture, and minors eligibility (04v) ---------
+    lk = load_lookups()
+    team_lut, gsis_lut, pkey_lut, spans, fa, src = (lk.team_lut, lk.gsis_lut, lk.pkey_lut,
+                                                    lk.spans, lk.fa, lk.src)
+    draft_salaries = index_draft_salaries(etl.read_table("fact_fantrax_adp"),
+                                          CFG.draft_year)
+    state, preseason = (etl.read_table(name) if etl.table_exists(name) else None
+                        for name in ("fact_roster_state", "fact_preseason_salary"))
     read_periods = sorted({s.period for seen in src.snaps.values() for s in seen})
     print(f"[info] contract source: Roster State of {len(read_periods)} Scoring Period(s) "
           f"{read_periods} ({SEASON_ID}), {len(src.elig)} eligibility snapshot(s)")
@@ -1551,18 +1737,7 @@ def main():
           f"{int(dim_draft_pick['is_made'].sum())} made) -> {PICK_PATH.name}")
 
     # ---- Pick assets: one per pick, slotted and future ------------------------
-    slotted = etl.read_table("fact_draft_pick")
-    future = (etl.read_table("fact_draft_pick_future") if etl.table_exists("fact_draft_pick_future")
-              else pd.DataFrame(columns=["pick_ref", "draft_season", "round",
-                                         "original_owner", "current_owner"]))
-    if not len(future):
-        print("[warn] no fact_draft_pick_future (run 04u) -- a traded future pick "
-              "cannot be resolved and goes to review")
-    dim_roster_asset, ref2aid = mint_pick_assets(_read_assets(), all_pick_refs(slotted, future),
-                                                 slot_history(slotted))
-    write_table("dim_roster_asset", dim_roster_asset)
-    print(f"[ok] dim_roster_asset: {len(ref2aid)} pick asset(s) "
-          f"({len(slotted)} slotted, {len(future)} future)")
+    slotted, future, ref2aid = pick_assets()
 
     # ---- Transaction history: parsed here, posted further down ----------------
     # The parse is pure. The draft rows need it first: a trade away or a drop
@@ -1570,14 +1745,7 @@ def main():
     # from.
     raw_txn_rows = load_txn_rows()
     trade_log, legs, stats = parse_txn_rows(raw_txn_rows, team_lut, gsis_lut)
-    unplaced = legs_without_period(legs, spans, src.season)
-    if unplaced:
-        l = unplaced[0]
-        raise RuntimeError(
-            f"{len(unplaced)} transaction leg(s) of {src.season} carry no readable Scoring "
-            f"Period (the `week` cell) -- has the transaction history changed shape? "
-            f"First: {l['kind']} of {l['scorer_id']} at {l['event_dt']}. The ledger is "
-            f"not rebuilt.")
+    check_periods(legs, lk)
     # With no legs the ledger's transaction rows are kept as they are, so they
     # must already carry the key.
     stranded = unkeyed_moves(etl.read_table("fact_roster_transactions")) if not legs and etl.table_exists("fact_roster_transactions") else 0
@@ -1640,124 +1808,10 @@ def main():
               "asset bridge covers drafted copies only")
 
     # ---- Transaction events (trade / claim / drop) ---------------------------
-    if raw_txn_rows:
-        print(f"[info] captured txn rows: {stats['trade_rows']} trade leg(s), "
-              f"{stats['claim_drop_rows']} claim/drop row(s)")
-
-    if trade_log is not None:
-        n_unmapped = int((trade_log["team_key_from"].isna() | trade_log["team_key_to"].isna()).sum())
-        if n_unmapped:
-            print(f"[warn] {n_unmapped} trade_log row(s) have an unmapped team "
-                  f"(fantrax_team_id missing from dim_fantasy_teams) -- left NA")
-        # Every traded player needs an asset, a leg with an unmapped team included.
-        traded = sorted(trade_log.loc[trade_log["asset_kind"] == "player", "scorer_id"].unique())
-        dim_roster_asset, sid2aid = mint_assets(traded, _read_assets(), gsis_lut, pkey_lut)
-        write_table("dim_roster_asset", dim_roster_asset)
-
-        pick_ref, reasons, holders = resolve_pick_legs(trade_log, slotted, future, name_lut)
-        trade_log, pick_review = finish_trade_log(trade_log, pick_ref, reasons, sid2aid, ref2aid)
-        write_table("fact_trade_log", trade_log)
-        n_picks = int((trade_log["asset_kind"] == "pick").sum())
-        print(f"[ok] fact_trade_log: {len(trade_log)} asset row(s) across "
-              f"{trade_log['transaction_id'].nunique()} trade(s), {n_picks} pick leg(s) "
-              f"resolved to a pick -> {TRADE_LOG_PATH.name}")
-        # The review file is rebuilt on every run, like the crosswalk's.
-        if len(pick_review):
-            PICK_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
-            pick_review.to_csv(PICK_REVIEW_PATH, index=False)
-            print(f"[warn] {len(pick_review)} trade leg(s) cannot be keyed "
-                  f"({pick_review['reason'].value_counts().to_dict()}) -- left out of "
-                  f"fact_trade_log, listed in {PICK_REVIEW_PATH.name}")
-        elif PICK_REVIEW_PATH.exists():
-            PICK_REVIEW_PATH.unlink()
-        gaps = ownership_gaps(slotted, future, holders, trade_log)
-        if gaps:
-            PICK_OWNER_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
-            pd.DataFrame(gaps, columns=PICK_OWNER_REVIEW_COLS).to_csv(PICK_OWNER_REVIEW_PATH, index=False)
-            print(f"[warn] {len(gaps)} pick(s) end the trade replay with an owner Fantrax "
-                  f"does not report (rerun 04u, or a trade is missing) -- listed in "
-                  f"{PICK_OWNER_REVIEW_PATH.name}: {gaps[:5]}{'...' if len(gaps) > 5 else ''}")
-        elif PICK_OWNER_REVIEW_PATH.exists():
-            PICK_OWNER_REVIEW_PATH.unlink()
-
-    for line in skipped_code_lines(raw_txn_rows):
-        print(line)
-
-    if stats["no_player"] or stats["no_team"]:
-        print(f"[warn] skipped {stats['no_player']} claim/drop row(s) with no scorer and "
-              f"{stats['no_team']} with an unmapped team")
-
-    if legs:
-        dim_roster_asset, sid2aid = mint_assets(sorted({l["scorer_id"] for l in legs}),
-                                                _read_assets(), gsis_lut, pkey_lut)
-        write_table("dim_roster_asset", dim_roster_asset)
-
-        base = claim_dtypes(etl.read_table("fact_roster_transactions").reindex(columns=LEDGER_COLS))
-        base = base[~base["event_type"].isin(TXN_EVENT_TYPES)]
-        txn_fact_rows, missing_source, fa_fallback, txn_sourcing, roster_priced = resolve_legs(
-            legs, base, sid2aid, conf_lut, gsis_lut, spans, fa, src)
+    txn_sourcing = post_moves(raw_txn_rows, trade_log, legs, stats, lk, slotted, future,
+                              ref2aid, fact)
+    if txn_sourcing is not None:
         tallies.append(txn_sourcing)
-
-        if missing_source:
-            print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
-                  f"their 'from' team -- priced off Roster State where it shows them, "
-                  f"else contract fields left NA: "
-                  f"{missing_source[:5]}{'...' if len(missing_source) > 5 else ''}")
-        if roster_priced:
-            print(f"[info] {len(roster_priced)} claim(s) priced off a roster "
-                  f"(the preseason capture or Roster State)")
-        if fa_fallback:
-            print(f"[info] {len(fa_fallback)} claim(s) had no in-season contract history and "
-                  f"are on no roster -- priced at the league minimum "
-                  f"(${fa['contract_value']:,.0f})")
-
-        txn_fact = claim_dtypes(pd.DataFrame(txn_fact_rows)[LEDGER_COLS])
-        txn_fact["event_date"] = pd.to_datetime(txn_fact["event_date"])
-        txn_fact["period"] = txn_fact["period"].astype("Int64")
-        assert txn_fact["season_id"].notna().all(), "event_date outside every dim_season span"
-        assert not txn_fact.duplicated(LEDGER_KEY).any(), "duplicate transaction-event ledger key"
-
-        # Replace by EVENT_TYPE, not (season_id, event_type): these types are rebuilt
-        # in full from the 04t capture on every run, so a corrected season_id would
-        # otherwise strand the previous run's partition behind as orphan rows.
-        # LEDGER_COLS only: a column a later schema dropped does not ride along
-        # on the rows that were kept.
-        _led    = etl.read_table("fact_roster_transactions")
-        _stale  = int(_led["event_type"].isin(TXN_EVENT_TYPES).sum())
-        out     = claim_dtypes(
-            pd.concat([_led[~_led["event_type"].isin(TXN_EVENT_TYPES)], txn_fact],
-                      ignore_index=True)[LEDGER_COLS])
-        assert out[LEDGER_KEY].notna().all().all(), "ledger row with part of its key missing"
-        assert not out.duplicated(LEDGER_KEY).any(), "duplicate ledger key — grain violated"
-        write_table("fact_roster_transactions", out)
-        by_type = txn_fact["event_type"].value_counts().to_dict()
-        print(f"[ok] transaction events: +{len(txn_fact)} {by_type} "
-              f"(replaced {_stale} prior txn row(s); {len(out)} total ledger rows)")
-        print(f"[info] transaction contracts: "
-              f"{txn_fact['contract_id'].value_counts(dropna=False).to_dict()} "
-              f"({txn_sourcing['observed']} leg(s) read off Roster State, "
-              f"{txn_sourcing['preseason']} off the preseason capture)")
-        claims = txn_fact[txn_fact["event_type"] == CLAIM_EVENT]
-        print(f"[info] claim_method: "
-              f"{claims['claim_method'].value_counts(dropna=False).to_dict()} on claims, "
-              f"{txn_fact.loc[txn_fact['event_type'] == DROP_EVENT, 'claim_method'].value_counts(dropna=False).to_dict()} "
-              f"on drops")
-        print(f"[info] contract_source, all rows: "
-              f"{out['contract_source'].value_counts(dropna=False).to_dict()}")
-        stintless = txn_fact[txn_fact["contract_source"] == NO_STINT]
-        if len(stintless):
-            print(f"[warn] {len(stintless)} drop(s) end no stint on the ledger "
-                  f"(contract_source = {NO_STINT}; no Dead Money): "
-                  f"{list(zip(stintless['team_key'], stintless['scorer_id']))[:5]}"
-                  f"{'...' if len(stintless) > 5 else ''}")
-        unknown = unknown_contracts(pd.concat([fact, txn_fact]), contracts)
-        if unknown:
-            print(f"[warn] contract(s) observed on Roster State but absent from dim_contract "
-                  f"(written as observed; add a row in 01b): {unknown}")
-    elif raw_txn_rows:
-        print("[info] no player-asset transaction legs to add (pick-only trades, or all unmapped)")
-    else:
-        print("[info] no captured transaction history -- skipping transaction events entirely")
 
     # ---- Minors eligibility: how firm the defaults are -----------------------
     for line in sourcing_report(src.elig, tallies):
