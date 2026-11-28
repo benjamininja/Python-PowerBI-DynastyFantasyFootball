@@ -13,9 +13,18 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-27 (see the commit time), session 823b0d8b-9a43-423c-82fe-429cfcd98aae. State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
+**Saved:** 2026-11-28 (see the commit time), session 0ef68551-3dad-4f09-b5af-b164a0307ae9 (before a compact; the id is kept). State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
 
 ### Next (in order)
+
+- **Ninth save, 2026-11-28, before a compact. READ THIS BULLET FIRST; it overrules the ones below where they differ.**
+  - **(1) The Fantrax route, a grill in progress with the owner (owner-led; record: #721 issuecomment-7240049825, with round 1 at -7239839102 and the run's reading at -7239478310 and its correction -7239514818).** The login fails on the hosted runner; the captcha frame flag is true on every page load, so the cause is not named yet. The planner withdrew the visible-browser trial after reading #428 (Fantrax's terms forbid automated scraping; the owner chose on 2026-11-07 to get compliant): no ticket is ever written to tune a client past the check. The owner's last words, typed: redirect him to the letter to send to Fantrax for transactions (add, drop, waiver, trade) as league generated data, his primary concern; test whether period points, stats and minors eligibility can be reconstructed; drop what is not germane; then a resolution such as a by-hand weekly PC-driven process that complies. **Do next, in order:** (a) find the letter's draft (the To confirm list says the Fantrax letter draft, #528 merged; #429 is the statement and request ticket; private material is in the owner's private repository, never a path on a public record) and bring the owner to it with its direct link, narrowed to the transaction log; (b) confirm the planner's four-point reading of his words with him by button, one round at a time (the grilling skill: context above, recommended first); (c) tickets for the reconstruction tests (#524 is minors; per-player period points and the player stats have none; search open tickets first) and for which Fantrax pulls are dropped; (d) the shape of the compliant weekly PC process; (e) whether scheduled logins stop altogether once tonight's run has named the refusal. Still open from round 1 and not asked again: a hand sign-in is allowed only as a rare reset.
+  - **(2) #756 is done** (PR #757 merged as `a0fd038`, the manager's report, not read by the planner): one login per run and an error kind in the flag line, never page text. The manager reads the scheduled run of 2026-11-28 (about 20:00 UTC) and posts on #721. **#758 (tier unset) needs the planner's tier:** the review's F2 (a login that fails inside the login step writes no failed line, so a second login is still made), F1 (match order of the error kinds), F3 (summary wording). Read it, set the tier and label, tell the manager.
+  - **(3) The draft advisory stays a draft** past 2026-11-28 on the owner's typed answer (try to make it ready today, the date move as fallback); pointer: #564 issuecomment-7239843007. The new day is named when tools PR #211 and the design of tools #295 have merged; the Tools planner says when. **Owed to the Tools planner:** that link (sent in chat is enough) and, later, the new date. Dynasty's rows by a read-only helper: 10 closed, 2 open, 3 not determinable (the interaction limit, the git-configuration row, the wildcard after the re-proof script in the managers file).
+  - **(4) One planner entry is in the owner's queue** (Session line is this id): Add four deny lines to two settings files, and delete one stray script copy (ticket #564). When ticked: the manager checks the files parse and PRs the two tracked files; the planner then removes its entry.
+  - **(5) Tools reads done 2026-11-28:** PR #302 signed off at `3f02699` (merged as `0105706`); PR #303 signed off at `2ba4275` (issuecomment-7239906356; a new head gets a new read). **Owed:** an early read of the oneshot profile paragraph (tools #299 issuecomment-7240005690) and later its PR's head; after its merge the profile's entry in dynasty's dispatch file is the owner's hand step, raised by the planner. Row 1(a) of that finding is dynasty's: one exact standing rule in the builders' file for the first-snapshot script of #568, to the owner by button (parked work: ask only when #568 is lifted). After tools PR #303 merges: ask the owner by button whether dynasty's two-week trial of dispatch without a go starts, and name in the manager's file how a hold is marked (the backlog label).
+  - **(6) Notes:** tools PR #296 merged (`a774e8e`): dispatch has setup and setupFull lists; #655's lighter setup is no longer blocked by tools, but stays parked under the cut. Tools reversed its cut on the owner's button there (tools #300 issuecomment-7239515907); dynasty's cut stands. The manager noted other one-shot files in its private folder; not the planner's.
+  - **(7) Unchanged and still due:** before 2026-12-03 the `02d` switch question; #682 may dispatch now that #675 is closed (check its body once more first), then #676's check; state PR #634 on the owner's merge word.
 
 - **Eighth save, 2026-11-27, before a clear.** PR #754 merged as `2bfd70a`: the planner now writes its own entries into the owner's queue in the same turn as the chat message, and tells the manager; its worktree is removed (only state is left). PR #753 (the deny rules in the two tracked settings files) merged as `c8a41a2`. Nothing of the planner's is in the owner's queue and no button is open. The manager is also clearing: its new session id follows by message.
 
@@ -64,14 +73,15 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 Ids as of 2026-11-27; find each by name. After a clear, send the manager and the Tools planner the new id.
 
-- dff-central-builder-manager: `e5579518-3626-469b-b1d5-3095f10a1c6a`
-- Tools-central-planner: `4e27fb7c-445f-47d9-ad2b-919bca911066`
-- Tools-builder-manager: `fbd93714-8c8b-49c7-b434-7dee4a8488fd`
-- personal-assistant: `6f53e894-fbd7-4d4b-894d-55ffd90c0f71`. It reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
+- dff-central-builder-manager: `637314ca-f6ae-4049-a3ff-576bd1479cfe`
+- Tools-central-planner: `0a6ad927-943a-481d-99fc-f2cbfcda8498`
+- Tools-builder-manager: `ea58e038-9092-4552-9e4c-32bb3cdf8281`
+- personal-assistant: `061c1d24-09c1-4c01-8d89-ff693eb974d9`. It reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
 
 ### Waiting on Ben
 
-- Nothing of the planner's is in his queue.
+- One planner entry is in his queue (Session `0ef68551-3dad-4f09-b5af-b164a0307ae9`): Add four deny lines to two settings files, and delete one stray script copy (#564).
+- The grill on the Fantrax route is open in the planner's chat; no button is open at the save.
 - #673: the owner and the partner sign the private agreement; a line on #673 when it is signed.
 - His go in the manager's chat for dispatches; his merge words are the manager's.
 - Power BI hold: #563 and #567 wait until he lifts it; #624 offseason.
@@ -80,7 +90,8 @@ Ids as of 2026-11-27; find each by name. After a clear, send the manager and the
 
 | When | What |
 |---|---|
-| 2026-11-28 | Publish the draft advisory if its fixes have not landed. |
+| When tools PR #211 and the design of tools #295 have merged | Name the draft advisory's new publish day with the owner, by button (#564 issuecomment-7239843007). |
+| After the scheduled run of 2026-11-28 | Read the manager's post on #721: one login, and the error kind. |
 | Before 2026-12-03 | The `02d` switch question to the owner, with the `minor_drift` data since 2026-11-15. |
 | After 2026-12-03 | The #561 grill (the 2027-28 ledger's new events). Nothing switches between 2026-12-03 and 2027-01-07. |
 | Before 2027-03-01 | Every rollover ticket on map #557 is live. |
