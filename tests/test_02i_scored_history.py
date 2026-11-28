@@ -247,6 +247,29 @@ class TestDriftVerdict:
         assert fig["pass_share"] == 1.0 and fig["tight_share"] == 0.0
 
 
+class TestOneFigurePerScorer:
+    def rows(self, fpts_by_team):
+        return pd.DataFrame({"scorer_id": "s1", "period": 1, "team_key": list(fpts_by_team),
+                             "fpts": list(fpts_by_team.values()), "fpts_offense": list(fpts_by_team.values()),
+                             "fpts_defense": 0.0, "fpts_special_teams": 0.0})
+
+    def test_one_row_is_taken_as_it_is(self):
+        one, many, disagree = sh.one_figure(self.rows({"t1": 12.0}))
+        assert one["fpts"].tolist() == [12.0] and (many, disagree) == (0, 0)
+
+    def test_two_agreeing_rows_give_one_figure_not_a_sum(self):
+        one, many, disagree = sh.one_figure(self.rows({"t1": 12.0, "t15": 12.005}))
+        assert len(one) == 1 and one["fpts"].iloc[0] == pytest.approx(12.0) and (many, disagree) == (0, 0)
+
+    def test_two_disagreeing_rows_are_counted(self):
+        _, many, disagree = sh.one_figure(self.rows({"t1": 12.0, "t15": 12.5}))
+        assert (many, disagree) == (0, 1)
+
+    def test_three_rows_are_counted(self):
+        _, many, _ = sh.one_figure(self.rows({"t1": 12.0, "t15": 12.0, "t20": 12.0}))
+        assert many == 1
+
+
 class TestDiagnostics:
     def test_how_the_misses_miss(self):
         df = pd.DataFrame({"ours": [0.0, 0.0, 5.0, 9.6, 30.0, 10.0], "theirs": [0.0, 8.0, 10.0, 10.0, 10.0, 10.0],
@@ -343,6 +366,25 @@ class TestMain:
         assert not (tmp / f"{sh.STAT_TABLE}.parquet").exists()
         assert not (tmp / f"{sh.PLAYER_TABLE}.parquet").exists()
         assert "2025 season totals: 3 compared" in capsys.readouterr().out
+
+    def test_a_player_in_both_conferences_is_compared_once(self, world, capsys):
+        tmp, _ = world
+        second = PERIOD_SCORING.iloc[[0]].assign(team_key="t15")
+        pd.concat([PERIOD_SCORING, second]).to_parquet(tmp / "fact_period_scoring.parquet", index=False)
+        assert sh.main() == 0
+        out = capsys.readouterr().out
+        assert "2026-2027 period 1: 2 compared; exact (within 0.05) 100.0%" in out
+        assert "0 scorer-period(s) whose rows disagree" in out
+
+    @pytest.mark.parametrize("fpts, teams, match", [(11.0, ["t15"], "disagree"),
+                                                    (10.0, ["t15", "t20"], "more than 2 rows")])
+    def test_disagreeing_or_extra_rows_fail_before_any_write(self, world, fpts, teams, match):
+        tmp, _ = world
+        extra = [PERIOD_SCORING.iloc[[0]].assign(team_key=t, fpts=fpts) for t in teams]
+        pd.concat([PERIOD_SCORING, *extra]).to_parquet(tmp / "fact_period_scoring.parquet", index=False)
+        with pytest.raises(sh.DriftError, match=match):
+            sh.main()
+        assert not (tmp / f"{sh.STAT_TABLE}.parquet").exists()
 
     def test_a_missing_mapped_column_fails_before_any_write(self, world, monkeypatch):
         tmp, _ = world

@@ -29,7 +29,10 @@
 # against Fantrax's stored figures. 2025: season totals against
 # `fact_fantrax_adp` (season 2025, week YTD, 8 games or more). Each season
 # `fact_period_scoring` holds: points per closed Scoring Period it holds,
-# nflverse week rows stamped to a period. A player passes when the gap is at
+# nflverse week rows stamped to a period. Fantrax's figure is one per scorer
+# and period, never a sum over teams: a player rostered in both Conferences
+# has two rows, which must agree within 0.01; a disagreement or a third row
+# fails the step. A player passes when the gap is at
 # most 1 point plus 5 percent of Fantrax's figure; the step fails when fewer
 # than 90 percent pass in a season, or when a Fantrax position's summed
 # points differ by more than 2 percent (the owner's bar, 2026-11-09). The
@@ -82,6 +85,8 @@ TIGHT_POINTS, TIGHT_PCT = 0.5, 0.02           # the tighter per-player bar, prin
 HALF, EQUAL = (0.4, 0.6), (0.9, 1.1)          # ratio bands of a miss, ours over Fantrax's
 TACKLE_CODES = ("TkS", "TkA")                 # solo, assisted
 IDP_POSITIONS = ("DL", "LB", "DB")
+ROW_AGREE = 0.01          # a scorer's two rows (one per Conference) agree within this
+MAX_ROWS = 2              # rows per scorer and period: one per Conference
 UNIT_COLUMNS = {"Offense": "fpts_offense", "Defense": "fpts_defense",
                 "Special Teams": "fpts_special_teams"}
 
@@ -358,6 +363,21 @@ def ytd_comparison(adp: pd.DataFrame, history: pd.DataFrame, categories: pd.Data
                          "group": a["gsis_id"].map(group).fillna(NO_GROUP).to_numpy()})
 
 
+def one_figure(scoring: pd.DataFrame) -> tuple[pd.DataFrame, int, int]:
+    """One Fantrax figure per scorer and period, never a sum over teams. The
+    league keeps one copy of a player per Conference, so a player rostered
+    in both has two rows, one per team; their `fpts` must agree within 0.01.
+    Returns the rows (the first team_key's), the scorer-periods with more
+    than two rows, and those whose rows disagree."""
+    cols = ["fpts", *UNIT_COLUMNS.values()]
+    by = scoring.groupby(["scorer_id", "period"])
+    too_many = int((by.size() > MAX_ROWS).sum())
+    disagree = int(((by["fpts"].max() - by["fpts"].min()) > ROW_AGREE + 1e-9).sum())
+    one = (scoring.sort_values(["scorer_id", "period", "team_key"])
+           .drop_duplicates(["scorer_id", "period"])[["scorer_id", "period", *cols]].reset_index(drop=True))
+    return one, too_many, disagree
+
+
 def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.DataFrame,
                       scoring: pd.DataFrame, crosswalk: pd.DataFrame, player_positions: pd.Series,
                       fantrax_pos: pd.Series, colmap: dict[str, list[str]], points: pd.Series,
@@ -387,8 +407,8 @@ def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.D
                               "nfl_weeks_stamped": int(stamped.get(p, 0)),
                               "games_stamped": int((games["period"] == p).sum())}
                      for p in compared}
-    theirs = (scoring[scoring["period"].isin(compared)]
-              .groupby(["scorer_id", "period"], as_index=False)[["fpts", *UNIT_COLUMNS.values()]].sum())
+    theirs, info["too_many_rows"], info["rows_disagree"] = one_figure(
+        scoring[scoring["period"].isin(compared)])
     xw = crosswalk.dropna(subset=["gsis_id"]).set_index("scorer_id")["gsis_id"]
     theirs["gsis_id"] = theirs["scorer_id"].map(xw)
     info["no_gsis_id"] = int(theirs["gsis_id"].isna().sum())
@@ -611,6 +631,15 @@ def main() -> int:
         print(f"[drift] {season_id}: periods held {pinfo['held']}, compared (closed) {pinfo['compared']}, "
               f"held but not closed {pinfo['not_closed']}, not compared (no Fantrax figure) "
               f"{pinfo['after_last_frozen']}; {pinfo['no_gsis_id']} scorer row(s) with no gsis_id")
+        print(f"[drift] {season_id}: one Fantrax figure per scorer and period; "
+              f"{pinfo['rows_disagree']} scorer-period(s) whose rows disagree by more than {ROW_AGREE}, "
+              f"{pinfo['too_many_rows']} with more than {MAX_ROWS} rows")
+        if pinfo["rows_disagree"]:
+            problems.append(f"{season_id}: {pinfo['rows_disagree']} scorer-period(s) of fact_period_scoring "
+                            f"whose rows disagree by more than {ROW_AGREE}")
+        if pinfo["too_many_rows"]:
+            problems.append(f"{season_id}: {pinfo['too_many_rows']} scorer-period(s) of fact_period_scoring "
+                            f"with more than {MAX_ROWS} rows")
         for period, part in df.groupby("period"):
             print_figures(f"{season_id} period {int(period)}", figures(part))
             print(f"[drift]   Unit gaps: {', '.join(f'{u} {g:+.1f}' for u, g in unit_gaps(part).items())}")
