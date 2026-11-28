@@ -98,6 +98,9 @@ Done items left this block: their records are on GitHub.
 - On Ben: the queue entry "Delete the Fantrax sign-in secrets" (#760). His hand step. Its Session line names this session: re-key it after the clear.
 - On the planner: the #473 ruling on the TE cause; the #520 --live brief; the #777 advisories.
 
+- On the planner's clear (2026-11-28 ~19:45Z): its new id arrives by message. Re-key its three queue entries (#429, #412, #673) from `36235893-...` to the new id.
+- Tier review (planner): #462 and #464 are low, and #463, #475, #476, #478 and #491 are medium. All are HELD. #529 and #655 are low and backlog. #506 and #512 are closed. A new label, tier:none, marks owner-led tickets.
+
 ### In flight
 - b473-history (above), parked.
 - Open PRs: #634 (state, CLEAN), #595 (b589, parked), #563 (b556, Power BI backlog).
