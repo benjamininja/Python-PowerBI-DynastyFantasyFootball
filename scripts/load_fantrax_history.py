@@ -13,10 +13,12 @@ storage seam. It makes no network request.
   same way twice.
 - A team or player the stored tables cannot name exactly goes to
   data/review/review_txn_history.csv and is left out. Nothing is guessed.
-- By default the write is a shadow (the seam's capture mode, into
-  data/review/txn_history_shadow/) and the run prints, as counts, how it
-  agrees with the stored tables. `--write` writes the store, and refuses when
-  the store holds a move the file lacks.
+- Every load is first built in a shadow (the seam's capture mode, into
+  data/review/txn_history_shadow/, its pick-review files beside it), and the
+  run prints, as counts, how it agrees with the stored tables. `--write` then
+  writes the store, and refuses, writing nothing, when the shadow lost a
+  stored ledger move or trade-log row.
+- Output is counts only: no name, scorer, team or pick (#761).
 
 Run from the repo root:
     .venv/Scripts/python.exe scripts/load_fantrax_history.py [--write] [--raw-dir DIR]
@@ -26,6 +28,7 @@ import contextlib
 import csv
 import hashlib
 import importlib
+import io
 import re
 import sys
 from pathlib import Path
@@ -63,9 +66,20 @@ def newest_file(raw_dir, view: str):
     files = list(Path(raw_dir).glob(f"Fantrax-Transaction-History-{FILE_LABEL[view]}-*.csv"))
 
     def order(path):
-        m = STAMP.search(path.name)
-        return (m.group(1), m.group(2) or "0000") if m else ("", ""), path.stat().st_mtime
+        return stamp_of(path) or "", path.stat().st_mtime
     return max(files, key=order) if files else None
+
+
+def stamp_of(path):
+    """The `YYYYMMDD_hhmm` a download's name carries, None when it has none."""
+    m = STAMP.search(Path(path).name)
+    return f"{m.group(1)}_{m.group(2) or '0000'}" if m else None
+
+
+def unstamped_newer(raw_dir, view: str, chosen) -> int:
+    """Downloads of `view` with no stamp in their name, newer on disk than `chosen`."""
+    return sum(1 for p in Path(raw_dir).glob(f"Fantrax-Transaction-History-{FILE_LABEL[view]}-*.csv")
+               if stamp_of(p) is None and p.stat().st_mtime > Path(chosen).stat().st_mtime)
 
 
 def read_view(path, view: str) -> pd.DataFrame:
@@ -110,13 +124,14 @@ class Names:
 
     def player(self, name, nfl_team, position, team_key):
         """(scorer_id, None) for exactly one crosswalk row of this name, else
-        (None, reason). The NFL team, the position and the fantasy team's
-        Roster State narrow several rows, each only where it leaves one."""
+        (None, reason). The position, the fantasy team's Roster State and
+        then the NFL team (last: the crosswalk's copy of it can be stale)
+        narrow several rows, each only where it leaves one."""
         cands = self.players.get(etl.clean_name_for_match(name), [])
         positions = set(re.split(r"[,/ ]+", str(position).strip())) - {""}
-        narrowing = (lambda c: c.nfl_team == nfl_team,
-                     lambda c: bool(positions & set(re.split(r"[,/ ]+", str(c.position_raw)))),
-                     lambda c: (team_key, c.scorer_id) in self.roster)
+        narrowing = (lambda c: bool(positions & set(re.split(r"[,/ ]+", str(c.position_raw)))),
+                     lambda c: (team_key, c.scorer_id) in self.roster,
+                     lambda c: c.nfl_team == nfl_team)
         for keep in narrowing:
             if len(cands) <= 1:
                 break
@@ -159,7 +174,7 @@ def _cell(key, **kw):
 def claim_drop_rows(frame, names: Names, moves: dict, review: list, counts: dict) -> list:
     """Claims+Drops rows -> 04t rows. A claim and the drops of its team in the
     same minute share one minted id: the file does not pair them."""
-    rows = []
+    rows, minute_of = [], {}
     for r in frame.itertuples():
         if r.type in SKIPPED_TYPES:
             counts["skipped_type"] = counts.get("skipped_type", 0) + 1
@@ -183,6 +198,11 @@ def claim_drop_rows(frame, names: Names, moves: dict, review: list, counts: dict
             cells.append(_cell("bid", content=r.bid))
         rows.append({"txSetId": known or mint("claim_drop", at.isoformat(), team_key),
                      "transactionCode": code, "scorer": {"scorerId": sid}, "cells": cells})
+        minute_of[(team_key, at)] = minute_of.get((team_key, at), []) + [code]
+    # A drop whose team made another claim or drop in the same minute: the
+    # file cannot say which claim it went with.
+    counts["unsure_pairing"] = sum(codes.count("DROP") for codes in minute_of.values()
+                                   if "CLAIM" in codes and len(codes) > 2)
     return rows
 
 
@@ -309,8 +329,14 @@ def main(argv=None) -> dict:
         raise SystemExit(f"[error] no download of view(s) {missing} in the raw folder "
                          f"(Fantrax-Transaction-History-<view>-*.csv)")
     frames = {view: read_view(path, view) for view, path in paths.items()}
-    print(f"[info] read {len(frames['CLAIM_DROP'])} Claims+Drops row(s) and "
-          f"{len(frames['TRADE'])} Trade row(s), newest download of each view")
+    print(f"[info] read {len(frames['CLAIM_DROP'])} Claims+Drops row(s) (download "
+          f"{stamp_of(paths['CLAIM_DROP']) or 'with no stamp'}) and {len(frames['TRADE'])} Trade "
+          f"row(s) (download {stamp_of(paths['TRADE']) or 'with no stamp'})")
+    for view, path in paths.items():
+        later = unstamped_newer(args.raw_dir, view, path)
+        if later:
+            print(f"[warn] {later} {view} download(s) with no `_hhmm` stamp in the name are newer "
+                  f"on disk than the one read -- rename it with its stamp if it is this week's")
 
     lk = rt.load_lookups()
     state = _read("fact_roster_state")
@@ -334,34 +360,35 @@ def main(argv=None) -> dict:
           f"{counts.get('minted', 0)} get a minted {MINTED} id; "
           f"{counts.get('skipped_type', 0)} lineup row(s) skipped")
     print("[info] not in the download, left blank or minted, never guessed: Fantrax's "
-          "transaction id on a new move, the claim/drop pairing inside a minute, and a "
-          f"trade's grouping beyond its minute ({counts.get('ungroupable_legs', 0)} leg(s) "
-          "the store holds apart)")
+          "transaction id on a new move; the claim/drop pairing inside a minute "
+          f"({counts.get('unsure_pairing', 0)} drop(s) share a minute with more than one move "
+          f"of their team); a trade's grouping beyond its minute "
+          f"({counts.get('ungroupable_legs', 0)} leg(s) the store holds apart)")
 
     trade_parsed, legs, stats = rt.parse_txn_rows(rows, lk.team_lut, lk.gsis_lut)
-    rt.check_periods(legs, lk)
+    rt.check_periods(legs, lk, quiet=True)
     loaded = {(l["kind"], l["scorer_id"], l["team_to"], pd.Timestamp(l["event_dt"]).floor("min"))
               for l in legs}
     store_only = move_keys(ledger) - loaded
     if store_only:
         by_type = pd.Series([k[0] for k in store_only]).value_counts().to_dict()
         print(f"[warn] {len(store_only)} stored move(s) are not in the download {by_type}")
-        if args.write:
-            raise SystemExit("[error] --write would delete them from the ledger; nothing written")
-
-    if args.write:
-        target = contextlib.nullcontext()
-    else:
-        args.shadow_dir.mkdir(parents=True, exist_ok=True)
-        for name in SHADOW_TABLES:
-            etl.captured_path(name, args.shadow_dir).unlink(missing_ok=True)
-        target = etl.capturing(args.shadow_dir)
     startup = (ledger[ledger["event_type"] == rt.EVENT_TYPE] if ledger is not None
                else pd.DataFrame(columns=rt.LEDGER_COLS))
-    with target:
+
+    def build(review_dir=None):
         slotted, future, ref2aid = rt.pick_assets()
-        rt.post_moves(rows, trade_parsed, legs, stats, lk, slotted, future, ref2aid, startup)
-        new_ledger, new_log = _read("fact_roster_transactions"), _read("fact_trade_log")
+        rt.post_moves(rows, trade_parsed, legs, stats, lk, slotted, future, ref2aid, startup,
+                      quiet=True, review_dir=review_dir)
+        return _read("fact_roster_transactions"), _read("fact_trade_log")
+
+    # Every load is built in the shadow first, its pick-review files beside
+    # it; `--write` then writes the store only when nothing stored is lost.
+    args.shadow_dir.mkdir(parents=True, exist_ok=True)
+    for name in SHADOW_TABLES:
+        etl.captured_path(name, args.shadow_dir).unlink(missing_ok=True)
+    with etl.capturing(args.shadow_dir):
+        new_ledger, new_log = build(review_dir=args.shadow_dir)
 
     result = {"store_only": len(store_only), "review": len(review), **counts}
     is_move = lambda f: None if f is None else f[f["event_type"].isin(rt.TXN_EVENT_TYPES)]
@@ -369,9 +396,17 @@ def main(argv=None) -> dict:
         result["ledger"] = agreement(is_move(ledger), is_move(new_ledger), rt.LEDGER_KEY, ("event_seq",))
     if new_log is not None:
         result["trade_log"] = agreement(trade_log, new_log, ["transaction_id", "asset_id"])
-    where = "the store" if args.write else f"the shadow ({args.shadow_dir.name})"
-    print(f"[ok] written to {where}; against the stored tables: ledger moves "
-          f"{result.get('ledger')}, trade log {result.get('trade_log')}")
+    print(f"[ok] built in the shadow ({args.shadow_dir.name}); against the stored tables: "
+          f"ledger moves {result.get('ledger')}, trade log {result.get('trade_log')}")
+    if args.write:
+        lost = {name: result[name]["gone"] for name in ("ledger", "trade_log")
+                if result.get(name, {}).get("gone")}
+        if lost or store_only:
+            raise SystemExit(f"[error] --write would delete stored rows ({lost or 'ledger moves'}); "
+                             f"nothing written to the store")
+        with contextlib.redirect_stdout(io.StringIO()):
+            build()
+        print("[ok] written to the store")
     return result
 
 

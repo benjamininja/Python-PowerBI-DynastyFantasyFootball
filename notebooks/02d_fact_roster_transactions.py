@@ -1537,25 +1537,38 @@ def pick_assets() -> tuple:
     return slotted, future, ref2aid
 
 
-def check_periods(legs: list, lk: Lookups) -> None:
-    """Stop on a leg of the Roster State season with no readable period."""
+def check_periods(legs: list, lk: Lookups, quiet: bool = False) -> None:
+    """Stop on a leg of the Roster State season with no readable period.
+    `quiet` names the count only, no scorer and no time."""
     unplaced = legs_without_period(legs, lk.spans, lk.src.season)
     if unplaced:
         l = unplaced[0]
+        first = "" if quiet else f"First: {l['kind']} of {l['scorer_id']} at {l['event_dt']}. "
         raise RuntimeError(
             f"{len(unplaced)} transaction leg(s) of {lk.src.season} carry no readable Scoring "
             f"Period (the `week` cell) -- has the transaction history changed shape? "
-            f"First: {l['kind']} of {l['scorer_id']} at {l['event_dt']}. The ledger is "
-            f"not rebuilt.")
+            f"{first}The ledger is not rebuilt.")
+
+
+def _some(items: list, quiet: bool) -> str:
+    """Up to five of `items` for a log line, or nothing when `quiet`."""
+    if quiet:
+        return ""
+    return f": {items[:5]}{'...' if len(items) > 5 else ''}"
 
 
 def post_moves(raw_txn_rows, trade_log, legs, stats, lk: Lookups, slotted, future,
-               ref2aid, startup_fact):
+               ref2aid, startup_fact, quiet: bool = False, review_dir=None):
     """Write the parsed transaction history: fact_trade_log, and the ledger's
     trade / claim / drop rows, rebuilt in full beside its other rows.
-    `startup_fact` is the ledger's startup_draft rows. Returns the
-    `tally_sourcing` of the legs' contracts, or None when no leg was posted."""
+    `startup_fact` is the ledger's startup_draft rows. `quiet` prints counts
+    only, no scorer, team or pick; `review_dir` puts the two pick-review files
+    there instead of data/review. Returns the `tally_sourcing` of the legs'
+    contracts, or None when no leg was posted."""
     gsis_lut, pkey_lut, fa, src, contracts = lk.gsis_lut, lk.pkey_lut, lk.fa, lk.src, lk.contracts
+    pick_review_path, owner_review_path = (
+        (PICK_REVIEW_PATH, PICK_OWNER_REVIEW_PATH) if review_dir is None
+        else (Path(review_dir) / PICK_REVIEW_PATH.name, Path(review_dir) / PICK_OWNER_REVIEW_PATH.name))
     txn_sourcing = None
     if raw_txn_rows:
         print(f"[info] captured txn rows: {stats['trade_rows']} trade leg(s), "
@@ -1580,22 +1593,22 @@ def post_moves(raw_txn_rows, trade_log, legs, stats, lk: Lookups, slotted, futur
               f"resolved to a pick -> {TRADE_LOG_PATH.name}")
         # The review file is rebuilt on every run, like the crosswalk's.
         if len(pick_review):
-            PICK_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
-            pick_review.to_csv(PICK_REVIEW_PATH, index=False)
+            pick_review_path.parent.mkdir(parents=True, exist_ok=True)
+            pick_review.to_csv(pick_review_path, index=False)
             print(f"[warn] {len(pick_review)} trade leg(s) cannot be keyed "
                   f"({pick_review['reason'].value_counts().to_dict()}) -- left out of "
-                  f"fact_trade_log, listed in {PICK_REVIEW_PATH.name}")
-        elif PICK_REVIEW_PATH.exists():
-            PICK_REVIEW_PATH.unlink()
+                  f"fact_trade_log, listed in {pick_review_path.name}")
+        elif pick_review_path.exists():
+            pick_review_path.unlink()
         gaps = ownership_gaps(slotted, future, holders, trade_log)
         if gaps:
-            PICK_OWNER_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
-            pd.DataFrame(gaps, columns=PICK_OWNER_REVIEW_COLS).to_csv(PICK_OWNER_REVIEW_PATH, index=False)
+            owner_review_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(gaps, columns=PICK_OWNER_REVIEW_COLS).to_csv(owner_review_path, index=False)
             print(f"[warn] {len(gaps)} pick(s) end the trade replay with an owner Fantrax "
                   f"does not report (rerun 04u, or a trade is missing) -- listed in "
-                  f"{PICK_OWNER_REVIEW_PATH.name}: {gaps[:5]}{'...' if len(gaps) > 5 else ''}")
-        elif PICK_OWNER_REVIEW_PATH.exists():
-            PICK_OWNER_REVIEW_PATH.unlink()
+                  f"{owner_review_path.name}{_some(gaps, quiet)}")
+        elif owner_review_path.exists():
+            owner_review_path.unlink()
 
     for line in skipped_code_lines(raw_txn_rows):
         print(line)
@@ -1617,8 +1630,7 @@ def post_moves(raw_txn_rows, trade_log, legs, stats, lk: Lookups, slotted, futur
         if missing_source:
             print(f"[warn] {len(missing_source)} traded player(s) had no prior ledger row on "
                   f"their 'from' team -- priced off Roster State where it shows them, "
-                  f"else contract fields left NA: "
-                  f"{missing_source[:5]}{'...' if len(missing_source) > 5 else ''}")
+                  f"else contract fields left NA{_some(missing_source, quiet)}")
         if roster_priced:
             print(f"[info] {len(roster_priced)} claim(s) priced off a roster "
                   f"(the preseason capture or Roster State)")
@@ -1663,9 +1675,8 @@ def post_moves(raw_txn_rows, trade_log, legs, stats, lk: Lookups, slotted, futur
         stintless = txn_fact[txn_fact["contract_source"] == NO_STINT]
         if len(stintless):
             print(f"[warn] {len(stintless)} drop(s) end no stint on the ledger "
-                  f"(contract_source = {NO_STINT}; no Dead Money): "
-                  f"{list(zip(stintless['team_key'], stintless['scorer_id']))[:5]}"
-                  f"{'...' if len(stintless) > 5 else ''}")
+                  f"(contract_source = {NO_STINT}; no Dead Money)"
+                  f"{_some(list(zip(stintless['team_key'], stintless['scorer_id'])), quiet)}")
         unknown = unknown_contracts(pd.concat([startup_fact, txn_fact]), contracts)
         if unknown:
             print(f"[warn] contract(s) observed on Roster State but absent from dim_contract "

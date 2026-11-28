@@ -134,6 +134,14 @@ class TestFiles:
         assert lf.newest_file(tmp_path, "CLAIM_DROP") is None
         assert old.exists()
 
+    def test_an_unstamped_download_newer_on_disk_is_named(self, tmp_path):
+        stamped = write_csv(tmp_path / "Fantrax-Transaction-History-Trade-L-20261128_0753.csv", "TRADE", [])
+        os.utime(stamped, (1, 1))
+        write_csv(tmp_path / "Fantrax-Transaction-History-Trade-L-20261128 (1).csv", "TRADE", [])
+        assert lf.newest_file(tmp_path, "TRADE") == stamped
+        assert lf.unstamped_newer(tmp_path, "TRADE", stamped) == 1
+        assert lf.stamp_of(stamped) == "20261128_0753"
+
     def test_a_changed_header_stops_the_load(self, tmp_path):
         path = tmp_path / "x.csv"
         path.write_text('"Player","Team","When"\n', encoding="utf-8")
@@ -194,7 +202,15 @@ class TestIds:
                                   review, counts)
         assert [r["txSetId"] for r in rows][0] == "fx1"
         assert rows[1]["txSetId"].startswith(lf.MINTED)
-        assert counts == {"reused": 1, "minted": 1} and not review
+        assert counts == {"reused": 1, "minted": 1, "unsure_pairing": 0} and not review
+
+    def test_a_drop_among_several_moves_of_its_minute_is_counted(self):
+        extra = ["Sam Same", "BUF", "QB", "Claim", "Team Alpha", "", CLAIM_ROWS[0][6], "2"]
+        frame = pd.DataFrame([r + [i] for i, r in enumerate(CLAIM_ROWS[:2] + [extra], 2)],
+                             columns=lf.COLUMNS["CLAIM_DROP"] + ["line"])
+        counts = {}
+        lf.claim_drop_rows(frame, self.names(), {}, [], counts)
+        assert counts["unsure_pairing"] == 1
 
     def test_legs_of_one_minute_group_by_the_teams_they_connect(self):
         other = ["Sam Same", "BUF", "QB", "Team Alpha", "Team Zulu", TRADE_ROWS[0][5], "3"]
@@ -221,8 +237,10 @@ class TestLoad:
     def test_a_shadow_load_writes_only_the_shadow(self, data):
         download(data / "raw", "20261128_0752")
         before = (data / "data" / "fact_roster_transactions.parquet").read_bytes()
+        rt.PICK_REVIEW_PATH.write_text("a real review file", encoding="utf-8")
         result = run(data)
         assert (data / "data" / "fact_roster_transactions.parquet").read_bytes() == before
+        assert rt.PICK_REVIEW_PATH.read_text(encoding="utf-8") == "a real review file"
         shadow = moves(table(data, "fact_roster_transactions", shadow=True))
         assert sorted(shadow["event_type"]) == ["claim", "claim", "drop", "trade", "trade_away"]
         assert result["review"] == 1 and result["ledger"]["new"] == 5
@@ -269,6 +287,30 @@ class TestLoad:
             run(data, "--write")
         pd.testing.assert_frame_equal(table(data, "fact_roster_transactions"), before)
         assert run(data)["store_only"] == 1                # a shadow load still reports it
+
+    def test_write_refuses_a_download_that_lacks_a_stored_pick_leg(self, data):
+        download(data / "raw", "20261121_0800")
+        run(data, "--write")
+        before = table(data, "fact_trade_log")
+        download(data / "raw", "20261128_0752", trades=TRADE_ROWS[:1])
+        with pytest.raises(SystemExit, match="nothing written"):
+            run(data, "--write")
+        pd.testing.assert_frame_equal(table(data, "fact_trade_log"), before)
+        result = run(data)
+        assert result["store_only"] == 0 and result["trade_log"]["gone"] == 1
+
+    def test_a_blank_week_stops_the_load_naming_no_scorer(self, data):
+        download(data / "raw", "20261128_0752", trades=[TRADE_ROWS[0][:6] + [""]])
+        with pytest.raises(RuntimeError) as err:
+            run(data)
+        assert "s2" not in str(err.value) and "1 transaction leg(s)" in str(err.value)
+
+    def test_the_output_names_no_scorer_team_or_player(self, data, capsys):
+        download(data / "raw", "20261128_0752")
+        run(data)
+        out = capsys.readouterr().out
+        for value in ("s1", "s2", "s4", "s5", "A01", "A02", "A03", "Team ", "Drafted", "Claimer"):
+            assert value not in out
 
     def test_no_network_request(self, data, monkeypatch):
         def refuse(*args, **kwargs):
