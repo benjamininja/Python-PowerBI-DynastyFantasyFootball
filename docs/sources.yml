@@ -229,6 +229,18 @@ sources:
       - { notebook: 04z_fantrax_crosswalk.ipynb, table: dim_fantrax_crosswalk }
     match: ["getPlayerIds"]
 
+  - id: fantrax_public_matchup_scores
+    name: "Fantrax — public fxea API (getMatchupScores per period)"
+    status: live
+    terms: *fantrax_fxea_terms
+    locator: "https://www.fantrax.com/fxea/general/getMatchupScores?leagueId=v744203wmmvjqzv6&period=N"
+    purpose: "Every matchup of one Scoring Period: away and home team (`teamId`) with each side's `score` and `gamesPlayed`, plus a per-category breakdown that is not loaded (#520). The call serves live scores for the period in play, so 04m reads a period once it has ended. It runs in shadow beside the fxpa schedule (04s): it compares its fact_matchup rows with the rows on hand and writes them only with `--live`, when no period differs. Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
+    auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
+    cadence: "Every INSEASON pipeline run (`04m_matchup_scores` step, after `04s_scoring`, fantrax_core Chain), in shadow: every regular-season period that has ended and is not closed"
+    feeds:
+      - { notebook: 04m_fantrax_matchup_scores.py, table: fact_matchup }
+    match: ["getMatchupScores"]
+
   - id: fantrax_inseason_scoring
     name: "Fantrax — getLiveScoringStats + getStandings (per Scoring Period)"
     status: live
