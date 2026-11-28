@@ -1535,6 +1535,56 @@
       ],
       "schema": "football"
     },
+    "football.dim_scoring_category": {
+      "checks": [
+        "category_group IN ('Passing', 'Rushing', 'Receiving', 'Special teams', 'Defense, tackles', 'Defense, big plays', 'Other')",
+        "group_sort_order BETWEEN 1 AND 7"
+      ],
+      "columns": [
+        {
+          "name": "category_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_code",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_name",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "category_group",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "group_sort_order",
+          "not_null": true,
+          "sql_type": "integer"
+        },
+        {
+          "name": "unit",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "nflverse_columns",
+          "not_null": false,
+          "sql_type": "text"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_scoring_category",
+      "pk": [
+        "category_id"
+      ],
+      "schema": "football"
+    },
     "football.dim_scoring_period": {
       "checks": [],
       "columns": [
