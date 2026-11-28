@@ -174,7 +174,7 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(PUBLISHED) == 40 and len(PRIVATE) == 3
+        assert len(PUBLISHED) == 41 and len(PRIVATE) == 3
         for t in TABLES:
             assert t["pk"] == [c.strip() for c in t["grain"].strip("()").split(",")], t["name"]
 
