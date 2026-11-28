@@ -9,18 +9,20 @@
 #
 # **Shadow** (#520, the owner's word of 2026-11-28): by default the step builds
 # the rows, compares them period by period with the `fact_matchup` rows on
-# hand (the fxpa build), prints the differences as counts and writes nothing.
-# A shadow run never fails the run: an error is printed and the step exits 0.
-# `--live` writes `fact_matchup`, and only when no period on hand differs.
-# Turning `--live` on in the scheduled run is its own change, never during
-# the fantasy playoffs (periods 13 to 17).
+# hand (the fxpa build), prints the differences as `[shadow]` count lines
+# (the pipeline carries them into its run log and notice) and writes nothing.
+# A shadow run never fails the run: an error, a table read included, is
+# printed and the step exits 0. `--live` writes `fact_matchup`, and only when
+# no period it compared differs. Turning `--live` on in the scheduled run is
+# its own change, never during the fantasy playoffs (periods 13 to 17).
 #
-# **Which periods:** the regular-season periods of the league's own season
-# whose end has passed and that are not `closed` in `dim_scoring_period`.
-# The call serves live scores for the period in play, so a period is read
-# once it has ended; it is replaced whole on every run until it is `closed`.
-# `--periods` reads any period asked for and compares it; a period outside
-# that list is never written.
+# **Which periods:** every regular-season period of the league's own season
+# whose end has passed, `closed` ones included, is read and compared, so the
+# closed periods on hand are checked on every run. Only the ones not `closed`
+# in `dim_scoring_period` are written (`--live`), replaced whole until they
+# close. The call serves live scores for the period in play, so a period is
+# read once it has ended. `--periods` reads any period asked for and compares
+# it; a period outside the not-closed list is never written.
 #
 # **Fails, and writes nothing, when:** a reply echoes a period other than the
 # one asked for; its teams are not exactly dim_fantasy_teams' teams, each
@@ -72,12 +74,15 @@ DIFF_COUNTS = ("only_fxea", "only_fxpa", "opponent", "is_home", "fpts_for", "fpt
 
 
 # %%
-def periods_to_read(periods: pd.DataFrame, now) -> list[int]:
-    """One season's regular-season periods that have ended by `now` and are
-    not `closed`. `periods` is that season's dim_scoring_period rows."""
-    ended = ~periods["is_playoff"] & (periods["end_at"] <= now)
-    due = periods[ended & ~periods["update_set_state"].eq(lg.CLOSED)]
-    return sorted(int(p) for p in due["period"])
+def periods_to_read(periods: pd.DataFrame, now) -> tuple[list[int], list[int]]:
+    """(read, due): one season's regular-season periods that have ended by
+    `now`, and the ones of those that are not `closed`. Every ended period is
+    read and compared, so the closed periods on hand are checked on each run;
+    only a due period is ever written. `periods` is that season's
+    dim_scoring_period rows."""
+    ended = periods[~periods["is_playoff"] & (periods["end_at"] <= now)]
+    due = ended[~ended["update_set_state"].eq(lg.CLOSED)]
+    return sorted(int(p) for p in ended["period"]), sorted(int(p) for p in due["period"])
 
 
 def _score(side: dict, where: str) -> float:
@@ -225,7 +230,8 @@ def run(asked: list[int], due: list[int], teams: pd.DataFrame, season_id: str, y
             json.dumps(stamped, indent=2), encoding="utf-8")
         frames.append(matchups_to_frame(reply, teams, season_id, period, rs.league_day(now)))
     if not frames:
-        print(f"[ok] getMatchupScores: no ended, open regular-season period of {season_id}")
+        print(f"[shadow] getMatchupScores: no ended regular-season period of {season_id}, "
+              "nothing compared")
         return 0
     fxea = pd.concat(frames, ignore_index=True)
     results = compare(fxea, on_hand_rows())
@@ -263,27 +269,34 @@ def main(argv: list[str] | None = None) -> int:
                                       "that has ended and is not closed")
     args = ap.parse_args(argv)
 
-    teams = read_table("dim_fantasy_teams")
-    periods = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
+    def dims():
+        periods = read_table("dim_scoring_period") if table_exists("dim_scoring_period") else None
+        return read_table("dim_fantasy_teams"), periods
+
     if args.raw:
+        teams, periods = dims()
         if periods is None:
             raise ValueError("dim_scoring_period is missing -- run 04p first")
         return compare_raw(args.raw, teams, str(periods["season_id"].max()))
 
     try:
+        teams, periods = dims()
         now = pd.Timestamp.now(tz="UTC")
         info = fantrax_public_get("getLeagueInfo", FX_CFG.league_id, expect=("seasonYear",))
         season_id, year = lg.season_id_of(info), int(info["seasonYear"])
         if periods is None or season_id not in set(periods["season_id"]):
             raise ValueError(f"season {season_id} is not in dim_scoring_period -- run 04p first")
-        due = periods_to_read(periods[periods["season_id"] == season_id], now)
+        ended, due = periods_to_read(periods[periods["season_id"] == season_id], now)
         lo, _, hi = (args.periods or "").partition("-")
-        asked = list(range(int(lo), int(hi or lo) + 1)) if args.periods else due
+        asked = list(range(int(lo), int(hi or lo) + 1)) if args.periods else ended
         return run(asked, due, teams, season_id, year, now, args.live)
     except Exception as e:
         if args.live:
             raise
-        print(f"[shadow] getMatchupScores failed, nothing compared ({type(e).__name__}: {e})")
+        # The [shadow] line reaches the run's notice, so it names the error's
+        # kind only; the message, which may carry ids, stays in the step output.
+        print(f"[shadow] getMatchupScores failed, nothing compared ({type(e).__name__})")
+        print(f"  {e}")
         return 0
 
 

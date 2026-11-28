@@ -123,7 +123,7 @@ class TestShadowDiff:
 
 
 class TestPeriodsToRead:
-    def test_ended_open_regular_season_periods_only(self):
+    def test_every_ended_regular_season_period_is_read_and_the_open_ones_are_due(self):
         utc = lambda s: pd.Timestamp(s, tz="UTC")
         periods = pd.DataFrame({
             "period": [8, 9, 10, 11, 13],
@@ -132,7 +132,7 @@ class TestPeriodsToRead:
                        utc("2026-12-03"), utc("2026-11-20")],
             "update_set_state": ["closed", "closing", "open", "open", "open"],
         })
-        assert mm.periods_to_read(periods, utc("2026-11-28")) == [9, 10]
+        assert mm.periods_to_read(periods, utc("2026-11-28")) == ([8, 9, 10], [9, 10])
 
 
 class TestRun:
@@ -206,7 +206,32 @@ class TestMain:
         monkeypatch.setattr(mm, "table_exists", lambda name: False)
         monkeypatch.setattr(mm, "fantrax_public_get", boom)
         assert mm.main([]) == 0
-        assert "[shadow] getMatchupScores failed" in capsys.readouterr().out
+        shadow = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith("[shadow]")]
+        assert shadow == ["[shadow] getMatchupScores failed, nothing compared (RuntimeError)"]
+
+    def test_shadow_swallows_a_table_read_error(self, monkeypatch, capsys):
+        def unreadable(name):
+            raise OSError("seam read failed")
+        monkeypatch.setattr(mm, "read_table", unreadable)
+        monkeypatch.setattr(mm, "table_exists", lambda name: True)
+        monkeypatch.setattr(mm, "fantrax_public_get", lambda *a, **k: pytest.fail("no call"))
+        assert mm.main([]) == 0
+        assert "failed, nothing compared (OSError)" in capsys.readouterr().out
+
+    def test_by_default_closed_periods_are_compared_and_only_open_ones_written(self, monkeypatch):
+        utc = lambda s: pd.Timestamp(s, tz="UTC")
+        periods = pd.DataFrame({
+            "season_id": [SEASON] * 3, "period": [8, 9, 12], "is_playoff": [False] * 3,
+            "end_at": [utc("2026-11-05"), utc("2026-11-12"), utc("2099-01-01")],
+            "update_set_state": ["closed", "open", "open"]})
+        tables = {"dim_fantasy_teams": TEAMS, "dim_scoring_period": periods}
+        seen = {}
+        monkeypatch.setattr(mm, "read_table", tables.__getitem__)
+        monkeypatch.setattr(mm, "table_exists", lambda name: name in tables)
+        monkeypatch.setattr(mm, "fantrax_public_get", lambda *a, **k: {"seasonYear": 2026})
+        monkeypatch.setattr(mm, "run", lambda asked, due, *a: seen.update(asked=asked, due=due) or 0)
+        assert mm.main([]) == 0
+        assert seen == {"asked": [8, 9], "due": [9]}
 
     def test_live_raises_the_error(self, monkeypatch):
         def boom(*a, **k):
@@ -249,3 +274,20 @@ class TestPipelineStep:
     def test_it_runs_in_shadow(self):
         step = next(s for s in self.STEPS if s["name"] == "04m_matchup_scores")
         assert "--live" not in step["cmd"]
+
+    def test_no_signed_in_step_retires_it(self):
+        assert "04m_matchup_scores" not in rp.retired_steps(self.STEPS)
+
+    def test_a_passing_step_keeps_its_shadow_lines_only(self):
+        out = "[ok] other\\n[shadow] period 9: 28 teams compared -- matches\\nnoise"
+        step = {**next(s for s in self.STEPS if s["name"] == "04m_matchup_scores"),
+                "needs": [], "cmd": [sys.executable, "-c", f"print('{out}')"]}
+        [r] = rp.run_steps([step], "INSEASON", None, dry_run=False)
+        assert r["status"] == "ok"
+        assert r["detail"] == "[shadow] period 9: 28 teams compared -- matches"
+        assert "[shadow] period 9" in rp.summarize("INSEASON", "12", [r], {}, "x")
+
+    def test_a_passing_step_with_no_shadow_lines_keeps_no_detail(self):
+        step = {**next(s for s in self.STEPS if s["name"] == "04m_matchup_scores"),
+                "needs": [], "cmd": [sys.executable, "-c", "print('[ok] done')"]}
+        assert rp.run_steps([step], "INSEASON", None, dry_run=False)[0]["detail"] == ""

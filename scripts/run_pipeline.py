@@ -42,7 +42,10 @@ NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
 03-group rookie chain (manual Excel gates), and review applies (03z; a
 crosswalk decision is the Record a crosswalk override workflow). Nothing here writes to Fantrax: the one
 write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
-(ADR-0019: Fantrax sets the `Minor` contract itself).
+(ADR-0019: Fantrax sets the `Minor` contract itself). Nothing here signs in to
+Fantrax either (the owner's ruling of 2026-11-28, #760): a step that names a
+signed-in script, and every step that needs one, is retired by
+`retired_steps` and never runs; their tables keep their last published rows.
 
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
@@ -187,6 +190,42 @@ def fantrax_blocked(folder: Path | None) -> list[str]:
     return _ledger(folder, FANTRAX_BLOCKED_LEDGER)
 
 
+# The owner's ruling of 2026-11-28 (#760, #429 round 8): no scheduled run or
+# PC task signs in to Fantrax. A step whose command names one of these scripts
+# never runs from here, nor does any step that needs one (transitively); their
+# tables are not written, so they keep their last published rows.
+LOGIN_SCRIPTS = frozenset({
+    "04a_fantrax_weekly_scrape.py", "04s_fantrax_inseason_capture.py",
+    "04t_fantrax_transaction_history.py", "04v_minor_contracts.py",
+    "04w_fantrax_draft_results.py"})
+RETIRED_TEXT = ("Fantrax logged-in pulls retired by the owner's ruling of 2026-11-28 (#760): "
+                "{names} not run; their tables keep their last published rows")
+
+
+def signs_in(step: dict) -> bool:
+    return any(Path(str(c)).name in LOGIN_SCRIPTS for c in step.get("cmd", ()))
+
+
+def retired_steps(steps: list[dict]) -> set[str]:
+    """The steps that sign in to Fantrax and every step that needs one of them."""
+    retired = {s["name"] for s in steps if signs_in(s)}
+    grew = True
+    while grew:
+        more = {s["name"] for s in steps
+                if s["name"] not in retired and set(s.get("needs", ())) & retired}
+        retired |= more
+        grew = bool(more)
+    return retired
+
+
+def retired_line(steps: list[dict], phase: str, only: set[str] | None,
+                 groups: set[str] | None) -> str | None:
+    """The run log's one line on the retired steps this run would have run."""
+    retired = retired_steps(steps)
+    names = [s["name"] for s in steps if s["name"] in retired and _selected(s, phase, only, groups)]
+    return RETIRED_TEXT.format(names=", ".join(names)) if names else None
+
+
 def _script(p: str, *args: str) -> list[str]:
     return [str(VENV_PY), str(NB / p), *args]
 
@@ -241,9 +280,11 @@ def build_steps(profile: str | None) -> list[dict]:
         {"name": "04s_scoring", "cmd": _script("04s_fantrax_inseason_capture.py"),
          "phases": {"INSEASON"}, "needs": ["04r_roster_state"], "chain": "fantrax_core", "group": "regular_season"},
         # Public getMatchupScores (no login; #520): Matchups from fxea, in
-        # shadow beside 04s. It compares its rows with fact_matchup as 04s
-        # leaves it, prints the differences and writes nothing; a shadow error
-        # never fails the step. Going live is `--live`, its own change.
+        # shadow beside 04s. It compares every ended period's rows, closed
+        # ones included, with fact_matchup as published, prints `[shadow]`
+        # count lines (kept by run_steps for the notice) and writes nothing;
+        # a shadow error never fails the step. Going live is `--live`, its
+        # own change.
         {"name": "04m_matchup_scores", "cmd": _script("04m_fantrax_matchup_scores.py"),
          "phases": {"INSEASON"}, "needs": ["04p_league_info"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
@@ -318,8 +359,10 @@ def build_steps(profile: str | None) -> list[dict]:
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
              "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "chain": "dynasty_profile", "group": "pre_season"},
         ]
+    retired = retired_steps(steps)
     for s in steps:
         s["cadence"] = "close_day" if s["name"] in CLOSE_DAY_STEPS else "daily"
+        s["retired"] = s["name"] in retired
     return steps
 
 
@@ -424,9 +467,10 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     results = []
     status = {}   # name -> ok|failed|skipped
     env = {**os.environ, "PYTHONUTF8": "1"}
+    retired = retired_steps(steps)
     for s in steps:
         name = s["name"]
-        if not _selected(s, phase, only, groups):
+        if name in retired or not _selected(s, phase, only, groups):
             continue
         bad_dep = next((d for d in s["needs"] if status.get(d) in ("failed", "skipped")), None)
         if bad_dep:
@@ -447,16 +491,28 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
                                   timeout=STEP_TIMEOUT_S)
             ok = proc.returncode == 0
             tail = "\n".join((proc.stderr or proc.stdout or "").splitlines()[-8:])
+            shadow = shadow_lines(proc.stdout)
         except subprocess.TimeoutExpired:
-            ok, tail = False, f"timeout after {STEP_TIMEOUT_S}s"
+            ok, tail, shadow = False, f"timeout after {STEP_TIMEOUT_S}s", []
         status[name] = "ok" if ok else "failed"
         secs = (datetime.now() - t0).total_seconds()
         results.append({"name": name, "status": status[name],
-                        "detail": "" if ok else tail, "secs": round(secs)})
+                        "detail": "\n".join(shadow) if ok else tail, "secs": round(secs)})
         print(f"[{'ok' if ok else 'FAIL'}] {name} ({secs:.0f}s)")
-        if not ok:
-            print(tail)
+        for line in shadow if ok else tail.splitlines():
+            print(line)
     return results
+
+
+SHADOW_PREFIX = "[shadow]"
+
+
+def shadow_lines(text: str | None) -> list[str]:
+    """A passing step's shadow-check lines (#520): counts a shadow build prints
+    beside the build it may replace. A step's other output is kept only when it
+    fails; these are kept when it passes, so the run log and the notice carry
+    them."""
+    return [line.strip() for line in (text or "").splitlines() if line.startswith(SHADOW_PREFIX)]
 
 
 ACCESS_STEP = "access_loads"
@@ -1388,12 +1444,14 @@ def terms_line() -> str:
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
               filed: dict | None = None, cadence: dict | None = None,
-              access: dict | None = None) -> str:
+              access: dict | None = None, retired: str | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
     if cadence:
         lines.append(f"🗓️ {cadence_line(cadence)}")
         if cadence_warning(cadence):
             lines.append(cadence_warning(cadence))
+    if retired:
+        lines.append(f"🔒 {retired}")
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
@@ -1530,6 +1588,9 @@ def main() -> int:
         steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
                                        today, etl_run_log.steps_done)
         print(f"[cadence] {cadence_line(cadence)}")
+        retired = retired_line(steps, phase, only, groups)
+        if retired:
+            print(f"[retired] {retired}")
         if not args.dry_run and not args.no_commit:
             contract_before = read_contract_list()
         results = run_steps(steps, phase, only, args.dry_run, groups)
@@ -1620,7 +1681,8 @@ def main() -> int:
     finally:
         close_fantrax_session(session)
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access,
+                        retired)
     if blocked:
         summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
                    f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")
