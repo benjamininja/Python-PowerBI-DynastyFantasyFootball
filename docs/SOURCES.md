@@ -53,7 +53,7 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | **WalterFootball** | https://walterfootball.com (scrape) | Rookie positional rankings | None (public scrape) | `03b_walterfootball_rankings.ipynb` → `fact_rookie_rankings` | Per pipeline run |
 | **DraftSharks** | https://www.draftsharks.com (scrape) | Rookie top-90 board | None (public scrape) | `03d_draftsharks_rankings.ipynb` → `fact_rookie_rankings` | Per pipeline run |
 | **DynastySharks** | Manual extraction -> data/raw/DynastyRankings_2026_ManualExtraction.xlsx | Dynasty 1/3/5/10-yr fantasy-point projections + 3D value (SF/TEPP) | Manual file placement (no creds) | `04x_manual_dynasty_rankings.ipynb` → `fact_dynasty_ranking_metrics` | Manual (on refresh) |
-| **Manual Excel — misc rankings** | data/raw/*.xlsx (RotoBaller, mystery_iono, DLF, FantasyCalc) | Supplemental rookie/dynasty expert ranks not available via scrape | Manual file placement (no creds) | `03x_manual_rankings.ipynb` → `fact_rookie_rankings` | Manual (on refresh) |
+| **Manual Excel — misc rankings** | data/raw/*.xlsx (RotoBaller, mystery_iono, FantasyCalc) | Supplemental rookie/dynasty expert ranks not available via scrape | Manual file placement (no creds) | `03x_manual_rankings.ipynb` → `fact_rookie_rankings` | Manual (on refresh) |
 <!-- END GENERATED sources-table:live -->
 
 ## Planned sources (designed, not yet ingesting — ADR-0004 / ADR-0005 / ADR-0006)
@@ -84,6 +84,7 @@ tables drift from the yaml. See [ADR-0007](adr/0007-machine-checked-source-manif
 | **PFF (Pro Football Focus)** | https://www.pff.com (paid subscription; spike #402) | Rejected (owner, 2026-11-07): PFF terms 1.5(h) and 1.5(j) bar scrapers and automated browsers; personal non-commercial use only; the Pro API and CSV route is personal and non-public | None; not ingested | — | Never (rejected) |
 | **KeepTradeCut (KTC)** | https://keeptradecut.com (embedded-HTML / JSON scrape) | Rejected (owner, 2026-11-07): KTC terms 2.1 bar any automated data collection and 2.2 bar derivative works and redistribution; the licence is personal and non-commercial only | None; not ingested | — | Never (rejected) |
 | **FantasyPros** | https://www.fantasypros.com (scrape) + manual Excel for IDP/SF | Rejected (owner, 2026-11-07): FantasyPros terms 6 bar copying and republishing without written permission and 19 bar commercial use | None; not ingested | — | Never (rejected) |
+| **Dynasty League Football (DLF)** | https://dynastyleaguefootball.com (hand-saved rookie sheet, premium list) | Rejected (owner, 2026-11-15, #589): DLF terms 5.1 allow personal use only, 5.3 (xiv) bar republishing any content or derived works and 5.7 bars distributing any data; the public snapshot republished its rookie ranks | None; not ingested | — | Never (rejected) |
 <!-- END GENERATED sources-table:rejected -->
 
 ## Terms and licences (every source, re-checked once per season)
@@ -126,6 +127,7 @@ and the per-host `security` block are in [`sources.yml`](sources.yml). See
 | **PFF (Pro Football Focus)** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | none | #402 |
 | **KeepTradeCut (KTC)** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #423 |
 | **FantasyPros** | rejected | rejected | 2026-11-07 | 2027-05-01 | site terms | public_get | #401, #415 |
+| **Dynasty League Football (DLF)** | rejected | rejected | 2026-11-08 | 2027-05-01 | site terms | manual_file | #424, #589 |
 | **DraftSharks — preseason rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
 | **DraftSharks — best ball rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |
 | **DraftSharks — dynasty rankings** | planned | unresolved | 2026-11-07 | 2027-05-01 | none | public_get | #400 |

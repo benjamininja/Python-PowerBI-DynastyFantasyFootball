@@ -54,6 +54,7 @@
 | PFF | `rejected` | #402 |
 | FantasyPros | `rejected` | #401, #415 |
 | KeepTradeCut | `rejected` (terms last updated 2025-11-11 bar automated collection, use on any other website, redistribution and derivatives) | #423 |
+| Dynasty League Football | `rejected`, checked 2026-11-08 (read by the owner in a browser; Betsperts, Inc. terms last updated August 30, 2024). 5.1 allows personal use only, 5.3 (xiv) bars reproducing or republishing any content or derived works and 5.7 bars distributing any data. Its robots.txt disallows Claude's agents, so no agent reads the site. | #424, #589 |
 | nflverse | `permitted` (CC BY 4.0 data, MIT nflreadpy) | #416 |
 | Fantrax, each entry | `unresolved`, checked 2026-11-07 (read in a browser; the page shows no date). 8.6(c) allows published interfaces only (`fxea` is one, documented at https://www.fantrax.com/developer; `fxpa/req` is not), 8.6(a) bars non-public areas, 8.6(g) bars crawling and scraping, 8.7 bars showing its information on another website without authorization. The path to compliance is #428, with #429 as the fallback. | #421 (owner, Q13) |
 | CollegeFootballData | `permitted` for derived outputs, checked 2026-11-07 (terms effective 2026-08-12). It allows publishing analyses, models and rankings and displaying reasonable portions; it bars redistributing raw API data as a dataset and scraping. The key is held only in a secret and never goes in a public repository. Credit is given anyway, though it is not required. A new `planned` entry, recorded for #422. | #421 (owner, Q13, confirmed Q20) |
