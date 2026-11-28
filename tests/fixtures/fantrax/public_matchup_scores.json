@@ -1,0 +1,13 @@
+{
+ "period": 9,
+ "matchups": [
+  {
+   "away": {"teamId": "t01", "score": 15.5, "gamesPlayed": 9},
+   "home": {"teamId": "t02", "score": 10.0, "gamesPlayed": 8}
+  },
+  {
+   "away": {"teamId": "t03", "score": 1234.5, "gamesPlayed": 10},
+   "home": {"teamId": "t04", "score": -2.4, "gamesPlayed": 7}
+  }
+ ]
+}

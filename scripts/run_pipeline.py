@@ -279,6 +279,14 @@ def build_steps(profile: str | None) -> list[dict]:
         # follows 04r. A closed period is skipped.
         {"name": "04s_scoring", "cmd": _script("04s_fantrax_inseason_capture.py"),
          "phases": {"INSEASON"}, "needs": ["04r_roster_state"], "chain": "fantrax_core", "group": "regular_season"},
+        # Public getMatchupScores (no login; #520): Matchups from fxea, in
+        # shadow beside 04s. It compares every ended period's rows, closed
+        # ones included, with fact_matchup as published, prints `[shadow]`
+        # count lines (kept by run_steps for the notice) and writes nothing;
+        # a shadow error never fails the step. Going live is `--live`, its
+        # own change.
+        {"name": "04m_matchup_scores", "cmd": _script("04m_fantrax_matchup_scores.py"),
+         "phases": {"INSEASON"}, "needs": ["04p_league_info"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
         # Combine / pro-day metrics (nflverse, no login). Rebuilt right after
@@ -483,16 +491,28 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
                                   timeout=STEP_TIMEOUT_S)
             ok = proc.returncode == 0
             tail = "\n".join((proc.stderr or proc.stdout or "").splitlines()[-8:])
+            shadow = shadow_lines(proc.stdout)
         except subprocess.TimeoutExpired:
-            ok, tail = False, f"timeout after {STEP_TIMEOUT_S}s"
+            ok, tail, shadow = False, f"timeout after {STEP_TIMEOUT_S}s", []
         status[name] = "ok" if ok else "failed"
         secs = (datetime.now() - t0).total_seconds()
         results.append({"name": name, "status": status[name],
-                        "detail": "" if ok else tail, "secs": round(secs)})
+                        "detail": "\n".join(shadow) if ok else tail, "secs": round(secs)})
         print(f"[{'ok' if ok else 'FAIL'}] {name} ({secs:.0f}s)")
-        if not ok:
-            print(tail)
+        for line in shadow if ok else tail.splitlines():
+            print(line)
     return results
+
+
+SHADOW_PREFIX = "[shadow]"
+
+
+def shadow_lines(text: str | None) -> list[str]:
+    """A passing step's shadow-check lines (#520): counts a shadow build prints
+    beside the build it may replace. A step's other output is kept only when it
+    fails; these are kept when it passes, so the run log and the notice carry
+    them."""
+    return [line.strip() for line in (text or "").splitlines() if line.startswith(SHADOW_PREFIX)]
 
 
 ACCESS_STEP = "access_loads"
