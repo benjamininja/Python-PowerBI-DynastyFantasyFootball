@@ -70,6 +70,7 @@ stages:
     tables: [fact_period_scoring, fact_matchup]
     steps:
       - {name: 04s_scoring, summary: "Reads period scoring and matchups for every period whose games are final."}
+      - {name: 04m_matchup_scores, summary: "Reads matchup scores from Fantrax's public page and compares them with the recorded matchups, without writing them yet."}
 
   - id: derive
     name: Derive

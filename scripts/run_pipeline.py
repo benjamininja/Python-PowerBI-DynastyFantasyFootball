@@ -240,6 +240,12 @@ def build_steps(profile: str | None) -> list[dict]:
         # follows 04r. A closed period is skipped.
         {"name": "04s_scoring", "cmd": _script("04s_fantrax_inseason_capture.py"),
          "phases": {"INSEASON"}, "needs": ["04r_roster_state"], "chain": "fantrax_core", "group": "regular_season"},
+        # Public getMatchupScores (no login; #520): Matchups from fxea, in
+        # shadow beside 04s. It compares its rows with fact_matchup as 04s
+        # leaves it, prints the differences and writes nothing; a shadow error
+        # never fails the step. Going live is `--live`, its own change.
+        {"name": "04m_matchup_scores", "cmd": _script("04m_fantrax_matchup_scores.py"),
+         "phases": {"INSEASON"}, "needs": ["04p_league_info"], "chain": "fantrax_core", "group": "regular_season"},
         {"name": "01e_dim_nfl_players", "cmd": _nbconvert("01e_dim_nfl_players_seed.ipynb"),
          "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": [], "chain": "nflverse", "group": "pre_season"},
         # Combine / pro-day metrics (nflverse, no login). Rebuilt right after

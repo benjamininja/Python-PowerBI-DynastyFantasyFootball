@@ -91,6 +91,13 @@ ALLOWLIST: dict[str, object] = {
     # A roster's `teamName` is the team's display name and is not listed.
     "public_rosters.json": {"period": KEEP, "rosters": {ANY: {"rosterItems": [{
         "id": KEEP, "status": KEEP, "salary": KEEP, "contract": {"name": KEEP}}]}}},
+    # 04m matchups_to_frame: public getMatchupScores for one period. Hand-written
+    # with invented values from the documented shape (#520), so it has no
+    # SOURCES row and no trimmer. A side's `teamName` is the team's display
+    # name and is not listed; `categories` is not read.
+    "public_matchup_scores.json": {"period": KEEP, "matchups": [{
+        side: {"teamId": KEEP, "score": KEEP, "gamesPlayed": KEEP}
+        for side in ("away", "home")}]},
     # 04s schedule_periods / schedule_team_ids / matchups_to_frame: getStandings
     # view=SCHEDULE. `content` is listed for the score cells only --
     # trim_schedule drops it from the team cells, where it is the fantasy
