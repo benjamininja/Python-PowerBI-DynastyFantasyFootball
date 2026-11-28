@@ -56,49 +56,69 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-28, twenty-fifth save, before a compact at Ben's word; session `10ea8a98-91e0-445b-bef3-77cb005def21`)
+## CURRENT STATE (2026-11-28, twenty-sixth save, before a CLEAR at Ben's word; session `10ea8a98-91e0-445b-bef3-77cb005def21`)
 
 Done items left this block: their records are on GitHub.
 
-- **Saved:** 2026-11-28 ~18:45 UTC, session `10ea8a98-91e0-445b-bef3-77cb005def21`. Ben invoked session-dispatch in this session (armed). A compact keeps the id.
-- **Heads.** origin/main at `6a00ab1` (#775), after #772 `62ac24f`, #769 `11c638f`, #774 `f2a7d63`, #771 `cdeecef`.
-- **Rules in force.** Six required checks; GOAL-RUN.md's closed list merges on Green alone (a ledger change also needs cap-ledger-auditor clean). No-go trial to 2026-12-12 for low and haiku tickets not held or backlog (none dispatched under it yet). A PR on two auditor lists: the planner names the one reviewer (ruling for #772, #772 issuecomment-7243254560); a rules-file line is owed by the planner to Ben.
-- **Ben's rulings of 2026-11-28 (this session):** delete the Fantrax secrets, spike copies too (#760 issuecomment-7243287016); brief 4 drift failure: investigate both causes first, read-only (#473, latest manager comment); the brief 4 bar is Ben's 2026-11-09 bar, 1 point plus 5%, 90%, 2% (planner, #473 issuecomment-7243906914).
+- **Saved:** 2026-11-28 ~19:40 UTC by session `10ea8a98-91e0-445b-bef3-77cb005def21`, before a clear. The next session has a new id: Ben must invoke session-dispatch again before any dispatch, merge or closeout.
+- **Heads.** origin/main at `8aaaf1b` (#777), after #776 `ce67c6c` and #775 `6a00ab1`. Data PR #778 (etl-daily) merged 4 parquet files.
+- **Rules in force.**
+  - Six required checks. GOAL-RUN.md's closed list merges on Green alone; a ledger change also needs cap-ledger-auditor clean.
+  - No-go trial to 2026-12-12 for low and haiku tickets that are not held or backlog. **Dispatched under it: #773 (b773-keepids). It went right:** merged on Green, closed out, review clean with 4 advisories.
+- **Ben's rulings of 2026-11-28 (this session):**
+  - Delete the Fantrax secrets, spike copies too (#760).
+  - #473's brief 4 bar is Ben's 2026-11-09 bar.
+  - Declare the category_id FK (merged as ADR-0018, #776).
+  - The 2025 comparison is printed only (#473 issuecomment-7244229278).
+  - Chase the TE cause rather than write at 3% (#473 issuecomment-7244312913).
 
 ### Next
-1. **#473 brief 4 (b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, medium, this session's dispatch)**: drift check failed (#473 issuecomment-7243916310). Ben: investigate both first; the planner set it medium for b473-history (questions #473 issuecomment-7243994213). Planner ruled neither (#473 issuecomment-7244034527): Profile none, the counts go into 02i's own drift report, run under its existing rule; sent to b473-history by message (still listed, rule already loaded). Await its report. It had parked before any count: its dispatch cannot run analysis code (#473 issuecomment-7244016630). Sent to the planner: (a) Profile: probe or (b) a committed read-only scripts/diagnose_scored_history.py with Ben's exact rule; then re-dispatch at medium on branch worktree-b473-history, same worktree. Earlier sent the go with the bar ruling (Ben's 2026-11-09 bar, #473 issuecomment-7243906914) and Ben's choice to declare the category_id FK (#473 issuecomment-7243986718). Part 2 uncommitted in its worktree; part 1 pushed at ba20b81. On its report: read its findings on #473; a fix or a rerun is the planner's next brief. The planner opens a one-line ADR-0018 decision 6 PR for the FK after its compact: ask Ben's merge word when its number arrives.
-2. **#773 (tier low, filed by the planner)**: the loader stops rebuilding Ben's team-name list on every run. Dispatch now that #772 merged; under the no-go trial if the planner's ticket names files and proof and it is not held, else on Ben's go. Read the ticket first.
-3. **--live for 04m (#520)**: one-line PR after one scheduled run's `[shadow]` lines show every closed period matching. Counts on #520; planner reads; Ben's word. Target before 2026-12-03, else tell the planner. Check the --live advisories (#764 issuecomment-7240955453).
-4. **#522**, then **#523** (read #554, now closed, first), then **#524**, each on Ben's go.
-5. **State PR #634**: was BLOCKED at the last save; read why before asking Ben's merge word.
+1. **#473 brief 4 (b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, medium, this session's dispatch; branch worktree-b473-history, head `ef4b9f1`, part 2 uncommitted in its worktree).** Parked.
+   - The manager ran 02i at ef4b9f1 from a temp worktree with junctions to `.venv` and `data/raw`. The junctions were removed first and the worktree is gone.
+   - TE cause found (#473 issuecomment-7244388593):
+     - 70 of TE's +100.5 points are tackles, FF and FR that ours score and Fantrax scores 0;
+     - 16.5 is TE receptions at 1.485 per unit against 1.5 (slot pay);
+     - offensive players' tackles score 0 at Fantrax;
+     - IDP solo tackle counts are lower in ours;
+     - BK is unmapped.
+   - Sent to the planner. Await its ruling, then relay the next brief to b473-history: SendMessage while it is listed, else resume_plain.ps1.
+   - Any rerun needing data/raw is the manager's, by the same junction method (rmdir the junctions before `git worktree remove`).
+   - Brief 4's PR will touch docs/data_model.yml, so supabase-auditor reviews it and it needs Ben's word.
+2. **--live for 04m (#520).** Tonight's scheduled etl-daily (run 46178434728) succeeded:
+   - 04m `[shadow]` periods 1 to 10 all matched, and `fantrax logins: 0` (#520 issuecomment-7244325722);
+   - the condition is met;
+   - asked the planner for a tier and a brief for the one-line --live PR;
+   - dispatch on receipt (Ben's go, unless the trial applies); the planner reads; it merges on Ben's word, target before 2026-12-03;
+   - check the --live advisories (#764 issuecomment-7240955453).
+3. **PR #777's four advisories** (F1 to F4, #777 issuecomment-7244237445): the planner disposes of them after the tier review Ben asked for through the personal-assistant (32 tickets).
+4. **#522**, then **#523**, then **#524**, each on Ben's go. #522's brief gets the one-figure-per-scorer rule from the planner.
+5. **State PR #634** shows CLEAN now; ask Ben's merge word at a check-in.
 
 ### Waiting
-- On Ben: queue entry "Delete the Fantrax sign-in secrets" (#760), Session line re-keyed to this session. Ben answered delete; his hand step is open.
-- On the planner: the ADR-0018 decision 6 PR for the category_id FK (after its compact).
+- On Ben: the queue entry "Delete the Fantrax sign-in secrets" (#760). His hand step. Its Session line names this session: re-key it after the clear.
+- On the planner: the #473 ruling on the TE cause; the #520 --live brief; the #777 advisories.
 
 ### In flight
-- b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, #473 brief 4, medium; investigating via 02i's drift report on the planner's ruling; no PR yet.
-- Open PRs: #634 (state), #595 (b589, parked, DIRTY), #563 (b556, Power BI backlog, BLOCKED).
+- b473-history (above), parked.
+- Open PRs: #634 (state, CLEAN), #595 (b589, parked), #563 (b556, Power BI backlog).
 
 ### Peers
-dff-central-planner `36235893-7875-4548-9384-a950ad72d75d`; Tools-builder-manager `0e714f8a-9e39-453b-aa53-f3f91e9431ec`; Tools-central-planner `ad27c4f7-ccae-4f9d-aab0-2be31444a3f3`; personal-assistant `061c1d24-09c1-4c01-8d89-ff693eb974d9`. SendMessage by name.
+dff-central-planner `36235893-7875-4548-9384-a950ad72d75d`; Tools-builder-manager `0e714f8a-9e39-453b-aa53-f3f91e9431ec`; Tools-central-planner `ad27c4f7-ccae-4f9d-aab0-2be31444a3f3`; personal-assistant (now `9892259d-36fe-4e53-a301-2cfcac1df068`). SendMessage by name.
 
 ### Reads and checks due
-- Tonight's scheduled etl-daily (~20:00 UTC 2026-11-28): first run with no Fantrax login (#765) and 04m's `[shadow]` lines (#764). Post counts only. The last two runs failed on the old login path.
-- Saturday mornings: after Ben's export, run `.venv/Scripts/python.exe scripts/load_fantrax_history.py` and post counts on #770. Expect 0 names on the owner's list and no unapplied guess (Ben's list applied: crosswalk 35 rows). Do not run the loader between a fill and `--apply` until #773 lands.
-- Advisor baseline (after #772): security INFO 5, WARN 1; performance unindexed FK 42, unused index 1, WARN 4 and 2.
-- Tools-builder-manager holds the machine test line for its PR #326 (~80 min from ~18:20 UTC); ask it before any local full run.
+- Saturday mornings: after Ben's export, run `.venv/Scripts/python.exe scripts/load_fantrax_history.py` and post counts on #770. #773 is merged, so a loader run between a fill and `--apply` is now safe.
+- Advisor baseline: security INFO 5, WARN 1; performance unindexed FK 42, unused index 1, WARN 4 and 2. #776 was a doc only, so no check was due.
+- Before a local full test run, ask Tools-builder-manager for the machine line.
+- Tools PR #336 merged: session-rules' text on compact and clear changed (the start line is a committed constant, no reset prompt file). This session still keeps the local reset prompt, until the planner says the role file carries the new start line.
 
 ### Decided since the last merged state PR
-- Ben by button in the planner's chat: declare the category_id FK (#473 issuecomment-7243986718).
-- Earlier items (to the twenty-fourth save) are on their tickets; see this file's git history.
-- PR #774 merged (`f2a7d63`) on Ben's word: manager allow rules for load_team_names.py.
-- PR #769 merged (`11c638f`) on Ben's word after a clean supabase-auditor review (3 advisories); migrate push success, advisors equal baseline (#473 issuecomment-7243525593); b473-categories closed out.
-- PR #772 merged (`62ac24f`) on Ben's word after a supabase-auditor round (F1 fixed at bf6ca56, accepted on re-check, closed); planner read no breach; migrate push success, advisors equal baseline; b770-teamxwalk resumed on Ben's word for F1, then closed out. Seed 33 rows; shadow load unknown_team 17 (was 124), ledger gone 13 (was 90), trade log gone 0 (was 66) (#770 issuecomment-7243792330). Ben's list applied, crosswalk 35 rows.
-- PR #775 merged (`6a00ab1`) on Ben's word: builder allow rules for 02i, fit_baseline, 04g, yardstick_report.
-- #554 closed on the planner's read.
-- Dispatched on Ben's go: #473 brief 4 (b473-history). Resumed on Ben's word: b770 (F1). Resumed as this session's own: b473-history (to load the new rule).
-- Settings-copy note: a `cd` into a settings worktree moves the session's directory; use `gh pr create` from the repo root with `--head`, never `cd`.
+- Earlier items (to the twenty-fifth save) are on their tickets; see this file's git history.
+- PR #776 merged (`ce67c6c`) on Ben's word: ADR-0018 decision 6 gains category_id.
+- PR #777 merged (`8aaaf1b`) on Green, under the closed list and the trial. Re-proof is #777 issuecomment-7244237445. b773-keepids is closed out.
+- Planner rulings on #473:
+  - the second rows are correct, one per Conference (issuecomment-7244107877);
+  - where rows disagree, the higher counts (issuecomment-7244163995).
+- etl-daily 2026-11-28 succeeded; counts are on #520 and #764.
 
 ## Queue entries raised
 
