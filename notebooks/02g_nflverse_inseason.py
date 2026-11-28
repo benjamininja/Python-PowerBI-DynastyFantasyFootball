@@ -33,7 +33,7 @@ import pandas as pd
 for _p in (Path.cwd() / "notebooks", Path.cwd(), Path.cwd().parent):
     if (_p / "etl_helpers.py").exists():
         sys.path.insert(0, str(_p)); break
-from etl_helpers import read_table, write_table
+from etl_helpers import read_table, stamp_period, write_table
 
 SNAP_TABLE = "fact_nfl_snap_counts"
 INJURY_TABLE = "fact_nfl_injuries"
@@ -56,17 +56,6 @@ def current_season(periods: pd.DataFrame) -> tuple[int, pd.DataFrame]:
     its first year."""
     season_id = periods["season_id"].max()
     return int(str(season_id)[:4]), periods[periods["season_id"] == season_id]
-
-
-def stamp_period(dates: pd.Series, periods: pd.DataFrame) -> pd.Series:
-    """The Scoring Period each date falls in: `start_date` <= date <
-    `end_date` (a period ends on the day the next one starts). Empty where
-    the date is missing or inside no period."""
-    days = pd.to_datetime(dates).dt.normalize()
-    out = pd.Series(pd.NA, index=dates.index, dtype="Int64")
-    for p in periods.itertuples():
-        out[(days >= p.start_date) & (days < p.end_date)] = p.period
-    return out
 
 
 def build_snap_counts(snaps: pd.DataFrame, rosters: pd.DataFrame, schedule: pd.DataFrame,

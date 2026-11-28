@@ -290,7 +290,7 @@ sources:
       access: public_get
       permission: null
     locator: "nflreadpy package (nflverse release data)"
-    purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id), in-season snap counts and injury report"
+    purpose: "Canonical NFL player registry, combine / pro-day metrics, IDs (gsis_id), in-season snap counts and injury report, and the regular-season stat counts of the scored history (2011 on), scored with the league's Fantrax rules for the MouseRatPresents Baseline (#473, ADR-0023)"
     auth: "None (public package)"
     cadence: "Per pipeline run"
     feeds:
@@ -298,6 +298,8 @@ sources:
       - { notebook: 02a_fact_nfl_combine_pro_day_metrics.ipynb, table: fact_nfl_combine_pro_day_metrics }
       - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_snap_counts }
       - { notebook: 02g_nflverse_inseason.py, table: fact_nfl_injuries }
+      - { notebook: 02i_nflverse_scored_history.py, table: fact_scored_player_season }
+      - { notebook: 02i_nflverse_scored_history.py, table: fact_scored_season_stat }
       - { notebook: 02j_nflverse_minor_eligibility.py, table: fact_nfl_minor_eligibility }
       - { notebook: 05a_startup_draft_board.py, table: "(career-games lookup)" }
     match: ["nflreadpy"]

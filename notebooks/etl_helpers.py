@@ -1431,6 +1431,17 @@ def scoring_period_on(day=None, periods: pd.DataFrame | None = None) -> pd.Serie
     return hit.sort_values(["start_date", "period"]).iloc[0]
 
 
+def stamp_period(dates: pd.Series, periods: pd.DataFrame) -> pd.Series:
+    """The Scoring Period each date falls in: `start_date` <= date <
+    `end_date` (a period ends on the day the next one starts). Empty where
+    the date is missing or inside no period."""
+    days = pd.to_datetime(dates).dt.normalize()
+    out = pd.Series(pd.NA, index=dates.index, dtype="Int64")
+    for p in periods.itertuples():
+        out[(days >= p.start_date) & (days < p.end_date)] = p.period
+    return out
+
+
 class Week(NamedTuple):
     """One week of the league's calendar, defined once (ADR-0020 decisions 2,
     4 and 7).
