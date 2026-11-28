@@ -46,6 +46,10 @@ def needs_login(step: dict) -> bool:
     return script_file(step).startswith(LOGIN_PREFIXES)
 
 
+def cadence_text(step: dict) -> str:
+    return "retired (#760)" if step.get("retired") else step["cadence"]
+
+
 def phase_text(step: dict) -> str:
     phases = step["phases"]
     return "all" if set(ALL_PHASES) <= set(phases) else ", ".join(p for p in ALL_PHASES if p in phases)
@@ -104,13 +108,13 @@ def render(steps: list[dict], stages: dict, periods: pd.DataFrame | None, today:
     for stage in stages["stages"]:
         members = [by_name[m["name"]] for m in stage["steps"]]
         out += [f"### {stage['name']}", "", " ".join(stage["description"].split()), ""]
-        out += [f"**Cadence:** {', '.join(dict.fromkeys(s['cadence'] for s in members))}"
+        out += [f"**Cadence:** {', '.join(dict.fromkeys(cadence_text(s) for s in members))}"
                 f" · **Phase:** {'; '.join(dict.fromkeys(phase_text(s) for s in members))}"
                 f" · **Login:** {'yes' if any(needs_login(s) for s in members) else 'no'}", ""]
         out += ["| Step | What it does | Phase | Cadence | Login | Runner |", "|---|---|---|---|---|---|"]
         for m in stage["steps"]:
             s = by_name[m["name"]]
-            out.append(f"| `{s['name']}` | {cell(m['summary'])} | {phase_text(s)} | {s['cadence']} "
+            out.append(f"| `{s['name']}` | {cell(m['summary'])} | {phase_text(s)} | {cadence_text(s)} "
                        f"| {'yes' if needs_login(s) else 'no'} | {RUNNER} |")
         out.append("")
         out.append("Lands: " + ", ".join(f"`{t}`" for t in stage["tables"]))

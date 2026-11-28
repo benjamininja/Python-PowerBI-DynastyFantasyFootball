@@ -42,7 +42,10 @@ NOT scheduled, by design: live-draft chain (04w -> 02d -> 02e -> 05a), the
 03-group rookie chain (manual Excel gates), and review applies (03z; a
 crosswalk decision is the Record a crosswalk override workflow). Nothing here writes to Fantrax: the one
 write-side path (`04v --apply`) was removed under ADR-0011 and stays removed
-(ADR-0019: Fantrax sets the `Minor` contract itself).
+(ADR-0019: Fantrax sets the `Minor` contract itself). Nothing here signs in to
+Fantrax either (the owner's ruling of 2026-11-28, #760): a step that names a
+signed-in script, and every step that needs one, is retired by
+`retired_steps` and never runs; their tables keep their last published rows.
 
 Run:  .\\run_weekly.ps1            (Task Scheduler wrapper, logs console)
       .\\run.ps1 scripts\\run_pipeline.py --dry-run --phase OFFSEASON
@@ -187,6 +190,42 @@ def fantrax_blocked(folder: Path | None) -> list[str]:
     return _ledger(folder, FANTRAX_BLOCKED_LEDGER)
 
 
+# The owner's ruling of 2026-11-28 (#760, #429 round 8): no scheduled run or
+# PC task signs in to Fantrax. A step whose command names one of these scripts
+# never runs from here, nor does any step that needs one (transitively); their
+# tables are not written, so they keep their last published rows.
+LOGIN_SCRIPTS = frozenset({
+    "04a_fantrax_weekly_scrape.py", "04s_fantrax_inseason_capture.py",
+    "04t_fantrax_transaction_history.py", "04v_minor_contracts.py",
+    "04w_fantrax_draft_results.py"})
+RETIRED_TEXT = ("Fantrax logged-in pulls retired by the owner's ruling of 2026-11-28 (#760): "
+                "{names} not run; their tables keep their last published rows")
+
+
+def signs_in(step: dict) -> bool:
+    return any(Path(str(c)).name in LOGIN_SCRIPTS for c in step.get("cmd", ()))
+
+
+def retired_steps(steps: list[dict]) -> set[str]:
+    """The steps that sign in to Fantrax and every step that needs one of them."""
+    retired = {s["name"] for s in steps if signs_in(s)}
+    grew = True
+    while grew:
+        more = {s["name"] for s in steps
+                if s["name"] not in retired and set(s.get("needs", ())) & retired}
+        retired |= more
+        grew = bool(more)
+    return retired
+
+
+def retired_line(steps: list[dict], phase: str, only: set[str] | None,
+                 groups: set[str] | None) -> str | None:
+    """The run log's one line on the retired steps this run would have run."""
+    retired = retired_steps(steps)
+    names = [s["name"] for s in steps if s["name"] in retired and _selected(s, phase, only, groups)]
+    return RETIRED_TEXT.format(names=", ".join(names)) if names else None
+
+
 def _script(p: str, *args: str) -> list[str]:
     return [str(VENV_PY), str(NB / p), *args]
 
@@ -312,8 +351,10 @@ def build_steps(profile: str | None) -> list[dict]:
             {"name": "04y_composite", "cmd": _nbconvert("04y_composite_dynasty_metrics.ipynb"),
              "phases": {"INSEASON", "PRESEASON", "OFFSEASON"}, "needs": ["04c_dim_dynasty_metric"], "chain": "dynasty_profile", "group": "pre_season"},
         ]
+    retired = retired_steps(steps)
     for s in steps:
         s["cadence"] = "close_day" if s["name"] in CLOSE_DAY_STEPS else "daily"
+        s["retired"] = s["name"] in retired
     return steps
 
 
@@ -418,9 +459,10 @@ def run_steps(steps: list[dict], phase: str, only: set[str] | None,
     results = []
     status = {}   # name -> ok|failed|skipped
     env = {**os.environ, "PYTHONUTF8": "1"}
+    retired = retired_steps(steps)
     for s in steps:
         name = s["name"]
-        if not _selected(s, phase, only, groups):
+        if name in retired or not _selected(s, phase, only, groups):
             continue
         bad_dep = next((d for d in s["needs"] if status.get(d) in ("failed", "skipped")), None)
         if bad_dep:
@@ -1382,12 +1424,14 @@ def terms_line() -> str:
 def summarize(phase: str, week: str, results: list[dict], reviews: dict,
               commit_line: str, plan: dict | None = None,
               filed: dict | None = None, cadence: dict | None = None,
-              access: dict | None = None) -> str:
+              access: dict | None = None, retired: str | None = None) -> str:
     lines = [f"**Pipeline {date.today().isoformat()}** — phase {phase}, week {week}"]
     if cadence:
         lines.append(f"🗓️ {cadence_line(cadence)}")
         if cadence_warning(cadence):
             lines.append(cadence_warning(cadence))
+    if retired:
+        lines.append(f"🔒 {retired}")
     for r in results:
         mark = {"ok": "✅", "dry-run": "▫️", "skipped": "⏭️"}.get(r["status"], "❌")
         lines.append(f"{mark} {r['name']}" + (f" — {r['detail']}" if r["detail"] else ""))
@@ -1524,6 +1568,9 @@ def main() -> int:
         steps, cadence = apply_cadence(steps, phase, only, groups, args.cadence, state,
                                        today, etl_run_log.steps_done)
         print(f"[cadence] {cadence_line(cadence)}")
+        retired = retired_line(steps, phase, only, groups)
+        if retired:
+            print(f"[retired] {retired}")
         if not args.dry_run and not args.no_commit:
             contract_before = read_contract_list()
         results = run_steps(steps, phase, only, args.dry_run, groups)
@@ -1614,7 +1661,8 @@ def main() -> int:
     finally:
         close_fantrax_session(session)
 
-    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access)
+    summary = summarize(phase, week, results, reviews, commit_line, plan, filed, cadence, access,
+                        retired)
     if blocked:
         summary = (f"⚠️ Fantrax login cap reached: {len(blocked)} step(s) blocked "
                    f"({', '.join(blocked)}); they catch up at the next run.\n{summary}")

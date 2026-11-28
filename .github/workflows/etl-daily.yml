@@ -7,6 +7,8 @@
 # variable ETL_APP_CLIENT_ID and the etl secret ETL_APP_PRIVATE_KEY, scoped to
 # this repository. The repository is public, so
 # the run log is public too: no step echoes a secret or a row value.
+# No step signs in to Fantrax (the owner's ruling of 2026-11-28, #760): the job
+# reads no Fantrax secret and installs no browser.
 name: etl-daily
 
 on:
@@ -40,8 +42,6 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python -m playwright install --with-deps chromium
-
       - name: Mint the data-PR token
         id: app-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -71,9 +71,6 @@ jobs:
       - name: Run the Daily Run
         env:
           GOOGLE_SHEETS_KEY_FILE: ${{ runner.temp }}/sheets-key.json
-          FANTRAX_EMAIL: ${{ secrets.FANTRAX_EMAIL }}
-          FANTRAX_PASSWORD: ${{ secrets.FANTRAX_PASSWORD }}
-          FANTRAX_TOTP_SECRET: ${{ secrets.FANTRAX_TOTP_SECRET }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL_ADMIN: ${{ secrets.DISCORD_WEBHOOK_URL_ADMIN }}

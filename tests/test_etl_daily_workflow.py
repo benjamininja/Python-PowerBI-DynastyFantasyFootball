@@ -76,7 +76,14 @@ def test_run_step_env_and_command():
     run = next(s for s in _job(_load())["steps"] if s.get("run") == "bash scripts/run_daily.sh")
     env = run["env"]
     assert env["ETL_STORAGE"] == "${{ vars.ETL_STORAGE }}"
-    for name in ("FANTRAX_EMAIL", "FANTRAX_PASSWORD", "FANTRAX_TOTP_SECRET",
-                 "SUPABASE_DB_URL", "DISCORD_WEBHOOK_URL", "DISCORD_WEBHOOK_URL_ADMIN"):
+    for name in ("SUPABASE_DB_URL", "DISCORD_WEBHOOK_URL", "DISCORD_WEBHOOK_URL_ADMIN"):
         assert env[name] == "${{ secrets." + name + " }}"
     assert env["GH_TOKEN"] == "${{ steps.app-token.outputs.token }}"
+
+
+def test_no_fantrax_secret_and_no_browser():
+    """#760: the run signs in to Fantrax nowhere, so it reads no Fantrax secret
+    and installs no browser to sign in with."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "FANTRAX_" not in text
+    assert "playwright" not in text.lower()

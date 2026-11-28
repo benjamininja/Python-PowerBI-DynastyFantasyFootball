@@ -111,10 +111,15 @@ class TestStepTable:
             assert names.index("04t_txn_history") < names.index("04z_crosswalk") < names.index("04v_minor_contracts")
 
     def test_04z_runs_in_off_phases_though_its_backfill_need_is_not_scheduled(self):
-        steps = [s for s in self.STEPS if s["name"] in ("04a_scrape", "04t_txn_history", "04a_backfill_gp", "04z_crosswalk")]
+        # The real commands sign in and are retired (#760); neutral ones keep
+        # this test on the need rule itself.
+        steps = [{**s, "cmd": [sys.executable, f"{s['name']}.py"]} for s in self.STEPS
+                 if s["name"] in ("04a_scrape", "04t_txn_history", "04a_backfill_gp", "04z_crosswalk")]
         results = rp.run_steps(steps, "OFFSEASON", None, dry_run=True)
         assert [(r["name"], r["status"]) for r in results] == [
             ("04a_scrape", "dry-run"), ("04t_txn_history", "dry-run"), ("04z_crosswalk", "dry-run")]
+        real = [s for s in self.STEPS if s["name"] in ("04a_scrape", "04t_txn_history", "04a_backfill_gp", "04z_crosswalk")]
+        assert rp.run_steps(real, "OFFSEASON", None, dry_run=True) == []
 
     def test_a_failed_gp_backfill_skips_04z_in_season(self):
         steps = [s for s in self.STEPS if s["name"] in ("04a_backfill_gp", "04z_crosswalk")]
@@ -492,15 +497,17 @@ class TestMain:
         monkeypatch.setattr(rl, "steps_done", lambda key: set(ROOKIE))
         out = run(date(2026, 9, 22))
         assert not any(f"[step] {n} " in out for n in ROOKIE)
-        assert "[step] 04s_scoring " in out
+        assert "[step] 04r_roster_state " in out
+        assert "[step] 04s_scoring " not in out
         assert f"close_day ran: none; deferred: {', '.join(ROOKIE)}" in out
 
     def test_cadence_all_lists_every_step(self, run, monkeypatch):
         monkeypatch.setattr(rl, "steps_done", lambda key: set(ROOKIE))
         out = run(date(2026, 9, 22), "--cadence", "all")
         assert "filter=all" in out
-        every = [s["name"] for s in rp.build_steps(None) if "INSEASON" in s["phases"]]
+        every = [s["name"] for s in rp.build_steps(None) if "INSEASON" in s["phases"] and not s["retired"]]
         assert all(f"[step] {n} " in out for n in every)
+        assert not any(f"[step] {s['name']} " in out for s in rp.build_steps(None) if s["retired"])
 
     def test_the_summary_carries_the_cadence_line(self, run, tmp_path):
         run(date(2026, 9, 25))
@@ -512,7 +519,7 @@ class TestMain:
         monkeypatch.setattr(rl, "steps_done", lambda key: pytest.fail("a week was guessed"))
         out = run(date(2026, 9, 25))
         assert not any(f"[step] {n} " in out for n in ROOKIE)
-        assert all(f"[step] {n} " in out for n in ("04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"))
+        assert all(f"[step] {n} " in out for n in ("04p_league_info", "04r_roster_state", "01e_dim_nfl_players", "02g_nflverse_inseason"))
         assert "calendar unreadable, no week" in out
         warning = ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
                    f"({', '.join(ROOKIE)}); they run once the calendar reads")
@@ -525,7 +532,7 @@ class TestMain:
         out = run(date(2026, 9, 25), "--cadence", "all")
         assert "filter=all" in out
         assert not any(f"[step] {n} " in out for n in ROOKIE)
-        assert all(f"[step] {n} " in out for n in ("04a_scrape", "04t_txn_history", "02d_ledger", "04s_scoring"))
+        assert all(f"[step] {n} " in out for n in ("04p_league_info", "04r_roster_state", "01e_dim_nfl_players", "02g_nflverse_inseason"))
         warning = ("⚠️ dim_scoring_period could not be read: close_day steps skipped "
                    f"({', '.join(ROOKIE)}); they run once the calendar reads")
         assert warning in (tmp_path / "pipeline_summary.md").read_text(encoding="utf-8").splitlines()
