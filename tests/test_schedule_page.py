@@ -63,13 +63,21 @@ def rendered(periods=None, today=date(2026, 11, 6)):
 def test_page_rows_match_build_steps():
     rows = {}
     for line in rendered().splitlines():
-        m = re.match(r"\| `([^`]+)` \|.*\| (\S[^|]*) \| (daily|close_day) \| (yes|no) \|", line)
+        m = re.match(r"\| `([^`]+)` \|.*\| (\S[^|]*) \| (daily|close_day|retired \(#760\)) \| (yes|no) \|", line)
         if m:
             rows[m.group(1)] = (m.group(2).strip(), m.group(3), m.group(4))
     steps = {s["name"]: s for s in rp.build_steps(None)}
     assert set(rows) == set(steps)
     for name, s in steps.items():
-        assert rows[name] == (bsp.phase_text(s), s["cadence"], "yes" if bsp.needs_login(s) else "no"), name
+        assert rows[name] == (bsp.phase_text(s), bsp.cadence_text(s),
+                              "yes" if bsp.needs_login(s) else "no"), name
+
+
+def test_every_login_step_shows_retired_on_the_page():
+    """#760: the page does not claim that a step that signs in still runs."""
+    for s in rp.build_steps(None):
+        if bsp.needs_login(s):
+            assert bsp.cadence_text(s) == "retired (#760)", s["name"]
 
 
 def test_login_steps_are_the_fantrax_sign_in_steps():

@@ -110,7 +110,7 @@ sources:
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats; getDraftRanks retired 2026-07-31)"
     purpose: "Full active-roster universe: FPts, FP/G, GP, ADP, %D, salary. Codes: `PROJECTION_0_23l_SEASON` (preseason), `SEASON_23l_YEAR_TO_DATE` (in-season / YTD), `SEASON_23l_BY_DATE` + ISO startDate/endDate (rebuild a missed week, `--rebuild-week`)"
     auth: "Fantrax account login, env-stored (FANTRAX_EMAIL/FANTRAX_PASSWORD); persistent Playwright profile (data/.pw_profile/)"
-    cadence: "Weekly (Windows Task Scheduler)"
+    cadence: "Not scheduled since the owner's ruling of 2026-11-28 (#760): no scheduled run signs in to Fantrax; the table keeps its last published rows"
     feeds:
       - { notebook: 04a_fantrax_weekly_scrape.py, table: fact_fantrax_adp }
     # Method fingerprint, not the league id: 04a still carries the league id in
@@ -125,7 +125,7 @@ sources:
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getPlayerStats statusOrTeamFilter=MINOR_FANTASY_AVAILABLE|TAKEN)"
     purpose: "Minors eligibility (read-only): the site's own verdict on who is minors-eligible (GP<=20). 02d reads it for the `Minor` default when no Roster State row covers a move (ADR-0019). Roster Slots, salaries and contracts come from the public getTeamRosters entry below, not from here"
     auth: "Same Fantrax session as the Players-grid source (04v imports 04a's scraper; note: lean-import reuse means check_sources.py's host scan won't flag this file — keep this entry current by hand)"
-    cadence: "Weekly (Windows Task Scheduler, after 04a)"
+    cadence: "Not scheduled since the owner's ruling of 2026-11-28 (#760): no scheduled run signs in to Fantrax; the table keeps its last published rows"
     feeds:
       - { notebook: 04v_minor_contracts.py, table: fact_minor_eligibility }
     # 04v reuses 04a's CFG, so the league id never appears in its source —
@@ -158,7 +158,7 @@ sources:
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (method getTransactionDetailsHistory; team=ALL, views TRADE + CLAIM_DROP, all pages)"
     purpose: "Roster Moves log (trade legs, claims, drops) -> ledger `trade` / `trade_away` / `claim` / `drop` events + the per-asset trade log (players and picks). No public fxea equivalent exists"
     auth: "Same Fantrax session as the Players-grid source (04t imports 04a's scraper: env-stored login + persistent Playwright profile)"
-    cadence: "Manual run today (not in run_pipeline.py); ADR-0016 moves it to a full-season pull on every Change Poll trigger + the daily run"
+    cadence: "Not scheduled since the owner's ruling of 2026-11-28 (#760): no scheduled run or poll trigger signs in to Fantrax; the ledger tables keep their last published rows until the weekly hand load (#761)"
     feeds:
       - { notebook: 04t_fantrax_transaction_history.py, table: "(raw capture: data/raw/fantrax_txn_history_{season}.json)" }
       - { notebook: 02d_fact_roster_transactions.py, table: fact_roster_transactions }
@@ -224,7 +224,7 @@ sources:
     locator: "https://www.fantrax.com/fxea/general/getPlayerIds?sport=NFL"
     purpose: "The identity of every Fantrax player: fantraxId (the scorer_id), name (surname first, 'Surname, Given'), NFL position code and NFL team (`(N/A)` for none), one record per id, with no league needed. Feeds the crosswalk's name (turned to given name first) and NFL team (#519, #429); the NFL position is not the league's eligibility and is not used. Team defense rows (a `#` id and a `teamName`) and the team-level codes TK and TQB are dropped; the call holds no rookie flag. Errors come back as HTTP 200 with an `error` object; `etl_helpers.fantrax_public_get` checks the body"
     auth: "None (public unauthenticated REST; plain requests, no Playwright session)"
-    cadence: "Every pipeline run, all phases (inside the `04z_crosswalk` step, fantrax_core Chain)"
+    cadence: "Inside the `04z_crosswalk` step, fantrax_core Chain. Not scheduled since the owner's ruling of 2026-11-28 (#760): 04z needs the signed-in steps, so it is retired with them and the crosswalk keeps its last published rows"
     feeds:
       - { notebook: 04z_fantrax_crosswalk.ipynb, table: dim_fantrax_crosswalk }
     match: ["getPlayerIds"]
@@ -236,7 +236,7 @@ sources:
     locator: "https://www.fantrax.com/fxpa/req?leagueId=v744203wmmvjqzv6 (methods getLiveScoringStats {period, playerViewType:'2'} and getStandings {view:'SCHEDULE'}; plus the plain getStandings {view:'COMBINED'} per period, captured raw only)"
     purpose: "Period Scoring and Matchups (ADR-0016 amendment decisions 1, 5, 9, 15). Live scoring with the bench view lists every rostered player with an entry, Starters under `ACTIVE` and Bench, IR and Minors under `BENCH`, each with points per stat; 04s sums them by Unit. The schedule view gives every week's matchups and Team Scores. A period loads once `allEventsFinished` is true. Live scoring echoes no period, and answers for a period that has not started with 28 teams and no entries. Errors come back as HTTP 200 with a `pageError`. The plain COMBINED standings ignore `period`: every reply is the current standings. It is saved raw and never loaded. No standings table is built (ADR-0016 amendment decision 11): rank is derived from `fact_matchup`, % Playoffs is dropped, and the reply's Salary Remaining is #97's to parse from the raw files"
     auth: "Same Fantrax session as the Players-grid source (04s imports 04a's scraper: env-stored login + persistent Playwright profile). `--from-raw` loads from the saved raw files with no browser and no login"
-    cadence: "Every INSEASON pipeline run (`04s_scoring` step, after `04r_roster_state`, fantrax_core Chain). Every regular-season period that has started and is not closed is captured and, once final, replaced whole"
+    cadence: "Not scheduled since the owner's ruling of 2026-11-28 (#760): no scheduled run signs in to Fantrax; the tables keep their last published rows"
     feeds:
       - { notebook: 04s_fantrax_inseason_capture.py, table: fact_period_scoring }
       - { notebook: 04s_fantrax_inseason_capture.py, table: fact_matchup }
