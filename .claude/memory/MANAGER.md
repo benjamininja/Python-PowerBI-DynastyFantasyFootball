@@ -66,7 +66,7 @@ Done items left this block: their records are on GitHub.
 - **Ben's rulings of 2026-11-28 (this session):** delete the Fantrax secrets, spike copies too (#760 issuecomment-7243287016); brief 4 drift failure: investigate both causes first, read-only (#473, latest manager comment); the brief 4 bar is Ben's 2026-11-09 bar, 1 point plus 5%, 90%, 2% (planner, #473 issuecomment-7243906914).
 
 ### Next
-1. **#473 brief 4 (b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, medium, this session's dispatch)**: drift check failed (#473 issuecomment-7243916310). Ben: investigate both first; the planner set it medium for b473-history (questions #473 issuecomment-7243994213). It parked again before any count: its dispatch cannot run analysis code (#473 issuecomment-7244016630). Sent to the planner: (a) Profile: probe or (b) a committed read-only scripts/diagnose_scored_history.py with Ben's exact rule; then re-dispatch at medium on branch worktree-b473-history, same worktree. Earlier sent the go with the bar ruling (Ben's 2026-11-09 bar, #473 issuecomment-7243906914) and Ben's choice to declare the category_id FK (#473 issuecomment-7243986718). Part 2 uncommitted in its worktree; part 1 pushed at ba20b81. On its report: read its findings on #473; a fix or a rerun is the planner's next brief. The planner opens a one-line ADR-0018 decision 6 PR for the FK after its compact: ask Ben's merge word when its number arrives.
+1. **#473 brief 4 (b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, medium, this session's dispatch)**: drift check failed (#473 issuecomment-7243916310). Ben: investigate both first; the planner set it medium for b473-history (questions #473 issuecomment-7243994213). Planner ruled neither (#473 issuecomment-7244034527): Profile none, the counts go into 02i's own drift report, run under its existing rule; sent to b473-history by message (still listed, rule already loaded). Await its report. It had parked before any count: its dispatch cannot run analysis code (#473 issuecomment-7244016630). Sent to the planner: (a) Profile: probe or (b) a committed read-only scripts/diagnose_scored_history.py with Ben's exact rule; then re-dispatch at medium on branch worktree-b473-history, same worktree. Earlier sent the go with the bar ruling (Ben's 2026-11-09 bar, #473 issuecomment-7243906914) and Ben's choice to declare the category_id FK (#473 issuecomment-7243986718). Part 2 uncommitted in its worktree; part 1 pushed at ba20b81. On its report: read its findings on #473; a fix or a rerun is the planner's next brief. The planner opens a one-line ADR-0018 decision 6 PR for the FK after its compact: ask Ben's merge word when its number arrives.
 2. **#773 (tier low, filed by the planner)**: the loader stops rebuilding Ben's team-name list on every run. Dispatch now that #772 merged; under the no-go trial if the planner's ticket names files and proof and it is not held, else on Ben's go. Read the ticket first.
 3. **--live for 04m (#520)**: one-line PR after one scheduled run's `[shadow]` lines show every closed period matching. Counts on #520; planner reads; Ben's word. Target before 2026-12-03, else tell the planner. Check the --live advisories (#764 issuecomment-7240955453).
 4. **#522**, then **#523** (read #554, now closed, first), then **#524**, each on Ben's go.
@@ -74,10 +74,10 @@ Done items left this block: their records are on GitHub.
 
 ### Waiting
 - On Ben: queue entry "Delete the Fantrax sign-in secrets" (#760), Session line re-keyed to this session. Ben answered delete; his hand step is open.
-- On the planner: the #473 investigation's profile or script (a or b); the ADR-0018 decision 6 PR for the category_id FK (after its compact).
+- On the planner: the ADR-0018 decision 6 PR for the category_id FK (after its compact).
 
 ### In flight
-- b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, #473 brief 4, medium; parked: needs a profile or a diagnostic script (planner's call); no PR yet.
+- b473-history, session `24575614-f591-4e0c-a050-0086adf40baa`, #473 brief 4, medium; investigating via 02i's drift report on the planner's ruling; no PR yet.
 - Open PRs: #634 (state), #595 (b589, parked, DIRTY), #563 (b556, Power BI backlog, BLOCKED).
 
 ### Peers
