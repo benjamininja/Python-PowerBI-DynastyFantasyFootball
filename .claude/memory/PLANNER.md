@@ -13,9 +13,19 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ## Current
 
-**Saved:** 2026-11-28 (see the commit time), session 0ef68551-3dad-4f09-b5af-b164a0307ae9 (before a compact; the id is kept). State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
+**Saved:** 2026-11-28 (see the commit time), session 36235893-7875-4548-9384-a950ad72d75d (before a compact; the id is kept). State branch `docs/state-2026-11-22` (PR #634; the manager opens its PR). This block holds open items only (#711, the start-up read budget of tools #261): a done item is on its ticket or PR, and the last commit that carried the done lists is `8ba13fe` on this branch.
 
 ### Next (in order)
+
+- **Seventeenth save, 2026-11-28 about 18:45Z, before a compact, by session 36235893-7875-4548-9384-a950ad72d75d (the id since the clear; it overrules the bullets below where they differ).** Open, in order:
+  - (1) **Tools PR #336 at `77ef9b5`** (session-rules: a role session's boundary is a compact by default, tools #262): the Tools planner and the Tools manager both asked the planner's read as lead on shared gate text; the owner's merge word there waits on it. OWED FIRST: read the diff, post the read on the PR (signed off, or what must change), one line to each of the two.
+  - (2) **ADR-0018 decision 6 gains `category_id` to `dim_scoring_category`:** the owner's button (#473 issuecomment-7243986718, "Declare the key"). OWED: a one-line planner PR (a new planner worktree with the throwaway venv), its number to the manager, who asks the owner's merge word. The builder declares the key and extends `tests/test_registry_keys.py` in brief 4's PR.
+  - (3) **#473 brief 4's drift check failed in both seasons** (figures: #473 issuecomment-7243916310; 2026 about half of Fantrax's at every position with 39 percent exact; 2025 offense close, defense 66 to 104 percent high in tackles). The owner's answer in the manager's chat: investigate both first (#473 issuecomment-7243985901). The planner set it medium, b473-history, read-only, with the shape of each answer (#473 issuecomment-7243994213). OWED: read the builder's answers when the manager sends them; then bring the owner by button what needs his word (for 2025: whether a past season is compared under its own season's rules). The bar is the owner's of 2026-11-09, 1 point plus 5 percent, 90 percent, 2 percent (#473 issuecomment-7243906914 corrects the refresh). Brief 3 merged (PR #769, `11c638f`).
+  - (4) **#770:** PR #772 merged (`62ac24f`); the planner's read was no breach (PR #772 issuecomment-7243275533) and the supabase-auditor was the reviewer by a one-PR ruling (issuecomment-7243254560). After the merge (#770 issuecomment-7243792330): the seed wrote 33 rows and found no name carried by two teams, so the grain holds; unknown_team rows 17 (was 124); ledger gone 13 (was 90); trade log gone 0 (was 66); one guess and one name on the owner's list. The owner fills one id; the manager runs the apply with no loader run in between. OWED: read advisories F2 and F3 of PR #772's review (the manager says they are with the planner; not read yet); ticket `scripts/load_contract_choices.py` reading the crosswalk; frame the leave-shadow decision for the owner once the gone 13 are 0 or explained, with the cap-ledger-auditor reading the ledger side before any real write. **#773** (low, filed by the planner): the loader keeps the ids the owner filled; it may dispatch.
+  - (5) **A rules-file line for a PR on two auditors' lists:** owed to the owner by button, with the reviewer line already owed (item 15 below). Text is proposed on a ticket; the file is the manager's.
+  - (6) **#554:** the published count is read (5070 rows, season 2027; #554 issuecomment-7243497497); the manager closes it. The line below that says to read #554 before #523 is settled.
+  - (7) Unchanged from (r) below: the letter record on #429 when the owner says it went; the figures of brief 4 to the owner by button once a run passes; the read of the --live PR of #520 before 2026-12-03; the `02d` switch question before 2026-12-03; the trial count on #746 by 2026-12-12.
+  - Nothing of the planner's is in the owner's queue and no button is open. A lesson: before refreshing a brief, read the owner's answers block on its ticket again (the bar error of this day).
 
 - **Tenth save (2026-11-28, after the compact; it overrules the Ninth save's items (1) to (5) where they differ).** Ben ruled by button, record #429 issuecomment-7240199640 (round 8), pointer #721 issuecomment-7240203198:
   - (a) **Scheduled Fantrax sign-ins stop**: #760 (medium; the manager asks Ben's go). The transaction history comes by Ben's weekly hand download: #761 (medium). Ben did the download check the same day: the Transactions history page has a Download CSV button, two views (trades; claims and drops), both files in the raw folder; columns are in #761's body. The hold is lifted, the queue entry removed, the manager told; #761 takes Ben's go after #760.
@@ -86,12 +96,12 @@ are in git: the last commit with them is `53104a9` on the state branch.
 
 ### Peers (queue ids)
 
-Ids as of 2026-11-27; find each by name. After a clear, send the manager and the Tools planner the new id.
+Ids as of 2026-11-28 (every peer cleared that day); find each by name. After a clear, send the manager and the Tools planner the new id.
 
-- dff-central-builder-manager: `637314ca-f6ae-4049-a3ff-576bd1479cfe`
-- Tools-central-planner: `0a6ad927-943a-481d-99fc-f2cbfcda8498`
-- Tools-builder-manager: `ea58e038-9092-4552-9e4c-32bb3cdf8281`
-- personal-assistant: `061c1d24-09c1-4c01-8d89-ff693eb974d9`. It reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
+- dff-central-builder-manager: `10ea8a98-91e0-445b-bef3-77cb005def21`
+- Tools-central-planner: `ad27c4f7-ccae-4f9d-aab0-2be31444a3f3`
+- Tools-builder-manager: `0e714f8a-9e39-453b-aa53-f3f91e9431ec`
+- personal-assistant: `9892259d-36fe-4e53-a301-2cfcac1df068`. It reads only, reports findings. Since 2026-11-25 the owner gave it the GitHub Projects boards (items, fields, views); it edits no issue or PR and sends the planner suggestions on ticket fields as reports. The planner leaves board writes to it.
 
 ### Waiting on Ben
 
