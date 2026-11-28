@@ -404,6 +404,46 @@ class TestTeamNameCrosswalk:
         assert names.pick_hints()["old charlie"] == "A03"
         assert names.review_frame()["name"].tolist() == ["Zulu Club"]
 
+    def renamed_into_a_crosswalk_name(self):
+        """Team A03 now carries the name the crosswalk holds for team A02."""
+        teams = pd.DataFrame([("A01", "f1", "Team Alpha"), ("A02", "f2", "Team Bravo"),
+                              ("A03", "f3", "Old Bravo")], columns=["team_key", "fantrax_team_id", "team_name"])
+        aliases = pd.DataFrame([("old bravo", "f2"), ("gone club", "f9")],
+                               columns=["name_clean", "fantrax_team_id"])
+        return lf.Names(teams, pd.DataFrame(columns=["scorer_id", "player_name", "nfl_team", "position_raw"]),
+                        set(), aliases)
+
+    def test_a_name_two_teams_carry_resolves_in_neither_the_loader_nor_the_pick_hints(self):
+        names = self.renamed_into_a_crosswalk_name()
+        assert names.team("Old Bravo") == (None, "ambiguous_team")
+        hints = names.pick_hints()
+        assert "old bravo" not in hints and hints["team bravo"] == "A02"
+        twins = TestNames().names()                          # two current teams share a name
+        assert "team alpha" not in twins.pick_hints() and "team alpha " not in twins.pick_hints()
+
+    def test_a_crosswalk_row_of_a_team_id_no_longer_held_is_left_out(self):
+        names = self.renamed_into_a_crosswalk_name()
+        assert names.stale_aliases == 1 and ("gone club", "f9") not in names.known.known
+        assert names.team("Gone Club") == (None, "unknown_team")
+
+    def test_a_name_as_the_run_saw_it_reaches_the_pick_hints(self):
+        names = TestIds().names()
+        names.team("  Team   BRAVO ")
+        assert names.pick_hints()["team   bravo"] == "A02"
+
+    def test_02d_gets_only_the_loader_s_names(self, data, monkeypatch):
+        alias(("team alpha", "f2", "owner"))                 # the crosswalk and the current name disagree
+        seen = {}
+        resolve = rt.resolve_pick_legs
+
+        def spy(trade_log, slotted, future, name_lut):
+            seen.update(name_lut)
+            return resolve(trade_log, slotted, future, name_lut)
+        monkeypatch.setattr(rt, "resolve_pick_legs", spy)
+        download(data / "raw", "20261128_0752")
+        run(data)
+        assert seen and "team alpha" not in seen and seen["team charlie"] == "A03"
+
     def test_a_left_out_pick_leg_of_the_same_year_and_round_explains_a_gap(self, data):
         shadow = data / "review" / "shadow"
         shadow.mkdir()

@@ -117,11 +117,19 @@ class Names:
 
     def __init__(self, teams: pd.DataFrame, crosswalk: pd.DataFrame, roster: set,
                  aliases: pd.DataFrame | None = None):
-        self.known = etl.team_names(teams, aliases)
         self.team_key = dict(zip(teams["fantrax_team_id"], teams["team_key"]))
         self.team_name = dict(zip(teams["team_key"], teams["team_name"]))
+        # A crosswalk row whose team id dim_fantasy_teams no longer holds is
+        # left out and counted, so it can neither resolve nor seed a guess.
+        self.stale_aliases = 0
+        if aliases is not None:
+            live = aliases["fantrax_team_id"].isin(set(self.team_key))
+            self.stale_aliases = int((~live).sum())
+            aliases = aliases[live]
+        self.known = etl.team_names(teams, aliases)
         self.resolved = {}      # name_clean -> crosswalk | current | guess
         self.listed = {}        # name_clean -> [name as first seen, rows, TeamMatch]
+        self.raw_forms = {}     # name as 02d keys a pick hint -> team_key, for each name resolved
         self.players = {}
         for r in crosswalk.itertuples():
             self.players.setdefault(etl.clean_name_for_match(r.player_name), []).append(r)
@@ -138,12 +146,14 @@ class Names:
         team_id, origin = self.known.lookup.get(clean, (None, None))
         if team_id in self.team_key:
             self.resolved[clean] = origin
+            self.raw_forms[str(name).strip().lower()] = self.team_key[team_id]
             return self.team_key[team_id], team_id
         match = (self.listed[clean][2] if clean in self.listed
                  else etl.match_team_name(clean, self.known.known))
         self._list(clean, name, match)
         if match.fantrax_team_id in self.team_key:
             self.resolved[clean] = "guess"
+            self.raw_forms[str(name).strip().lower()] = self.team_key[match.fantrax_team_id]
             return self.team_key[match.fantrax_team_id], match.fantrax_team_id
         return None, "unknown_team"
 
@@ -164,15 +174,14 @@ class Names:
                 "listed": sum(1 for _, _, m in self.listed.values() if m.fantrax_team_id is None)}
 
     def pick_hints(self) -> dict:
-        """Each name this run resolved, in the form 02d's pick-hint lookup keys
-        it (`hint.strip().lower()`), to its team_key."""
-        out = {}
-        for raw, _, match in self.listed.values():
-            if match.fantrax_team_id in self.team_key:
-                out[raw.strip().lower()] = self.team_key[match.fantrax_team_id]
-        for clean, (team_id, _) in self.known.lookup.items():
-            if team_id in self.team_key:
-                out.setdefault(clean, self.team_key[team_id])
+        """The whole of 02d's pick-hint lookup for this load (`hint.strip().lower()`
+        -> team_key): every name the crosswalk or a current name resolves, and
+        each name as this run saw it and resolved it. It replaces 02d's own
+        lookup of current names, so a name this loader holds ambiguous, or
+        lists, resolves to no team in 02d either."""
+        out = {clean: self.team_key[team_id] for clean, (team_id, _) in self.known.lookup.items()
+               if team_id in self.team_key}
+        out.update(self.raw_forms)
         return out
 
     def review_frame(self) -> pd.DataFrame:
@@ -396,6 +405,9 @@ def team_names_review(names: Names) -> None:
     print(f"[info] team names: {counts['crosswalk']} resolved by the crosswalk, {counts['current']} "
           f"by a current name, {counts['guess']} taken by a guess of {etl.TEAM_NAME_TAKE} or more, "
           f"{counts['listed']} on the owner's list")
+    if names.stale_aliases:
+        print(f"[warn] {names.stale_aliases} crosswalk row(s) name a team id dim_fantasy_teams no "
+              f"longer holds -- left out of the lookup")
     if not len(frame):
         TEAM_REVIEW_PATH.unlink(missing_ok=True)
         return
@@ -467,7 +479,7 @@ def main(argv=None) -> dict:
     rows = (trade_rows(frames["TRADE"], names, moves, picks, review, counts, left_picks)
             + claim_drop_rows(frames["CLAIM_DROP"], names, moves, review, counts))
     team_names_review(names)
-    lk = lk._replace(name_lut={**names.pick_hints(), **lk.name_lut})
+    lk = lk._replace(name_lut=names.pick_hints())
     if review:
         REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(review, columns=REVIEW_COLS).to_csv(REVIEW_PATH, index=False)
