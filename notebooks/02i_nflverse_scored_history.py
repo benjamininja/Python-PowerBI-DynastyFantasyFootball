@@ -750,9 +750,18 @@ def load_nflverse(seasons: list[int], week_seasons: list[int]) -> dict[str, pd.D
 
 
 def _stored(name: str, dtypes: dict) -> pd.DataFrame:
-    if etl.table_exists(name):
-        return read_table(name)
-    return pd.DataFrame({c: pd.Series(dtype=t) for c, t in dtypes.items()})
+    """The stored rows of one of 02i's tables; none when it holds none. In a
+    checkout whose registry does not declare the table yet, it holds none
+    and the step says so: the drift report still prints, and a write would
+    still be refused by the seam."""
+    empty = pd.DataFrame({c: pd.Series(dtype=t) for c, t in dtypes.items()})
+    try:
+        exists = etl.table_exists(name)
+    except etl.StorageError:
+        print(f"[warn] {name} is not declared in the registry of this checkout: read as empty; "
+              f"a write would be refused")
+        return empty
+    return read_table(name) if exists else empty
 
 
 def main() -> int:

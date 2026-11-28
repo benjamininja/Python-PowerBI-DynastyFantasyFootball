@@ -467,6 +467,18 @@ class TestMain:
                 "counts differ in 0 (abs total 0); Fantrax points per unit 0.040") in out
         assert "first downs (2657) stat ids in the capture: none" in out
 
+    def test_a_checkout_without_the_two_declarations_still_prints_the_report(self, world, capsys, monkeypatch):
+        tmp, _ = world
+        full = etl._registry()
+        monkeypatch.setattr(etl, "_registry",
+                            lambda: {k: v for k, v in full.items() if k not in (sh.STAT_TABLE, sh.PLAYER_TABLE)})
+        PERIOD_SCORING.assign(fpts=[20.0, 10.5, 99.0]).to_parquet(tmp / "fact_period_scoring.parquet", index=False)
+        with pytest.raises(sh.DriftError):
+            sh.main()
+        out = capsys.readouterr().out
+        assert "fact_scored_season_stat is not declared in the registry of this checkout" in out
+        assert "2026-2027 all compared periods: 2 compared" in out
+
     def test_2025_drift_is_printed_only(self, world, capsys):
         tmp, _ = world
         adp(g2_fpts=200.0).to_parquet(tmp / "fact_fantrax_adp.parquet", index=False)
