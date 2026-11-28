@@ -56,46 +56,56 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-27, twenty-first save, before a clear at Ben's word; session `e5579518-3626-469b-b1d5-3095f10a1c6a`)
+## CURRENT STATE (2026-11-28, twenty-second save, before a compact at Ben's word; session `637314ca-f6ae-4049-a3ff-576bd1479cfe`)
 
 Done items left this block: their records are on GitHub.
 
-- **Saved:** 2026-11-27 ~13:50 UTC, session `e5579518-3626-469b-b1d5-3095f10a1c6a`. After the clear Ben must type session-dispatch again before any dispatch, merge or closeout.
-- **Heads.** origin/main at `2bfd70a` (PR #754). CI on main green through `24cfb9a`.
-- **Rules in force.** Six required checks (#731). GOAL-RUN.md's closed list merges on Green alone; every other PR needs Ben's word by pop-up. Every dispatch needs Ben's go (the #746 no-go trial is parked with tools #300, which Ben kept whole; ask Ben again only after that text merges). Since PR #754 the planner writes and removes its own queue entries and tells the manager; builders' parks still go through the manager. Since PR #753 the managers' and builders' settings deny gh run rerun and the gh api pending_deployments and rerun patterns.
-- **Ben's cut (2026-11-27, #746 issuecomment-7219555230):** finish what has an open PR, park everything not started. Parked with the backlog label, no dispatch until Ben lifts it: #620, #711, #749, #746. Power BI stays backlog (#624, #556, #567, #211, #399, #511, #512, PR #563). Active: #721 and #740 (Fantrax login in the scheduled run), #675 until a run prints the four access counts, the state PR #634 on Ben's merge word.
+- **Saved:** 2026-11-28 ~14:40 UTC, session `637314ca-f6ae-4049-a3ff-576bd1479cfe`. Ben typed session-dispatch in this session (2026-11-28); a compact keeps it, a clear needs it again.
+- **Heads.** origin/main at `f93449f` (the manual run's own data PR, after #762 `30ac3a9`). CI on main green through `a0fd038`.
+- **Rules in force.** Six required checks (#731); GOAL-RUN.md's closed list merges on Green alone. **No-go trial live** (PR #762, GOAL-RUN.md section "Dispatch without the owner's go"): low and haiku tickets dispatch without Ben's go until 2026-12-12, unless `held` or `backlog`; every such dispatch is named in the next report and here. Medium and high keep Ben's go. Ben's cut (#746 issuecomment-7219555230) still parks the backlog-labelled tickets.
+- **Ben's rulings of 2026-11-28** (planner's chat, recorded #429 issuecomment-7240199640): scheduled Fantrax sign-ins stop (#760), weekly hand load (#761); #520, #522, #523, #524 lifted to run in shadow, in that order, each with Ben's go.
 
 ### Next
-1. **Tonight's etl-daily run** (~20:00 UTC 2026-11-27; the 11-26 run failed). Read the access load counts for all four tables (#675, #662, #700 close on them), the SessionStillDead flag line (send to the planner; #740 closes on it), the logins count. Post counts only.
-2. **First held migration after PR #745** (merged `585ada7`): its push job ends green, apply-held waits in environment migrate-held for Ben's Approve, re-runs the gate and applies. Read that run, then advisors (security and performance) by level. No held file is pending now.
-3. **State PR #634**: on Ben's merge word when he asks for a check-in.
-4. App chain after #675 (#663, #664, #665, #676, #682, #719, #720): only on the planner's ready and Ben's go; check against Ben's cut first.
+1. **PR #764 (#520, b520-matchups)**: when the builder reports Green, one pr-code-reviewer (scripts/run_pipeline.py is touched, so the merge needs Ben's word), then merge in shadow. Not held (planner, #520 issuecomment-7240503830). The second of #764 and #765 to merge takes main in first (both touch the Chain lines near 04s_scoring).
+2. **PR #765 (#760, b760-nologin)**: when Green, one pr-code-reviewer; it changes the workflow, so the planner's read and Ben's word before the merge. After it merges: close #758 as not planned; ask Ben's go for #761 (medium, hold lifted).
+3. **--live for 04m**: its own one-line PR, opened after one scheduled run's shadow line shows every closed period matching; post the counts on #520 and ask Ben's merge word. Target merged before 2026-12-03 (period 12 ends on the first playoff day); if it cannot make it, tell the planner.
+4. **After #520 merges**: ask Ben's go for #522, then #523 (read #554 first), then #524, one at a time.
+5. **Scheduled runs**: read each for the access counts and the Fantrax lines; post counts only.
+6. **State PR #634**: on Ben's merge word at a check-in.
+7. **First held migration after PR #745**: read the run, then advisors security and performance. None pending.
 
 ### Waiting
 - On Ben: nothing in the queue (empty at this save).
 - On the planner: nothing open for the manager.
 
 ### In flight
-- No builders running.
-- Open PRs: #634 (state, CLEAN), #691 (old data PR, DIRTY), #595 (b589, parked), #563 (b556, Power BI backlog).
+- b760-nologin, session `36574c3d-63f7-423e-8d82-9ec43f280c5e`, #760, medium; PR #765 open, CI pending.
+- b520-matchups, session `637f9486-e7d3-4de3-a879-dad1e6b7db7a`, #520, medium; PR #764 open, CI pending.
+- Other open PRs: #634 (state, CLEAN), #595 (b589, parked), #563 (b556, Power BI backlog).
 
 ### Peers
-dff-central-planner `823b0d8b-9a43-423c-82fe-429cfcd98aae`; Tools-builder-manager `fbd93714-8c8b-49c7-b434-7dee4a8488fd`; Tools-central-planner `4e27fb7c-445f-47d9-ad2b-919bca911066`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`. After the clear, send the planner the new session id.
+dff-central-planner `0ef68551-3dad-4f09-b5af-b164a0307ae9`; Tools-builder-manager `ea58e038-9092-4552-9e4c-32bb3cdf8281`; Tools-central-planner `0a6ad927-943a-481d-99fc-f2cbfcda8498`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`. SendMessage by name: pipe addresses go stale.
 
 ### Reads and checks due
-- Tonight's etl-daily run (above).
-- The first held migration's run (above).
-- Bot: running in the terminal tab discord bot; check after the clear and restart if missing.
+- Tonight's scheduled etl-daily run (~20:00 UTC 2026-11-28): 04m's shadow line (#520) if #764 merged; Fantrax lines; access counts.
+- Bot: running in the terminal tab discord bot.
 
 ### Decided since the last merged state PR
 - #724 closed on the 11-26 run (issuecomment-7217160100).
 - #734, #737, #739, #738 (`d21758e`), #741 (`bcb365e`), #743 (`f834dbb`), #742 (`0d6284c`), #747 (`175dd7c`), #748 (`c0d1757`) merged on Ben's word; b736, b740, b675 closed out.
 - #731 closed: ruleset at six, rules file on main.
-- #744: PR #745 merged (`585ada7`) after the migrate-held environment was read right (reviewer benjamininja, admin bypass off, branch main); b744 closed out. PR #750 merged (`e7da865`).
-- #751: dispatched on Ben's go, finished on his pop-up after the cut; PR #752 merged (`24cfb9a`); b751 closed out.
-- #736 closed (done by PR #738).
-- PR #753 (`c8a41a2`, deny rules) and PR #754 (`2bfd70a`, planner writes its own queue entries) merged on Ben's word.
+- #744: PR #745 merged (`585ada7`); b744 closed out. PR #750 merged (`e7da865`).
+- #751: PR #752 merged (`24cfb9a`); b751 closed out. #736 closed (done by PR #738).
+- PR #753 (`c8a41a2`) and PR #754 (`2bfd70a`) merged on Ben's word.
 - Ben's cut of the process work (#746 issuecomment-7219555230).
+- 2026-11-27 run read: #675 (issuecomment-7239458026), #700 (issuecomment-7239458778), #740 (issuecomment-7239459462) closed on its counts and flag line.
+- PR #691 closed as superseded by #755, on Ben's word.
+- #756: dispatched on Ben's go; PR #757 merged (`a0fd038`) on Green; b756 closed out; advisories to #758 (now overtaken by #760).
+- #564: PR #759 merged (`a0aea0e`) on Ben's word (four gh issue denies).
+- PR #762 merged (`30ac3a9`) on Ben's word: the no-go trial.
+- #760 and #520 dispatched on Ben's go (2026-11-28).
+- Ben's manual run 46151521462: 1 Fantrax login, error kind other (#721 issuecomment-7240358827).
+- #520 period 9 offline comparison matched, 28 teams, run by the manager on Ben's word (#520 issuecomment-7240491709).
 
 ## Queue entries raised
 
