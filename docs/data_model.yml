@@ -570,6 +570,38 @@ tables:
       default, a position it does not know, or one category listed twice
       with different points.
 
+  - name: dim_scoring_category
+    type: dim
+    grain: category_id
+    pk: [category_id]
+    required_keys: [category_id, category_code, category_name, category_group, group_sort_order, unit]
+    checks:
+      - "category_group IN ('Passing', 'Rushing', 'Receiving', 'Special teams', 'Defense, tackles', 'Defense, big plays', 'Other')"
+      - "group_sort_order BETWEEN 1 AND 7"
+    columns:
+      - { name: category_id, dtype: str, sql_type: text }
+      - { name: category_code, dtype: str, sql_type: text }
+      - { name: category_name, dtype: str, sql_type: text }
+      - { name: category_group, dtype: str, sql_type: text }
+      - { name: group_sort_order, dtype: int64, sql_type: integer }
+      - { name: unit, dtype: str, sql_type: text }
+      - { name: nflverse_columns, dtype: str, sql_type: text }
+    edges: []
+    notes: >
+      The transformer table for Scoring Categories (#473 brief 3, ADR-0023
+      decision 5), hand-kept like dim_position: one row per Fantrax
+      category_id, seeded by 01h, which reaches main by PR. category_group
+      is one of the seven Category Groups, sorted 1 to 7 by
+      group_sort_order. category_code, category_name and the Fantrax block
+      are read from dim_fantrax_scoring_rule's newest season, never typed.
+      unit is Special Teams for the Special teams group (return yards,
+      blocked kicks), else the Fantrax block (CONTEXT.md, Unit).
+      nflverse_columns names the load_player_stats columns whose sum is the
+      count, joined by a plus sign; it is null for a count nflverse's season
+      file is not known to hold, and the baseline scores such a category 0.
+      01h fails on a rules category with no row here. No FK: category_id is
+      one column of the rules table's composite key.
+
   # ----------------------------------------------------------- resolvers
   - name: dim_fantrax_crosswalk
     type: resolver

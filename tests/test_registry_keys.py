@@ -174,7 +174,7 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(PUBLISHED) == 40 and len(PRIVATE) == 4
+        assert len(PUBLISHED) == 41 and len(PRIVATE) == 4
         assert {t["name"] for t in PRIVATE} == {"dim_fantrax_crosswalk_override", "fact_startup_draft_slot",
                                                 "dim_startup_draft_scorer", "dim_fantasy_team_alias"}
         for t in TABLES:

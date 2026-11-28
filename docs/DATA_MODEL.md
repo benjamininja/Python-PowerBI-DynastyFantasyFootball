@@ -28,6 +28,7 @@ graph LR
     dim_division[dim_division]
     dim_scoring_period[dim_scoring_period]
     dim_fantrax_scoring_rule[dim_fantrax_scoring_rule]
+    dim_scoring_category[dim_scoring_category]
     dim_fantrax_crosswalk{{dim_fantrax_crosswalk}}
     dim_dynasty_crosswalk{{dim_dynasty_crosswalk}}
     dim_player_alias{{dim_player_alias}}
@@ -159,6 +160,7 @@ graph LR
     class dim_division dim;
     class dim_scoring_period dim;
     class dim_fantrax_scoring_rule dim;
+    class dim_scoring_category dim;
     class dim_fantrax_crosswalk resolver;
     class dim_dynasty_crosswalk resolver;
     class dim_player_alias resolver;
