@@ -48,6 +48,7 @@
    - `DEFERRABLE INITIALLY DEFERRED` FKs on `gsis_id`, `team_key`, `contract_id`, `metric_key`, `asset_id` and `season_id`, so a dim's full replace and its facts commit in one transaction. The 2 combine orphans are fixed first.
    - Dirty edges (`player_key`, `position_raw`, `scorer_id`) are post-run checks (#88) that file to `ops.review_check`. Each one is promoted to a real FK once it is clean. *Per [ADR-0008's amendment](0008-regression-testing-standard.md#amendment-2026-10-03-publish-gate-post-run-checks-ci-88) (decision 10), they file one row per distinct orphan key, scoped to what can be acted on.*
    - The `contract_id` FK is provisional until the `Minor` contract is settled (ADR-0011). *Settled by [ADR-0019](0019-minor-is-a-pre-1st-contract-stage.md): the FK is a clean edge once `dim_contract` has its `Minor` row.*
+   - *Amended 2026-11-28 (#473, the owner's answer): `category_id` to `dim_scoring_category` is a seventh clean edge. The dimension is hand-kept and every scored category is a row of it, so the edge has no orphan.*
 7. **The EAV fact stays as it is** (one table, same grain). It adds a CHECK `(metric_num IS NOT NULL OR metric_text IS NOT NULL)` and the `metric_key` FK. NaN is normalized to NULL on write.
 8. **Tight types at cutover, through to the snapshot.**
    - Nullable integers become `integer`, ISO date strings become `date`, and every all-null column gets a declared type.
