@@ -30,10 +30,13 @@
 # `fact_fantrax_adp` (season 2025, week YTD, 8 games or more). Each season
 # `fact_period_scoring` holds: points per closed Scoring Period it holds,
 # nflverse week rows stamped to a period. A player passes when the gap is at
-# most 0.5 points plus 2 percent of Fantrax's figure; the step fails when
-# fewer than 95 percent pass in a season, or when a Fantrax position's summed
-# points differ by more than 1 percent. The figures print as counts and
-# rates first.
+# most 1 point plus 5 percent of Fantrax's figure; the step fails when fewer
+# than 90 percent pass in a season, or when a Fantrax position's summed
+# points differ by more than 2 percent (the owner's bar, 2026-11-09). The
+# figures print as counts and rates first, with the share inside the tighter
+# 0.5 plus 2 percent and the exact share, how the misses miss, the stored rows
+# per player and period, the NFL weeks each period holds, and a 2025 fit of
+# the tackle points per IDP position (#473 issuecomment-7244034527).
 #
 # **Change detection:** the current season is pulled every run and compared
 # with the stored rows; past seasons are pulled only when absent or when the
@@ -74,8 +77,11 @@ YTD_SEASON = 2025         # Fantrax's 2025 actuals in this league's scoring (04a
 YTD_WEEK = "YTD"
 YTD_MIN_GAMES = 8
 EXACT = 0.05              # the exact share: within this many points
-BAR_POINTS, BAR_PCT, BAR_SHARE, BAR_POSITION = 0.5, 0.02, 0.95, 0.01
-OWNER_BAR_POINTS, OWNER_BAR_PCT = 1.0, 0.05   # the owner's 2026-11-09 answer, printed only
+BAR_POINTS, BAR_PCT, BAR_SHARE, BAR_POSITION = 1.0, 0.05, 0.90, 0.02   # the owner's bar, 2026-11-09
+TIGHT_POINTS, TIGHT_PCT = 0.5, 0.02           # the tighter per-player bar, printed only
+HALF, EQUAL = (0.4, 0.6), (0.9, 1.1)          # ratio bands of a miss, ours over Fantrax's
+TACKLE_CODES = ("TkS", "TkA")                 # solo, assisted
+IDP_POSITIONS = ("DL", "LB", "DB")
 UNIT_COLUMNS = {"Offense": "fpts_offense", "Defense": "fpts_defense",
                 "Special Teams": "fpts_special_teams"}
 
@@ -296,12 +302,17 @@ def dominant_group(rows: pd.DataFrame, keys: list[str], categories: pd.DataFrame
     return top.set_index(keys)["category_group"]
 
 
+def inside(ours: pd.Series, theirs: pd.Series) -> pd.Series:
+    """Does each player pass the bar: a gap of at most 1 point plus 5 percent?"""
+    return (ours - theirs).abs() <= BAR_POINTS + BAR_PCT * theirs.abs()
+
+
 def figures(df: pd.DataFrame) -> dict:
     """Counts and rates of one comparison. `df` holds `ours`, `theirs`,
     `position` and `group`, one row per compared player (and period)."""
     gap = df["ours"] - df["theirs"]
-    passed = gap.abs() <= BAR_POINTS + BAR_PCT * df["theirs"].abs()
-    owner = gap.abs() <= OWNER_BAR_POINTS + OWNER_BAR_PCT * df["theirs"].abs()
+    passed = inside(df["ours"], df["theirs"])
+    tight = gap.abs() <= TIGHT_POINTS + TIGHT_PCT * df["theirs"].abs()
     by_pos = {}
     for pos, part in df.assign(gap=gap).groupby("position"):
         theirs = float(part["theirs"].sum())
@@ -311,7 +322,7 @@ def figures(df: pd.DataFrame) -> dict:
     return {"compared": n,
             "exact_share": float((gap.abs() <= EXACT).mean()) if n else None,
             "pass_share": float(passed.mean()) if n else None,
-            "owner_bar_share": float(owner.mean()) if n else None,
+            "tight_share": float(tight.mean()) if n else None,
             "by_position": by_pos, "by_group": {k: float(v) for k, v in by_group.items()}}
 
 
@@ -340,7 +351,8 @@ def ytd_comparison(adp: pd.DataFrame, history: pd.DataFrame, categories: pd.Data
     ours = rows.groupby("gsis_id")["points"].sum()
     group = dominant_group(rows, ["gsis_id"], categories)
     first = a["position_raw"].astype(str).str.split(",").str[0].str.strip()
-    return pd.DataFrame({"theirs": a["fpts"].fillna(0).to_numpy(),
+    return pd.DataFrame({"gsis_id": a["gsis_id"].to_numpy(),
+                         "theirs": a["fpts"].fillna(0).to_numpy(),
                          "ours": a["gsis_id"].map(ours).fillna(0).to_numpy(),
                          "position": first.map(lookup).fillna("(none)").to_numpy(),
                          "group": a["gsis_id"].map(group).fillna(NO_GROUP).to_numpy()})
@@ -361,6 +373,20 @@ def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.D
     later = sorted(set(periods.loc[~periods["is_playoff"], "period"].tolist()) - set(held))
     info = {"held": held, "compared": compared, "not_closed": [p for p in held if p not in closed],
             "after_last_frozen": [p for p in later if last is None or p > last]}
+    rows_per = scoring[scoring["period"].isin(compared)].groupby(["period", "scorer_id"]).size()
+    info["rows_per_player"] = {int(p): {"players": int(len(s)), "more_than_one": int((s > 1).sum()),
+                                        "max_rows": int(s.max())}
+                               for p, s in rows_per.groupby(level="period")}
+    games = schedule.copy()
+    if "game_type" in games.columns:
+        games = games[games["game_type"] == REGULAR]
+    games["period"] = stamp_period(games["gameday"], periods)
+    stamped = games.dropna(subset=["period"]).groupby("period")["week"].nunique()
+    span = periods.set_index("period")
+    info["weeks"] = {int(p): {"span_days": int((span.at[p, "end_date"] - span.at[p, "start_date"]).days),
+                              "nfl_weeks_stamped": int(stamped.get(p, 0)),
+                              "games_stamped": int((games["period"] == p).sum())}
+                     for p in compared}
     theirs = (scoring[scoring["period"].isin(compared)]
               .groupby(["scorer_id", "period"], as_index=False)[["fpts", *UNIT_COLUMNS.values()]].sum())
     xw = crosswalk.dropna(subset=["gsis_id"]).set_index("scorer_id")["gsis_id"]
@@ -389,12 +415,69 @@ def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.D
                        "theirs": theirs["fpts"].to_numpy(),
                        "ours": ours.reindex(key).fillna(0).to_numpy(),
                        "position": theirs["gsis_id"].map(fantrax_pos).fillna("(none)").to_numpy(),
-                       "group": group.reindex(key).fillna(NO_GROUP).to_numpy()})
+                       "group": group.reindex(key).fillna(NO_GROUP).to_numpy(),
+                       "joined": key.isin(ours.index)})
     for unit, col in UNIT_COLUMNS.items():
         df[f"theirs_{unit}"] = theirs[col].to_numpy()
         mine = units[unit] if unit in units.columns else pd.Series(dtype=float)
         df[f"ours_{unit}"] = mine.reindex(key).fillna(0).to_numpy()
     return df, info
+
+
+def miss_counts(df: pd.DataFrame) -> dict[str, int]:
+    """How the player-periods that miss the exact share miss: ours 0 or
+    missing while Fantrax's is above 0; else ours near half of Fantrax's,
+    near equal, or elsewhere. Also the compared players with no row of ours."""
+    ours, theirs = df["ours"], df["theirs"]
+    miss = (ours - theirs).abs() > EXACT
+    zero = miss & (ours == 0) & (theirs > 0)
+    rest = miss & ~zero
+    ratio = ours / theirs.where(theirs != 0)
+    half = rest & ratio.between(*HALF)
+    equal = rest & ratio.between(*EQUAL)
+    return {"compared": int(len(df)), "misses": int(miss.sum()), "ours_zero_theirs_above": int(zero.sum()),
+            "near_half": int(half.sum()), "near_equal": int(equal.sum()),
+            "elsewhere": int((rest & ~half & ~equal).sum()),
+            "no_row_of_ours": int((~df["joined"]).sum())}
+
+
+def tackle_fit(ytd: pd.DataFrame, rows: pd.DataFrame, categories: pd.DataFrame,
+               points: pd.Series) -> dict[str, dict]:
+    """Per IDP position, the points per solo and per assisted tackle that best
+    fit Fantrax's 2025 totals from our counts (least squares on the gap),
+    beside the rules' points; the share inside the bar under the fitted
+    points and the gap left; and the share and gap with the solo and
+    assisted counts swapped at the rules' points. A free fit is the same
+    with the columns swapped, so the swap is tested at the rules' points."""
+    code_to_id = categories.drop_duplicates("category_code").set_index("category_code")["category_id"]
+    solo_id, assist_id = (code_to_id.get(c) for c in TACKLE_CODES)
+    if solo_id is None or assist_id is None:
+        return {}
+    counts = rows.pivot_table(index="gsis_id", columns="category_id", values="stat_count", aggfunc="sum")
+    tackle_pts = rows[rows["category_id"].isin([solo_id, assist_id])].groupby("gsis_id")["points"].sum()
+    out = {}
+    for pos in IDP_POSITIONS:
+        part = ytd[ytd["position"] == pos]
+        if part.empty:
+            continue
+        col = lambda cid: (part["gsis_id"].map(counts[cid]) if cid in counts.columns
+                           else pd.Series(0.0, index=part.index)).fillna(0).to_numpy()
+        solo, assist = col(solo_id), col(assist_id)
+        theirs = part["theirs"].to_numpy()
+        other = part["ours"].to_numpy() - part["gsis_id"].map(tackle_pts).fillna(0).to_numpy()
+        fit, *_ = np.linalg.lstsq(np.column_stack([solo, assist]), theirs - other, rcond=None)
+        rule_solo, rule_assist = float(points[(solo_id, pos)]), float(points[(assist_id, pos)])
+        fitted = other + fit[0] * solo + fit[1] * assist
+        swapped = other + rule_solo * assist + rule_assist * solo
+        th = pd.Series(theirs)
+        out[pos] = {"players": int(len(part)), "fit_solo": float(fit[0]), "fit_assist": float(fit[1]),
+                    "rule_solo": rule_solo, "rule_assist": rule_assist,
+                    "share_rules": float(inside(part["ours"].reset_index(drop=True), th).mean()),
+                    "share_fitted": float(inside(pd.Series(fitted), th).mean()),
+                    "gap_fitted": float((fitted - theirs).sum()),
+                    "share_swapped": float(inside(pd.Series(swapped), th).mean()),
+                    "gap_swapped": float((swapped - theirs).sum())}
+    return out
 
 
 def unit_gaps(df: pd.DataFrame) -> dict[str, float]:
@@ -406,8 +489,8 @@ def print_figures(label: str, fig: dict) -> None:
         print(f"[drift] {label}: 0 players compared")
         return
     print(f"[drift] {label}: {fig['compared']} compared; exact (within {EXACT}) "
-          f"{fig['exact_share']:.1%}; inside the threshold {fig['pass_share']:.1%}; "
-          f"inside the owner's 2026-11-09 bar {fig['owner_bar_share']:.1%}")
+          f"{fig['exact_share']:.1%}; inside the bar {fig['pass_share']:.1%}; "
+          f"inside the tighter bar (0.5 plus 2%) {fig['tight_share']:.1%}")
     for pos, (gap, theirs) in sorted(fig["by_position"].items()):
         rel = f"{gap / theirs:+.2%}" if theirs else "n/a"
         print(f"[drift]   position {pos}: summed gap {gap:+.1f} ({rel})")
@@ -510,6 +593,12 @@ def main() -> int:
     ytd = ytd_comparison(read_table("fact_fantrax_adp"), history, categories, lookup, links)
     fig = figures(ytd)
     print_figures(f"{YTD_SEASON} season totals", fig)
+    for pos, f in tackle_fit(ytd, history[history["season"] == YTD_SEASON], categories, points).items():
+        print(f"[drift]   {YTD_SEASON} tackle fit {pos} ({f['players']} players): fitted solo "
+              f"{f['fit_solo']:.3f}, assisted {f['fit_assist']:.3f} (rules {f['rule_solo']:g}, "
+              f"{f['rule_assist']:g}); inside the bar: rules {f['share_rules']:.1%}, fitted "
+              f"{f['share_fitted']:.1%} (gap left {f['gap_fitted']:+.1f}), solo and assisted swapped "
+              f"{f['share_swapped']:.1%} (gap {f['gap_swapped']:+.1f})")
     problems += failures(f"{YTD_SEASON}", fig)
     known = set(players["gsis_id"].dropna())
     for season_id in week_ids:
@@ -525,8 +614,12 @@ def main() -> int:
         for period, part in df.groupby("period"):
             print_figures(f"{season_id} period {int(period)}", figures(part))
             print(f"[drift]   Unit gaps: {', '.join(f'{u} {g:+.1f}' for u, g in unit_gaps(part).items())}")
+            print(f"[drift]   misses: {miss_counts(part)}")
+            print(f"[drift]   stored fact_period_scoring rows per player: "
+                  f"{pinfo['rows_per_player'].get(int(period))}; weeks: {pinfo['weeks'].get(int(period))}")
         fig = figures(df)
         print_figures(f"{season_id} all compared periods", fig)
+        print(f"[drift]   misses: {miss_counts(df)}")
         gaps = unit_gaps(df)
         zero_units = categories[categories["category_id"].isin(unmapped)].groupby("unit")["category_code"]
         for unit, codes in zero_units:

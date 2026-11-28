@@ -84,7 +84,8 @@ def week(pid, game, wk, py=0.0, tks=0.0):
 
 WEEKS = pd.DataFrame([week("g1", "G1", 1, py=250), week("g1", "G2", 2, py=250),
                       week("g3", "G1", 1, tks=3), week("g3", "G2", 2, tks=3), week(None, "G1", 1)])
-SCHEDULE = pd.DataFrame({"game_id": ["G1", "G2"], "gameday": ["2026-09-13", "2026-09-20"]})
+SCHEDULE = pd.DataFrame({"game_id": ["G1", "G2"], "gameday": ["2026-09-13", "2026-09-20"], "week": [1, 2],
+                         "game_type": ["REG", "REG"]})
 PERIODS = pd.DataFrame({
     "season_id": ["2026-2027"] * 3, "period": [1, 2, 3],
     "start_date": pd.to_datetime(["2026-09-09", "2026-09-17", "2026-09-24"]),
@@ -229,19 +230,48 @@ class TestDriftVerdict:
         assert sh.failures("2025", fig) == []
 
     def test_too_few_players_pass(self):
-        fig = sh.figures(self.frame([100.0] * 19 + [200.0], [100.0] * 20))
-        assert fig["pass_share"] == 0.95 and not any("pass" in f for f in sh.failures("2025", fig))
         fig = sh.figures(self.frame([100.0] * 18 + [200.0] * 2, [100.0] * 20))
+        assert fig["pass_share"] == 0.90 and not any("pass" in f for f in sh.failures("2025", fig))
+        fig = sh.figures(self.frame([100.0] * 17 + [200.0] * 3, [100.0] * 20))
         assert any("compared pass" in f for f in sh.failures("2025", fig))
 
-    def test_a_position_sum_off_by_more_than_1_percent_fails(self):
+    def test_a_position_sum_off_by_more_than_2_percent_fails(self):
         fig = sh.figures(self.frame([102.0] * 10, [100.0] * 10))
+        assert sh.failures("2025", fig) == []
+        fig = sh.figures(self.frame([103.0] * 10, [100.0] * 10))
         assert fig["pass_share"] == 1.0
         assert any("QB summed points differ" in f for f in sh.failures("2025", fig))
 
-    def test_the_owner_bar_share_is_reported(self):
+    def test_the_tighter_share_is_reported(self):
         fig = sh.figures(self.frame([11.5], [10.0]))
-        assert fig["pass_share"] == 0.0 and fig["owner_bar_share"] == 1.0
+        assert fig["pass_share"] == 1.0 and fig["tight_share"] == 0.0
+
+
+class TestDiagnostics:
+    def test_how_the_misses_miss(self):
+        df = pd.DataFrame({"ours": [0.0, 0.0, 5.0, 9.6, 30.0, 10.0], "theirs": [0.0, 8.0, 10.0, 10.0, 10.0, 10.0],
+                           "joined": [True, False, True, True, True, True]})
+        assert sh.miss_counts(df) == {"compared": 6, "misses": 4, "ours_zero_theirs_above": 1, "near_half": 1,
+                                      "near_equal": 1, "elsewhere": 1, "no_row_of_ours": 1}
+
+    def test_the_tackle_fit_finds_the_points_that_fit_and_tests_the_swap(self):
+        cats = pd.concat([CATEGORIES, pd.DataFrame({
+            "category_id": ["3110"], "category_code": ["TkA"], "category_name": ["Assisted Tackles"],
+            "category_group": ["Defense, tackles"], "group_sort_order": [5], "unit": ["Defense"],
+            "nflverse_columns": ["def_tackle_assists"]})], ignore_index=True)
+        rules = pd.concat([rules_frame(), rules_frame().query("category_id == '3120'")
+                           .assign(category_id="3110", points=1.0)], ignore_index=True)
+        points = sh.rule_points(rules, cats)[1]
+        rows = pd.DataFrame({"gsis_id": ["a", "a", "b", "b"], "category_id": ["3120", "3110", "3120", "3110"],
+                             "stat_count": [40.0, 20.0, 10.0, 30.0]})
+        rows["points"] = rows["stat_count"] * [1.5, 1.0, 1.5, 1.0]
+        ytd = pd.DataFrame({"gsis_id": ["a", "b"], "position": ["LB", "LB"],
+                            "ours": [80.0, 45.0], "theirs": [40 * 0.75 + 20 * 0.5, 10 * 0.75 + 30 * 0.5]})
+        fit = sh.tackle_fit(ytd, rows, cats, points)["LB"]
+        assert fit["fit_solo"] == pytest.approx(0.75) and fit["fit_assist"] == pytest.approx(0.5)
+        assert (fit["rule_solo"], fit["rule_assist"]) == (1.5, 1.0)
+        assert fit["share_fitted"] == 1.0 and fit["gap_fitted"] == pytest.approx(0.0)
+        assert fit["share_rules"] == 0.0 and fit["players"] == 2
 
 
 @pytest.fixture
@@ -277,6 +307,9 @@ class TestMain:
         assert "2026-2027 period 1: 2 compared; exact (within 0.05) 100.0%" in out
         assert "held but not closed [2]" in out and "not compared (no Fantrax figure) [3]" in out
         assert "['BK']" in out and "has no nflverse column" in out
+        assert "'no_row_of_ours': 0" in out
+        assert "{'players': 2, 'more_than_one': 0, 'max_rows': 1}" in out
+        assert "'nfl_weeks_stamped': 1" in out
 
     def test_an_unchanged_run_writes_nothing(self, world, capsys, monkeypatch):
         tmp, calls = world
