@@ -37,11 +37,13 @@ class FakeServer:
     def __init__(self):
         self.valid = set()
         self.logins = 0
+        self.refuse = False
 
     def issue(self, ctx):
         self.logins += 1
         token = f"FAKE-SESSION-{self.logins}"
-        self.valid.add(token)
+        if not self.refuse:
+            self.valid.add(token)
         ctx.jar.append({"name": "sid", "value": token, "domain": ".fantrax.invalid",
                         "path": "/", "expires": -1, "httpOnly": True, "secure": True})
         return token
@@ -231,6 +233,158 @@ def test_a_blocked_login_touches_no_page(scrape):
         assert FAKE_PASSWORD not in str(caught.value)
     finally:
         rp.close_fantrax_session(folder)
+
+
+class NoPage:
+    def __getattr__(self, name):
+        raise AssertionError("the refused login touched the page")
+
+
+def _authed(script, cfg, server, monkeypatch, page=None):
+    monkeypatch.setattr(sys, "argv", [script])
+    ctx = FakeContext(server)
+    return fx.FantraxScraper(cfg)._post_authed(ctx, page or FakePage(ctx), {}, "fake call")
+
+
+@pytest.fixture
+def cfg(tmp_path):
+    return dataclasses.replace(fx.CFG, user_data_dir=str(tmp_path / "profile"),
+                               raw_dir=str(tmp_path / "raw"), login_url=LOGIN_URL)
+
+
+def test_a_failed_login_refuses_the_next_scripts_login_without_trying(scrape, cfg,
+                                                                      monkeypatch):
+    server, _ = scrape
+    server.refuse = True
+    folder = rp.open_fantrax_session()
+    try:
+        with pytest.raises(fx.SessionStillDead):
+            _authed(STEPS[0], cfg, server, monkeypatch)
+        assert server.logins == 1
+        with pytest.raises(fx.LoginCapReached) as caught:
+            _authed(STEPS[1], cfg, server, monkeypatch, page=NoPage())
+        assert "a login already failed in this run" in str(caught.value)
+        assert server.logins == 1
+        assert rp.fantrax_logins(folder) == [STEPS[0]]
+        assert rp.fantrax_blocked(folder) == [STEPS[1]]
+        assert (folder / fx.FantraxScraper.FAILED_LEDGER).read_text(
+            encoding="utf-8").splitlines() == [STEPS[0]]
+    finally:
+        rp.close_fantrax_session(folder)
+
+
+def test_a_failed_login_with_no_folder_changes_nothing(scrape, cfg, monkeypatch):
+    server, _ = scrape
+    server.refuse = True
+    for script in STEPS[:2]:
+        with pytest.raises(fx.SessionStillDead):
+            _authed(script, cfg, server, monkeypatch)
+    assert server.logins == 2
+
+
+def test_two_logins_that_work_leave_no_failed_ledger(scrape):
+    server, step = scrape
+    folder = rp.open_fantrax_session()
+    try:
+        step(STEPS[0])
+        server.valid.clear()
+        step(STEPS[1])
+        assert server.logins == 2
+        assert not (folder / fx.FantraxScraper.FAILED_LEDGER).exists()
+    finally:
+        rp.close_fantrax_session(folder)
+
+
+ERROR_SELECTOR = fx.FantraxScraper.LOGIN_ERROR_SELECTOR
+SAMPLES = {
+    "wrong password": "FAKE-SAMPLE-A: The email or Password you entered is Incorrect.",
+    "robot check": "FAKE-SAMPLE-B: Please complete the reCAPTCHA to continue.",
+    "locked": "FAKE-SAMPLE-C: This account has been Locked.",
+    "too many attempts": "FAKE-SAMPLE-D: Too many failed sign-ins, try again later.",
+    "other": "FAKE-SAMPLE-E: Something unexpected happened.",
+}
+
+
+class ErrorLocator:
+    def __init__(self, page, selector):
+        self.page = page
+        self.selector = selector
+
+    @property
+    def first(self):
+        return self
+
+    def fill(self, value):
+        pass
+
+    def press(self, key):
+        pass
+
+    def is_visible(self):
+        return self.selector == ERROR_SELECTOR and self.page.message is not None
+
+    def inner_text(self):
+        return self.page.message or ""
+
+
+class ErrorPage:
+    """A login page that stays on /login and may show one error message."""
+
+    def __init__(self, ctx, message=None):
+        self.ctx = ctx
+        self.url = LOGIN_URL
+        self.message = message
+
+    def goto(self, url, **kwargs):
+        pass
+
+    def locator(self, selector, has_text=None):
+        return ErrorLocator(self, selector)
+
+    def title(self):
+        return "Fantrax"
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def wait_for_url(self, test, timeout=None):
+        pass
+
+    def screenshot(self, path=None):
+        pass
+
+
+@pytest.mark.parametrize("kind", sorted(SAMPLES))
+def test_the_flag_line_names_the_error_kind_and_never_its_text(scrape, cfg, monkeypatch,
+                                                               capsys, kind):
+    server, _ = scrape
+    server.refuse = True
+    monkeypatch.setattr(sys, "argv", [STEPS[0]])
+    ctx = FakeContext(server)
+    scraper = fx.FantraxScraper(cfg)
+    with pytest.raises(fx.SessionStillDead) as caught:
+        scraper._post_authed(ctx, ErrorPage(ctx, SAMPLES[kind]), {}, "fake call")
+    message = str(caught.value)
+    assert scraper.last_login_flags["error kind"] == kind
+    assert f"error kind {kind}" in message
+    shown = capsys.readouterr()
+    for sample in SAMPLES.values():
+        for part in (sample, sample.split(":")[0], sample.split(": ")[1].lower()):
+            assert part not in message
+            assert part not in repr(scraper.last_login_flags)
+            assert part not in shown.out + shown.err
+
+
+def test_no_error_message_gives_error_kind_none(scrape, cfg, monkeypatch):
+    server, _ = scrape
+    server.refuse = True
+    monkeypatch.setattr(sys, "argv", [STEPS[0]])
+    ctx = FakeContext(server)
+    scraper = fx.FantraxScraper(cfg)
+    with pytest.raises(fx.SessionStillDead) as caught:
+        scraper._post_authed(ctx, ErrorPage(ctx), {}, "fake call")
+    assert scraper.last_login_flags["error kind"] == "none"
+    assert "error kind none" in str(caught.value)
 
 
 def test_a_run_with_no_ledger_counts_zero():
