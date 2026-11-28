@@ -24,6 +24,10 @@ _spec = importlib.util.spec_from_file_location("load_fantrax_history",
 lf = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(lf)
 rt = lf.rt
+_spec = importlib.util.spec_from_file_location("load_team_names", REPO / "scripts" / "load_team_names.py")
+ln = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ln)
+etl = lf.etl
 
 SEASON = "2026-2027"
 TEAMS = {"A01": ("f1", "Team Alpha"), "A02": ("f2", "Team Bravo"), "A03": ("f3", "Team Charlie")}
@@ -44,6 +48,10 @@ TRADE_ROWS = [
 ]
 LATE_CLAIM = ["Sam Same", "BUF", "QB", "Claim", "Team Charlie", "$1.00",
               "Wed Oct 07, 2026, 8:00AM", "5"]
+# The same claims, Team Bravo's under a one-letter slip (a guess of 90 or
+# more), and a claim by a name no stored name is near (the owner's list).
+ZULU = ["Sam Same", "BUF", "QB", "Claim", "Zulu Club", "", "Thu Sep 17, 2026, 4:00PM", "2"]
+RENAMED = CLAIM_ROWS[:2] + [CLAIM_ROWS[2][:4] + ["Team Bravoo"] + CLAIM_ROWS[2][5:]] + CLAIM_ROWS[3:] + [ZULU]
 
 
 def write_csv(path: Path, view: str, rows: list):
@@ -107,6 +115,7 @@ def data(tmp_path, monkeypatch):
         if name.endswith("_PATH"):
             monkeypatch.setattr(rt, name, review / Path(value).name)
     monkeypatch.setattr(lf, "REVIEW_PATH", review / lf.REVIEW_PATH.name)
+    monkeypatch.setattr(lf, "TEAM_REVIEW_PATH", review / lf.TEAM_REVIEW_PATH.name)
     monkeypatch.setattr(lf, "SHADOW_DIR", review / "shadow")
     return tmp_path
 
@@ -278,7 +287,7 @@ class TestLoad:
         assert result["ledger"] == {"same": 5, "changed": 0, "new": 1, "gone": 0}
         assert result["minted"] == 1
 
-    def test_write_refuses_a_download_that_lacks_a_stored_move(self, data):
+    def test_write_refuses_a_download_that_lacks_a_stored_move(self, data, capsys):
         download(data / "raw", "20261121_0800")
         run(data, "--write")
         before = table(data, "fact_roster_transactions")
@@ -286,7 +295,9 @@ class TestLoad:
         with pytest.raises(SystemExit, match="nothing written"):
             run(data, "--write")
         pd.testing.assert_frame_equal(table(data, "fact_roster_transactions"), before)
+        capsys.readouterr()
         assert run(data)["store_only"] == 1                # a shadow load still reports it
+        assert f"by season {{'{SEASON}': 1}}" in capsys.readouterr().out
 
     def test_write_refuses_a_download_that_lacks_a_stored_pick_leg(self, data):
         download(data / "raw", "20261121_0800")
@@ -312,6 +323,13 @@ class TestLoad:
         for value in ("s1", "s2", "s4", "s5", "A01", "A02", "A03", "Team ", "Drafted", "Claimer"):
             assert value not in out
 
+    def test_the_output_names_no_listed_or_guessed_team(self, data, capsys):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        run(data)
+        out = capsys.readouterr().out
+        for value in ("Bravoo", "Zulu", "f2", "f3"):
+            assert value not in out
+
     def test_no_network_request(self, data, monkeypatch):
         def refuse(*args, **kwargs):
             raise AssertionError("the loader opened a network connection")
@@ -319,3 +337,81 @@ class TestLoad:
         monkeypatch.setattr(socket, "create_connection", refuse)
         download(data / "raw", "20261128_0752")
         run(data)
+
+
+def alias(*rows):
+    """Crosswalk rows (name_clean, fantrax_team_id, decision) into the temp store."""
+    etl.write_table(etl.TEAM_ALIAS_TABLE, ln._frame(
+        [(n, t, d, None, "test", pd.Timestamp("2026-11-28", tz="UTC")) for n, t, d in rows]))
+
+
+class TestTeamNameCrosswalk:
+    def test_an_old_name_resolves_through_the_crosswalk(self, data):
+        alias(("old bravo", "f2", "owner"))
+        claims = CLAIM_ROWS[:2] + [CLAIM_ROWS[2][:4] + ["Old  BRAVO"] + CLAIM_ROWS[2][5:]] + CLAIM_ROWS[3:]
+        download(data / "raw", "20261128_0752", claims=claims)
+        result = run(data)
+        assert result["team_names"]["crosswalk"] == 1 and result["team_names"]["listed"] == 0
+        assert result["review"] == 1                       # the unknown player only
+        shadow = moves(table(data, "fact_roster_transactions", shadow=True)).set_index(["event_type", "scorer_id"])
+        assert shadow.loc[("claim", "s4"), "team_key"] == "A02"
+        assert not lf.TEAM_REVIEW_PATH.exists()
+
+    def test_a_guess_is_used_in_the_shadow_and_listed_after_the_names_that_need_the_owner(self, data):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        result = run(data)
+        assert result["team_names"] == {"crosswalk": 0, "current": 3, "guess": 1, "listed": 1}
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str)
+        assert list(listed.columns) == etl.TEAM_NAME_REVIEW_COLS
+        assert listed["reason"].tolist() == ["no_guess", "guess_90"]
+        assert listed.loc[0, "name"] == "Zulu Club" and pd.isna(listed.loc[0, "fantrax_team_id"])
+        assert listed.loc[1, "fantrax_team_id"] == "f2" and listed.loc[1, "best_guess_team_key"] == "A02"
+        reasons = pd.read_csv(lf.REVIEW_PATH)["reason"].tolist()
+        assert sorted(reasons) == ["unknown_player", "unknown_team"]
+        shadow = moves(table(data, "fact_roster_transactions", shadow=True)).set_index(["event_type", "scorer_id"])
+        assert shadow.loc[("claim", "s4"), "team_key"] == "A02"
+
+    def test_write_refuses_while_a_name_resolves_only_by_a_guess(self, data):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        before = table(data, "fact_roster_transactions")
+        with pytest.raises(SystemExit, match="guess not yet applied"):
+            run(data, "--write")
+        pd.testing.assert_frame_equal(table(data, "fact_roster_transactions"), before)
+
+    def test_the_owner_list_applied_resolves_every_name_and_write_goes_through(self, data, monkeypatch):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        run(data)
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str)
+        listed.loc[listed["name"] == "Zulu Club", "fantrax_team_id"] = "f3"
+        listed.to_csv(lf.TEAM_REVIEW_PATH, index=False)
+        monkeypatch.setattr(ln, "REVIEW_PATH", lf.TEAM_REVIEW_PATH)
+        assert ln.main(["--apply"])["owner"] == 1
+        result = run(data, "--write")
+        assert result["team_names"] == {"crosswalk": 2, "current": 3, "guess": 0, "listed": 0}
+        ledger = moves(table(data, "fact_roster_transactions")).set_index(["event_type", "scorer_id"])
+        assert ledger.loc[("claim", "s3"), "team_key"] == "A03"
+        assert not lf.TEAM_REVIEW_PATH.exists()
+
+    def test_a_pick_hint_is_a_team_name_too(self):
+        names = TestIds().names()
+        names.known = etl.team_names(pd.DataFrame([(k, f, n) for k, (f, n) in TEAMS.items()],
+                                                  columns=["team_key", "fantrax_team_id", "team_name"]),
+                                     pd.DataFrame([("old charlie", "f3")], columns=["name_clean", "fantrax_team_id"]))
+        frame = pd.DataFrame([["2027 Draft Pick, Round 1 (Old Charlie)"] + TRADE_ROWS[1][1:] + [2],
+                              ["2027 Draft Pick, Round 2 (Zulu Club)"] + TRADE_ROWS[1][1:] + [3]],
+                             columns=lf.COLUMNS["TRADE"] + ["line"])
+        lf.trade_rows(frame, names, {}, {}, [], {})
+        assert names.pick_hints()["old charlie"] == "A03"
+        assert names.review_frame()["name"].tolist() == ["Zulu Club"]
+
+    def test_a_left_out_pick_leg_of_the_same_year_and_round_explains_a_gap(self, data):
+        shadow = data / "review" / "shadow"
+        shadow.mkdir()
+        pd.DataFrame([("2027|A01|1", "A01", "A02"), (f"{SEASON}|D1|S001", "A01", "A03")],
+                     columns=rt.PICK_OWNER_REVIEW_COLS).to_csv(shadow / rt.PICK_OWNER_REVIEW_PATH.name, index=False)
+        assert lf.pick_gaps(shadow, [(2027, 1)]) == {"explained": 1, "not_explained": 1}
+        left = []
+        frame = pd.DataFrame([["2027 Draft Pick, Round 1 (Team Charlie)", "", "", "Zulu Club", "Team Bravo",
+                               TRADE_ROWS[1][5], "3", 2]], columns=lf.COLUMNS["TRADE"] + ["line"])
+        lf.trade_rows(frame, TestIds().names(), {}, {}, [], {}, left)
+        assert left == [(2027, 1)]

@@ -27,7 +27,8 @@ loader = importlib.import_module("load_draft_and_overrides")
 compare = importlib.import_module("compare_loader_output")
 rt = importlib.import_module("02d_fact_roster_transactions")
 
-PRIVATE = ("dim_fantrax_crosswalk_override", "fact_startup_draft_slot", "dim_startup_draft_scorer")
+PRIVATE = ("dim_fantrax_crosswalk_override", "fact_startup_draft_slot", "dim_startup_draft_scorer",
+           "dim_fantasy_team_alias")
 NOTE = "SYNTHETIC NOTE about Pat Invented"
 TEAM_NAME = "SYNTHETIC TEAM NAME"
 

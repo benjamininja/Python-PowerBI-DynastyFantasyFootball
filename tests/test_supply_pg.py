@@ -168,3 +168,37 @@ class TestTheReadersSeeTheSameInput:
         assert dict(zip(over["scorer_id"], over["gsis_id"])) == {"a": "G1", "n": "new"}
         scorers = etl.read_table("dim_startup_draft_scorer").set_index("scorer_id")
         assert scorers.loc["s002", "position_raw"] == "WR,DB" and bool(scorers.loc["s002", "is_rookie"])
+
+
+class TestTheTeamNameCrosswalk:
+    """#770: the private team-name crosswalk through the seam. Made-up names."""
+
+    @pytest.fixture
+    def alias_db(self, db):
+        import psycopg
+
+        def clear():
+            with psycopg.connect(db) as conn:
+                conn.execute(f"DELETE FROM ops.{etl.TEAM_ALIAS_TABLE}")
+        clear()
+        try:
+            yield db
+        finally:
+            clear()
+
+    def rows(self, *rows):
+        return pd.DataFrame([(n, t, d, s, "test", NOW) for n, t, d, s in rows],
+                            columns=["name_clean", "fantrax_team_id", "decision", "score", "source",
+                                     "recorded_at"]).astype({"score": "Int64"})
+
+    def test_an_upsert_round_trips(self, alias_db):
+        etl.write_table(etl.TEAM_ALIAS_TABLE, self.rows(("old alpha", "f1", "seed", None),
+                                                        ("alpha two", "f1", "guess", 95)), mode="upsert")
+        etl.write_table(etl.TEAM_ALIAS_TABLE, self.rows(("old alpha", "f2", "owner", None)), mode="upsert")
+        got = etl.read_table(etl.TEAM_ALIAS_TABLE).set_index("name_clean")
+        assert got.loc["old alpha", "fantrax_team_id"] == "f2" and got.loc["old alpha", "decision"] == "owner"
+        assert got.loc["alpha two", "score"] == 95 and (got["recorded_at"] == NOW).all()
+
+    def test_the_decision_check_refuses_another_word(self, alias_db):
+        with pytest.raises(etl.StorageError):
+            etl.write_table(etl.TEAM_ALIAS_TABLE, self.rows(("old alpha", "f1", "fuzzy", None)))
