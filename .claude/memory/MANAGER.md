@@ -56,56 +56,46 @@ main checkout's `NEEDS-OWNER.md` (the one copy the owner's pane reads).
   once: git refuses a pull over the same edit left uncommitted.
 
 
-## CURRENT STATE (2026-11-28, twenty-second save, before a compact at Ben's word; session `637314ca-f6ae-4049-a3ff-576bd1479cfe`)
+## CURRENT STATE (2026-11-28, twenty-third save; session `637314ca-f6ae-4049-a3ff-576bd1479cfe`)
 
 Done items left this block: their records are on GitHub.
 
-- **Saved:** 2026-11-28 ~14:40 UTC, session `637314ca-f6ae-4049-a3ff-576bd1479cfe`. Ben typed session-dispatch in this session (2026-11-28); a compact keeps it, a clear needs it again.
-- **Heads.** origin/main at `f93449f` (the manual run's own data PR, after #762 `30ac3a9`). CI on main green through `a0fd038`.
-- **Rules in force.** Six required checks (#731); GOAL-RUN.md's closed list merges on Green alone. **No-go trial live** (PR #762, GOAL-RUN.md section "Dispatch without the owner's go"): low and haiku tickets dispatch without Ben's go until 2026-12-12, unless `held` or `backlog`; every such dispatch is named in the next report and here. Medium and high keep Ben's go. Ben's cut (#746 issuecomment-7219555230) still parks the backlog-labelled tickets.
-- **Ben's rulings of 2026-11-28** (planner's chat, recorded #429 issuecomment-7240199640): scheduled Fantrax sign-ins stop (#760), weekly hand load (#761); #520, #522, #523, #524 lifted to run in shadow, in that order, each with Ben's go.
+- **Saved:** 2026-11-28 afternoon UTC, session `637314ca-f6ae-4049-a3ff-576bd1479cfe`. Ben typed session-dispatch in this session; a compact keeps it, a clear needs it again.
+- **Heads.** origin/main at `aff9797` (#767), after #764 `098c61a`, #766 `822b3d8`, #765 `a6e223d`.
+- **Rules in force.** Six required checks; GOAL-RUN.md's closed list merges on Green alone. No-go trial live to 2026-12-12 for low and haiku tickets that are not held or backlog (none dispatched under it yet). Ben's cut (#746 issuecomment-7219555230) parks the backlog-labelled tickets.
+- **Ben's rulings of 2026-11-28:** no script signs in to Fantrax, whoever starts it (#760 issuecomment-7240898743). Weekly hand export is Ben's, the load is a Claude session's, on Saturday mornings. #520, #522, #523, #524 run in shadow in that order, each on Ben's go.
 
 ### Next
-1. **PR #764 (#520, b520-matchups)**: when the builder reports Green, one pr-code-reviewer (scripts/run_pipeline.py is touched, so the merge needs Ben's word), then merge in shadow. Not held (planner, #520 issuecomment-7240503830). The second of #764 and #765 to merge takes main in first (both touch the Chain lines near 04s_scoring).
-2. **PR #765 (#760, b760-nologin)**: when Green, one pr-code-reviewer; it changes the workflow, so the planner's read and Ben's word before the merge. After it merges: close #758 as not planned; ask Ben's go for #761 (medium, hold lifted).
-3. **--live for 04m**: its own one-line PR, opened after one scheduled run's shadow line shows every closed period matching; post the counts on #520 and ask Ben's merge word. Target merged before 2026-12-03 (period 12 ends on the first playoff day); if it cannot make it, tell the planner.
-4. **After #520 merges**: ask Ben's go for #522, then #523 (read #554 first), then #524, one at a time.
-5. **Scheduled runs**: read each for the access counts and the Fantrax lines; post counts only.
-6. **State PR #634**: on Ben's merge word at a check-in.
-7. **First held migration after PR #745**: read the run, then advisors security and performance. None pending.
+1. **PR #768 (#761, b761-handload)**: review found blocking F1 (the --write guard misses fact_trade_log rows) and F2 (02d prints values on the loader path) (issuecomment-7241338510). The builder answers once, then a fresh cap-ledger-auditor re-checks. Then Ben's word (closed list, but a ledger change, so the auditor rule applies). After the merge, queue the builder's three entries: Ben's first shadow run of `scripts\load_fantrax_history.py` (counts only, posted on #761); a Decision on the allow rule for the Saturday load (options: a rule in the manager's settings, or Ben runs it himself); later, when the load leaves shadow.
+2. **b473-categories (#473 brief 3)**, dispatched on Ben's go. On Green: one pr-code-reviewer at effort high. Then brief 4 needs Ben's go again, then #522 (refreshed by the planner, #522 issuecomment-7241074047).
+3. **--live for 04m (#520)**: one-line PR after one scheduled run's `[shadow]` lines show every closed period matching; post counts on #520; the planner reads it; Ben's word. Target merged before 2026-12-03, else tell the planner. Check the two --live advisories (#764 issuecomment-7240955453).
+4. **#523** (read #554 first), then **#524**, each on Ben's go, after #522.
+5. **State PR #634**: on Ben's merge word.
 
 ### Waiting
-- On Ben: nothing in the queue (empty at this save).
-- On the planner: nothing open for the manager.
+- On Ben: queue entry "Delete the Fantrax sign-in secrets" (#760). Ben asked whether manual runs need them; answered in chat that they don't (no workflow reads them since #765; PC runs use the local .env). Recommended: delete.
+- On the planner: nothing open.
 
 ### In flight
-- b760-nologin, session `36574c3d-63f7-423e-8d82-9ec43f280c5e`, #760, medium; PR #765 open, CI pending.
-- b520-matchups, session `637f9486-e7d3-4de3-a879-dad1e6b7db7a`, #520, medium; PR #764 open, CI pending.
-- Other open PRs: #634 (state, CLEAN), #595 (b589, parked), #563 (b556, Power BI backlog).
+- b761-handload, session `316c7811-143e-4a9a-bbb0-d4bfd30ab29d`, #761, medium; PR #768, answering the review.
+- b473-categories, session `0bf6ab28-b8f0-4f92-ab48-9f24fa3492d2`, #473 brief 3, medium.
+- Other open PRs: #634 (state), #595 (b589, parked), #563 (b556, Power BI backlog).
 
 ### Peers
-dff-central-planner `0ef68551-3dad-4f09-b5af-b164a0307ae9`; Tools-builder-manager `ea58e038-9092-4552-9e4c-32bb3cdf8281`; Tools-central-planner `0a6ad927-943a-481d-99fc-f2cbfcda8498`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`. SendMessage by name: pipe addresses go stale.
+dff-central-planner `0ef68551-3dad-4f09-b5af-b164a0307ae9`; Tools-builder-manager `ea58e038-9092-4552-9e4c-32bb3cdf8281`; Tools-central-planner `0a6ad927-943a-481d-99fc-f2cbfcda8498`; personal-assistant `5d72e933-3c89-4f59-8d43-6e6ac9884826`. SendMessage by name.
 
 ### Reads and checks due
-- Tonight's scheduled etl-daily run (~20:00 UTC 2026-11-28): 04m's shadow line (#520) if #764 merged; Fantrax lines; access counts.
+- Tonight's scheduled etl-daily (~20:00 UTC 2026-11-28): first run with no Fantrax login (#765) and 04m's `[shadow]` lines (#764); access counts. Counts only on GitHub.
 - Bot: running in the terminal tab discord bot.
 
 ### Decided since the last merged state PR
-- #724 closed on the 11-26 run (issuecomment-7217160100).
-- #734, #737, #739, #738 (`d21758e`), #741 (`bcb365e`), #743 (`f834dbb`), #742 (`0d6284c`), #747 (`175dd7c`), #748 (`c0d1757`) merged on Ben's word; b736, b740, b675 closed out.
-- #731 closed: ruleset at six, rules file on main.
-- #744: PR #745 merged (`585ada7`); b744 closed out. PR #750 merged (`e7da865`).
-- #751: PR #752 merged (`24cfb9a`); b751 closed out. #736 closed (done by PR #738).
-- PR #753 (`c8a41a2`) and PR #754 (`2bfd70a`) merged on Ben's word.
-- Ben's cut of the process work (#746 issuecomment-7219555230).
-- 2026-11-27 run read: #675 (issuecomment-7239458026), #700 (issuecomment-7239458778), #740 (issuecomment-7239459462) closed on its counts and flag line.
-- PR #691 closed as superseded by #755, on Ben's word.
-- #756: dispatched on Ben's go; PR #757 merged (`a0fd038`) on Green; b756 closed out; advisories to #758 (now overtaken by #760).
-- #564: PR #759 merged (`a0aea0e`) on Ben's word (four gh issue denies).
-- PR #762 merged (`30ac3a9`) on Ben's word: the no-go trial.
-- #760 and #520 dispatched on Ben's go (2026-11-28).
-- Ben's manual run 46151521462: 1 Fantrax login, error kind other (#721 issuecomment-7240358827).
-- #520 period 9 offline comparison matched, 28 teams, run by the manager on Ben's word (#520 issuecomment-7240491709).
+- Earlier items (to the twenty-second save) are on their tickets; see git history of this file.
+- PR #765 merged (`a6e223d`) on Ben's word after a clean review and the planner's read; b760 closed out; #758 closed not planned.
+- PR #766 merged (`822b3d8`) on Ben's word (DATA-USE promise 3).
+- PR #764 merged (`098c61a`) on Ben's word after a review round (F1, F2 fixed and accepted); b520 closed out.
+- PR #767 merged (`aff9797`) on Ben's word: the oneshot profile, Ben's edit copied unchanged.
+- #761 dispatched on Ben's go (re-confirmed after a correction: it loads transactions, not scoring). #473 brief 3 dispatched on Ben's go.
+- Dispatch note: never pipe dispatch.ps1 through 2>&1 in PowerShell 5.1; git's progress line on stderr stops the script after the worktree is made.
 
 ## Queue entries raised
 
