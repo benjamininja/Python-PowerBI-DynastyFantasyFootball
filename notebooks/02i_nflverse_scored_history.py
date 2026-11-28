@@ -51,6 +51,7 @@
 # **Run:**  python notebooks/02i_nflverse_scored_history.py   (no login; after 01e, 04p and 01h)
 
 # %%
+import json
 import sys
 from pathlib import Path
 
@@ -90,6 +91,7 @@ TACKLE_CODES = ("TkS", "TkA")                 # solo, assisted
 IDP_POSITIONS = ("DL", "LB", "DB")
 ROW_AGREE = 0.01          # a scorer's two rows (one per Conference) agree within this
 MAX_ROWS = 2              # rows per scorer and period: one per Conference
+CAPTURE_FILE = "fantrax_inseason_{year}_p{period:02d}.json"   # 04s's raw period capture
 UNIT_COLUMNS = {"Offense": "fpts_offense", "Defense": "fpts_defense",
                 "Special Teams": "fpts_special_teams"}
 
@@ -472,6 +474,7 @@ def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.D
                        "has_bench": theirs["has_bench"].to_numpy(),
                        "gsis_id": theirs["gsis_id"].to_numpy()})
     info["rows"] = rows
+    info["week_counts"] = wk
     for unit, col in UNIT_COLUMNS.items():
         df[f"theirs_{unit}"] = theirs[col].to_numpy()
         mine = units[unit] if unit in units.columns else pd.Series(dtype=float)
@@ -582,6 +585,121 @@ def te_split(df: pd.DataFrame) -> dict[str, dict]:
                       "gap_share": round(gap / theirs, 4) if theirs else None,
                       "inside_bar": round(float(inside(part["ours"], part["theirs"]).mean()), 3) if len(part) else None}
     return out
+
+
+def capture_path(year: int, period: int) -> Path:
+    """04s's stored raw capture of one Scoring Period (gitignored; read only
+    where it is present, never fetched)."""
+    return Path(etl.CFG.data_dir) / "raw" / CAPTURE_FILE.format(year=year, period=period)
+
+
+def capture_lines(live: dict) -> pd.DataFrame:
+    """Every stat line of one getLiveScoringStats reply: team, scorer, the
+    player's served total, the category (the middle part of `scipId`), the
+    stat value `sv` (empty where absent) and the line's points. Group totals
+    (statsMap keys starting `_`) are skipped."""
+    data = (live.get("responses") or [{}])[0].get("data") or {}
+    recs = []
+    for team_id, groups in (data.get("statsPerTeam", {}).get("allTeamsStats") or {}).items():
+        for group in ("ACTIVE", "BENCH"):
+            for scorer_id, entry in ((groups.get(group) or {}).get("statsMap") or {}).items():
+                if scorer_id.startswith("_"):
+                    continue
+                for stat in entry.get("object2") or []:
+                    parts = str(stat.get("scipId", "")).split("#")
+                    recs.append((str(team_id), str(scorer_id), float(entry.get("object1") or 0.0),
+                                 str(stat.get("scipId")), parts[1] if len(parts) == 3 else None,
+                                 stat.get("sv"), float(stat.get("fpts") or 0.0)))
+    return pd.DataFrame(recs, columns=["team_id", "scorer_id", "player_fpts", "scip_id", "category_id",
+                                       "sv", "fpts"])
+
+
+def capture_comparison(lines: pd.DataFrame, rows: pd.DataFrame, crosswalk: pd.DataFrame,
+                       fantrax_pos: pd.Series, links: pd.DataFrame) -> pd.DataFrame:
+    """Per Fantrax position and category, over the compared players and
+    periods the captures hold: Fantrax's summed stat value and points beside
+    our summed count and points, the player-periods whose counts differ and
+    the total absolute count difference, and Fantrax's points per unit. A
+    scorer on two teams counts once, from the team that served him the higher
+    total (the higher-row ruling). `lines` carries a `period` column."""
+    if lines.empty:
+        return pd.DataFrame()
+    top = (lines.drop_duplicates(["period", "scorer_id", "team_id"])
+           .sort_values(["period", "scorer_id", "player_fpts", "team_id"], ascending=[True, True, False, True])
+           .drop_duplicates(["period", "scorer_id"])[["period", "scorer_id", "team_id"]])
+    ft = lines.merge(top, on=["period", "scorer_id", "team_id"])
+    xw = crosswalk.dropna(subset=["gsis_id"]).set_index("scorer_id")["gsis_id"]
+    ft = ft.assign(gsis_id=ft["scorer_id"].map(xw)).dropna(subset=["gsis_id"])
+    ft["gsis_id"] = etl.current_gsis(ft["gsis_id"].astype(str), links)
+    ft["sv"] = pd.to_numeric(ft["sv"], errors="coerce")
+    key = ["gsis_id", "period", "category_id"]
+    theirs = ft.groupby(key, as_index=False).agg(ft_count=("sv", lambda s: s.sum(min_count=1)),
+                                                 ft_points=("fpts", "sum"))
+    players = ft[["gsis_id", "period"]].drop_duplicates()
+    ours = rows.merge(players, on=["gsis_id", "period"])[key + ["stat_count", "points"]]
+    both = theirs.merge(ours, on=key, how="outer").fillna({"ft_points": 0.0, "stat_count": 0.0, "points": 0.0})
+    both["position"] = both["gsis_id"].map(fantrax_pos).fillna("(none)")
+    has_count = both["ft_count"].notna()
+    both["count_diff"] = (both["stat_count"] - both["ft_count"].fillna(0)).where(has_count)
+    out = both.groupby(["position", "category_id"]).agg(
+        player_periods=("gsis_id", "size"),
+        ft_count=("ft_count", lambda s: s.sum(min_count=1)), our_count=("stat_count", "sum"),
+        ft_points=("ft_points", "sum"), our_points=("points", "sum"),
+        count_differs=("count_diff", lambda s: int((s.abs() > 1e-9).sum())),
+        count_abs_diff=("count_diff", lambda s: float(s.abs().sum())))
+    out["ft_points_per_unit"] = out["ft_points"] / out["ft_count"].where(out["ft_count"] != 0)
+    return out.reset_index()
+
+
+FIRST_DOWN_COLUMNS = ("passing_first_downs", "rushing_first_downs", "receiving_first_downs")
+
+
+def print_capture_comparison(year: int, pinfo: dict, crosswalk: pd.DataFrame, fantrax_pos: pd.Series,
+                             links: pd.DataFrame, categories: pd.DataFrame) -> None:
+    """The per-category comparison against 04s's stored captures, printed
+    only for the compared periods whose capture file is present. Reads files
+    already written; fetches nothing."""
+    lines, missing = [], []
+    for period in pinfo["compared"]:
+        path = capture_path(year, period)
+        if not path.exists():
+            missing.append(period)
+            continue
+        try:
+            body = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"[warn] capture for period {period} not read ({type(exc).__name__})")
+            missing.append(period)
+            continue
+        lines.append(capture_lines(body.get("live_scoring") or {}).assign(period=period))
+    if missing:
+        print(f"[drift]   capture: no stored 04s capture read for period(s) {missing}; "
+              f"the category comparison leaves them out")
+    if not lines:
+        return
+    found = pd.concat(lines, ignore_index=True)
+    comp = capture_comparison(found, pinfo["rows"], crosswalk, fantrax_pos, links)
+    codes = categories.set_index("category_id")["category_code"]
+    print(f"[drift]   capture comparison, periods {sorted(found['period'].unique().tolist())}: "
+          f"{int(found['sv'].notna().sum())} of {len(found)} stat lines carry sv")
+    for r in comp.itertuples():
+        ppu = "n/a" if pd.isna(r.ft_points_per_unit) else f"{r.ft_points_per_unit:.3f}"
+        ftc = "n/a" if pd.isna(r.ft_count) else f"{r.ft_count:g}"
+        print(f"[drift]     {r.position} {r.category_id} {codes.get(r.category_id, '?')}: "
+              f"{r.player_periods} player-periods; count Fantrax {ftc} ours {r.our_count:g}; points Fantrax "
+              f"{r.ft_points:.1f} ours {r.our_points:.1f}; counts differ in {r.count_differs} "
+              f"(abs total {r.count_abs_diff:g}); Fantrax points per unit {ppu}")
+    first = found.loc[found["category_id"] == "2657", "scip_id"].value_counts().to_dict()
+    print(f"[drift]     first downs (2657) stat ids in the capture: {first or 'none'}")
+    wk = pinfo["week_counts"]
+    held = found[["scorer_id", "period"]].drop_duplicates()
+    xw = crosswalk.dropna(subset=["gsis_id"]).set_index("scorer_id")["gsis_id"]
+    held = held.assign(gsis_id=etl.current_gsis(held["scorer_id"].map(xw).astype("object"), links))
+    ours = wk.merge(held[["gsis_id", "period"]].drop_duplicates(), on=["gsis_id", "period"])
+    cols = [c for c in FIRST_DOWN_COLUMNS if c in ours.columns]
+    if cols:
+        split = ours.groupby("position")[cols].sum().round(1).to_dict(orient="index")
+        print(f"[drift]     our first downs by kind, per position: {split}")
 
 
 def unit_gaps(df: pd.DataFrame) -> dict[str, float]:
@@ -738,6 +856,7 @@ def main() -> int:
                   f"{f['share_rules']:.1%}, fitted {f['share_fitted']:.1%}; points per unit (rules, fitted): "
                   f"{f['points']}")
         print(f"[drift]   TE gap split: {te_split(df)}")
+        print_capture_comparison(nfl_year, pinfo, crosswalk, fantrax_pos, links, categories)
         gaps = unit_gaps(df)
         zero_units = categories[categories["category_id"].isin(unmapped)].groupby("unit")["category_code"]
         for unit, codes in zero_units:

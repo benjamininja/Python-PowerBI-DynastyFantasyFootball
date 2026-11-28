@@ -315,6 +315,54 @@ class TestOffenseAndTE:
         assert one.set_index("scorer_id")["has_bench"].to_dict() == {"s1": True, "s2": False}
 
 
+FIXTURE = Path(__file__).resolve().parent / "fixtures" / "fantrax" / "live_scoring.json"
+
+
+def live(entries_by_team):
+    """A getLiveScoringStats reply: {team: {scorer: (total, [(scipId, sv, fpts)])}}, all under ACTIVE."""
+    teams = {}
+    for team, entries in entries_by_team.items():
+        stats = {sid: {"object1": tot, "object2": [{"scipId": s, "sv": v, "fpts": f} for s, v, f in lines]}
+                 for sid, (tot, lines) in entries.items()}
+        stats["_1010"] = {"object1": 99.0, "object2": [{"scipId": "1010#2870#-1", "fpts": 99.0}]}
+        teams[team] = {"ACTIVE": {"statsMap": stats}, "BENCH": {"statsMap": {}}}
+    return {"responses": [{"data": {"statsPerTeam": {"allTeamsStats": teams}}}]}
+
+
+class TestCaptureComparison:
+    def test_the_committed_fixture_parses_into_stat_lines(self):
+        import json
+        lines = sh.capture_lines(json.loads(FIXTURE.read_text(encoding="utf-8")))
+        assert len(lines) and lines["category_id"].notna().all()
+        assert not lines["scorer_id"].str.startswith("_").any()
+        assert set(lines.columns) == {"team_id", "scorer_id", "player_fpts", "scip_id", "category_id", "sv", "fpts"}
+
+    def test_a_scorer_on_two_teams_counts_once_from_the_higher_total(self):
+        body = live({"T1": {"s1": (10.0, [("1010#2870#-1", 250, 10.0)])},
+                     "T2": {"s1": (8.0, [("1010#2870#-1", 250, 8.0)]), "s3": (9.0, [("1020#3120#-1", 3, 9.0)])}})
+        lines = sh.capture_lines(body).assign(period=1)
+        assert len(lines) == 3
+        rows = pd.DataFrame({"gsis_id": ["g1", "g3"], "period": [1, 1], "position": ["QB", "DL"],
+                             "category_id": ["2870", "3120"], "stat_count": [250.0, 2.0], "points": [10.0, 7.0]})
+        comp = sh.capture_comparison(lines, rows, CROSSWALK, pd.Series({"g1": "QB", "g3": "DL"}), NO_LINKS)
+        got = comp.set_index(["position", "category_id"])
+        qb = got.loc[("QB", "2870")]
+        assert (qb["ft_count"], qb["our_count"], qb["ft_points"], qb["count_differs"]) == (250, 250, 10.0, 0)
+        assert qb["ft_points_per_unit"] == pytest.approx(0.04)
+        dl = got.loc[("DL", "3120")]
+        assert (dl["ft_count"], dl["our_count"], dl["count_differs"], dl["count_abs_diff"]) == (3, 2, 1, 1.0)
+        assert dl["ft_points_per_unit"] == pytest.approx(3.0)
+
+    def test_a_line_with_no_sv_leaves_the_count_unknown(self):
+        body = live({"T1": {"s1": (10.0, [("1010#2870#-1", None, 10.0)])}})
+        rows = pd.DataFrame({"gsis_id": ["g1"], "period": [1], "position": ["QB"], "category_id": ["2870"],
+                             "stat_count": [250.0], "points": [10.0]})
+        comp = sh.capture_comparison(sh.capture_lines(body).assign(period=1), rows, CROSSWALK,
+                                     pd.Series({"g1": "QB"}), NO_LINKS)
+        row = comp.iloc[0]
+        assert pd.isna(row["ft_count"]) and row["count_differs"] == 0 and pd.isna(row["ft_points_per_unit"])
+
+
 class TestDiagnostics:
     def test_how_the_misses_miss(self):
         df = pd.DataFrame({"ours": [0.0, 0.0, 5.0, 9.6, 30.0, 10.0], "theirs": [0.0, 8.0, 10.0, 10.0, 10.0, 10.0],
@@ -402,6 +450,22 @@ class TestMain:
         assert calls[1][0] == list(range(2011, 2027))
         stats = etl.read_table(sh.STAT_TABLE).set_index(["gsis_id", "season", "category_id"])
         assert stats.loc[("g1", 2011, "2870"), "points"] == pytest.approx(200.0)
+
+    def test_the_capture_comparison_prints_only_where_the_file_is_present(self, world, capsys):
+        import json
+        tmp, _ = world
+        sh.main()
+        assert "no stored 04s capture read for period(s) [1]" in capsys.readouterr().out
+        (tmp / "raw").mkdir()
+        body = {"live_scoring": live({"T1": {"s1": (10.0, [("1010#2870#-1", 250, 10.0)])},
+                                      "T2": {"s3": (10.5, [("1020#3120#-1", 3, 10.5)])}})}
+        (tmp / "raw" / "fantrax_inseason_2026_p01.json").write_text(json.dumps(body), encoding="utf-8")
+        assert sh.main() == 0
+        out = capsys.readouterr().out
+        assert "capture comparison, periods [1]: 2 of 2 stat lines carry sv" in out
+        assert ("QB 2870 YDS: 1 player-periods; count Fantrax 250 ours 250; points Fantrax 10.0 ours 10.0; "
+                "counts differ in 0 (abs total 0); Fantrax points per unit 0.040") in out
+        assert "first downs (2657) stat ids in the capture: none" in out
 
     def test_2025_drift_is_printed_only(self, world, capsys):
         tmp, _ = world
