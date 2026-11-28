@@ -21,6 +21,7 @@
       "PowerShell(*claude.exe agents *)",
       "PowerShell(*claude.exe stop *)",
       "Bash(.venv/Scripts/python.exe scripts/reproof.py *)",
+      "Bash(.venv/Scripts/python.exe scripts/load_fantrax_history.py)",
       "Bash(C:/source/Github/Python-PowerBI-DynastyFantasyFootball/.venv/Scripts/python.exe C:/Users/benha/claude-live/skills-plugins-hooks-agents/tools/reproof.py *)"
     ],
     "deny": [
