@@ -27,7 +27,9 @@
 #
 # **The drift check**, after scoring and before any write: our points
 # against Fantrax's stored figures. 2025: season totals against
-# `fact_fantrax_adp` (season 2025, week YTD, 8 games or more). Each season
+# `fact_fantrax_adp` (season 2025, week YTD, 8 games or more), printed only:
+# it cannot fail the step, because every season is scored under today's
+# rules (the owner's answer, #473 issuecomment-7244229278). Each season
 # `fact_period_scoring` holds: points per closed Scoring Period it holds,
 # nflverse week rows stamped to a period. Fantrax's figure is one per scorer
 # and period, never a sum over teams: a player rostered in both Conferences
@@ -379,7 +381,7 @@ def one_figure(scoring: pd.DataFrame) -> tuple[pd.DataFrame, int, int]:
     too_many = int((by.size() > MAX_ROWS).sum())
     starters = (scoring["is_starter"].astype(bool).groupby([scoring["scorer_id"], scoring["period"]])
                 .transform("sum") if "is_starter" in scoring.columns else pd.Series(0, index=scoring.index))
-    one = (scoring.assign(_low=by["fpts"].transform("min"), _starters=starters)
+    one = (scoring.assign(_low=by["fpts"].transform("min"), _starters=starters, _n=by["fpts"].transform("size"))
            .sort_values(["scorer_id", "period", "fpts", "team_key"], ascending=[True, True, False, True])
            .drop_duplicates(["scorer_id", "period"]).reset_index(drop=True))
     disagree = (one["fpts"] - one["_low"]) > ROW_AGREE + 1e-9
@@ -389,7 +391,8 @@ def one_figure(scoring: pd.DataFrame) -> tuple[pd.DataFrame, int, int]:
     kind[disagree & (one["_starters"] == 1)] = "mixed"
     kind[disagree & (one["_starters"] >= 2)] = "both Starters"
     one["pair_kind"] = kind
-    return one[["scorer_id", "period", *cols, "low", "pair_kind"]], too_many, int(disagree.sum())
+    one["has_bench"] = one["_starters"] < one["_n"]
+    return one[["scorer_id", "period", *cols, "low", "pair_kind", "has_bench"]], too_many, int(disagree.sum())
 
 
 def pair_counts(df: pd.DataFrame) -> dict:
@@ -465,7 +468,10 @@ def period_comparison(weeks: pd.DataFrame, schedule: pd.DataFrame, periods: pd.D
                        "group": group.reindex(key).fillna(NO_GROUP).to_numpy(),
                        "joined": key.isin(ours.index),
                        "low": theirs["low"].to_numpy(),
-                       "pair_kind": theirs["pair_kind"].to_numpy()})
+                       "pair_kind": theirs["pair_kind"].to_numpy(),
+                       "has_bench": theirs["has_bench"].to_numpy(),
+                       "gsis_id": theirs["gsis_id"].to_numpy()})
+    info["rows"] = rows
     for unit, col in UNIT_COLUMNS.items():
         df[f"theirs_{unit}"] = theirs[col].to_numpy()
         mine = units[unit] if unit in units.columns else pd.Series(dtype=float)
@@ -526,6 +532,55 @@ def tackle_fit(ytd: pd.DataFrame, rows: pd.DataFrame, categories: pd.DataFrame,
                     "gap_fitted": float((fitted - theirs).sum()),
                     "share_swapped": float(inside(pd.Series(swapped), th).mean()),
                     "gap_swapped": float((swapped - theirs).sum())}
+    return out
+
+
+def offense_fit(df: pd.DataFrame, rows: pd.DataFrame, categories: pd.DataFrame,
+                points: pd.Series) -> dict[str, dict]:
+    """Per offense position, a least-squares fit of the gap (ours minus
+    Fantrax's) on our count of each Offense category over the compared
+    player-periods: the fitted points per unit (the rules' points less the
+    fitted coefficient) beside the rules' points, and the share inside the
+    bar under the fitted points."""
+    offense = sorted(categories.loc[categories["unit"] == "Offense", "category_id"])
+    off_rows = rows[rows["category_id"].isin(offense)]
+    if off_rows.empty:
+        return {}
+    counts = off_rows.pivot_table(index=["gsis_id", "period"], columns="category_id",
+                                  values="stat_count", aggfunc="sum")
+    codes = categories.set_index("category_id")["category_code"]
+    out = {}
+    for pos in ("QB", "RB", "WR", "TE"):
+        part = df[df["position"] == pos]
+        if part.empty:
+            continue
+        key = pd.MultiIndex.from_frame(part[["gsis_id", "period"]])
+        cats = [c for c in offense if c in counts.columns]
+        x = counts.reindex(key)[cats].fillna(0).to_numpy()
+        gap = (part["ours"] - part["theirs"]).to_numpy()
+        coef, *_ = np.linalg.lstsq(x, gap, rcond=None)
+        fitted = part["ours"].to_numpy() - x @ coef
+        used = x.any(axis=0)
+        out[pos] = {"player_periods": int(len(part)),
+                    "share_rules": round(float(inside(part["ours"], part["theirs"]).mean()), 3),
+                    "share_fitted": round(float(inside(pd.Series(fitted, index=part.index), part["theirs"]).mean()), 3),
+                    "points": {f"{c} {codes.get(c, '')}": (round(float(points[(c, pos)]), 3),
+                                                           round(float(points[(c, pos)] - k), 3))
+                               for c, k, u in zip(cats, coef, used) if u}}
+    return out
+
+
+def te_split(df: pd.DataFrame) -> dict[str, dict]:
+    """The TE gap split: player-periods with a bench row (a figure at his own
+    position's points) and those with Starter rows only."""
+    te = df[df["position"] == "TE"]
+    out = {}
+    for label, part in (("with a bench row", te[te["has_bench"]]), ("Starter rows only", te[~te["has_bench"]])):
+        theirs = float(part["theirs"].sum())
+        gap = float((part["ours"] - part["theirs"]).sum())
+        out[label] = {"player_periods": int(len(part)), "gap": round(gap, 1),
+                      "gap_share": round(gap / theirs, 4) if theirs else None,
+                      "inside_bar": round(float(inside(part["ours"], part["theirs"]).mean()), 3) if len(part) else None}
     return out
 
 
@@ -648,7 +703,8 @@ def main() -> int:
               f"{f['rule_assist']:g}); inside the bar: rules {f['share_rules']:.1%}, fitted "
               f"{f['share_fitted']:.1%} (gap left {f['gap_fitted']:+.1f}), solo and assisted swapped "
               f"{f['share_swapped']:.1%} (gap {f['gap_swapped']:+.1f})")
-    problems += failures(f"{YTD_SEASON}", fig)
+    for line in failures(f"{YTD_SEASON}", fig):
+        print(f"[drift]   printed only, does not fail the step: {line}")
     known = set(players["gsis_id"].dropna())
     for season_id in week_ids:
         nfl_year = nfl_season(season_id)
@@ -677,6 +733,11 @@ def main() -> int:
         print_figures(f"{season_id} all compared periods", fig)
         print(f"[drift]   misses: {miss_counts(df)}")
         print(f"[drift]   disagreeing pairs: {pair_counts(df)}")
+        for pos, f in offense_fit(df, pinfo["rows"], categories, points).items():
+            print(f"[drift]   offense fit {pos}: {f['player_periods']} player-periods; inside the bar: rules "
+                  f"{f['share_rules']:.1%}, fitted {f['share_fitted']:.1%}; points per unit (rules, fitted): "
+                  f"{f['points']}")
+        print(f"[drift]   TE gap split: {te_split(df)}")
         gaps = unit_gaps(df)
         zero_units = categories[categories["category_id"].isin(unmapped)].groupby("unit")["category_code"]
         for unit, codes in zero_units:

@@ -287,6 +287,34 @@ class TestOneFigurePerScorer:
                                       "inside_vs_higher": 0.5, "inside_vs_lower": 0.5}
 
 
+class TestOffenseAndTE:
+    def test_the_offense_fit_finds_the_points_per_unit_that_fit(self):
+        rows = pd.DataFrame({"gsis_id": ["a", "b", "c"], "period": [1, 1, 2], "category_id": ["2870"] * 3,
+                             "stat_count": [100.0, 250.0, 300.0]})
+        df = pd.DataFrame({"gsis_id": ["a", "b", "c"], "period": [1, 1, 2], "position": ["QB"] * 3,
+                           "ours": [4.0, 10.0, 12.0], "theirs": [3.0, 7.5, 9.0]})
+        fit = sh.offense_fit(df, rows, CATEGORIES, points_series())["QB"]
+        assert fit["player_periods"] == 3 and fit["share_rules"] == pytest.approx(1 / 3, abs=1e-3)
+        assert fit["share_fitted"] == 1.0
+        (rule, fitted), = fit["points"].values()
+        assert rule == 0.04 and fitted == pytest.approx(0.03)
+
+    def test_the_te_gap_splits_by_bench_row(self):
+        df = pd.DataFrame({"position": ["TE", "TE", "TE", "WR"], "has_bench": [True, False, False, True],
+                           "ours": [10.0, 12.0, 8.0, 1.0], "theirs": [10.0, 10.0, 8.0, 5.0]})
+        got = sh.te_split(df)
+        assert got["with a bench row"] == {"player_periods": 1, "gap": 0.0, "gap_share": 0.0, "inside_bar": 1.0}
+        assert got["Starter rows only"] == {"player_periods": 2, "gap": 2.0, "gap_share": round(2 / 18, 4),
+                                             "inside_bar": 0.5}
+
+    def test_a_bench_row_is_flagged(self):
+        rows = pd.DataFrame({"scorer_id": ["s1", "s1", "s2"], "period": 1, "team_key": ["t1", "t15", "t1"],
+                             "is_starter": [True, False, True], "fpts": 5.0, "fpts_offense": 5.0,
+                             "fpts_defense": 0.0, "fpts_special_teams": 0.0})
+        one, _, _ = sh.one_figure(rows)
+        assert one.set_index("scorer_id")["has_bench"].to_dict() == {"s1": True, "s2": False}
+
+
 class TestDiagnostics:
     def test_how_the_misses_miss(self):
         df = pd.DataFrame({"ours": [0.0, 0.0, 5.0, 9.6, 30.0, 10.0], "theirs": [0.0, 8.0, 10.0, 10.0, 10.0, 10.0],
@@ -375,14 +403,22 @@ class TestMain:
         stats = etl.read_table(sh.STAT_TABLE).set_index(["gsis_id", "season", "category_id"])
         assert stats.loc[("g1", 2011, "2870"), "points"] == pytest.approx(200.0)
 
-    def test_drift_past_the_threshold_fails_before_any_write(self, world, capsys):
+    def test_2025_drift_is_printed_only(self, world, capsys):
         tmp, _ = world
         adp(g2_fpts=200.0).to_parquet(tmp / "fact_fantrax_adp.parquet", index=False)
-        with pytest.raises(sh.DriftError, match="2025"):
+        assert sh.main() == 0
+        out = capsys.readouterr().out
+        assert "2025 season totals: 3 compared" in out
+        assert "printed only, does not fail the step: 2025: 66.7% of 3 compared pass" in out
+        assert (tmp / f"{sh.STAT_TABLE}.parquet").exists()
+
+    def test_2026_drift_past_the_bar_fails_before_any_write(self, world, capsys):
+        tmp, _ = world
+        PERIOD_SCORING.assign(fpts=[20.0, 10.5, 99.0]).to_parquet(tmp / "fact_period_scoring.parquet", index=False)
+        with pytest.raises(sh.DriftError, match="2026-2027"):
             sh.main()
         assert not (tmp / f"{sh.STAT_TABLE}.parquet").exists()
         assert not (tmp / f"{sh.PLAYER_TABLE}.parquet").exists()
-        assert "2025 season totals: 3 compared" in capsys.readouterr().out
 
     def test_a_player_in_both_conferences_is_compared_once(self, world, capsys):
         tmp, _ = world
