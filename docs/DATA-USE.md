@@ -1,9 +1,12 @@
 # How this project uses other sites' data
 
-Last updated: 2026-11-12
+Last updated: 2026-11-28
 
 Material changes are noted here, at the top. Every change to this page goes
 through a pull request.
+
+- 2026-11-28: Until this day a scheduled script signed in to Fantrax as a
+  commissioner, at most once a day. That has stopped.
 
 ## 1. Who we are
 
@@ -27,8 +30,11 @@ run. That is the whole purpose.
    page.
 2. We honour robots.txt: the `User-agent: *` group, and any lines that name
    our agent.
-3. We run at most one scheduled run a day per source. For Fantrax, we stay
-   within the login limits we have set ourselves.
+3. We run at most one scheduled run a day per source. No scheduled run
+   signs in to Fantrax: our scheduled reads of Fantrax use only its
+   published `fxea` interface. A commissioner downloads the league's
+   transaction history by hand, with the site's own download button, about
+   once a week.
 4. A 403 is never retried. A 429 makes us back off.
 5. We check each site's terms before we build a reader for it, and again
    each season.
