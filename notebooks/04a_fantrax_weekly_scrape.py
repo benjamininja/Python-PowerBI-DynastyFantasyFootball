@@ -248,18 +248,27 @@ class FantraxScraper:
     SESSION_DIR_ENV = "FANTRAX_SESSION_DIR"
     LOGIN_LEDGER = "logins"
     BLOCKED_LEDGER = "blocked"
+    FAILED_LEDGER = "failed"
     LOGIN_CAP_PER_RUN = 2
     SESSION_FILE = "session.json"
     STILL_DEAD = ("Still WARNING_NOT_LOGGED_IN after login. Check .env creds, or run once "
                   "with CFG.headless=False to clear a Cloudflare/captcha gate.")
+    LOGIN_ERROR_SELECTOR = "mat-error, [role='alert']"
     # What a login left on /login can show. Reported as yes/no only: the run log
     # is public, so no page text and no value ever leaves the page.
     LOGIN_PAGE_SIGNALS = (
         ("Cloudflare challenge", "iframe[src*='challenges.cloudflare.com']"),
         ("captcha frame", "iframe[src*='captcha']"),
-        ("error message", "mat-error, [role='alert']"),
+        ("error message", LOGIN_ERROR_SELECTOR),
         ("code prompt", CODE_FIELD),
         ("login form", "input[formcontrolname='password']"),
+    )
+    LOGIN_ERROR_KINDS = (
+        ("robot check", ("captcha", "robot", "human", "recaptcha")),
+        ("too many attempts", ("too many", "try again later", "rate limit", "attempts")),
+        ("locked", ("locked", "suspended", "disabled", "blocked")),
+        ("wrong password", ("password", "incorrect", "invalid", "wrong",
+                            "not match", "not recognized")),
     )
 
     def __init__(self, cfg: LeagueConfig = CFG):
@@ -281,9 +290,17 @@ class FantraxScraper:
     def _note_login(self) -> None:
         folder = self._session_dir()
         if folder is not None:
+            script = Path(sys.argv[0]).name
+            failed = folder / self.FAILED_LEDGER
+            if failed.exists() and failed.read_text(encoding="utf-8").strip():
+                with (folder / self.BLOCKED_LEDGER).open("a", encoding="utf-8") as f:
+                    f.write(script + "\n")
+                raise LoginCapReached(
+                    "Fantrax login refused: a login already failed in this run, so no "
+                    "further login was tried. The step catches up at the next run."
+                )
             ledger = folder / self.LOGIN_LEDGER
             used = len(ledger.read_text(encoding="utf-8").splitlines()) if ledger.exists() else 0
-            script = Path(sys.argv[0]).name
             if used >= self.LOGIN_CAP_PER_RUN:
                 with (folder / self.BLOCKED_LEDGER).open("a", encoding="utf-8") as f:
                     f.write(script + "\n")
@@ -294,6 +311,12 @@ class FantraxScraper:
             with ledger.open("a", encoding="utf-8") as f:
                 f.write(script + "\n")
         self._fresh_login = True
+
+    def _note_failed_login(self) -> None:
+        folder = self._session_dir()
+        if folder is not None:
+            with (folder / self.FAILED_LEDGER).open("a", encoding="utf-8") as f:
+                f.write(Path(sys.argv[0]).name + "\n")
 
     def _seed_session(self, ctx) -> None:
         self._seeded = True
@@ -411,7 +434,19 @@ class FantraxScraper:
                 seen["Cloudflare challenge"] = "yes"
         except Exception:
             pass
+        seen["error kind"] = (self._login_error_kind(page)
+                              if seen.get("error message") == "yes" else "none")
         return seen
+
+    def _login_error_kind(self, page) -> str:
+        try:
+            text = (page.locator(self.LOGIN_ERROR_SELECTOR).first.inner_text() or "").lower()
+        except Exception:
+            return "other"
+        for kind, words in self.LOGIN_ERROR_KINDS:
+            if any(word in text for word in words):
+                return kind
+        return "other"
 
     def _report_unfinished_login(self, seen: dict[str, str]) -> None:
         print(f"[warn] Fantrax login did not finish: still on the login page after "
@@ -545,6 +580,7 @@ class FantraxScraper:
             self._login(page)
             raw = self._post_json(ctx, payload, what)
             if self._session_dead(raw):
+                self._note_failed_login()
                 raise SessionStillDead(self._still_dead_message())
         return raw
 
