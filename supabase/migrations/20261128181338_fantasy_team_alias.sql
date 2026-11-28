@@ -1,4 +1,4 @@
--- registry_state sha256: a9714c3c027b5ad6d7d0fe0d2161cbb5f7cc5a8213b1efb83d63c56445989156
+-- registry_state sha256: 701fcf742bd9bc36db7dbf823ae21ee81347e3486b1420b771f8147dd23e727e
 
 CREATE TABLE ops.dim_fantasy_team_alias (
     name_clean text NOT NULL,
