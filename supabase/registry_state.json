@@ -3880,6 +3880,50 @@
         }
       ]
     },
+    "ops.dim_fantasy_team_alias": {
+      "checks": [
+        "decision IN ('seed', 'guess', 'owner')"
+      ],
+      "columns": [
+        {
+          "name": "name_clean",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "fantrax_team_id",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "decision",
+          "not_null": true,
+          "sql_type": "text"
+        },
+        {
+          "name": "score",
+          "not_null": false,
+          "sql_type": "integer"
+        },
+        {
+          "name": "source",
+          "not_null": false,
+          "sql_type": "text"
+        },
+        {
+          "name": "recorded_at",
+          "not_null": true,
+          "sql_type": "timestamptz"
+        }
+      ],
+      "fks": [],
+      "indexes": [],
+      "name": "dim_fantasy_team_alias",
+      "pk": [
+        "name_clean"
+      ],
+      "schema": "ops"
+    },
     "ops.dim_fantrax_crosswalk_override": {
       "checks": [
         "origin IN ('csv', 'apply_script', 'form')"

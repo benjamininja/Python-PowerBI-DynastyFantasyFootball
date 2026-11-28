@@ -11,8 +11,16 @@ storage seam. It makes no network request.
 - A move already on the stored ledger keeps Fantrax's id; a new move gets a
   minted `hand:` id, a hash of what groups it, so the same file loads the
   same way twice.
-- A team or player the stored tables cannot name exactly goes to
-  data/review/review_txn_history.csv and is left out. Nothing is guessed.
+- A team name resolves through the crosswalk dim_fantasy_team_alias, then
+  the current names of dim_fantasy_teams, then a fuzzy guess of 90 or more
+  (#770). Every name not resolved by a stored name is listed, once, in
+  data/review/review_team_names.csv for the owner: the names that need his
+  team id first, the taken guesses last. `scripts/load_team_names.py --apply`
+  writes that file into the crosswalk. `--write` refuses while a name
+  resolves only by a guess not yet applied.
+- A team or player still unresolved goes to
+  data/review/review_txn_history.csv and is left out. A player is never
+  guessed.
 - Every load is first built in a shadow (the seam's capture mode, into
   data/review/txn_history_shadow/, its pick-review files beside it), and the
   run prints, as counts, how it agrees with the stored tables. `--write` then
@@ -55,6 +63,7 @@ PICK = re.compile(r"^(\d{4}) Draft Pick, Round (\d+)(?: Pick (\d+))?(?: \((.*)\)
 STAMP = re.compile(r"-(\d{8})(?:_(\d{4}))?\.csv$")
 SHADOW_DIR = REVIEW / "txn_history_shadow"
 REVIEW_PATH = REVIEW / "review_txn_history.csv"
+TEAM_REVIEW_PATH = etl.TEAM_NAME_REVIEW_PATH
 REVIEW_COLS = ["view", "line", "player", "team", "reason"]
 SHADOW_TABLES = ("fact_roster_transactions", "fact_trade_log", "dim_roster_asset")
 
@@ -102,14 +111,25 @@ def minute(text):
 
 # ---- Names -> keys -------------------------------------------------------------
 class Names:
-    """Exact-name lookups for teams and players, from the stored tables."""
+    """Team and player lookups from the stored tables. A team name resolves
+    through the crosswalk, then the current names, then a fuzzy guess of 90
+    or more (#770); every name it cannot take goes on the owner's list."""
 
-    def __init__(self, teams: pd.DataFrame, crosswalk: pd.DataFrame, roster: set):
-        counts = teams["team_name"].str.strip().str.lower().value_counts()
-        self.teams = {n.strip().lower(): (k, f) for n, k, f in
-                      zip(teams["team_name"], teams["team_key"], teams["fantrax_team_id"])
-                      if isinstance(n, str) and counts[n.strip().lower()] == 1}
-        self.ambiguous_teams = set(counts[counts > 1].index)
+    def __init__(self, teams: pd.DataFrame, crosswalk: pd.DataFrame, roster: set,
+                 aliases: pd.DataFrame | None = None):
+        self.team_key = dict(zip(teams["fantrax_team_id"], teams["team_key"]))
+        self.team_name = dict(zip(teams["team_key"], teams["team_name"]))
+        # A crosswalk row whose team id dim_fantasy_teams no longer holds is
+        # left out and counted, so it can neither resolve nor seed a guess.
+        self.stale_aliases = 0
+        if aliases is not None:
+            live = aliases["fantrax_team_id"].isin(set(self.team_key))
+            self.stale_aliases = int((~live).sum())
+            aliases = aliases[live]
+        self.known = etl.team_names(teams, aliases)
+        self.resolved = {}      # name_clean -> crosswalk | current | guess
+        self.listed = {}        # name_clean -> [name as first seen, rows, TeamMatch]
+        self.raw_forms = {}     # name as 02d keys a pick hint -> team_key, for each name resolved
         self.players = {}
         for r in crosswalk.itertuples():
             self.players.setdefault(etl.clean_name_for_match(r.player_name), []).append(r)
@@ -117,10 +137,70 @@ class Names:
 
     def team(self, name):
         """(team_key, fantrax_team_id), or (None, reason)."""
-        key = str(name).strip().lower()
-        if key in self.teams:
-            return self.teams[key]
-        return None, "ambiguous_team" if key in self.ambiguous_teams else "unknown_team"
+        clean = etl.clean_team_name(name)
+        if not clean:
+            return None, "unknown_team"
+        if clean in self.known.ambiguous:
+            self._list(clean, name, etl.TeamMatch(None, "two_teams", None, None))
+            return None, "ambiguous_team"
+        team_id, origin = self.known.lookup.get(clean, (None, None))
+        if team_id in self.team_key:
+            self.resolved[clean] = origin
+            self.raw_forms[str(name).strip().lower()] = self.team_key[team_id]
+            return self.team_key[team_id], team_id
+        match = (self.listed[clean][2] if clean in self.listed
+                 else etl.match_team_name(clean, self.known.known))
+        self._list(clean, name, match)
+        if match.fantrax_team_id in self.team_key:
+            self.resolved[clean] = "guess"
+            self.raw_forms[str(name).strip().lower()] = self.team_key[match.fantrax_team_id]
+            return self.team_key[match.fantrax_team_id], match.fantrax_team_id
+        return None, "unknown_team"
+
+    def _list(self, clean, name, match):
+        entry = self.listed.setdefault(clean, [str(name).strip(), 0, match])
+        entry[1] += 1
+
+    def guessed(self) -> int:
+        """Names resolved only by a guess the crosswalk does not hold yet."""
+        return sum(1 for how in self.resolved.values() if how == "guess")
+
+    def name_counts(self) -> dict:
+        """Distinct names: resolved by the crosswalk, by a current name, by a
+        guess, and on the owner's list (two_teams, no_guess, guess_70_89)."""
+        how = pd.Series(list(self.resolved.values()), dtype="object").value_counts()
+        return {"crosswalk": int(how.get("crosswalk", 0)), "current": int(how.get("current", 0)),
+                "guess": int(how.get("guess", 0)),
+                "listed": sum(1 for _, _, m in self.listed.values() if m.fantrax_team_id is None)}
+
+    def pick_hints(self) -> dict:
+        """The whole of 02d's pick-hint lookup for this load (`hint.strip().lower()`
+        -> team_key): every name the crosswalk or a current name resolves, and
+        each name as this run saw it and resolved it. It replaces 02d's own
+        lookup of current names, so a name this loader holds ambiguous, or
+        lists, resolves to no team in 02d either."""
+        out = {clean: self.team_key[team_id] for clean, (team_id, _) in self.known.lookup.items()
+               if team_id in self.team_key}
+        out.update(self.raw_forms)
+        return out
+
+    def review_frame(self) -> pd.DataFrame:
+        """The owner's list: one row per distinct name not resolved by a stored
+        name. The rows that need him come first, the taken guesses last."""
+        rows = []
+        for clean, (raw, n, m) in self.listed.items():
+            guess_key = self.team_key.get(m.best_guess)
+            rows.append({"name": raw, "rows": n, "reason": m.reason,
+                         "best_guess_team_key": guess_key,
+                         "best_guess_team_name": self.team_name.get(guess_key),
+                         "best_guess_score": m.score,
+                         "fantrax_team_id": m.fantrax_team_id})
+        frame = pd.DataFrame(rows, columns=etl.TEAM_NAME_REVIEW_COLS)
+        order = {r: i for i, r in enumerate(etl.TEAM_NAME_REASONS)}
+        frame["_order"] = frame["reason"].map(order)
+        frame = frame.sort_values(["_order", "rows", "name"], ascending=[True, False, True], kind="stable")
+        frame["best_guess_score"] = frame["best_guess_score"].astype("Int64")
+        return frame.drop(columns="_order").reset_index(drop=True)
 
     def player(self, name, nfl_team, position, team_key):
         """(scorer_id, None) for exactly one crosswalk row of this name, else
@@ -220,22 +300,30 @@ def _components(legs: list) -> list:
     return [find(leg["from"]) for leg in legs]
 
 
-def trade_rows(frame, names: Names, moves: dict, picks: dict, review: list, counts: dict) -> list:
+def trade_rows(frame, names: Names, moves: dict, picks: dict, review: list, counts: dict,
+               left_picks: list | None = None) -> list:
     """Trade rows -> 04t rows. The file has no trade id: legs of one minute
     whose teams connect are one trade. A trade the store already holds keeps
     its id; legs one minute groups but the store holds under several ids keep
-    theirs, and a leg among them the store lacks is counted as ungroupable."""
+    theirs, and a leg among them the store lacks is counted as ungroupable.
+    A pick's owner hint is a team name too, so it is looked up (and listed)
+    like the others. `left_picks` gets the (year, round) of each pick leg
+    left out."""
     legs = []
     for r in frame.itertuples():
         (from_key, from_id), (to_key, to_id), at = names.team(r[4]), names.team(r.to), minute(r.date)
         reason = (from_id if from_key is None else to_id if to_key is None
                   else "bad_date" if pd.isna(at) else None)
         pick = PICK.match(r.player.strip())
+        if pick and pick.group(4):
+            names.team(pick.group(4))
         sid = None
         if reason is None and pick is None:
             sid, reason = names.player(r.player, r.nfl_team, r.position, from_key)
         if reason is not None:
             review.append(("TRADE", r.line, r.player if pick is None else "", r[4], reason))
+            if pick and left_picks is not None:
+                left_picks.append((int(pick.group(1)), int(pick.group(2))))
             continue
         leg = {"row": r, "from": from_key, "to": to_key, "from_id": from_id, "to_id": to_id,
                "at": at, "sid": sid, "pick": pick.groups() if pick else None}
@@ -309,6 +397,47 @@ def _read(name):
     return etl.read_table(name) if etl.table_exists(name) else None
 
 
+def team_names_review(names: Names) -> None:
+    """Write the owner's list of team names (#770) and print its counts.
+    The file is rebuilt on every run; a run with nothing to list removes it."""
+    frame = names.review_frame()
+    counts = names.name_counts()
+    print(f"[info] team names: {counts['crosswalk']} resolved by the crosswalk, {counts['current']} "
+          f"by a current name, {counts['guess']} taken by a guess of {etl.TEAM_NAME_TAKE} or more, "
+          f"{counts['listed']} on the owner's list")
+    if names.stale_aliases:
+        print(f"[warn] {names.stale_aliases} crosswalk row(s) name a team id dim_fantasy_teams no "
+              f"longer holds -- left out of the lookup")
+    if not len(frame):
+        TEAM_REVIEW_PATH.unlink(missing_ok=True)
+        return
+    TEAM_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
+    frame.to_csv(TEAM_REVIEW_PATH, index=False)
+    by_reason = frame["reason"].value_counts().to_dict()
+    need = int((frame["reason"] != "guess_90").sum())
+    print(f"[warn] {TEAM_REVIEW_PATH.name}: {need} name(s) need the owner's team id, "
+          f"{len(frame) - need} taken guess(es) are only for him to look over {by_reason}")
+
+
+def pick_gaps(shadow_dir, left_picks: list) -> dict:
+    """The picks the shadow build left with an owner Fantrax does not report,
+    split by whether a pick leg left out of the load has the same draft year
+    and round (and so may explain the gap)."""
+    path = Path(shadow_dir) / rt.PICK_OWNER_REVIEW_PATH.name
+    if not path.exists():
+        return {"explained": 0, "not_explained": 0}
+    gaps = pd.read_csv(path, dtype=str)
+    year_round = {}
+    for name in ("fact_draft_pick", "fact_draft_pick_future"):
+        frame = _read(name)
+        if frame is not None:
+            year_round.update({ref: (int(str(season)[:4]), int(rnd)) for ref, season, rnd in
+                               zip(frame["pick_ref"], frame["draft_season"], frame["round"])})
+    left = set(left_picks)
+    explained = int(gaps["pick_ref"].map(lambda ref: year_round.get(ref) in left).sum())
+    return {"explained": explained, "not_explained": len(gaps) - explained}
+
+
 # ---- Run -----------------------------------------------------------------------
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Load the hand-downloaded transaction history.")
@@ -341,13 +470,16 @@ def main(argv=None) -> dict:
     lk = rt.load_lookups()
     state = _read("fact_roster_state")
     roster = set() if state is None else set(zip(state["team_key"], state["scorer_id"]))
-    names = Names(etl.read_table("dim_fantasy_teams"), etl.read_table("dim_fantrax_crosswalk"), roster)
+    names = Names(etl.read_table("dim_fantasy_teams"), etl.read_table("dim_fantrax_crosswalk"), roster,
+                  aliases=_read(etl.TEAM_ALIAS_TABLE))
     ledger, trade_log = _read("fact_roster_transactions"), _read("fact_trade_log")
     moves, picks = stored_ids(ledger, trade_log)
 
-    review, counts = [], {}
-    rows = (trade_rows(frames["TRADE"], names, moves, picks, review, counts)
+    review, counts, left_picks = [], {}, []
+    rows = (trade_rows(frames["TRADE"], names, moves, picks, review, counts, left_picks)
             + claim_drop_rows(frames["CLAIM_DROP"], names, moves, review, counts))
+    team_names_review(names)
+    lk = lk._replace(name_lut=names.pick_hints())
     if review:
         REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(review, columns=REVIEW_COLS).to_csv(REVIEW_PATH, index=False)
@@ -372,7 +504,10 @@ def main(argv=None) -> dict:
     store_only = move_keys(ledger) - loaded
     if store_only:
         by_type = pd.Series([k[0] for k in store_only]).value_counts().to_dict()
-        print(f"[warn] {len(store_only)} stored move(s) are not in the download {by_type}")
+        by_season = (pd.Series([rt._season_id_for(k[3], lk.spans) for k in store_only], dtype="object")
+                     .fillna("no season").value_counts().to_dict())
+        print(f"[warn] {len(store_only)} stored move(s) are not in the download {by_type}; "
+              f"by season {by_season}")
     startup = (ledger[ledger["event_type"] == rt.EVENT_TYPE] if ledger is not None
                else pd.DataFrame(columns=rt.LEDGER_COLS))
 
@@ -390,15 +525,24 @@ def main(argv=None) -> dict:
     with etl.capturing(args.shadow_dir):
         new_ledger, new_log = build(review_dir=args.shadow_dir)
 
-    result = {"store_only": len(store_only), "review": len(review), **counts}
+    result = {"store_only": len(store_only), "review": len(review), **counts,
+              "team_names": names.name_counts(),
+              "pick_gaps": pick_gaps(args.shadow_dir, left_picks)}
     is_move = lambda f: None if f is None else f[f["event_type"].isin(rt.TXN_EVENT_TYPES)]
     if new_ledger is not None:
         result["ledger"] = agreement(is_move(ledger), is_move(new_ledger), rt.LEDGER_KEY, ("event_seq",))
     if new_log is not None:
         result["trade_log"] = agreement(trade_log, new_log, ["transaction_id", "asset_id"])
+    if any(result["pick_gaps"].values()):
+        print(f"[info] picks whose last owner Fantrax does not report: {result['pick_gaps']} "
+              f"(explained = a left-out pick leg of the same draft year and round)")
     print(f"[ok] built in the shadow ({args.shadow_dir.name}); against the stored tables: "
           f"ledger moves {result.get('ledger')}, trade log {result.get('trade_log')}")
     if args.write:
+        if names.guessed():
+            raise SystemExit(f"[error] --write: {names.guessed()} team name(s) resolve only by a "
+                             f"guess not yet applied -- run load_team_names.py --apply on "
+                             f"{etl.TEAM_NAME_REVIEW_PATH.name} first; nothing written to the store")
         lost = {name: result[name]["gone"] for name in ("ledger", "trade_log")
                 if result.get(name, {}).get("gone")}
         if lost or store_only:

@@ -154,6 +154,88 @@ def clean_name_for_match(name: str) -> str:
     n = _MATCH_SUFFIX.sub("", n)
     return re.sub(r"\s+", " ", n).strip()
 
+# ── Team names -> team ids (#770) ────────────────────────────────────
+# Teams change their names often, so a source that names a team only by its
+# name resolves it through the crosswalk dim_fantasy_team_alias, then the
+# current names of dim_fantasy_teams, and only then by a fuzzy guess, in the
+# project's bands: 90 or more is taken, 70 to 89 goes to the owner's list
+# with its best guess, under 70 to the list with none, and two teams in one
+# band always go to the list. A name is a row in the crosswalk, never an `if`.
+TEAM_ALIAS_TABLE = "dim_fantasy_team_alias"
+TEAM_NAME_TAKE, TEAM_NAME_REVIEW = 90, 70
+TEAM_NAME_REVIEW_PATH = REVIEW / "review_team_names.csv"
+TEAM_NAME_REVIEW_COLS = ["name", "rows", "reason", "best_guess_team_key", "best_guess_team_name",
+                         "best_guess_score", "fantrax_team_id"]
+TEAM_NAME_REASONS = ("two_teams", "no_guess", "guess_70_89", "guess_90")
+
+
+def clean_team_name(name) -> str:
+    """A team name as the crosswalk keys it: trimmed, case-folded, its inner
+    spaces collapsed. Anything but text is the empty name."""
+    if not isinstance(name, str):
+        return ""
+    return " ".join(name.split()).casefold()
+
+
+class TeamNames(NamedTuple):
+    """The names that resolve a team with no guess."""
+    lookup: dict      # name_clean -> (fantrax_team_id, "crosswalk" | "current")
+    ambiguous: set    # name_clean the stored rows give to more than one team
+    known: list       # every stored (name_clean, fantrax_team_id), for the fuzzy match
+
+
+def team_names(teams: pd.DataFrame, aliases: pd.DataFrame | None = None) -> TeamNames:
+    """The crosswalk's rows, then the current names of `teams`
+    (dim_fantasy_teams). A name they give to two teams is ambiguous: it
+    resolves to neither."""
+    pairs = []
+    if aliases is not None:
+        pairs += [(n, f, "crosswalk") for n, f in zip(aliases["name_clean"], aliases["fantrax_team_id"])]
+    pairs += [(clean_team_name(n), f, "current") for n, f in zip(teams["team_name"], teams["fantrax_team_id"])]
+    ids, lookup = {}, {}
+    for name, team_id, origin in pairs:
+        if not name or not isinstance(team_id, str) or not team_id:
+            continue
+        ids.setdefault(name, set()).add(team_id)
+        lookup.setdefault(name, (team_id, origin))
+    ambiguous = {n for n, found in ids.items() if len(found) > 1}
+    return TeamNames({n: v for n, v in lookup.items() if n not in ambiguous}, ambiguous,
+                     sorted({(n, t) for n, found in ids.items() for t in found}))
+
+
+class TeamMatch(NamedTuple):
+    """A fuzzy match of one name. `fantrax_team_id` is set only when the guess
+    is taken; `best_guess` is the best team, shown on a list row."""
+    fantrax_team_id: str | None
+    reason: str                    # one of TEAM_NAME_REASONS
+    score: int | None
+    best_guess: str | None
+
+
+def _team_band(score) -> str:
+    return "take" if score >= TEAM_NAME_TAKE else "review" if score >= TEAM_NAME_REVIEW else "none"
+
+
+def match_team_name(name, known) -> TeamMatch:
+    """`name` against every (name_clean, fantrax_team_id) in `known` with
+    fuzz.token_sort_ratio, each team scored by its best name."""
+    clean = clean_team_name(name)
+    best = {}
+    for candidate, team_id in known:
+        score = fuzz.token_sort_ratio(clean, candidate)
+        if score > best.get(team_id, -1):
+            best[team_id] = score
+    ranked = sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))
+    if not ranked or _team_band(ranked[0][1]) == "none":
+        return TeamMatch(None, "no_guess", None, None)
+    team_id, score = ranked[0]
+    if len(ranked) > 1 and _team_band(ranked[1][1]) == _team_band(score):
+        return TeamMatch(None, "two_teams", int(score), team_id)
+    if _team_band(score) == "take":
+        return TeamMatch(team_id, "guess_90", int(score), team_id)
+    return TeamMatch(None, "guess_70_89", int(score), team_id)
+
+
 def generate_player_key(name: str, position: str, school: str) -> str:
     # Deterministic 12-char MD5 hash -- matches keys generated in 01.
     raw = f"{clean_player_name(name)}|{str(position).upper().strip()}|{str(school).strip().lower()}"

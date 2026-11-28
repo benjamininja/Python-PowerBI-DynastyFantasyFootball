@@ -732,6 +732,33 @@ tables:
       decision is one row from the Record a crosswalk override workflow
       (origin form, note = the run id). The pattern of dim_player_alias.
 
+  - name: dim_fantasy_team_alias
+    type: resolver
+    schema: ops
+    grain: name_clean
+    pk: [name_clean]
+    required_keys: [name_clean, fantrax_team_id, decision, recorded_at]
+    checks:
+      - "decision IN ('seed', 'guess', 'owner')"
+    columns:
+      - { name: name_clean, dtype: str, sql_type: text }
+      - { name: fantrax_team_id, dtype: str, sql_type: text }
+      - { name: decision, dtype: str, sql_type: text }
+      - { name: score, dtype: Int64, sql_type: integer }
+      - { name: source, dtype: str, sql_type: text }
+      - { name: recorded_at, dtype: "datetime64[us, UTC]", sql_type: timestamptz }
+    edges: []
+    notes: >
+      Every name a fantasy team has carried, to its fantrax_team_id (#770):
+      teams change their names often, and a source that names a team only by
+      its name (the owner's hand download, a pick's owner hint) resolves
+      through this table first, then the current names of dim_fantasy_teams.
+      name_clean is etl.clean_team_name of the name. decision seed is a name
+      a stored table or the 04t capture pairs with its id; guess a fuzzy
+      match of 90 or more the owner saw in his Review file; owner a name he
+      filled in. Written by scripts/load_team_names.py only (the seed, and
+      --apply of the Review file). Private: its rows are team names.
+
   - name: fact_startup_draft_slot
     type: fact
     schema: ops

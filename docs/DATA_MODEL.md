@@ -34,6 +34,7 @@ graph LR
     dim_player_alias{{dim_player_alias}}
     dim_roster_asset{{dim_roster_asset}}
     dim_fantrax_crosswalk_override{{dim_fantrax_crosswalk_override}}
+    dim_fantasy_team_alias{{dim_fantasy_team_alias}}
     fact_startup_draft_slot[(fact_startup_draft_slot)]
     dim_startup_draft_scorer[dim_startup_draft_scorer]
     fact_nfl_combine_pro_day_metrics[(fact_nfl_combine_pro_day_metrics)]
@@ -165,6 +166,7 @@ graph LR
     class dim_player_alias resolver;
     class dim_roster_asset resolver;
     class dim_fantrax_crosswalk_override resolver;
+    class dim_fantasy_team_alias resolver;
     class fact_startup_draft_slot fact;
     class dim_startup_draft_scorer dim;
     class fact_nfl_combine_pro_day_metrics fact;

@@ -1,0 +1,22 @@
+-- registry_state sha256: 701fcf742bd9bc36db7dbf823ae21ee81347e3486b1420b771f8147dd23e727e
+
+CREATE TABLE ops.dim_fantasy_team_alias (
+    name_clean text NOT NULL,
+    fantrax_team_id text NOT NULL,
+    decision text NOT NULL,
+    score integer,
+    source text,
+    recorded_at timestamptz NOT NULL,
+    CONSTRAINT dim_fantasy_team_alias_pkey PRIMARY KEY (name_clean),
+    CONSTRAINT dim_fantasy_team_alias_chk_c7509287 CHECK (decision IN ('seed', 'guess', 'owner'))
+);
+
+ALTER TABLE ops.dim_fantasy_team_alias ENABLE ROW LEVEL SECURITY;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON ops.dim_fantasy_team_alias TO etl_writer;
+
+GRANT SELECT ON ops.dim_fantasy_team_alias TO etl_reader;
+
+CREATE POLICY etl_writer_all ON ops.dim_fantasy_team_alias FOR ALL TO etl_writer USING (true) WITH CHECK (true);
+
+CREATE POLICY etl_reader_select ON ops.dim_fantasy_team_alias FOR SELECT TO etl_reader USING (true);

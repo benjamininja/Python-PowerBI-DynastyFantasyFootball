@@ -174,7 +174,9 @@ class TestTheRegistry:
         assert errs == []
 
     def test_every_table_has_a_pk_equal_to_its_grain(self):
-        assert len(PUBLISHED) == 41 and len(PRIVATE) == 3
+        assert len(PUBLISHED) == 41 and len(PRIVATE) == 4
+        assert {t["name"] for t in PRIVATE} == {"dim_fantrax_crosswalk_override", "fact_startup_draft_slot",
+                                                "dim_startup_draft_scorer", "dim_fantasy_team_alias"}
         for t in TABLES:
             assert t["pk"] == [c.strip() for c in t["grain"].strip("()").split(",")], t["name"]
 
@@ -229,6 +231,7 @@ class TestTheRegistry:
                          ("fact_team_cap", "roster_captured_at"),
                          ("fact_team_cap", "fantrax_captured_at"),
                          ("dim_fantrax_crosswalk_override", "recorded_at"),
+                         ("dim_fantasy_team_alias", "recorded_at"),
                          ("fact_startup_draft_slot", "picked_at")}
         for t in TABLES:
             for c in t["columns"]:
