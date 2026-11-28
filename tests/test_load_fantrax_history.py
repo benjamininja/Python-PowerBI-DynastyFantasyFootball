@@ -392,6 +392,61 @@ class TestTeamNameCrosswalk:
         assert ledger.loc[("claim", "s3"), "team_key"] == "A03"
         assert not lf.TEAM_REVIEW_PATH.exists()
 
+    def fill(self, name, team_id):
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str)
+        listed.loc[listed["name"] == name, "fantrax_team_id"] = team_id
+        listed.to_csv(lf.TEAM_REVIEW_PATH, index=False)
+
+    def test_a_second_run_keeps_the_team_id_the_owner_filled(self, data, capsys):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        run(data)
+        self.fill("Zulu Club", "f3")
+        capsys.readouterr()
+        run(data)
+        out = capsys.readouterr().out
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str).set_index("name")
+        assert listed.loc["Zulu Club", "fantrax_team_id"] == "f3"
+        assert listed.loc["Zulu Club", "reason"] == "no_guess"
+        assert listed.loc["Team Bravoo", "fantrax_team_id"] == "f2"
+        assert len(listed) == 2
+        assert "1 team id(s) the owner filled carried onto the new list, 0 kept" in out
+        for value in ("Zulu", "Bravoo", "f2", "f3"):
+            assert value not in out
+
+    def test_a_guess_the_loader_filled_is_rebuilt_not_kept(self, data, capsys):
+        download(data / "raw", "20261121_0800", claims=RENAMED)
+        run(data)
+        download(data / "raw", "20261128_0752", claims=CLAIM_ROWS + [ZULU])
+        capsys.readouterr()
+        run(data)
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str)
+        assert listed["name"].tolist() == ["Zulu Club"]
+        assert pd.isna(listed.loc[0, "fantrax_team_id"])
+        assert "carried" not in capsys.readouterr().out
+
+    def test_a_guess_the_owner_changed_is_his(self, data):
+        download(data / "raw", "20261128_0752", claims=RENAMED)
+        run(data)
+        self.fill("Team Bravoo", "f1")
+        run(data)
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str).set_index("name")
+        assert listed.loc["Team Bravoo", "fantrax_team_id"] == "f1"
+
+    def test_a_filled_row_stays_until_the_crosswalk_holds_it(self, data, monkeypatch, capsys):
+        download(data / "raw", "20261121_0800", claims=RENAMED)
+        run(data)
+        self.fill("Zulu Club", "f3")
+        download(data / "raw", "20261128_0752", claims=CLAIM_ROWS)
+        capsys.readouterr()
+        run(data)
+        assert "0 team id(s) the owner filled carried onto the new list, 1 kept" in capsys.readouterr().out
+        listed = pd.read_csv(lf.TEAM_REVIEW_PATH, dtype=str)
+        assert listed["name"].tolist() == ["Zulu Club"] and listed.loc[0, "fantrax_team_id"] == "f3"
+        monkeypatch.setattr(ln, "REVIEW_PATH", lf.TEAM_REVIEW_PATH)
+        assert ln.main(["--apply"])["owner"] == 1
+        run(data)
+        assert not lf.TEAM_REVIEW_PATH.exists()
+
     def test_a_pick_hint_is_a_team_name_too(self):
         names = TestIds().names()
         names.known = etl.team_names(pd.DataFrame([(k, f, n) for k, (f, n) in TEAMS.items()],

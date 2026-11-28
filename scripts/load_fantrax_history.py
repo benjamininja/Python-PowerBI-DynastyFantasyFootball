@@ -16,7 +16,9 @@ storage seam. It makes no network request.
   (#770). Every name not resolved by a stored name is listed, once, in
   data/review/review_team_names.csv for the owner: the names that need his
   team id first, the taken guesses last. `scripts/load_team_names.py --apply`
-  writes that file into the crosswalk. `--write` refuses while a name
+  writes that file into the crosswalk. A team id the owner filled survives a
+  later run: it is carried onto its name, or its row kept until the
+  crosswalk holds it (#773). `--write` refuses while a name
   resolves only by a guess not yet applied.
 - A team or player still unresolved goes to
   data/review/review_txn_history.csv and is left out. A player is never
@@ -397,10 +399,45 @@ def _read(name):
     return etl.read_table(name) if etl.table_exists(name) else None
 
 
+def owner_filled(names: Names) -> pd.DataFrame:
+    """The rows of the list already on disk with a team id the owner filled
+    (#773): every filled row but a taken guess the loader filled itself, by
+    the test `load_team_names.py --apply` uses. Keyed by the clean name."""
+    if not TEAM_REVIEW_PATH.exists():
+        return pd.DataFrame(columns=etl.TEAM_NAME_REVIEW_COLS)
+    old = pd.read_csv(TEAM_REVIEW_PATH, dtype=str)
+    if any(c not in old.columns for c in etl.TEAM_NAME_REVIEW_COLS):
+        return pd.DataFrame(columns=etl.TEAM_NAME_REVIEW_COLS)
+    old = old[etl.TEAM_NAME_REVIEW_COLS].copy()
+    old["fantrax_team_id"] = old["fantrax_team_id"].fillna("").str.strip()
+    id_of = {key: team_id for team_id, key in names.team_key.items()}
+    guess = (old["reason"] == "guess_90") & (old["best_guess_team_key"].map(id_of) == old["fantrax_team_id"])
+    old = old[(old["fantrax_team_id"] != "") & ~guess]
+    old.index = old["name"].map(etl.clean_team_name)
+    old = old[old.index != ""]
+    return old[~old.index.duplicated(keep="first")]
+
+
 def team_names_review(names: Names) -> None:
     """Write the owner's list of team names (#770) and print its counts.
-    The file is rebuilt on every run; a run with nothing to list removes it."""
+    The file is rebuilt on every run. A team id the owner filled is carried
+    onto its name while the name is still listed, and its row is kept while
+    the crosswalk does not hold it yet (#773). A run with nothing to list or
+    keep removes it."""
+    filled = owner_filled(names)
     frame = names.review_frame()
+    clean = frame["name"].map(etl.clean_team_name)
+    carry = clean.isin(filled.index)
+    frame.loc[carry, "fantrax_team_id"] = clean[carry].map(filled["fantrax_team_id"])
+    held = {name: team_id for name, (team_id, _) in names.known.lookup.items()}
+    stored = filled.index.map(lambda name: held.get(name)).to_numpy() == filled["fantrax_team_id"].to_numpy()
+    keep = filled[~filled.index.isin(set(clean)) & ~stored]
+    need = int((frame["reason"] != "guess_90").sum())
+    if len(keep):
+        keep = keep.assign(rows=pd.to_numeric(keep["rows"], errors="coerce").astype("Int64"),
+                           best_guess_score=pd.to_numeric(keep["best_guess_score"],
+                                                          errors="coerce").astype("Int64"))
+        frame = pd.concat([frame, keep.reset_index(drop=True)], ignore_index=True)
     counts = names.name_counts()
     print(f"[info] team names: {counts['crosswalk']} resolved by the crosswalk, {counts['current']} "
           f"by a current name, {counts['guess']} taken by a guess of {etl.TEAM_NAME_TAKE} or more, "
@@ -408,15 +445,19 @@ def team_names_review(names: Names) -> None:
     if names.stale_aliases:
         print(f"[warn] {names.stale_aliases} crosswalk row(s) name a team id dim_fantasy_teams no "
               f"longer holds -- left out of the lookup")
+    if len(filled):
+        print(f"[info] {TEAM_REVIEW_PATH.name}: {int(carry.sum())} team id(s) the owner filled carried "
+              f"onto the new list, {len(keep)} kept for names no longer listed until the crosswalk "
+              f"holds them")
     if not len(frame):
         TEAM_REVIEW_PATH.unlink(missing_ok=True)
         return
     TEAM_REVIEW_PATH.parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(TEAM_REVIEW_PATH, index=False)
-    by_reason = frame["reason"].value_counts().to_dict()
-    need = int((frame["reason"] != "guess_90").sum())
+    listed = frame.iloc[:len(frame) - len(keep)]
+    by_reason = listed["reason"].value_counts().to_dict()
     print(f"[warn] {TEAM_REVIEW_PATH.name}: {need} name(s) need the owner's team id, "
-          f"{len(frame) - need} taken guess(es) are only for him to look over {by_reason}")
+          f"{len(listed) - need} taken guess(es) are only for him to look over {by_reason}")
 
 
 def pick_gaps(shadow_dir, left_picks: list) -> dict:
