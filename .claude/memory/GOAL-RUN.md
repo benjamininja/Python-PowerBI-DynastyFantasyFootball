@@ -216,6 +216,34 @@ skipped, at its head.
 **Before each merge** the manager reads `main`'s last finished run. Red
 there stops every merge but the fix or the revert.
 
+## Dispatch without the owner's go (trial, to 2026-12-12)
+
+Owner's answer on #746, 2026-11-28 ("Start, same dates"), under
+`session-dispatch`'s one exception (tools PR #303).
+
+- **Tiers named for the exception: low and haiku, from this file's
+  merge day to 2026-12-12.** Every other condition of
+  `session-dispatch`, "Before a dispatch", applies as written, and the
+  owner's invocation of that skill in the session stays required.
+  After 2026-12-12 this line names no tier, and every dispatch keeps
+  the owner's go.
+- **A held ticket** carries the `held` label and a `Held:` line next
+  to its `Tier:` line, giving the reason. Only the planner or the
+  owner sets or removes either. If the two disagree, the ticket counts
+  as held, and the manager tells the planner. The `backlog` label
+  keeps its meaning (parked by the owner's cut) and also means no
+  dispatch without the owner's word. A held or backlog ticket keeps
+  the owner's go.
+- **The record.** The manager names each no-go dispatch in its next
+  report and in its state file, by ticket, and marks any that went
+  wrong: the work outgrew its tier, the planner read a plan breach, a
+  blocking finding was upheld, or the merge was reverted.
+- **The end.** The planner reports the count on #746 by 2026-12-12
+  and asks the owner by button whether the trial becomes standing,
+  runs again or ends.
+
+Medium and high tickets are untouched: each keeps the owner's go.
+
 ## Stages
 
 | Stage | Tier | Tickets, in order | Waits on the owner for |
